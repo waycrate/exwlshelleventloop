@@ -250,6 +250,7 @@ pub enum LayerEvent<'a> {
     RequestMessages(&'a DispatchMessage),
 }
 
+#[derive(Debug)]
 pub enum ReturnData {
     WlBuffer(WlBuffer),
     RequestExist,
