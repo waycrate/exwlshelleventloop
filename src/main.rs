@@ -41,7 +41,7 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
 }
 
 #[derive(Debug, Default)]
-struct SecondState {
+struct WindowState {
     outputs: Vec<wl_output::WlOutput>,
     wl_surface: Option<WlSurface>,
     buffer: Option<WlBuffer>,
@@ -49,7 +49,7 @@ struct SecondState {
     message: Vec<DispatchMessage>,
 }
 
-impl SecondState {
+impl WindowState {
     fn set_anchor(&self, anchor: Anchor) {
         let layer_shell = self.layer_shell.as_ref().unwrap();
         let surface = self.wl_surface.as_ref().unwrap();
@@ -58,7 +58,7 @@ impl SecondState {
     }
 }
 
-impl Dispatch<wl_registry::WlRegistry, ()> for SecondState {
+impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -83,7 +83,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for SecondState {
     }
 }
 
-impl Dispatch<xdg_surface::XdgSurface, ()> for SecondState {
+impl Dispatch<xdg_surface::XdgSurface, ()> for WindowState {
     fn event(
         state: &mut Self,
         xdg_surface: &xdg_surface::XdgSurface,
@@ -103,7 +103,7 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for SecondState {
     }
 }
 
-impl Dispatch<wl_seat::WlSeat, ()> for SecondState {
+impl Dispatch<wl_seat::WlSeat, ()> for WindowState {
     fn event(
         _state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -126,7 +126,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for SecondState {
     }
 }
 
-impl Dispatch<wl_keyboard::WlKeyboard, ()> for SecondState {
+impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -152,7 +152,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for SecondState {
     }
 }
 
-impl Dispatch<wl_pointer::WlPointer, ()> for SecondState {
+impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
     fn event(
         state: &mut Self,
         _proxy: &wl_pointer::WlPointer,
@@ -178,7 +178,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for SecondState {
     }
 }
 
-impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for SecondState {
+impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState {
     fn event(
         state: &mut Self,
         surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -198,16 +198,16 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for SecondState {
     }
 }
 
-delegate_noop!(SecondState: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(SecondState: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(SecondState: ignore WlOutput); // output is need to place layer_shell, although here
+delegate_noop!(WindowState: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(WindowState: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(WindowState: ignore WlOutput); // output is need to place layer_shell, although here
                                               // it is not used
-delegate_noop!(SecondState: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(SecondState: ignore XdgToplevel); // so it is the same with layer_shell, private a
+delegate_noop!(WindowState: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(WindowState: ignore XdgToplevel); // so it is the same with layer_shell, private a
                                                  // place for surface
-delegate_noop!(SecondState: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(SecondState: ignore WlBuffer); // buffer show the picture
-delegate_noop!(SecondState: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
+delegate_noop!(WindowState: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(WindowState: ignore WlBuffer); // buffer show the picture
+delegate_noop!(WindowState: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
                                                       // ext-session-shell
 
 fn main() {
@@ -246,7 +246,7 @@ enum Event<'a> {
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
-        &'a QueueHandle<SecondState>,
+        &'a QueueHandle<WindowState>,
         u32,
         u32,
     ),
@@ -282,7 +282,7 @@ struct EventLoop {
     anchor: Anchor,
     size: (u32, u32),
     exclusive_zone: Option<i32>,
-    state: SecondState,
+    state: WindowState,
 }
 
 impl EventLoop {
@@ -322,7 +322,7 @@ impl Default for EventLoop {
             anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
             size: (100, 100),
             exclusive_zone: None,
-            state: SecondState::default(),
+            state: WindowState::default(),
         }
     }
 }
@@ -330,7 +330,7 @@ impl Default for EventLoop {
 impl EventLoop {
     pub fn running<F>(&mut self, mut event_hander: F)
     where
-        F: FnMut(Event, &mut SecondState) -> ReturnData,
+        F: FnMut(Event, &mut WindowState) -> ReturnData,
     {
         let connection = Connection::connect_to_env().unwrap();
         let (globals, _) = registry_queue_init::<BaseState>(&connection).unwrap(); // We just need the
@@ -341,9 +341,9 @@ impl EventLoop {
                                                                                    // BaseState after
                                                                                    // this anymore
 
-        let mut state = SecondState::default();
+        let mut state = WindowState::default();
 
-        let mut event_queue = connection.new_event_queue::<SecondState>();
+        let mut event_queue = connection.new_event_queue::<WindowState>();
         let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ()).unwrap(); // so the first
