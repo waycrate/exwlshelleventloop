@@ -222,7 +222,7 @@ delegate_noop!(WindowState: ignore ZwlrLayerShellV1); // it is simillar with xdg
                                                       // ext-session-shell
 
 #[derive(Debug)]
-pub enum Event<'a> {
+pub enum LayerEvent<'a> {
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
@@ -256,7 +256,7 @@ pub enum DispatchMessage {
 }
 
 #[derive(Debug)]
-pub struct EventLoop {
+pub struct LayerEventLoop {
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
     anchor: Anchor,
     size: (u32, u32),
@@ -264,7 +264,7 @@ pub struct EventLoop {
     state: WindowState,
 }
 
-impl EventLoop {
+impl LayerEventLoop {
     pub fn new() -> Self {
         Self::default()
     }
@@ -293,9 +293,9 @@ impl EventLoop {
     }
 }
 
-impl Default for EventLoop {
+impl Default for LayerEventLoop {
     fn default() -> Self {
-        EventLoop {
+        LayerEventLoop {
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
             anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
             size: (100, 100),
@@ -305,10 +305,10 @@ impl Default for EventLoop {
     }
 }
 
-impl EventLoop {
+impl LayerEventLoop {
     pub fn running<F>(&mut self, mut event_hander: F)
     where
-        F: FnMut(Event, &mut WindowState) -> ReturnData,
+        F: FnMut(LayerEvent, &mut WindowState) -> ReturnData,
     {
         let connection = Connection::connect_to_env().unwrap();
         let (globals, _) = registry_queue_init::<BaseState>(&connection).unwrap(); // We just need the
@@ -374,7 +374,7 @@ impl EventLoop {
 
         let mut file = tempfile::tempfile().unwrap();
         let ReturnData::WlBuffer(buffer) = event_hander(
-            Event::RequestBuffer(&mut file, &shm, &qh, init_w, init_h),
+            LayerEvent::RequestBuffer(&mut file, &shm, &qh, init_w, init_h),
             &mut self.state,
         ) else {
             panic!("You cannot return this one");
@@ -392,7 +392,7 @@ impl EventLoop {
             std::mem::swap(&mut messages, &mut self.state.message);
             for msg in messages.iter() {
                 if let ReturnData::RequestExist =
-                    event_hander(Event::RequestMessages(msg), &mut self.state)
+                    event_hander(LayerEvent::RequestMessages(msg), &mut self.state)
                 {
                     break 'out;
                 }
