@@ -58,7 +58,8 @@ fn main() {
                 ReturnData::None
             }
         }
-    });
+    })
+    .unwrap();
 }
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {

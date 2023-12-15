@@ -2,7 +2,8 @@ use std::fs::File;
 
 use wayland_client::{
     delegate_noop,
-    globals::{registry_queue_init, GlobalListContents},
+    globals::{registry_queue_init, GlobalListContents, BindError, GlobalError},
+    DispatchError,
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
@@ -15,7 +16,7 @@ use wayland_client::{
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
     },
-    Connection, Dispatch, Proxy, QueueHandle, WEnum,
+    Connection, Dispatch, Proxy, QueueHandle, WEnum, ConnectError,
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel::XdgToplevel};
@@ -23,6 +24,22 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
 };
+
+
+#[derive(Debug, thiserror::Error)]
+pub enum LayerEventError {
+    #[error("connect error")]
+    ConnectError(#[from] ConnectError),
+    #[error("Global Error")]
+    GlobalError(#[from] GlobalError),
+    #[error("Bind Error")]
+    BindError(#[from] BindError),
+    #[error("Error during queue")]
+    DispatchError(#[from] DispatchError),
+    #[error("create file failed")]
+    TempFileCreateFailed(#[from] std::io::Error),
+}
+
 
 pub mod reexport {
     pub use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -306,12 +323,12 @@ impl Default for LayerEventLoop {
 }
 
 impl LayerEventLoop {
-    pub fn running<F>(&mut self, mut event_hander: F)
+    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent, &mut WindowState) -> ReturnData,
     {
-        let connection = Connection::connect_to_env().unwrap();
-        let (globals, _) = registry_queue_init::<BaseState>(&connection).unwrap(); // We just need the
+        let connection = Connection::connect_to_env()?;
+        let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
                                                                                    // global, the
                                                                                    // event_queue is
                                                                                    // not needed, we
@@ -324,19 +341,19 @@ impl LayerEventLoop {
         let mut event_queue = connection.new_event_queue::<WindowState>();
         let qh = event_queue.handle();
 
-        let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ()).unwrap(); // so the first
+        let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
                                                                                         // thing is to
                                                                                         // get WlCompositor
         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                                                // we need to create more
 
-        let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ()).unwrap();
-        globals.bind::<WlSeat, _, _>(&qh, 1..=1, ()).unwrap();
+        let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
+        globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?;
 
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
 
-        event_queue.blocking_dispatch(&mut state).unwrap(); // then make a dispatch
+        event_queue.blocking_dispatch(&mut state)?; // then make a dispatch
 
         // do the step before, you get empty list
 
@@ -372,7 +389,7 @@ impl LayerEventLoop {
         // so because this is just an example, so we just commit it once
         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-        let mut file = tempfile::tempfile().unwrap();
+        let mut file = tempfile::tempfile()?;
         let ReturnData::WlBuffer(buffer) = event_hander(
             LayerEvent::RequestBuffer(&mut file, &shm, &qh, init_w, init_h),
             &mut self.state,
@@ -384,7 +401,7 @@ impl LayerEventLoop {
         state.buffer = Some(buffer);
         self.state = state;
         'out: loop {
-            event_queue.blocking_dispatch(&mut self.state).unwrap();
+            event_queue.blocking_dispatch(&mut self.state)?;
             if self.state.message.is_empty() {
                 continue;
             }
@@ -398,5 +415,6 @@ impl LayerEventLoop {
                 }
             }
         }
+        Ok(())
     }
 }
