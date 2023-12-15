@@ -81,6 +81,7 @@ impl WindowStateUnit {
 #[derive(Debug)]
 pub struct WindowState {
     outputs: Vec<wl_output::WlOutput>,
+    is_signal: bool,
     units: Vec<WindowStateUnit>,
     message: Vec<(Option<usize>, DispatchMessage)>,
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
@@ -92,6 +93,11 @@ pub struct WindowState {
 impl WindowState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_single(mut self, single: bool) -> Self {
+        self.is_signal = single;
+        self
     }
 
     pub fn with_keyboard_interacivity(
@@ -122,6 +128,7 @@ impl Default for WindowState {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
+            is_signal: true,
             units: Vec::new(),
             message: Vec::new(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
@@ -352,8 +359,8 @@ impl WindowState {
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
                                                                                 // thing is to
                                                                                 // get WlCompositor
-        let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                                               // we need to create more
+
+        // we need to create more
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?;
@@ -371,42 +378,82 @@ impl WindowState {
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
-        let layer_shell = globals
-            .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
-            .unwrap();
-        let layer = layer_shell.get_layer_surface(
-            &wl_surface,
-            None,
-            Layer::Top,
-            "nobody".to_owned(),
-            &qh,
-            (),
-        );
-        layer.set_anchor(self.anchor);
-        layer.set_keyboard_interactivity(self.keyboard_interactivity);
-        if let Some((init_w, init_h)) = self.size {
-            layer.set_size(init_w, init_h);
+        if self.is_signal {
+            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+            let layer_shell = globals
+                .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
+                .unwrap();
+            let layer = layer_shell.get_layer_surface(
+                &wl_surface,
+                None,
+                Layer::Top,
+                "nobody".to_owned(),
+                &qh,
+                (),
+            );
+            layer.set_anchor(self.anchor);
+            layer.set_keyboard_interactivity(self.keyboard_interactivity);
+            if let Some((init_w, init_h)) = self.size {
+                layer.set_size(init_w, init_h);
+            }
+
+            if let Some(zone) = self.exclusive_zone {
+                layer.set_exclusive_zone(zone);
+            }
+
+            wl_surface.commit();
+
+            // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+            // and if you need to reconfigure it, you need to commit the wl_surface again
+            // so because this is just an example, so we just commit it once
+            // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+
+            self.units.push(WindowStateUnit {
+                wl_surface,
+                buffer: None,
+                layer_shell: layer,
+            });
+        } else {
+            let displays = self.outputs.clone();
+            for display in displays.iter() {
+                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                let layer_shell = globals
+                    .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
+                    .unwrap();
+                let layer = layer_shell.get_layer_surface(
+                    &wl_surface,
+                    Some(display),
+                    Layer::Top,
+                    "nobody".to_owned(),
+                    &qh,
+                    (),
+                );
+                layer.set_anchor(self.anchor);
+                layer.set_keyboard_interactivity(self.keyboard_interactivity);
+                if let Some((init_w, init_h)) = self.size {
+                    layer.set_size(init_w, init_h);
+                }
+
+                if let Some(zone) = self.exclusive_zone {
+                    layer.set_exclusive_zone(zone);
+                }
+
+                wl_surface.commit();
+
+                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                // and if you need to reconfigure it, you need to commit the wl_surface again
+                // so because this is just an example, so we just commit it once
+                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+
+                self.units.push(WindowStateUnit {
+                    wl_surface,
+                    buffer: None,
+                    layer_shell: layer,
+                });
+            }
         }
-
-        if let Some(zone) = self.exclusive_zone {
-            layer.set_exclusive_zone(zone);
-        }
-
-        wl_surface.commit();
-
-        // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-        // and if you need to reconfigure it, you need to commit the wl_surface again
-        // so because this is just an example, so we just commit it once
-        // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-
-        self.units.push(WindowStateUnit {
-            wl_surface,
-            buffer: None,
-            layer_shell: layer,
-        });
-
         'out: loop {
-            event_queue.blocking_dispatch( self)?;
+            event_queue.blocking_dispatch(self)?;
             if self.message.is_empty() {
                 continue;
             }
@@ -431,17 +478,15 @@ impl WindowState {
                         } else {
                             // TODO:
                         }
-                        let surface = &self.units[0].wl_surface;
+                        let surface = &self.units[index].wl_surface;
 
                         surface.commit();
                     }
                     _ => {
                         let (index_message, msg) = msg;
-                        if let ReturnData::RequestExist = event_hander(
-                            LayerEvent::RequestMessages(msg),
-                            self,
-                            *index_message,
-                        ) {
+                        if let ReturnData::RequestExist =
+                            event_hander(LayerEvent::RequestMessages(msg), self, *index_message)
+                        {
                             break 'out;
                         }
                     }

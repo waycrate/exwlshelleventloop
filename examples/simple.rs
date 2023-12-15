@@ -18,7 +18,8 @@ const ESC_KEY: u32 = 1;
 fn main() {
     let mut ev = WindowState::new()
         .with_size((400, 400))
-        .with_anchor(Anchor::Left)
+        .with_single(false)
+        .with_anchor(Anchor::Right)
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusize_zone(-1);
 
