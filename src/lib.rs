@@ -18,7 +18,6 @@ use wayland_client::{
     ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
 };
 
-use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel::XdgToplevel};
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
@@ -104,26 +103,6 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
         if interface == wl_output::WlOutput::interface().name {
             let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
             state.outputs.push(output);
-        }
-    }
-}
-
-impl Dispatch<xdg_surface::XdgSurface, ()> for WindowState {
-    fn event(
-        state: &mut Self,
-        xdg_surface: &xdg_surface::XdgSurface,
-        event: xdg_surface::Event,
-        _: &(),
-        _: &Connection,
-        _: &wayland_client::QueueHandle<Self>,
-    ) {
-        if let xdg_surface::Event::Configure { serial, .. } = event {
-            xdg_surface.ack_configure(serial);
-            let surface = state.wl_surface.as_ref().unwrap();
-            if let Some(ref buffer) = state.buffer {
-                surface.attach(Some(buffer), 0, 0);
-                surface.commit();
-            }
         }
     }
 }
@@ -231,8 +210,6 @@ delegate_noop!(WindowState: ignore WlSurface); // surface is the base needed to 
 delegate_noop!(WindowState: ignore WlOutput); // output is need to place layer_shell, although here
                                               // it is not used
 delegate_noop!(WindowState: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(WindowState: ignore XdgToplevel); // so it is the same with layer_shell, private a
-                                                 // place for surface
 delegate_noop!(WindowState: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(WindowState: ignore WlBuffer); // buffer show the picture
 delegate_noop!(WindowState: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
