@@ -634,10 +634,6 @@ impl WindowState {
                             }
                             _ => {}
                         }
-                        let Some(index) = index_message else {
-                            continue;
-                        };
-                        self.units[*index].wl_surface.commit();
                     }
                 }
             }
