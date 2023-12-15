@@ -4,11 +4,18 @@ use std::os::fd::AsFd;
 use layershellev::reexport::*;
 use layershellev::*;
 
+const W_KEY: u32 = 17;
+const A_KEY: u32 = 30;
+const S_KEY: u32 = 31;
+const D_KEY: u32 = 32;
+const ESC_KEY: u32 = 1;
+
 fn main() {
     let mut ev = EventLoop::new()
         .with_size((400, 400))
         .with_anchor(Anchor::Left)
-        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive);
+        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
+        .with_exclusize_zone(-1);
 
     ev.running(|event, ev| {
         println!("{:?}", event);
@@ -26,13 +33,15 @@ fn main() {
                     (),
                 ))
             }
-            Event::RequestMessages(DispatchMessage::Button { .. }) => {
-                ev.set_anchor(Anchor::Right);
-                ReturnData::None
-            }
+            Event::RequestMessages(DispatchMessage::Button { .. }) => ReturnData::None,
             Event::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
-                if *key == 1 {
-                    return ReturnData::RequestExist;
+                match *key {
+                    W_KEY => ev.set_anchor(Anchor::Top),
+                    A_KEY => ev.set_anchor(Anchor::Left),
+                    S_KEY => ev.set_anchor(Anchor::Bottom),
+                    D_KEY => ev.set_anchor(Anchor::Right),
+                    ESC_KEY => return ReturnData::RequestExist,
+                    _ => {}
                 }
                 ReturnData::None
             }

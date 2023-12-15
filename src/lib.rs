@@ -287,7 +287,6 @@ impl EventLoop {
         self
     }
 
-    #[allow(unused)]
     pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
         self.exclusive_zone = Some(exclusive_zone);
         self
