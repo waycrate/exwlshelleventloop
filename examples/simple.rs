@@ -18,6 +18,7 @@ const ESC_KEY: u32 = 1;
 fn main() {
     let mut ev = WindowState::new()
         .with_single(false)
+        .with_size((400, 400))
         .with_anchor(Anchor::Right)
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusize_zone(-1);
@@ -42,7 +43,16 @@ fn main() {
                 println!("{width}, {height}");
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::Button { .. }) => ReturnData::None,
+            LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+            LayerEvent::RequestMessages(DispatchMessage::MouseEnter { .. }) => ReturnData::None,
+            LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+                time,
+                surface_x,
+                surface_y,
+            }) => {
+                println!("{time}, {surface_x}, {surface_y}");
+                ReturnData::None
+            }
             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
                 match index {
                     Some(index) => {

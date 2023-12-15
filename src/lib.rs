@@ -81,6 +81,7 @@ impl WindowStateUnit {
 #[derive(Debug)]
 pub struct WindowState {
     outputs: Vec<(u32, wl_output::WlOutput)>,
+    current_surface: Option<WlSurface>,
     is_signal: bool,
     units: Vec<WindowStateUnit>,
     message: Vec<(Option<usize>, DispatchMessage)>,
@@ -128,6 +129,7 @@ impl Default for WindowState {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
+            current_surface: None,
             is_signal: true,
             units: Vec::new(),
             message: Vec::new(),
@@ -146,6 +148,12 @@ impl WindowState {
 
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit> {
         self.units.iter()
+    }
+
+    fn surface_pos(&self) -> Option<usize> {
+        self.units
+            .iter()
+            .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
     }
 }
 
@@ -222,7 +230,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
         } = event
         {
             state.message.push((
-                None,
+                state.surface_pos(),
                 DispatchMessage::KeyBoard {
                     state: keystate,
                     serial,
@@ -243,22 +251,56 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let wl_pointer::Event::Button {
-            state: btnstate,
-            serial,
-            button,
-            time,
-        } = event
-        {
-            state.message.push((
-                None,
-                DispatchMessage::Button {
-                    state: btnstate,
-                    serial,
-                    button,
-                    time,
-                },
-            ));
+        match event {
+            wl_pointer::Event::Button {
+                state: btnstate,
+                serial,
+                button,
+                time,
+            } => {
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessage::MouseButton {
+                        state: btnstate,
+                        serial,
+                        button,
+                        time,
+                    },
+                ));
+            }
+            wl_pointer::Event::Enter {
+                serial,
+                surface,
+                surface_x,
+                surface_y,
+            } => {
+                state.current_surface = Some(surface.clone());
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessage::MouseEnter {
+                        serial,
+                        surface_x,
+                        surface_y,
+                    },
+                ));
+            }
+            wl_pointer::Event::Motion {
+                time,
+                surface_x,
+                surface_y,
+            } => {
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessage::MouseMotion {
+                        time,
+                        surface_x,
+                        surface_y,
+                    },
+                ));
+            }
+            _ => {
+                // TODO: not now
+            }
         }
     }
 }
@@ -326,11 +368,21 @@ pub enum ReturnData {
 #[derive(Debug)]
 pub enum DispatchMessage {
     NewDisplay(WlOutput),
-    Button {
+    MouseButton {
         state: WEnum<ButtonState>,
         serial: u32,
         button: u32,
         time: u32,
+    },
+    MouseEnter {
+        serial: u32,
+        surface_x: f64,
+        surface_y: f64,
+    },
+    MouseMotion {
+        time: u32,
+        surface_x: f64,
+        surface_y: f64,
     },
     KeyBoard {
         state: WEnum<KeyState>,
