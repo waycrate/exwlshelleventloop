@@ -57,6 +57,7 @@ fn main() {
                 }
                 ReturnData::None
             }
+            _ => unreachable!(),
         }
     })
     .unwrap();

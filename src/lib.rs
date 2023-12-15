@@ -2,8 +2,7 @@ use std::fs::File;
 
 use wayland_client::{
     delegate_noop,
-    globals::{registry_queue_init, GlobalListContents, BindError, GlobalError},
-    DispatchError,
+    globals::{registry_queue_init, BindError, GlobalError, GlobalListContents},
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
@@ -16,7 +15,7 @@ use wayland_client::{
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
     },
-    Connection, Dispatch, Proxy, QueueHandle, WEnum, ConnectError,
+    ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
 };
 
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel::XdgToplevel};
@@ -24,7 +23,6 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
 };
-
 
 #[derive(Debug, thiserror::Error)]
 pub enum LayerEventError {
@@ -39,7 +37,6 @@ pub enum LayerEventError {
     #[error("create file failed")]
     TempFileCreateFailed(#[from] std::io::Error),
 }
-
 
 pub mod reexport {
     pub use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -215,13 +212,16 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let zwlr_layer_surface_v1::Event::Configure { serial, .. } = event {
+        if let zwlr_layer_surface_v1::Event::Configure {
+            serial,
+            width,
+            height,
+        } = event
+        {
             surface.ack_configure(serial);
-            let surface = state.wl_surface.as_ref().unwrap();
-            if let Some(ref buffer) = state.buffer {
-                surface.attach(Some(buffer), 0, 0);
-                surface.commit();
-            }
+            state
+                .message
+                .push(DispatchMessage::RefreshSurface { width, height });
         }
     }
 }
@@ -271,13 +271,21 @@ pub enum DispatchMessage {
         key: u32,
         time: u32,
     },
+    RefreshSurface {
+        width: u32,
+        height: u32,
+    },
+    RequestRefresh {
+        width: u32,
+        height: u32,
+    },
 }
 
 #[derive(Debug)]
 pub struct LayerEventLoop {
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
     anchor: Anchor,
-    size: (u32, u32),
+    size: Option<(u32, u32)>,
     exclusive_zone: Option<i32>,
     state: WindowState,
 }
@@ -301,7 +309,7 @@ impl LayerEventLoop {
     }
 
     pub fn with_size(mut self, size: (u32, u32)) -> Self {
-        self.size = size;
+        self.size = Some(size);
         self
     }
 
@@ -316,7 +324,7 @@ impl Default for LayerEventLoop {
         LayerEventLoop {
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
             anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
-            size: (100, 100),
+            size: None,
             exclusive_zone: None,
             state: WindowState::default(),
         }
@@ -330,12 +338,12 @@ impl LayerEventLoop {
     {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
-                                                                                   // global, the
-                                                                                   // event_queue is
-                                                                                   // not needed, we
-                                                                                   // do not need
-                                                                                   // BaseState after
-                                                                                   // this anymore
+                                                                           // global, the
+                                                                           // event_queue is
+                                                                           // not needed, we
+                                                                           // do not need
+                                                                           // BaseState after
+                                                                           // this anymore
 
         let mut state = WindowState::default();
 
@@ -343,8 +351,8 @@ impl LayerEventLoop {
         let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
-                                                                                        // thing is to
-                                                                                        // get WlCompositor
+                                                                                // thing is to
+                                                                                // get WlCompositor
         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                                                // we need to create more
 
@@ -362,7 +370,7 @@ impl LayerEventLoop {
         // or layer_shell or session-shell, then get `surface` from the wl_surface you get before, and
         // set it
         // finally thing to remember is to commit the surface, make the shell to init.
-        let (init_w, init_h) = self.size;
+        //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
         let layer_shell = globals
             .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
@@ -377,7 +385,10 @@ impl LayerEventLoop {
         );
         layer.set_anchor(self.anchor);
         layer.set_keyboard_interactivity(self.keyboard_interactivity);
-        layer.set_size(init_w, init_w);
+        if let Some((init_w, init_h)) = self.size {
+            layer.set_size(init_w, init_h);
+        }
+
         if let Some(zone) = self.exclusive_zone {
             layer.set_exclusive_zone(zone);
         }
@@ -390,16 +401,8 @@ impl LayerEventLoop {
         // so because this is just an example, so we just commit it once
         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-        let mut file = tempfile::tempfile()?;
-        let ReturnData::WlBuffer(buffer) = event_hander(
-            LayerEvent::RequestBuffer(&mut file, &shm, &qh, init_w, init_h),
-            &mut self.state,
-        ) else {
-            panic!("You cannot return this one");
-        };
-
         state.wl_surface = Some(wl_surface);
-        state.buffer = Some(buffer);
+
         self.state = state;
         'out: loop {
             event_queue.blocking_dispatch(&mut self.state)?;
@@ -409,10 +412,31 @@ impl LayerEventLoop {
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut self.state.message);
             for msg in messages.iter() {
-                if let ReturnData::RequestExist =
-                    event_hander(LayerEvent::RequestMessages(msg), &mut self.state)
-                {
-                    break 'out;
+                match msg {
+                    DispatchMessage::RefreshSurface { width, height } => {
+                        if self.state.buffer.is_none() {
+                            let mut file = tempfile::tempfile()?;
+                            let ReturnData::WlBuffer(buffer) = event_hander(
+                                LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
+                                &mut self.state,
+                            ) else {
+                                panic!("You cannot return this one");
+                            };
+                            let surface = self.state.wl_surface.as_ref().unwrap();
+                            surface.attach(Some(&buffer), 0, 0);
+                            self.state.buffer = Some(buffer);
+                        }
+                        let surface = self.state.wl_surface.as_ref().unwrap();
+
+                        surface.commit();
+                    }
+                    _ => {
+                        if let ReturnData::RequestExist =
+                            event_hander(LayerEvent::RequestMessages(msg), &mut self.state)
+                        {
+                            break 'out;
+                        }
+                    }
                 }
             }
         }
