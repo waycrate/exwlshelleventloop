@@ -8,7 +8,7 @@ use wayland_client::{
         wl_compositor::WlCompositor,
         wl_keyboard::{self, KeyState},
         wl_output::{self, WlOutput},
-        wl_pointer::{self, ButtonState},
+        wl_pointer::{self, ButtonState, WlPointer},
         wl_registry,
         wl_seat::{self, WlSeat},
         wl_shm::WlShm,
@@ -245,7 +245,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
 impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
     fn event(
         state: &mut Self,
-        _proxy: &wl_pointer::WlPointer,
+        pointer: &wl_pointer::WlPointer,
         event: <wl_pointer::WlPointer as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
@@ -278,6 +278,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
                 state.message.push((
                     state.surface_pos(),
                     DispatchMessage::MouseEnter {
+                        pointer: pointer.clone(),
                         serial,
                         surface_x,
                         surface_y,
@@ -375,6 +376,7 @@ pub enum DispatchMessage {
         time: u32,
     },
     MouseEnter {
+        pointer: WlPointer,
         serial: u32,
         surface_x: f64,
         surface_y: f64,
