@@ -260,7 +260,7 @@ enum ReturnData {
 }
 
 #[allow(unused)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 enum DispatchMessage {
     Button {
         state: WEnum<ButtonState>,
@@ -410,7 +410,8 @@ impl EventLoop {
             if self.state.message.is_empty() {
                 continue;
             }
-            let messages = self.state.message.clone();
+            let mut messages = Vec::new();
+            std::mem::swap(&mut messages, &mut self.state.message);
             for msg in messages.iter() {
                 if let ReturnData::RequestExist =
                     event_hander(Event::RequestMessages(msg), &mut self.state)
