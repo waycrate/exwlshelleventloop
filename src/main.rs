@@ -6,9 +6,10 @@ use wayland_client::{
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
-        wl_keyboard,
+        wl_keyboard::{self, KeyState},
         wl_output::{self, WlOutput},
-        wl_pointer, wl_registry,
+        wl_pointer::{self, ButtonState},
+        wl_registry,
         wl_seat::{self, WlSeat},
         wl_shm::{self, WlShm},
         wl_shm_pool::WlShmPool,
@@ -39,40 +40,21 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct SecondState {
     outputs: Vec<wl_output::WlOutput>,
-    running: bool,
     wl_surface: Option<WlSurface>,
     buffer: Option<WlBuffer>,
     layer_shell: Option<ZwlrLayerSurfaceV1>,
+    message: Vec<DispatchMessage>,
 }
 
 impl SecondState {
-    fn is_layer_shell(&self) -> bool {
-        self.layer_shell.is_some()
-    }
-
     fn set_anchor(&self, anchor: Anchor) {
-        if !self.is_layer_shell() {
-            return;
-        }
         let layer_shell = self.layer_shell.as_ref().unwrap();
         let surface = self.wl_surface.as_ref().unwrap();
         layer_shell.set_anchor(anchor);
         surface.commit();
-    }
-}
-
-impl Default for SecondState {
-    fn default() -> Self {
-        SecondState {
-            outputs: Vec::new(),
-            running: true,
-            wl_surface: None,
-            buffer: None,
-            layer_shell: None,
-        }
     }
 }
 
@@ -153,10 +135,19 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for SecondState {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key { key, .. } = event {
-            if key == 1 {
-                state.running = false;
-            }
+        if let wl_keyboard::Event::Key {
+            state: keystate,
+            serial,
+            key,
+            time,
+        } = event
+        {
+            state.message.push(DispatchMessage::KeyBoard {
+                state: keystate,
+                serial,
+                key,
+                time,
+            });
         }
     }
 }
@@ -170,8 +161,19 @@ impl Dispatch<wl_pointer::WlPointer, ()> for SecondState {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let wl_pointer::Event::Button { .. } = event {
-            state.set_anchor(Anchor::Bottom);
+        if let wl_pointer::Event::Button {
+            state: btnstate,
+            serial,
+            button,
+            time,
+        } = event
+        {
+            state.message.push(DispatchMessage::Button {
+                state: btnstate,
+                serial,
+                button,
+                time,
+            });
         }
     }
 }
@@ -209,20 +211,31 @@ delegate_noop!(SecondState: ignore ZwlrLayerShellV1); // it is simillar with xdg
                                                       // ext-session-shell
 
 fn main() {
-    let ev = EventLoop {};
-    ev.running(|event| {
-        let Event::RequestBuffer(file, shm, qh, init_w, init_h) = event;
-        draw(file, (init_w, init_h));
-        let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
-        ReturnData::WlBuffer(pool.create_buffer(
-            0,
-            init_w as i32,
-            init_h as i32,
-            (init_w * 4) as i32,
-            wl_shm::Format::Argb8888,
-            &qh,
-            (),
-        ))
+    let mut ev = EventLoop::default();
+    ev.running(|event, ev| match event {
+        Event::RequestBuffer(file, shm, qh, init_w, init_h) => {
+            draw(file, (init_w, init_h));
+            let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
+            ReturnData::WlBuffer(pool.create_buffer(
+                0,
+                init_w as i32,
+                init_h as i32,
+                (init_w * 4) as i32,
+                wl_shm::Format::Argb8888,
+                qh,
+                (),
+            ))
+        }
+        Event::RequestMessages(DispatchMessage::Button { .. }) => {
+            ev.set_anchor(Anchor::Right);
+            ReturnData::None
+        }
+        Event::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
+            if *key == 1 {
+                return ReturnData::RequestExist;
+            }
+            ReturnData::None
+        }
     });
 }
 
@@ -234,18 +247,41 @@ enum Event<'a> {
         u32,
         u32,
     ),
+    RequestMessages(&'a DispatchMessage),
 }
 
 enum ReturnData {
     WlBuffer(WlBuffer),
+    RequestExist,
+    None,
 }
 
-struct EventLoop {}
+#[allow(unused)]
+#[derive(Debug, Clone, Copy)]
+enum DispatchMessage {
+    Button {
+        state: WEnum<ButtonState>,
+        serial: u32,
+        button: u32,
+        time: u32,
+    },
+    KeyBoard {
+        state: WEnum<KeyState>,
+        serial: u32,
+        key: u32,
+        time: u32,
+    },
+}
+
+#[derive(Debug, Default)]
+struct EventLoop {
+    state: SecondState,
+}
 
 impl EventLoop {
-    pub fn running<F>(self, mut event_hander: F)
+    pub fn running<F>(&mut self, mut event_hander: F)
     where
-        F: FnMut(Event) -> ReturnData,
+        F: FnMut(Event, &mut SecondState) -> ReturnData,
     {
         let connection = Connection::connect_to_env().unwrap();
         let (globals, _) = registry_queue_init::<BaseState>(&connection).unwrap(); // We just need the
@@ -307,13 +343,30 @@ impl EventLoop {
         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
         let mut file = tempfile::tempfile().unwrap();
-        let ReturnData::WlBuffer(buffer) =
-            event_hander(Event::RequestBuffer(&mut file, &shm, &qh, init_w, init_h));
+        let ReturnData::WlBuffer(buffer) = event_hander(
+            Event::RequestBuffer(&mut file, &shm, &qh, init_w, init_h),
+            &mut self.state,
+        ) else {
+            panic!("You cannot return this one");
+        };
 
         state.wl_surface = Some(wl_surface);
         state.buffer = Some(buffer);
-        while state.running {
-            event_queue.blocking_dispatch(&mut state).unwrap();
+        self.state = state;
+        'out: loop {
+            event_queue.blocking_dispatch(&mut self.state).unwrap();
+            if self.state.message.is_empty() {
+                continue;
+            }
+            let messages = self.state.message.clone();
+            for msg in messages.iter() {
+                if let ReturnData::RequestExist =
+                    event_hander(Event::RequestMessages(msg), &mut self.state)
+                {
+                    break 'out;
+                }
+            }
+            self.state.message.clear();
         }
     }
 }
