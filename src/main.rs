@@ -419,7 +419,6 @@ impl EventLoop {
                     break 'out;
                 }
             }
-            self.state.message.clear();
         }
     }
 }
