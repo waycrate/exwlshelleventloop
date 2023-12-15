@@ -80,7 +80,7 @@ impl WindowStateUnit {
 
 #[derive(Debug)]
 pub struct WindowState {
-    outputs: Vec<wl_output::WlOutput>,
+    outputs: Vec<(u32, wl_output::WlOutput)>,
     is_signal: bool,
     units: Vec<WindowStateUnit>,
     message: Vec<(Option<usize>, DispatchMessage)>,
@@ -158,18 +158,26 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
         _conn: &Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        let wl_registry::Event::Global {
-            name,
-            interface,
-            version,
-        } = event
-        else {
-            return;
-        };
+        match event {
+            wl_registry::Event::Global {
+                name,
+                interface,
+                version,
+            } => {
+                if interface == wl_output::WlOutput::interface().name {
+                    let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
+                    state.outputs.push((name, output.clone()));
+                    state
+                        .message
+                        .push((None, DispatchMessage::NewDisplay(output)));
+                }
+            }
+            wl_registry::Event::GlobalRemove { name } => {
+                state.outputs.retain(|x| x.0 != name);
+                state.units.retain(|unit| unit.wl_surface.is_alive());
+            }
 
-        if interface == wl_output::WlOutput::interface().name {
-            let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-            state.outputs.push(output);
+            _ => {}
         }
     }
 }
@@ -317,6 +325,7 @@ pub enum ReturnData {
 
 #[derive(Debug)]
 pub enum DispatchMessage {
+    NewDisplay(WlOutput),
     Button {
         state: WEnum<ButtonState>,
         serial: u32,
@@ -415,7 +424,7 @@ impl WindowState {
             });
         } else {
             let displays = self.outputs.clone();
-            for display in displays.iter() {
+            for (_, display) in displays.iter() {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
@@ -451,6 +460,7 @@ impl WindowState {
                     layer_shell: layer,
                 });
             }
+            self.message.clear();
         }
         'out: loop {
             event_queue.blocking_dispatch(self)?;
@@ -481,6 +491,42 @@ impl WindowState {
                         let surface = &self.units[index].wl_surface;
 
                         surface.commit();
+                    }
+                    (_, DispatchMessage::NewDisplay(display)) => {
+                        let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                        let layer_shell = globals
+                            .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
+                            .unwrap();
+                        let layer = layer_shell.get_layer_surface(
+                            &wl_surface,
+                            Some(display),
+                            Layer::Top,
+                            "nobody".to_owned(),
+                            &qh,
+                            (),
+                        );
+                        layer.set_anchor(self.anchor);
+                        layer.set_keyboard_interactivity(self.keyboard_interactivity);
+                        if let Some((init_w, init_h)) = self.size {
+                            layer.set_size(init_w, init_h);
+                        }
+
+                        if let Some(zone) = self.exclusive_zone {
+                            layer.set_exclusive_zone(zone);
+                        }
+
+                        wl_surface.commit();
+
+                        // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                        // and if you need to reconfigure it, you need to commit the wl_surface again
+                        // so because this is just an example, so we just commit it once
+                        // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+
+                        self.units.push(WindowStateUnit {
+                            wl_surface,
+                            buffer: None,
+                            layer_shell: layer,
+                        });
                     }
                     _ => {
                         let (index_message, msg) = msg;
