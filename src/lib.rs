@@ -18,9 +18,15 @@ use wayland_client::{
     ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
 };
 
+use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
+};
+
+use wayland_protocols::wp::cursor_shape::v1::client::{
+    wp_cursor_shape_device_v1::{self, WpCursorShapeDeviceV1},
+    wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -347,6 +353,8 @@ delegate_noop!(WindowState: ignore WlBuffer); // buffer show the picture
 delegate_noop!(WindowState: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
                                                       // ext-session-shell
 
+delegate_noop!(WindowState: ignore WpCursorShapeManagerV1);
+delegate_noop!(WindowState: ignore WpCursorShapeDeviceV1);
 #[derive(Debug)]
 pub enum LayerEvent<'a> {
     RequestBuffer(
@@ -363,6 +371,7 @@ pub enum LayerEvent<'a> {
 pub enum ReturnData {
     WlBuffer(WlBuffer),
     RequestExist,
+    RequestSetCursorShape((String, WlPointer, u32)),
     None,
 }
 
@@ -428,6 +437,10 @@ impl WindowState {
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?;
 
+        let cursor_manager = globals
+            .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())
+            .ok();
+
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
 
@@ -486,7 +499,7 @@ impl WindowState {
                 let layer = layer_shell.get_layer_surface(
                     &wl_surface,
                     Some(display),
-                    Layer::Top,
+                    Layer::Overlay,
                     "nobody".to_owned(),
                     &qh,
                     (),
@@ -557,7 +570,7 @@ impl WindowState {
                         let layer = layer_shell.get_layer_surface(
                             &wl_surface,
                             Some(display),
-                            Layer::Top,
+                            Layer::Overlay,
                             "nobody".to_owned(),
                             &qh,
                             (),
@@ -587,15 +600,58 @@ impl WindowState {
                     }
                     _ => {
                         let (index_message, msg) = msg;
-                        if let ReturnData::RequestExist =
-                            event_hander(LayerEvent::RequestMessages(msg), self, *index_message)
-                        {
-                            break 'out;
+                        match event_hander(LayerEvent::RequestMessages(msg), self, *index_message) {
+                            ReturnData::RequestExist => {
+                                break 'out;
+                            }
+                            ReturnData::RequestSetCursorShape((shape, pointer, serial)) => {
+                                if let Some(ref cursor_manager) = cursor_manager {
+                                    let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                                    device.set_shape(
+                                        serial,
+                                        wp_cursor_shape_device_v1::Shape::Crosshair,
+                                    );
+                                    device.destroy();
+                                } else {
+                                    let Some(cursor_buffer) =
+                                        get_cursor_buffer(&shape, &connection, &shm)
+                                    else {
+                                        eprintln!("Cannot find cursor {shape}");
+                                        continue;
+                                    };
+                                    let cursor_surface = wmcompositer.create_surface(&qh, ());
+                                    cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                                    // and create a surface. if two or more,
+                                    let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                                    pointer.set_cursor(
+                                        serial,
+                                        Some(&cursor_surface),
+                                        hotspot_x as i32,
+                                        hotspot_y as i32,
+                                    );
+                                    cursor_surface.commit();
+                                }
+                            }
+                            _ => {}
                         }
+                        let Some(index) = index_message else {
+                            continue;
+                        };
+                        self.units[*index].wl_surface.commit();
                     }
                 }
             }
         }
         Ok(())
     }
+}
+
+fn get_cursor_buffer(
+    shape: &str,
+    connection: &Connection,
+    shm: &WlShm,
+) -> Option<CursorImageBuffer> {
+    let mut cursor_theme = CursorTheme::load(connection, shm.clone(), 23).ok()?;
+    let cursor = cursor_theme.get_cursor(shape);
+    Some(cursor?[0].clone())
 }
