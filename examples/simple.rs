@@ -16,7 +16,7 @@ const C_KEY: u32 = 46;
 const ESC_KEY: u32 = 1;
 
 fn main() {
-    let mut ev = LayerEventLoop::new()
+    let mut ev = WindowState::new()
         .with_size((400, 400))
         .with_anchor(Anchor::Left)
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)

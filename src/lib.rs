@@ -78,11 +78,58 @@ impl WindowStateUnit {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct WindowState {
     outputs: Vec<wl_output::WlOutput>,
     units: Vec<WindowStateUnit>,
     message: Vec<(Option<usize>, DispatchMessage)>,
+    keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
+    anchor: Anchor,
+    size: Option<(u32, u32)>,
+    exclusive_zone: Option<i32>,
+}
+
+impl WindowState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_keyboard_interacivity(
+        mut self,
+        keyboard_interacivity: zwlr_layer_surface_v1::KeyboardInteractivity,
+    ) -> Self {
+        self.keyboard_interactivity = keyboard_interacivity;
+        self
+    }
+
+    pub fn with_anchor(mut self, anchor: Anchor) -> Self {
+        self.anchor = anchor;
+        self
+    }
+
+    pub fn with_size(mut self, size: (u32, u32)) -> Self {
+        self.size = Some(size);
+        self
+    }
+
+    pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
+        self.exclusive_zone = Some(exclusive_zone);
+        self
+    }
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            outputs: Vec::new(),
+            units: Vec::new(),
+            message: Vec::new(),
+            keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
+            anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
+            size: None,
+            exclusive_zone: None,
+        }
+    }
 }
 
 impl WindowState {
@@ -285,57 +332,7 @@ pub enum DispatchMessage {
     },
 }
 
-#[derive(Debug)]
-pub struct LayerEventLoop {
-    keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
-    anchor: Anchor,
-    size: Option<(u32, u32)>,
-    exclusive_zone: Option<i32>,
-    state: WindowState,
-}
-
-impl LayerEventLoop {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn with_keyboard_interacivity(
-        mut self,
-        keyboard_interacivity: zwlr_layer_surface_v1::KeyboardInteractivity,
-    ) -> Self {
-        self.keyboard_interactivity = keyboard_interacivity;
-        self
-    }
-
-    pub fn with_anchor(mut self, anchor: Anchor) -> Self {
-        self.anchor = anchor;
-        self
-    }
-
-    pub fn with_size(mut self, size: (u32, u32)) -> Self {
-        self.size = Some(size);
-        self
-    }
-
-    pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
-        self.exclusive_zone = Some(exclusive_zone);
-        self
-    }
-}
-
-impl Default for LayerEventLoop {
-    fn default() -> Self {
-        LayerEventLoop {
-            keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
-            anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
-            size: None,
-            exclusive_zone: None,
-            state: WindowState::default(),
-        }
-    }
-}
-
-impl LayerEventLoop {
+impl WindowState {
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent, &mut WindowState, Option<usize>) -> ReturnData,
@@ -348,8 +345,6 @@ impl LayerEventLoop {
                                                                            // do not need
                                                                            // BaseState after
                                                                            // this anymore
-
-        let mut state = WindowState::default();
 
         let mut event_queue = connection.new_event_queue::<WindowState>();
         let qh = event_queue.handle();
@@ -366,7 +361,7 @@ impl LayerEventLoop {
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
 
-        event_queue.blocking_dispatch(&mut state)?; // then make a dispatch
+        event_queue.blocking_dispatch(self)?; // then make a dispatch
 
         // do the step before, you get empty list
 
@@ -404,40 +399,39 @@ impl LayerEventLoop {
         // so because this is just an example, so we just commit it once
         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-        state.units.push(WindowStateUnit {
+        self.units.push(WindowStateUnit {
             wl_surface,
             buffer: None,
             layer_shell: layer,
         });
 
-        self.state = state;
         'out: loop {
-            event_queue.blocking_dispatch(&mut self.state)?;
-            if self.state.message.is_empty() {
+            event_queue.blocking_dispatch( self)?;
+            if self.message.is_empty() {
                 continue;
             }
             let mut messages = Vec::new();
-            std::mem::swap(&mut messages, &mut self.state.message);
+            std::mem::swap(&mut messages, &mut self.message);
             for msg in messages.iter() {
                 match msg {
                     (Some(unit_index), DispatchMessage::RefreshSurface { width, height }) => {
                         let index = *unit_index;
-                        if self.state.units[index].buffer.is_none() {
+                        if self.units[index].buffer.is_none() {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_hander(
                                 LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
-                                &mut self.state,
+                                self,
                                 Some(index),
                             ) else {
                                 panic!("You cannot return this one");
                             };
-                            let surface = &self.state.units[index].wl_surface;
+                            let surface = &self.units[index].wl_surface;
                             surface.attach(Some(&buffer), 0, 0);
-                            self.state.units[index].buffer = Some(buffer);
+                            self.units[index].buffer = Some(buffer);
                         } else {
                             // TODO:
                         }
-                        let surface = &self.state.units[0].wl_surface;
+                        let surface = &self.units[0].wl_surface;
 
                         surface.commit();
                     }
@@ -445,7 +439,7 @@ impl LayerEventLoop {
                         let (index_message, msg) = msg;
                         if let ReturnData::RequestExist = event_hander(
                             LayerEvent::RequestMessages(msg),
-                            &mut self.state,
+                            self,
                             *index_message,
                         ) {
                             break 'out;
