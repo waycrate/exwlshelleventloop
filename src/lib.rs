@@ -493,6 +493,9 @@ impl WindowState {
                         surface.commit();
                     }
                     (_, DispatchMessage::NewDisplay(display)) => {
+                        if self.is_signal {
+                            continue;
+                        }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                         let layer_shell = globals
                             .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
