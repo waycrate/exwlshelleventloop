@@ -38,6 +38,10 @@ fn main() {
                     (),
                 ))
             }
+            LayerEvent::RequestMessages(DispatchMessage::RefreshSurface { width, height }) => {
+                println!("{width}, {height}");
+                ReturnData::None
+            }
             LayerEvent::RequestMessages(DispatchMessage::Button { .. }) => ReturnData::None,
             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
                 match *key {
