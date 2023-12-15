@@ -22,7 +22,7 @@ fn main() {
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusize_zone(-1);
 
-    ev.running(|event, ev| {
+    ev.running(|event, ev, index| {
         println!("{:?}", event);
         match event {
             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
@@ -44,21 +44,46 @@ fn main() {
             }
             LayerEvent::RequestMessages(DispatchMessage::Button { .. }) => ReturnData::None,
             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
-                match *key {
-                    Q_KEY => ev.set_anchor(Anchor::Top | Anchor::Left),
-                    W_KEY => ev.set_anchor(Anchor::Top),
-                    E_KEY => ev.set_anchor(Anchor::Top | Anchor::Right),
-                    A_KEY => ev.set_anchor(Anchor::Left),
-                    S_KEY => {
-                        ev.set_anchor(Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom)
+                match index {
+                    Some(index) => {
+                        let ev_unit = ev.get_unit(index);
+                        match *key {
+                            Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
+                            W_KEY => ev_unit.set_anchor(Anchor::Top),
+                            E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
+                            A_KEY => ev_unit.set_anchor(Anchor::Left),
+                            S_KEY => ev_unit.set_anchor(
+                                Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
+                            ),
+                            D_KEY => ev_unit.set_anchor(Anchor::Right),
+                            Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
+                            X_KEY => ev_unit.set_anchor(Anchor::Bottom),
+                            C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
+                            ESC_KEY => return ReturnData::RequestExist,
+                            _ => {}
+                        }
                     }
-                    D_KEY => ev.set_anchor(Anchor::Right),
-                    Z_KEY => ev.set_anchor(Anchor::Left | Anchor::Bottom),
-                    X_KEY => ev.set_anchor(Anchor::Bottom),
-                    C_KEY => ev.set_anchor(Anchor::Bottom | Anchor::Right),
-                    ESC_KEY => return ReturnData::RequestExist,
-                    _ => {}
-                }
+                    None => {
+                        for ev_unit in ev.get_unit_iter() {
+                            match *key {
+                                Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
+                                W_KEY => ev_unit.set_anchor(Anchor::Top),
+                                E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
+                                A_KEY => ev_unit.set_anchor(Anchor::Left),
+                                S_KEY => ev_unit.set_anchor(
+                                    Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
+                                ),
+                                D_KEY => ev_unit.set_anchor(Anchor::Right),
+                                Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
+                                X_KEY => ev_unit.set_anchor(Anchor::Bottom),
+                                C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
+                                ESC_KEY => return ReturnData::RequestExist,
+                                _ => {}
+                            }
+                        }
+                    }
+                };
+
                 ReturnData::None
             }
             _ => unreachable!(),

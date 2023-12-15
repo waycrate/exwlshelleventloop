@@ -64,21 +64,34 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
     }
 }
 
+#[derive(Debug)]
+pub struct WindowStateUnit {
+    wl_surface: WlSurface,
+    buffer: Option<WlBuffer>,
+    layer_shell: ZwlrLayerSurfaceV1,
+}
+
+impl WindowStateUnit {
+    pub fn set_anchor(&self, anchor: Anchor) {
+        self.layer_shell.set_anchor(anchor);
+        self.wl_surface.commit();
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct WindowState {
     outputs: Vec<wl_output::WlOutput>,
-    wl_surface: Option<WlSurface>,
-    buffer: Option<WlBuffer>,
-    layer_shell: Option<ZwlrLayerSurfaceV1>,
-    message: Vec<DispatchMessage>,
+    units: Vec<WindowStateUnit>,
+    message: Vec<(Option<usize>, DispatchMessage)>,
 }
 
 impl WindowState {
-    pub fn set_anchor(&self, anchor: Anchor) {
-        let layer_shell = self.layer_shell.as_ref().unwrap();
-        let surface = self.wl_surface.as_ref().unwrap();
-        layer_shell.set_anchor(anchor);
-        surface.commit();
+    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit {
+        &mut self.units[index]
+    }
+
+    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit> {
+        self.units.iter()
     }
 }
 
@@ -146,12 +159,15 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
             time,
         } = event
         {
-            state.message.push(DispatchMessage::KeyBoard {
-                state: keystate,
-                serial,
-                key,
-                time,
-            });
+            state.message.push((
+                None,
+                DispatchMessage::KeyBoard {
+                    state: keystate,
+                    serial,
+                    key,
+                    time,
+                },
+            ));
         }
     }
 }
@@ -172,12 +188,15 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
             time,
         } = event
         {
-            state.message.push(DispatchMessage::Button {
-                state: btnstate,
-                serial,
-                button,
-                time,
-            });
+            state.message.push((
+                None,
+                DispatchMessage::Button {
+                    state: btnstate,
+                    serial,
+                    button,
+                    time,
+                },
+            ));
         }
     }
 }
@@ -198,9 +217,17 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState {
         } = event
         {
             surface.ack_configure(serial);
-            state
-                .message
-                .push(DispatchMessage::RefreshSurface { width, height });
+            let Some(unit_index) = state
+                .units
+                .iter()
+                .position(|unit| unit.layer_shell == *surface)
+            else {
+                return;
+            };
+            state.message.push((
+                Some(unit_index),
+                DispatchMessage::RefreshSurface { width, height },
+            ));
         }
     }
 }
@@ -311,7 +338,7 @@ impl Default for LayerEventLoop {
 impl LayerEventLoop {
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent, &mut WindowState) -> ReturnData,
+        F: FnMut(LayerEvent, &mut WindowState, Option<usize>) -> ReturnData,
     {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
@@ -369,7 +396,6 @@ impl LayerEventLoop {
         if let Some(zone) = self.exclusive_zone {
             layer.set_exclusive_zone(zone);
         }
-        state.layer_shell = Some(layer);
 
         wl_surface.commit();
 
@@ -378,7 +404,11 @@ impl LayerEventLoop {
         // so because this is just an example, so we just commit it once
         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-        state.wl_surface = Some(wl_surface);
+        state.units.push(WindowStateUnit {
+            wl_surface,
+            buffer: None,
+            layer_shell: layer,
+        });
 
         self.state = state;
         'out: loop {
@@ -390,27 +420,34 @@ impl LayerEventLoop {
             std::mem::swap(&mut messages, &mut self.state.message);
             for msg in messages.iter() {
                 match msg {
-                    DispatchMessage::RefreshSurface { width, height } => {
-                        if self.state.buffer.is_none() {
+                    (Some(unit_index), DispatchMessage::RefreshSurface { width, height }) => {
+                        let index = *unit_index;
+                        if self.state.units[index].buffer.is_none() {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_hander(
                                 LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
                                 &mut self.state,
+                                Some(index),
                             ) else {
                                 panic!("You cannot return this one");
                             };
-                            let surface = self.state.wl_surface.as_ref().unwrap();
+                            let surface = &self.state.units[index].wl_surface;
                             surface.attach(Some(&buffer), 0, 0);
-                            self.state.buffer = Some(buffer);
+                            self.state.units[index].buffer = Some(buffer);
+                        } else {
+                            // TODO:
                         }
-                        let surface = self.state.wl_surface.as_ref().unwrap();
+                        let surface = &self.state.units[0].wl_surface;
 
                         surface.commit();
                     }
                     _ => {
-                        if let ReturnData::RequestExist =
-                            event_hander(LayerEvent::RequestMessages(msg), &mut self.state)
-                        {
+                        let (index_message, msg) = msg;
+                        if let ReturnData::RequestExist = event_hander(
+                            LayerEvent::RequestMessages(msg),
+                            &mut self.state,
+                            *index_message,
+                        ) {
                             break 'out;
                         }
                     }
