@@ -211,7 +211,10 @@ delegate_noop!(SecondState: ignore ZwlrLayerShellV1); // it is simillar with xdg
                                                       // ext-session-shell
 
 fn main() {
-    let mut ev = EventLoop::default();
+    let mut ev = EventLoop::new()
+        .with_size((400, 400))
+        .with_anchor(Anchor::Left)
+        .with_keyboard_interacivity(zwlr_layer_surface_v1::KeyboardInteractivity::Exclusive);
     ev.running(|event, ev| match event {
         Event::RequestBuffer(file, shm, qh, init_w, init_h) => {
             draw(file, (init_w, init_h));
@@ -273,9 +276,55 @@ enum DispatchMessage {
     },
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct EventLoop {
+    keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
+    anchor: Anchor,
+    size: (u32, u32),
+    exclusive_zone: Option<i32>,
     state: SecondState,
+}
+
+impl EventLoop {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_keyboard_interacivity(
+        mut self,
+        keyboard_interacivity: zwlr_layer_surface_v1::KeyboardInteractivity,
+    ) -> Self {
+        self.keyboard_interactivity = keyboard_interacivity;
+        self
+    }
+
+    pub fn with_anchor(mut self, anchor: Anchor) -> Self {
+        self.anchor = anchor;
+        self
+    }
+
+    pub fn with_size(mut self, size: (u32, u32)) -> Self {
+        self.size = size;
+        self
+    }
+
+    #[allow(unused)]
+    pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
+        self.exclusive_zone = Some(exclusive_zone);
+        self
+    }
+}
+
+impl Default for EventLoop {
+    fn default() -> Self {
+        EventLoop {
+            keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
+            anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
+            size: (100, 100),
+            exclusive_zone: None,
+            state: SecondState::default(),
+        }
+    }
 }
 
 impl EventLoop {
@@ -317,7 +366,7 @@ impl EventLoop {
         // or layer_shell or session-shell, then get `surface` from the wl_surface you get before, and
         // set it
         // finally thing to remember is to commit the surface, make the shell to init.
-        let (init_w, init_h) = (320, 240);
+        let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
         let layer_shell = globals
             .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
@@ -330,9 +379,12 @@ impl EventLoop {
             &qh,
             (),
         );
-        layer.set_anchor(Anchor::Bottom | Anchor::Right | Anchor::Left | Anchor::Top);
-        layer.set_keyboard_interactivity(zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand);
+        layer.set_anchor(self.anchor);
+        layer.set_keyboard_interactivity(self.keyboard_interactivity);
         layer.set_size(init_w, init_w);
+        if let Some(zone) = self.exclusive_zone {
+            layer.set_exclusive_zone(zone);
+        }
         state.layer_shell = Some(layer);
 
         wl_surface.commit();
