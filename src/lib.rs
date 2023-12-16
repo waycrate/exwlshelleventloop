@@ -599,9 +599,9 @@ pub enum DispatchMessage {
     },
 }
 
-impl Into<DispatchMessage> for DispatchMessageInner {
-    fn into(self) -> DispatchMessage {
-        match self {
+impl From<DispatchMessageInner> for DispatchMessage {
+    fn from(val: DispatchMessageInner) -> Self {
+        match val {
             DispatchMessageInner::NewDisplay(_) => unimplemented!(),
             DispatchMessageInner::MouseButton {
                 state,
