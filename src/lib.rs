@@ -117,7 +117,7 @@ pub struct WindowState {
     current_surface: Option<WlSurface>,
     is_signal: bool,
     units: Vec<WindowStateUnit>,
-    message: Vec<(Option<usize>, DispatchMessage)>,
+    message: Vec<(Option<usize>, DispatchMessageInner)>,
 
     // base managers
     seat: Option<WlSeat>,
@@ -251,7 +251,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
                     state.outputs.push((name, output.clone()));
                     state
                         .message
-                        .push((None, DispatchMessage::NewDisplay(output)));
+                        .push((None, DispatchMessageInner::NewDisplay(output)));
                 }
             }
             wl_registry::Event::GlobalRemove { name } => {
@@ -308,7 +308,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
         {
             state.message.push((
                 state.surface_pos(),
-                DispatchMessage::KeyBoard {
+                DispatchMessageInner::KeyBoard {
                     state: keystate,
                     serial,
                     key,
@@ -338,7 +338,7 @@ impl Dispatch<wl_touch::WlTouch, ()> for WindowState {
                 y,
             } => state.message.push((
                 state.get_pos_from_surface(&surface),
-                DispatchMessage::TouchDown {
+                DispatchMessageInner::TouchDown {
                     serial,
                     time,
                     id,
@@ -348,10 +348,10 @@ impl Dispatch<wl_touch::WlTouch, ()> for WindowState {
             )),
             wl_touch::Event::Up { serial, time, id } => state
                 .message
-                .push((None, DispatchMessage::TouchUp { serial, time, id })),
+                .push((None, DispatchMessageInner::TouchUp { serial, time, id })),
             wl_touch::Event::Motion { time, id, x, y } => state
                 .message
-                .push((None, DispatchMessage::TouchMotion { time, id, x, y })),
+                .push((None, DispatchMessageInner::TouchMotion { time, id, x, y })),
             _ => {}
         }
     }
@@ -375,7 +375,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
             } => {
                 state.message.push((
                     state.surface_pos(),
-                    DispatchMessage::MouseButton {
+                    DispatchMessageInner::MouseButton {
                         state: btnstate,
                         serial,
                         button,
@@ -392,7 +392,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
                 state.current_surface = Some(surface.clone());
                 state.message.push((
                     state.surface_pos(),
-                    DispatchMessage::MouseEnter {
+                    DispatchMessageInner::MouseEnter {
                         pointer: pointer.clone(),
                         serial,
                         surface_x,
@@ -407,7 +407,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
             } => {
                 state.message.push((
                     state.surface_pos(),
-                    DispatchMessage::MouseMotion {
+                    DispatchMessageInner::MouseMotion {
                         time,
                         surface_x,
                         surface_y,
@@ -446,7 +446,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState {
             };
             state.message.push((
                 Some(unit_index),
-                DispatchMessage::RefreshSurface { width, height },
+                DispatchMessageInner::RefreshSurface { width, height },
             ));
         }
     }
@@ -491,8 +491,9 @@ pub enum ReturnData {
     None,
 }
 
-#[derive(Debug)]
-pub enum DispatchMessage {
+#[allow(unused)]
+#[derive(Debug, Clone)]
+enum DispatchMessageInner {
     NewDisplay(WlOutput),
     MouseButton {
         state: WEnum<ButtonState>,
@@ -543,6 +544,132 @@ pub enum DispatchMessage {
         width: u32,
         height: u32,
     },
+}
+
+#[derive(Debug)]
+pub enum DispatchMessage {
+    MouseButton {
+        state: WEnum<ButtonState>,
+        serial: u32,
+        button: u32,
+        time: u32,
+    },
+    MouseEnter {
+        pointer: WlPointer,
+        serial: u32,
+        surface_x: f64,
+        surface_y: f64,
+    },
+    MouseMotion {
+        time: u32,
+        surface_x: f64,
+        surface_y: f64,
+    },
+    TouchDown {
+        serial: u32,
+        time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchUp {
+        serial: u32,
+        time: u32,
+        id: i32,
+    },
+    TouchMotion {
+        time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    KeyBoard {
+        state: WEnum<KeyState>,
+        serial: u32,
+        key: u32,
+        time: u32,
+    },
+    RefreshSurface {
+        width: u32,
+        height: u32,
+    },
+    RequestRefresh {
+        width: u32,
+        height: u32,
+    },
+}
+
+impl Into<DispatchMessage> for DispatchMessageInner {
+    fn into(self) -> DispatchMessage {
+        match self {
+            DispatchMessageInner::NewDisplay(_) => unimplemented!(),
+            DispatchMessageInner::MouseButton {
+                state,
+                serial,
+                button,
+                time,
+            } => DispatchMessage::MouseButton {
+                state,
+                serial,
+                button,
+                time,
+            },
+            DispatchMessageInner::MouseEnter {
+                pointer,
+                serial,
+                surface_x,
+                surface_y,
+            } => DispatchMessage::MouseEnter {
+                pointer,
+                serial,
+                surface_x,
+                surface_y,
+            },
+            DispatchMessageInner::MouseMotion {
+                time,
+                surface_x,
+                surface_y,
+            } => DispatchMessage::MouseMotion {
+                time,
+                surface_x,
+                surface_y,
+            },
+            DispatchMessageInner::TouchDown {
+                serial,
+                time,
+                id,
+                x,
+                y,
+            } => DispatchMessage::TouchDown {
+                serial,
+                time,
+                id,
+                x,
+                y,
+            },
+            DispatchMessageInner::TouchUp { serial, time, id } => {
+                DispatchMessage::TouchUp { serial, time, id }
+            }
+            DispatchMessageInner::TouchMotion { time, id, x, y } => {
+                DispatchMessage::TouchMotion { time, id, x, y }
+            }
+            DispatchMessageInner::KeyBoard {
+                state,
+                serial,
+                key,
+                time,
+            } => DispatchMessage::KeyBoard {
+                state,
+                serial,
+                key,
+                time,
+            },
+            DispatchMessageInner::RequestRefresh { width, height } => {
+                DispatchMessage::RequestRefresh { width, height }
+            }
+            DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
+        }
+    }
 }
 
 impl WindowState {
@@ -698,7 +825,7 @@ impl WindowState {
             std::mem::swap(&mut messages, &mut self.message);
             for msg in messages.iter() {
                 match msg {
-                    (Some(unit_index), DispatchMessage::RefreshSurface { width, height }) => {
+                    (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
                         let index = *unit_index;
                         if self.units[index].buffer.is_none() {
                             let mut file = tempfile::tempfile()?;
@@ -719,7 +846,7 @@ impl WindowState {
 
                         surface.commit();
                     }
-                    (_, DispatchMessage::NewDisplay(display)) => {
+                    (_, DispatchMessageInner::NewDisplay(display)) => {
                         if self.is_signal {
                             continue;
                         }
@@ -764,7 +891,9 @@ impl WindowState {
                     }
                     _ => {
                         let (index_message, msg) = msg;
-                        match event_hander(LayerEvent::RequestMessages(msg), self, *index_message) {
+                        let msg: DispatchMessage = msg.clone().into();
+                        match event_hander(LayerEvent::RequestMessages(&msg), self, *index_message)
+                        {
                             ReturnData::RequestExist => {
                                 break 'out;
                             }
