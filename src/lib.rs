@@ -14,6 +14,7 @@ use wayland_client::{
         wl_shm::WlShm,
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
+        wl_touch,
     },
     ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
 };
@@ -64,7 +65,14 @@ pub mod reexport {
         };
     }
     pub mod wayland_client {
-        pub use wayland_client::{globals::GlobalList, protocol::wl_seat::WlSeat, QueueHandle};
+        pub use wayland_client::{
+            globals::GlobalList,
+            protocol::{
+                wl_pointer::{self, ButtonState},
+                wl_seat::WlSeat,
+            },
+            QueueHandle, WEnum,
+        };
     }
 }
 
@@ -133,6 +141,7 @@ impl WindowState {
 
 impl WindowState {
     pub fn new(namespace: &str) -> Self {
+        assert_ne!(namespace, "");
         Self {
             namespace: namespace.to_owned(),
             ..Default::default()
@@ -214,6 +223,12 @@ impl WindowState {
             .iter()
             .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
     }
+
+    fn get_pos_from_surface(&self, surface: &WlSurface) -> Option<usize> {
+        self.units
+            .iter()
+            .position(|unit| &unit.wl_surface == surface)
+    }
 }
 
 impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
@@ -268,6 +283,9 @@ impl Dispatch<wl_seat::WlSeat, ()> for WindowState {
             if capabilities.contains(wl_seat::Capability::Pointer) {
                 seat.get_pointer(qh, ());
             }
+            if capabilities.contains(wl_seat::Capability::Touch) {
+                seat.get_touch(qh, ());
+            }
         }
     }
 }
@@ -297,6 +315,44 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
                     time,
                 },
             ));
+        }
+    }
+}
+
+impl Dispatch<wl_touch::WlTouch, ()> for WindowState {
+    fn event(
+        state: &mut Self,
+        _proxy: &wl_touch::WlTouch,
+        event: <wl_touch::WlTouch as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        match event {
+            wl_touch::Event::Down {
+                serial,
+                time,
+                surface,
+                id,
+                x,
+                y,
+            } => state.message.push((
+                state.get_pos_from_surface(&surface),
+                DispatchMessage::TouchDown {
+                    serial,
+                    time,
+                    id,
+                    x,
+                    y,
+                },
+            )),
+            wl_touch::Event::Up { serial, time, id } => state
+                .message
+                .push((None, DispatchMessage::TouchUp { serial, time, id })),
+            wl_touch::Event::Motion { time, id, x, y } => state
+                .message
+                .push((None, DispatchMessage::TouchMotion { time, id, x, y })),
+            _ => {}
         }
     }
 }
@@ -454,6 +510,24 @@ pub enum DispatchMessage {
         time: u32,
         surface_x: f64,
         surface_y: f64,
+    },
+    TouchDown {
+        serial: u32,
+        time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchUp {
+        serial: u32,
+        time: u32,
+        id: i32,
+    },
+    TouchMotion {
+        time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
     },
     KeyBoard {
         state: WEnum<KeyState>,

@@ -121,7 +121,7 @@ fn main() {
 
                 ReturnData::None
             }
-            _ => unreachable!(),
+            _ => ReturnData::None,
         }
     })
     .unwrap();
