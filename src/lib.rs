@@ -152,7 +152,7 @@ impl<T: Debug> WindowStateUnit<T> {
 pub struct WindowState<T: Debug> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
-    is_signal: bool,
+    is_single: bool,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<usize>, DispatchMessageInner)>,
 
@@ -201,7 +201,7 @@ impl<T: Debug> WindowState<T> {
     }
 
     pub fn with_single(mut self, single: bool) -> Self {
-        self.is_signal = single;
+        self.is_single = single;
         self
     }
 
@@ -244,7 +244,7 @@ impl<T: Debug> Default for WindowState<T> {
         Self {
             outputs: Vec::new(),
             current_surface: None,
-            is_signal: true,
+            is_single: true,
             units: Vec::new(),
             message: Vec::new(),
 
@@ -590,7 +590,7 @@ impl<T: Debug + 'static> WindowState<T> {
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
-        if self.is_signal {
+        if self.is_single {
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
             let layer_shell = globals
                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
@@ -708,7 +708,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         surface.commit();
                     }
                     (_, DispatchMessageInner::NewDisplay(display)) => {
-                        if self.is_signal {
+                        if self.is_single {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
