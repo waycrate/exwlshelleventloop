@@ -2,7 +2,7 @@ use std::fs::File;
 
 use wayland_client::{
     delegate_noop,
-    globals::{registry_queue_init, BindError, GlobalError, GlobalListContents},
+    globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
@@ -29,6 +29,11 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
 };
 
+use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
+    zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
+    zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
+};
+
 #[derive(Debug, thiserror::Error)]
 pub enum LayerEventError {
     #[error("connect error")]
@@ -51,6 +56,15 @@ pub mod reexport {
     pub mod wl_shm {
         pub use wayland_client::protocol::wl_shm::Format;
         pub use wayland_client::protocol::wl_shm::WlShm;
+    }
+    pub mod zwp_virtual_keyboard_v1 {
+        pub use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
+            zwp_virtual_keyboard_manager_v1::{self, ZwpVirtualKeyboardManagerV1},
+            zwp_virtual_keyboard_v1::{self, ZwpVirtualKeyboardV1},
+        };
+    }
+    pub mod wayland_client {
+        pub use wayland_client::{globals::GlobalList, QueueHandle};
     }
 }
 
@@ -362,8 +376,14 @@ delegate_noop!(WindowState: ignore ZwlrLayerShellV1); // it is simillar with xdg
 
 delegate_noop!(WindowState: ignore WpCursorShapeManagerV1);
 delegate_noop!(WindowState: ignore WpCursorShapeDeviceV1);
+
+delegate_noop!(WindowState: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(WindowState: ignore ZwpVirtualKeyboardManagerV1);
+
 #[derive(Debug)]
 pub enum LayerEvent<'a> {
+    InitRequest,
+    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState>),
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
@@ -374,9 +394,10 @@ pub enum LayerEvent<'a> {
     RequestMessages(&'a DispatchMessage),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ReturnData {
     WlBuffer(WlBuffer),
+    RequestBind,
     RequestExist,
     RequestSetCursorShape((String, WlPointer, u32)),
     None,
@@ -452,6 +473,24 @@ impl WindowState {
                                                             // register this
 
         event_queue.blocking_dispatch(self)?; // then make a dispatch
+
+        let mut init_event = None;
+
+        while !matches!(init_event, Some(ReturnData::None)) {
+            match init_event {
+                None => {
+                    init_event = Some(event_hander(LayerEvent::InitRequest, self, None));
+                }
+                Some(ReturnData::RequestBind) => {
+                    init_event = Some(event_hander(
+                        LayerEvent::BindProvide(&globals, &qh),
+                        self,
+                        None,
+                    ));
+                }
+                _ => panic!("Not privide server here"),
+            }
+        }
 
         // do the step before, you get empty list
 

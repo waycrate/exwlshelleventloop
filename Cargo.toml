@@ -21,3 +21,5 @@ wayland-cursor = "0.31.0"
 wayland-protocols-wlr = { version = "0.2.0", default-features = false, features = [
 	"client",
 ] }
+
+wayland-protocols-misc = { version = "0.2.0", features = ["client"] }

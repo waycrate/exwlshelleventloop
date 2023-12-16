@@ -23,9 +23,26 @@ fn main() {
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusize_zone(-1);
 
+    let mut virtual_keyboard_manager = None;
     ev.running(|event, ev, index| {
         println!("{:?}", event);
         match event {
+            // NOTE: this will send when init, you can request bind extra object from here
+            LayerEvent::InitRequest => ReturnData::RequestBind,
+            LayerEvent::BindProvide(globals, qh) => {
+                // NOTE: you can get implied wayland object from here
+                virtual_keyboard_manager = Some(
+                    globals
+                        .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                            qh,
+                            1..=1,
+                            (),
+                        )
+                        .unwrap(),
+                );
+                println!("{:?}", virtual_keyboard_manager);
+                ReturnData::None
+            }
             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
                 draw(file, (init_w, init_h));
                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
@@ -46,7 +63,11 @@ fn main() {
             LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
             LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
                 serial, pointer, ..
-            }) => ReturnData::RequestSetCursorShape(("crosshair".to_owned(), pointer.clone(), *serial)),
+            }) => ReturnData::RequestSetCursorShape((
+                "crosshair".to_owned(),
+                pointer.clone(),
+                *serial,
+            )),
             LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
                 surface_x,
