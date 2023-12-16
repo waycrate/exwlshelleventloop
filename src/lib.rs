@@ -111,6 +111,9 @@ pub struct WindowState {
     units: Vec<WindowStateUnit>,
     message: Vec<(Option<usize>, DispatchMessage)>,
 
+    // base managers
+    seat: Option<WlSeat>,
+
     // states
     namespace: String,
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
@@ -119,6 +122,13 @@ pub struct WindowState {
     size: Option<(u32, u32)>,
     exclusive_zone: Option<i32>,
     margin: Option<(i32, i32, i32, i32)>,
+}
+
+impl WindowState {
+    /// get a seat from state
+    pub fn get_seat(&self) -> &WlSeat {
+        self.seat.as_ref().unwrap()
+    }
 }
 
 impl WindowState {
@@ -176,6 +186,9 @@ impl Default for WindowState {
             is_signal: true,
             units: Vec::new(),
             message: Vec::new(),
+
+            seat: None,
+
             namespace: "".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
             layer: Layer::Overlay,
@@ -482,7 +495,7 @@ impl WindowState {
         // we need to create more
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
-        globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?;
+        self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
 
         let cursor_manager = globals
             .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())
