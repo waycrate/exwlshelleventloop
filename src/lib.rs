@@ -91,6 +91,9 @@ pub struct WindowState {
     is_signal: bool,
     units: Vec<WindowStateUnit>,
     message: Vec<(Option<usize>, DispatchMessage)>,
+
+    // states
+    namespace: String,
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
     anchor: Anchor,
     size: Option<(u32, u32)>,
@@ -98,8 +101,11 @@ pub struct WindowState {
 }
 
 impl WindowState {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(namespace: &str) -> Self {
+        Self {
+            namespace: namespace.to_owned(),
+            ..Default::default()
+        }
     }
 
     pub fn with_single(mut self, single: bool) -> Self {
@@ -139,6 +145,7 @@ impl Default for WindowState {
             is_signal: true,
             units: Vec::new(),
             message: Vec::new(),
+            namespace: "".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
             anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
             size: None,
@@ -463,7 +470,7 @@ impl WindowState {
                 &wl_surface,
                 None,
                 Layer::Top,
-                "nobody".to_owned(),
+                self.namespace.clone(),
                 &qh,
                 (),
             );
@@ -500,7 +507,7 @@ impl WindowState {
                     &wl_surface,
                     Some(display),
                     Layer::Overlay,
-                    "nobody".to_owned(),
+                    self.namespace.clone(),
                     &qh,
                     (),
                 );
@@ -571,7 +578,7 @@ impl WindowState {
                             &wl_surface,
                             Some(display),
                             Layer::Overlay,
-                            "nobody".to_owned(),
+                            self.namespace.clone(),
                             &qh,
                             (),
                         );
