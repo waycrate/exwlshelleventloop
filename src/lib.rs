@@ -74,9 +74,9 @@ pub mod reexport {
         pub use wayland_client::{
             globals::GlobalList,
             protocol::{
+                wl_keyboard::{self, KeyState},
                 wl_pointer::{self, ButtonState},
                 wl_seat::WlSeat,
-                wl_keyboard::{self, KeyState},
             },
             QueueHandle, WEnum,
         };
@@ -102,6 +102,7 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
 #[derive(Debug)]
 pub struct WindowStateUnit<T: Debug> {
     wl_surface: WlSurface,
+    size: (u32, u32),
     buffer: Option<WlBuffer>,
     layer_shell: ZwlrLayerSurfaceV1,
     binding: Option<T>,
@@ -136,7 +137,13 @@ impl<T: Debug> WindowStateUnit<T> {
         self.binding.as_mut()
     }
 
-    pub fn request_commit(&self) {
+    pub fn get_size(&self) -> (u32, u32) {
+        self.size
+    }
+
+    pub fn request_refresh(&self, (width, height): (i32, i32)) {
+        self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
+        self.wl_surface.damage(0, 0, width, height);
         self.wl_surface.commit();
     }
 }
@@ -489,6 +496,7 @@ impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Windo
         } = event
         {
             surface.ack_configure(serial);
+
             let Some(unit_index) = state
                 .units
                 .iter()
@@ -496,6 +504,7 @@ impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Windo
             else {
                 return;
             };
+            state.units[unit_index].size = (width, height);
             state.message.push((
                 Some(unit_index),
                 DispatchMessageInner::RefreshSurface { width, height },
@@ -617,6 +626,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
             self.units.push(WindowStateUnit {
                 wl_surface,
+                size: (0, 0),
                 buffer: None,
                 layer_shell: layer,
                 binding: None,
@@ -659,6 +669,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
                 self.units.push(WindowStateUnit {
                     wl_surface,
+                    size: (0, 0),
                     buffer: None,
                     layer_shell: layer,
                     binding: None,
@@ -735,6 +746,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
                         self.units.push(WindowStateUnit {
                             wl_surface,
+                            size: (0, 0),
                             buffer: None,
                             layer_shell: layer,
                             binding: None,
