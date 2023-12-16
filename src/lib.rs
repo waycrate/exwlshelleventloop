@@ -135,6 +135,10 @@ impl<T: Debug> WindowStateUnit<T> {
     pub fn get_binding_mut(&mut self) -> Option<&mut T> {
         self.binding.as_mut()
     }
+
+    pub fn request_commit(&self) {
+        self.wl_surface.commit();
+    }
 }
 
 #[derive(Debug)]
