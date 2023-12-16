@@ -64,7 +64,7 @@ pub mod reexport {
         };
     }
     pub mod wayland_client {
-        pub use wayland_client::{globals::GlobalList, QueueHandle};
+        pub use wayland_client::{globals::GlobalList, protocol::wl_seat::WlSeat, QueueHandle};
     }
 }
 
