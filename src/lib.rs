@@ -76,6 +76,7 @@ pub mod reexport {
             protocol::{
                 wl_pointer::{self, ButtonState},
                 wl_seat::WlSeat,
+                wl_keyboard::{self, KeyState},
             },
             QueueHandle, WEnum,
         };
