@@ -262,6 +262,10 @@ impl<T: Debug> WindowState<T> {
         self.units.iter()
     }
 
+    pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T>> {
+        self.units.iter_mut()
+    }
+
     fn surface_pos(&self) -> Option<usize> {
         self.units
             .iter()
