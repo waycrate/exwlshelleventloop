@@ -701,7 +701,14 @@ impl<T: Debug + 'static> WindowState<T> {
                             surface.attach(Some(&buffer), 0, 0);
                             self.units[index].buffer = Some(buffer);
                         } else {
-                            // TODO:
+                            event_hander(
+                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                                    width: *width,
+                                    height: *height,
+                                }),
+                                self,
+                                Some(index),
+                            );
                         }
                         let surface = &self.units[index].wl_surface;
 
