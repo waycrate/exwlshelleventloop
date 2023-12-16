@@ -117,6 +117,16 @@ impl<T: Debug> WindowStateUnit<T> {
         self.wl_surface.commit();
     }
 
+    pub fn set_size(&self, (width, height): (u32, u32)) {
+        self.layer_shell.set_size(width, height);
+        self.wl_surface.commit();
+    }
+
+    pub fn set_exclusive_zone(&self, zone: i32) {
+        self.layer_shell.set_exclusive_zone(zone);
+        self.wl_surface.commit();
+    }
+
     pub fn set_binding(&mut self, binding: T) {
         self.binding = Some(binding);
     }
