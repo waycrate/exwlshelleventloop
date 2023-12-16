@@ -11,16 +11,16 @@ use wayland_client::{
 };
 
 use super::WindowState;
-use std::fs::File;
+use std::{fmt::Debug, fs::File};
 
 #[derive(Debug)]
-pub enum LayerEvent<'a> {
+pub enum LayerEvent<'a, T: Debug> {
     InitRequest,
-    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState>),
+    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
-        &'a QueueHandle<WindowState>,
+        &'a QueueHandle<WindowState<T>>,
         u32,
         u32,
     ),

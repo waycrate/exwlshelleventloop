@@ -1,5 +1,7 @@
 mod events;
 
+use std::fmt::Debug;
+
 use events::DispatchMessageInner;
 
 pub use events::{DispatchMessage, LayerEvent, ReturnData};
@@ -97,13 +99,14 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
 }
 
 #[derive(Debug)]
-pub struct WindowStateUnit {
+pub struct WindowStateUnit<T: Debug> {
     wl_surface: WlSurface,
     buffer: Option<WlBuffer>,
     layer_shell: ZwlrLayerSurfaceV1,
+    binding: Option<T>,
 }
 
-impl WindowStateUnit {
+impl<T: Debug> WindowStateUnit<T> {
     pub fn set_anchor(&self, anchor: Anchor) {
         self.layer_shell.set_anchor(anchor);
         self.wl_surface.commit();
@@ -113,14 +116,22 @@ impl WindowStateUnit {
         self.layer_shell.set_margin(top, right, bottom, left);
         self.wl_surface.commit();
     }
+
+    pub fn set_binding(&mut self, binding: T) {
+        self.binding = Some(binding);
+    }
+
+    pub fn get_binding_mut(&mut self) -> Option<&mut T> {
+        self.binding.as_mut()
+    }
 }
 
 #[derive(Debug)]
-pub struct WindowState {
+pub struct WindowState<T: Debug> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_signal: bool,
-    units: Vec<WindowStateUnit>,
+    units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<usize>, DispatchMessageInner)>,
 
     // base managers
@@ -139,7 +150,7 @@ pub struct WindowState {
     margin: Option<(i32, i32, i32, i32)>,
 }
 
-impl WindowState {
+impl<T: Debug> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -158,7 +169,7 @@ impl WindowState {
     }
 }
 
-impl WindowState {
+impl<T: Debug> WindowState<T> {
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
         Self {
@@ -206,7 +217,7 @@ impl WindowState {
     }
 }
 
-impl Default for WindowState {
+impl<T: Debug> Default for WindowState<T> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
@@ -231,12 +242,12 @@ impl Default for WindowState {
     }
 }
 
-impl WindowState {
-    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit {
+impl<T: Debug> WindowState<T> {
+    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
     }
 
-    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit> {
+    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
     }
 
@@ -253,7 +264,7 @@ impl WindowState {
     }
 }
 
-impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
+impl<T: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -286,7 +297,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
     }
 }
 
-impl Dispatch<wl_seat::WlSeat, ()> for WindowState {
+impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -312,7 +323,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for WindowState {
     }
 }
 
-impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
+impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -341,7 +352,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState {
     }
 }
 
-impl Dispatch<wl_touch::WlTouch, ()> for WindowState {
+impl<T: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -379,7 +390,7 @@ impl Dispatch<wl_touch::WlTouch, ()> for WindowState {
     }
 }
 
-impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
+impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -443,7 +454,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WindowState {
     }
 }
 
-impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState {
+impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -474,26 +485,26 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState {
     }
 }
 
-delegate_noop!(WindowState: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(WindowState: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(WindowState: ignore WlOutput); // output is need to place layer_shell, although here
-                                              // it is not used
-delegate_noop!(WindowState: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(WindowState: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(WindowState: ignore WlBuffer); // buffer show the picture
-delegate_noop!(WindowState: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
-                                                      // ext-session-shell
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
+                                                            // it is not used
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
+                                                                    // ext-session-shell
 
-delegate_noop!(WindowState: ignore WpCursorShapeManagerV1);
-delegate_noop!(WindowState: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(WindowState: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(WindowState: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
-impl WindowState {
+impl<T: Debug + 'static> WindowState<T> {
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent, &mut WindowState, Option<usize>) -> ReturnData,
+        F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,
     {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
@@ -504,7 +515,7 @@ impl WindowState {
                                                                            // BaseState after
                                                                            // this anymore
 
-        let mut event_queue = connection.new_event_queue::<WindowState>();
+        let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
@@ -589,6 +600,7 @@ impl WindowState {
                 wl_surface,
                 buffer: None,
                 layer_shell: layer,
+                binding: None,
             });
         } else {
             let displays = self.outputs.clone();
@@ -630,6 +642,7 @@ impl WindowState {
                     wl_surface,
                     buffer: None,
                     layer_shell: layer,
+                    binding: None,
                 });
             }
             self.message.clear();
@@ -705,6 +718,7 @@ impl WindowState {
                             wl_surface,
                             buffer: None,
                             layer_shell: layer,
+                            binding: None,
                         });
                     }
                     _ => {
