@@ -2,11 +2,7 @@ mod events;
 
 use events::DispatchMessageInner;
 
-pub use events::{
-    LayerEvent,
-    DispatchMessage,
-    ReturnData,
-};
+pub use events::{DispatchMessage, LayerEvent, ReturnData};
 
 use wayland_client::{
     delegate_noop,
@@ -14,15 +10,15 @@ use wayland_client::{
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
-        wl_keyboard,
+        wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
-        wl_pointer,
+        wl_pointer::{self, WlPointer},
         wl_registry,
         wl_seat::{self, WlSeat},
         wl_shm::WlShm,
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
-        wl_touch,
+        wl_touch::{self, WlTouch},
     },
     ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
 };
@@ -129,6 +125,9 @@ pub struct WindowState {
 
     // base managers
     seat: Option<WlSeat>,
+    keyboard: Option<WlKeyboard>,
+    pointer: Option<WlPointer>,
+    touch: Option<WlTouch>,
 
     // states
     namespace: String,
@@ -144,6 +143,18 @@ impl WindowState {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
+    }
+
+    pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
+        self.keyboard.as_ref()
+    }
+
+    pub fn get_pointer(&self) -> Option<&WlPointer> {
+        self.pointer.as_ref()
+    }
+
+    pub fn get_touch(&self) -> Option<&WlTouch> {
+        self.touch.as_ref()
     }
 }
 
@@ -205,6 +216,9 @@ impl Default for WindowState {
             message: Vec::new(),
 
             seat: None,
+            keyboard: None,
+            pointer: None,
+            touch: None,
 
             namespace: "".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
@@ -274,7 +288,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for WindowState {
 
 impl Dispatch<wl_seat::WlSeat, ()> for WindowState {
     fn event(
-        _state: &mut Self,
+        state: &mut Self,
         seat: &wl_seat::WlSeat,
         event: <wl_seat::WlSeat as Proxy>::Event,
         _data: &(),
@@ -286,13 +300,13 @@ impl Dispatch<wl_seat::WlSeat, ()> for WindowState {
         } = event
         {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                seat.get_keyboard(qh, ());
+                state.keyboard = Some(seat.get_keyboard(qh, ()));
             }
             if capabilities.contains(wl_seat::Capability::Pointer) {
-                seat.get_pointer(qh, ());
+                state.pointer = Some(seat.get_pointer(qh, ()));
             }
             if capabilities.contains(wl_seat::Capability::Touch) {
-                seat.get_touch(qh, ());
+                state.touch = Some(seat.get_touch(qh, ()));
             }
         }
     }
@@ -475,7 +489,6 @@ delegate_noop!(WindowState: ignore WpCursorShapeDeviceV1);
 
 delegate_noop!(WindowState: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(WindowState: ignore ZwpVirtualKeyboardManagerV1);
-
 
 impl WindowState {
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
