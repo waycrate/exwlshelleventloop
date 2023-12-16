@@ -96,6 +96,11 @@ impl WindowStateUnit {
         self.layer_shell.set_anchor(anchor);
         self.wl_surface.commit();
     }
+
+    pub fn set_margin(&self, (top, right, bottom, left): (i32, i32, i32, i32)) {
+        self.layer_shell.set_margin(top, right, bottom, left);
+        self.wl_surface.commit();
+    }
 }
 
 #[derive(Debug)]
@@ -110,8 +115,10 @@ pub struct WindowState {
     namespace: String,
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
     anchor: Anchor,
+    layer: Layer,
     size: Option<(u32, u32)>,
     exclusive_zone: Option<i32>,
+    margin: Option<(i32, i32, i32, i32)>,
 }
 
 impl WindowState {
@@ -140,6 +147,16 @@ impl WindowState {
         self
     }
 
+    pub fn with_layer(mut self, layer: Layer) -> Self {
+        self.layer = layer;
+        self
+    }
+
+    pub fn with_margin(mut self, (top, right, bottom, left): (i32, i32, i32, i32)) -> Self {
+        self.margin = Some((top, right, bottom, left));
+        self
+    }
+
     pub fn with_size(mut self, size: (u32, u32)) -> Self {
         self.size = Some(size);
         self
@@ -161,9 +178,11 @@ impl Default for WindowState {
             message: Vec::new(),
             namespace: "".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
+            layer: Layer::Overlay,
             anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
             size: None,
             exclusive_zone: None,
+            margin: None,
         }
     }
 }
@@ -508,7 +527,7 @@ impl WindowState {
             let layer = layer_shell.get_layer_surface(
                 &wl_surface,
                 None,
-                Layer::Top,
+                self.layer,
                 self.namespace.clone(),
                 &qh,
                 (),
@@ -521,6 +540,10 @@ impl WindowState {
 
             if let Some(zone) = self.exclusive_zone {
                 layer.set_exclusive_zone(zone);
+            }
+
+            if let Some((top, right, bottom, left)) = self.margin {
+                layer.set_margin(top, right, bottom, left);
             }
 
             wl_surface.commit();
@@ -545,7 +568,7 @@ impl WindowState {
                 let layer = layer_shell.get_layer_surface(
                     &wl_surface,
                     Some(display),
-                    Layer::Overlay,
+                    self.layer,
                     self.namespace.clone(),
                     &qh,
                     (),
@@ -558,6 +581,10 @@ impl WindowState {
 
                 if let Some(zone) = self.exclusive_zone {
                     layer.set_exclusive_zone(zone);
+                }
+
+                if let Some((top, right, bottom, left)) = self.margin {
+                    layer.set_margin(top, right, bottom, left);
                 }
 
                 wl_surface.commit();
@@ -616,7 +643,7 @@ impl WindowState {
                         let layer = layer_shell.get_layer_surface(
                             &wl_surface,
                             Some(display),
-                            Layer::Overlay,
+                            self.layer,
                             self.namespace.clone(),
                             &qh,
                             (),
@@ -629,6 +656,10 @@ impl WindowState {
 
                         if let Some(zone) = self.exclusive_zone {
                             layer.set_exclusive_zone(zone);
+                        }
+
+                        if let Some((top, right, bottom, left)) = self.margin {
+                            layer.set_margin(top, right, bottom, left);
                         }
 
                         wl_surface.commit();
