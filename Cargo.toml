@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["./layershellev", "./starcolorkeyboard"]
+members = ["./layershellev", "./starcolorkeyboard", "./sessionlockev"]
 
 [workspace.package]
 authors = [
@@ -15,3 +15,4 @@ keywords = ["wayland"]
 
 [workspace.dependencies]
 layershellev = { version = "0.1.0", path = "./layershellev" }
+sessionlockev = { version = "0.1.0", path = "./sessionlockev" }

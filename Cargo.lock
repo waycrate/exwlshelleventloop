@@ -585,6 +585,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sessionlockev"
+version = "0.1.0"
+dependencies = [
+ "tempfile",
+ "thiserror",
+ "wayland-client",
+ "wayland-cursor",
+ "wayland-protocols",
+ "wayland-protocols-misc",
+ "wayland-protocols-wlr",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

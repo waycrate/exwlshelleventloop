@@ -2,8 +2,5 @@
 
 Take winit as reference a lot, to make easilier program on layershell.
 
-here bind layershell first
+This project bind `ext-session-lock` and `layershell` with the simillar way of winit, store message and handle it in callback
 
-## TODO
-
-bind ext-session-lock
