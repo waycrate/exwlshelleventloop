@@ -1,5 +1,9 @@
 mod events;
 
+mod strtoshape;
+
+use strtoshape::str_to_shape;
+
 use std::fmt::Debug;
 
 use events::DispatchMessageInner;
@@ -33,7 +37,7 @@ use wayland_protocols::ext::session_lock::v1::client::{
 
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols::wp::cursor_shape::v1::client::{
-    wp_cursor_shape_device_v1::{self, WpCursorShapeDeviceV1},
+    wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
     wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
 };
 
@@ -137,7 +141,6 @@ pub struct WindowState<T: Debug> {
     keyboard: Option<WlKeyboard>,
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
-
 }
 
 impl<T: Debug> WindowState<T> {
@@ -177,7 +180,6 @@ impl<T: Debug> Default for WindowState<T> {
             keyboard: None,
             pointer: None,
             touch: None,
-
         }
     }
 }
@@ -434,8 +436,6 @@ impl<T: Debug> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()
     }
 }
 
-
-
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
@@ -614,19 +614,20 @@ impl<T: Debug + 'static> WindowState<T> {
                                 event_queue.blocking_dispatch(self)?;
                                 break 'out;
                             }
-                            ReturnData::RequestSetCursorShape((shape, pointer, serial)) => {
+                            ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                                 if let Some(ref cursor_manager) = cursor_manager {
+                                    let Some(shape) = str_to_shape(&shape_name) else {
+                                        eprintln!("Not supported shape");
+                                        continue;
+                                    };
                                     let device = cursor_manager.get_pointer(&pointer, &qh, ());
-                                    device.set_shape(
-                                        serial,
-                                        wp_cursor_shape_device_v1::Shape::Crosshair,
-                                    );
+                                    device.set_shape(serial, shape);
                                     device.destroy();
                                 } else {
                                     let Some(cursor_buffer) =
-                                        get_cursor_buffer(&shape, &connection, &shm)
+                                        get_cursor_buffer(&shape_name, &connection, &shm)
                                     else {
-                                        eprintln!("Cannot find cursor {shape}");
+                                        eprintln!("Cannot find cursor {shape_name}");
                                         continue;
                                     };
                                     let cursor_surface = wmcompositer.create_surface(&qh, ());

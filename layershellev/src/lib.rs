@@ -1,4 +1,5 @@
 mod events;
+mod strtoshape;
 
 use std::fmt::Debug;
 
@@ -6,6 +7,7 @@ use events::DispatchMessageInner;
 
 pub use events::{DispatchMessage, LayerEvent, ReturnData};
 
+use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
     globals::{registry_queue_init, BindError, GlobalError, GlobalListContents},
@@ -32,7 +34,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 };
 
 use wayland_protocols::wp::cursor_shape::v1::client::{
-    wp_cursor_shape_device_v1::{self, WpCursorShapeDeviceV1},
+    wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
     wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
 };
 
@@ -768,19 +770,20 @@ impl<T: Debug + 'static> WindowState<T> {
                             ReturnData::RequestExist => {
                                 break 'out;
                             }
-                            ReturnData::RequestSetCursorShape((shape, pointer, serial)) => {
+                            ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                                 if let Some(ref cursor_manager) = cursor_manager {
+                                    let Some(shape) = str_to_shape(&shape_name) else {
+                                        eprintln!("Not supported shape");
+                                        continue;
+                                    };
                                     let device = cursor_manager.get_pointer(&pointer, &qh, ());
-                                    device.set_shape(
-                                        serial,
-                                        wp_cursor_shape_device_v1::Shape::Crosshair,
-                                    );
+                                    device.set_shape(serial, shape);
                                     device.destroy();
                                 } else {
                                     let Some(cursor_buffer) =
-                                        get_cursor_buffer(&shape, &connection, &shm)
+                                        get_cursor_buffer(&shape_name, &connection, &shm)
                                     else {
-                                        eprintln!("Cannot find cursor {shape}");
+                                        eprintln!("Cannot find cursor {shape_name}");
                                         continue;
                                     };
                                     let cursor_surface = wmcompositer.create_surface(&qh, ());
