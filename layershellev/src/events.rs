@@ -134,10 +134,6 @@ pub enum DispatchMessage {
         key: u32,
         time: u32,
     },
-    RefreshSurface {
-        width: u32,
-        height: u32,
-    },
     RequestRefresh {
         width: u32,
         height: u32,

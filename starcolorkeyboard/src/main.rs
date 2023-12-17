@@ -137,7 +137,7 @@ fn main() {
                 (),
             ))
         }
-        LayerEvent::RequestMessages(DispatchMessage::RefreshSurface { width, height }) => {
+        LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
             let index = index.unwrap();
             let windowunit = ev.get_unit(index);
             let pangoui = windowunit.get_binding_mut().unwrap();

@@ -505,6 +505,7 @@ impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Windo
                 return;
             };
             state.units[unit_index].size = (width, height);
+
             state.message.push((
                 Some(unit_index),
                 DispatchMessageInner::RefreshSurface { width, height },
