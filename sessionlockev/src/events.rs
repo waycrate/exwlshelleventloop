@@ -116,6 +116,7 @@ pub(crate) enum DispatchMessageInner {
         width: u32,
         height: u32,
     },
+    PrefredScale(u32),
 }
 
 /// This tell the DispatchMessage by dispatch
@@ -175,6 +176,7 @@ pub enum DispatchMessage {
         width: u32,
         height: u32,
     },
+    PrefredScale(u32),
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
@@ -245,6 +247,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::RequestRefresh { width, height } => {
                 DispatchMessage::RequestRefresh { width, height }
             }
+            DispatchMessageInner::PrefredScale(scale) => DispatchMessage::PrefredScale(scale),
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
         }
     }

@@ -1,14 +1,14 @@
 //! # Handle the layer_shell in a winit way
-//! 
+//!
 //! Min example is under
 //!
 //! ```rust, no_run
 //! use std::fs::File;
 //! use std::os::fd::AsFd;
-//! 
+//!
 //! use layershellev::reexport::*;
 //! use layershellev::*;
-//! 
+//!
 //! const Q_KEY: u32 = 16;
 //! const W_KEY: u32 = 17;
 //! const E_KEY: u32 = 18;
@@ -19,7 +19,7 @@
 //! const X_KEY: u32 = 45;
 //! const C_KEY: u32 = 46;
 //! const ESC_KEY: u32 = 1;
-//! 
+//!
 //! fn main() {
 //!     let mut ev: WindowState<()> = WindowState::new("Hello")
 //!         .with_single(false)
@@ -29,7 +29,7 @@
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
 //!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
 //!         .with_exclusize_zone(-1);
-//! 
+//!
 //!     let mut virtual_keyboard_manager = None;
 //!     ev.running(|event, ev, index| {
 //!         println!("{:?}", event);
@@ -129,7 +129,7 @@
 //!                         }
 //!                     }
 //!                 };
-//! 
+//!
 //!                 ReturnData::None
 //!             }
 //!             _ => ReturnData::None,
@@ -137,7 +137,7 @@
 //!     })
 //!     .unwrap();
 //! }
-//! 
+//!
 //! fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
 //!     use std::{cmp::min, io::Write};
 //!     let mut buf = std::io::BufWriter::new(tmp);
@@ -147,7 +147,7 @@
 //!             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
 //!             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
 //!             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-//! 
+//!
 //!             let color = (a << 24) + (r << 16) + (g << 8) + b;
 //!             buf.write_all(&color.to_ne_bytes()).unwrap();
 //!         }
@@ -192,9 +192,15 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
 };
 
-use wayland_protocols::xdg::xdg_output::zv1::client::{
-    zxdg_output_manager_v1::ZxdgOutputManagerV1,
-    zxdg_output_v1::{self, ZxdgOutputV1},
+use wayland_protocols::{
+    wp::fractional_scale::v1::client::{
+        wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+        wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+    },
+    xdg::xdg_output::zv1::client::{
+        zxdg_output_manager_v1::ZxdgOutputManagerV1,
+        zxdg_output_v1::{self, ZxdgOutputV1},
+    },
 };
 
 use wayland_protocols::wp::cursor_shape::v1::client::{
@@ -234,6 +240,12 @@ pub mod reexport {
         pub use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
             zwp_virtual_keyboard_manager_v1::{self, ZwpVirtualKeyboardManagerV1},
             zwp_virtual_keyboard_v1::{self, ZwpVirtualKeyboardV1},
+        };
+    }
+    pub mod wp_fractional_scale_v1 {
+        pub use wayland_protocols::wp::fractional_scale::v1::client::{
+            wp_fractional_scale_manager_v1::{self, WpFractionalScaleManagerV1},
+            wp_fractional_scale_v1::{self, WpFractionalScaleV1},
         };
     }
     pub mod wayland_client {
@@ -307,10 +319,15 @@ pub struct WindowStateUnit<T: Debug> {
     buffer: Option<WlBuffer>,
     layer_shell: ZwlrLayerSurfaceV1,
     zxdgoutput: Option<ZxdgOutputInfo>,
+    fractional_scale: Option<WpFractionalScaleV1>,
     binding: Option<T>,
 }
 
 impl<T: Debug> WindowStateUnit<T> {
+    /// get the wl surface from WindowState
+    pub fn get_wlsurface(&self) -> &WlSurface {
+        &self.wl_surface
+    }
 
     /// get the xdg_output info related to this unit
     pub fn get_xdgoutput_info(&self) -> Option<&ZxdgOutputInfo> {
@@ -322,7 +339,6 @@ impl<T: Debug> WindowStateUnit<T> {
         self.layer_shell.set_anchor(anchor);
         self.wl_surface.commit();
     }
-
 
     /// you can reset the margin which bind to the surface
     pub fn set_margin(&self, (top, right, bottom, left): (i32, i32, i32, i32)) {
@@ -792,6 +808,30 @@ impl<T: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
     }
 }
 
+impl<T: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
+        event: <wp_fractional_scale_v1::WpFractionalScaleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
+            let Some(index) = state.units.iter().position(|info| {
+                info.fractional_scale
+                    .as_ref()
+                    .is_some_and(|fractional_scale| fractional_scale == proxy)
+            }) else {
+                return;
+            };
+            state
+                .message
+                .push((Some(index), DispatchMessageInner::PrefredScale(scale)));
+        }
+    }
+}
+
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
@@ -809,6 +849,7 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
@@ -850,6 +891,10 @@ impl<T: Debug + 'static> WindowState<T> {
 
         let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qh, 1..=3, ())?; // bind
                                                                                              // xdg_output_manager
+
+        let fractional_scale_manager = globals
+            .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
+            .ok();
 
         event_queue.blocking_dispatch(self)?; // then make a dispatch
 
@@ -908,6 +953,11 @@ impl<T: Debug + 'static> WindowState<T> {
 
             wl_surface.commit();
 
+            let mut fractional_scale = None;
+            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                fractional_scale =
+                    Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
+            }
             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
             // and if you need to reconfigure it, you need to commit the wl_surface again
             // so because this is just an example, so we just commit it once
@@ -919,6 +969,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 buffer: None,
                 layer_shell: layer,
                 zxdgoutput: None,
+                fractional_scale,
                 binding: None,
             });
         } else {
@@ -953,6 +1004,11 @@ impl<T: Debug + 'static> WindowState<T> {
                 wl_surface.commit();
 
                 let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
+                let mut fractional_scale = None;
+                if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                    fractional_scale =
+                        Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
+                }
                 // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                 // and if you need to reconfigure it, you need to commit the wl_surface again
                 // so because this is just an example, so we just commit it once
@@ -964,6 +1020,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     buffer: None,
                     layer_shell: layer,
                     zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
+                    fractional_scale,
                     binding: None,
                 });
             }
@@ -1042,6 +1099,14 @@ impl<T: Debug + 'static> WindowState<T> {
                         wl_surface.commit();
 
                         let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
+                        let mut fractional_scale = None;
+                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
+                                &wl_surface,
+                                &qh,
+                                (),
+                            ));
+                        }
                         // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                         // and if you need to reconfigure it, you need to commit the wl_surface again
                         // so because this is just an example, so we just commit it once
@@ -1053,6 +1118,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             buffer: None,
                             layer_shell: layer,
                             zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
+                            fractional_scale,
                             binding: None,
                         });
                     }

@@ -145,6 +145,11 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+    wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+};
+
 /// return the error during running the eventloop
 #[derive(Debug, thiserror::Error)]
 pub enum LayerEventError {
@@ -174,6 +179,12 @@ pub mod reexport {
         pub use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
             zwp_virtual_keyboard_manager_v1::{self, ZwpVirtualKeyboardManagerV1},
             zwp_virtual_keyboard_v1::{self, ZwpVirtualKeyboardV1},
+        };
+    }
+    pub mod wp_fractional_scale_v1 {
+        pub use wayland_protocols::wp::fractional_scale::v1::client::{
+            wp_fractional_scale_manager_v1::{self, WpFractionalScaleManagerV1},
+            wp_fractional_scale_v1::{self, WpFractionalScaleV1},
         };
     }
     pub mod wayland_client {
@@ -211,6 +222,7 @@ pub struct WindowStateUnit<T: Debug> {
     size: (u32, u32),
     buffer: Option<WlBuffer>,
     session_shell: ExtSessionLockSurfaceV1,
+    fractional_scale: Option<WpFractionalScaleV1>,
     binding: Option<T>,
 }
 
@@ -222,6 +234,10 @@ pub struct WindowStateUnit<T: Debug> {
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
 impl<T: Debug> WindowStateUnit<T> {
+    /// get the wl surface from WindowState
+    pub fn get_wlsurface(&self) -> &WlSurface {
+        &self.wl_surface
+    }
     /// set the data binding to the unit
     pub fn set_binding(&mut self, binding: T) {
         self.binding = Some(binding);
@@ -555,6 +571,30 @@ impl<T: Debug> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()
     }
 }
 
+impl<T: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
+        event: <wp_fractional_scale_v1::WpFractionalScaleV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
+            let Some(index) = state.units.iter().position(|info| {
+                info.fractional_scale
+                    .as_ref()
+                    .is_some_and(|fractional_scale| fractional_scale == proxy)
+            }) else {
+                return;
+            };
+            state
+                .message
+                .push((Some(index), DispatchMessageInner::PrefredScale(scale)));
+        }
+    }
+}
+
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
@@ -572,6 +612,9 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeDeviceV1);
 
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
+
+// fractional_scale_manager
+delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
@@ -610,6 +653,9 @@ impl<T: Debug + 'static> WindowState<T> {
 
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
+        let fractional_scale_manager = globals
+            .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
+            .ok();
 
         let lock_manager = globals.bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())?;
         let mut lock: Option<ExtSessionLockV1> = None;
@@ -659,12 +705,18 @@ impl<T: Debug + 'static> WindowState<T> {
             // and if you need to reconfigure it, you need to commit the wl_surface again
             // so because this is just an example, so we just commit it once
             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+            let mut fractional_scale = None;
+            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                fractional_scale =
+                    Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
+            }
 
             self.units.push(WindowStateUnit {
                 wl_surface,
                 size: (0, 0),
                 buffer: None,
                 session_shell: session_lock_surface,
+                fractional_scale,
                 binding: None,
             });
         }
@@ -715,6 +767,14 @@ impl<T: Debug + 'static> WindowState<T> {
                                 .unwrap()
                                 .get_lock_surface(&wl_surface, display, &qh, ());
 
+                        let mut fractional_scale = None;
+                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
+                                &wl_surface,
+                                &qh,
+                                (),
+                            ));
+                        }
                         // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                         // and if you need to reconfigure it, you need to commit the wl_surface again
                         // so because this is just an example, so we just commit it once
@@ -725,6 +785,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             size: (0, 0),
                             buffer: None,
                             session_shell: session_lock_surface,
+                            fractional_scale,
                             binding: None,
                         });
                     }
