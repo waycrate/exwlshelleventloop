@@ -45,7 +45,7 @@ fn main() {
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::None
             }
-            LayerEvent::XdgInfoChanged => {
+            LayerEvent::XdgInfoChanged(_) => {
                 let index = index.unwrap();
                 let unit = ev.get_unit(index);
                 println!("{:?}", unit.get_xdgoutput_info());

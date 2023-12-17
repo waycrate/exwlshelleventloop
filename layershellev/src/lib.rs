@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use events::DispatchMessageInner;
 
-pub use events::{DispatchMessage, LayerEvent, ReturnData};
+pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use strtoshape::str_to_shape;
 use wayland_client::{
@@ -569,18 +569,23 @@ impl<T: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         };
         let info = &mut state.units[index];
         let xdg_info = info.zxdgoutput.as_mut().unwrap();
-        match event {
+        let change_type = match event {
             zxdg_output_v1::Event::LogicalSize { width, height } => {
                 xdg_info.logical_size = (width, height);
+                XdgInfoChangedType::Size
             }
             zxdg_output_v1::Event::LogicalPosition { x, y } => {
                 xdg_info.position = (x, y);
+                XdgInfoChangedType::Position
             }
-            _ => {}
-        }
-        state
-            .message
-            .push((Some(index), DispatchMessageInner::XdgInfoChanged));
+            _ => {
+                return;
+            }
+        };
+        state.message.push((
+            Some(index),
+            DispatchMessageInner::XdgInfoChanged(change_type),
+        ));
     }
 }
 
@@ -793,8 +798,8 @@ impl<T: Debug + 'static> WindowState<T> {
 
                         surface.commit();
                     }
-                    (index_info, DispatchMessageInner::XdgInfoChanged) => {
-                        event_hander(LayerEvent::XdgInfoChanged, self, *index_info);
+                    (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
+                        event_hander(LayerEvent::XdgInfoChanged(*change_type), self, *index_info);
                     }
                     (_, DispatchMessageInner::NewDisplay(display)) => {
                         if self.is_single {

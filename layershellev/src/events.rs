@@ -16,7 +16,7 @@ use std::{fmt::Debug, fs::File};
 #[derive(Debug)]
 pub enum LayerEvent<'a, T: Debug> {
     InitRequest,
-    XdgInfoChanged,
+    XdgInfoChanged(XdgInfoChangedType),
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     RequestBuffer(
         &'a mut File,
@@ -35,6 +35,12 @@ pub enum ReturnData {
     RequestExist,
     RequestSetCursorShape((String, WlPointer, u32)),
     None,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum XdgInfoChangedType {
+    Position,
+    Size,
 }
 
 #[allow(unused)]
@@ -90,7 +96,7 @@ pub(crate) enum DispatchMessageInner {
         width: u32,
         height: u32,
     },
-    XdgInfoChanged,
+    XdgInfoChanged(XdgInfoChangedType),
 }
 
 #[derive(Debug)]
@@ -211,7 +217,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 DispatchMessage::RequestRefresh { width, height }
             }
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
-            DispatchMessageInner::XdgInfoChanged => unimplemented!(),
+            DispatchMessageInner::XdgInfoChanged(_) => unimplemented!(),
         }
     }
 }
