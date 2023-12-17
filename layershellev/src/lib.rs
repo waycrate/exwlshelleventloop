@@ -1,3 +1,162 @@
+//! # Handle the layer_shell in a winit way
+//! 
+//! Min example is under
+//!
+//! ```rust, no_run
+//! use std::fs::File;
+//! use std::os::fd::AsFd;
+//! 
+//! use layershellev::reexport::*;
+//! use layershellev::*;
+//! 
+//! const Q_KEY: u32 = 16;
+//! const W_KEY: u32 = 17;
+//! const E_KEY: u32 = 18;
+//! const A_KEY: u32 = 30;
+//! const S_KEY: u32 = 31;
+//! const D_KEY: u32 = 32;
+//! const Z_KEY: u32 = 44;
+//! const X_KEY: u32 = 45;
+//! const C_KEY: u32 = 46;
+//! const ESC_KEY: u32 = 1;
+//! 
+//! fn main() {
+//!     let mut ev: WindowState<()> = WindowState::new("Hello")
+//!         .with_single(false)
+//!         .with_size((0, 400))
+//!         .with_layer(Layer::Top)
+//!         .with_margin((20, 20, 100, 20))
+//!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
+//!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
+//!         .with_exclusize_zone(-1);
+//! 
+//!     let mut virtual_keyboard_manager = None;
+//!     ev.running(|event, ev, index| {
+//!         println!("{:?}", event);
+//!         match event {
+//!             // NOTE: this will send when init, you can request bind extra object from here
+//!             LayerEvent::InitRequest => ReturnData::RequestBind,
+//!             LayerEvent::BindProvide(globals, qh) => {
+//!                 // NOTE: you can get implied wayland object from here
+//!                 virtual_keyboard_manager = Some(
+//!                     globals
+//!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+//!                             qh,
+//!                             1..=1,
+//!                             (),
+//!                         )
+//!                         .unwrap(),
+//!                 );
+//!                 println!("{:?}", virtual_keyboard_manager);
+//!                 ReturnData::None
+//!             }
+//!             LayerEvent::XdgInfoChanged(_) => {
+//!                 let index = index.unwrap();
+//!                 let unit = ev.get_unit(index);
+//!                 println!("{:?}", unit.get_xdgoutput_info());
+//!                 ReturnData::None
+//!             }
+//!             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+//!                 draw(file, (init_w, init_h));
+//!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
+//!                 ReturnData::WlBuffer(pool.create_buffer(
+//!                     0,
+//!                     init_w as i32,
+//!                     init_h as i32,
+//!                     (init_w * 4) as i32,
+//!                     wl_shm::Format::Argb8888,
+//!                     qh,
+//!                     (),
+//!                 ))
+//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+//!                 println!("{width}, {height}");
+//!                 ReturnData::None
+//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+//!             LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
+//!                 serial, pointer, ..
+//!             }) => ReturnData::RequestSetCursorShape((
+//!                 "crosshair".to_owned(),
+//!                 pointer.clone(),
+//!                 *serial,
+//!             )),
+//!             LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!                 time,
+//!                 surface_x,
+//!                 surface_y,
+//!             }) => {
+//!                 println!("{time}, {surface_x}, {surface_y}");
+//!                 ReturnData::None
+//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
+//!                 match index {
+//!                     Some(index) => {
+//!                         let ev_unit = ev.get_unit(index);
+//!                         match *key {
+//!                             Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
+//!                             W_KEY => ev_unit.set_anchor(Anchor::Top),
+//!                             E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
+//!                             A_KEY => ev_unit.set_anchor(Anchor::Left),
+//!                             S_KEY => ev_unit.set_anchor(
+//!                                 Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
+//!                             ),
+//!                             D_KEY => ev_unit.set_anchor(Anchor::Right),
+//!                             Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
+//!                             X_KEY => ev_unit.set_anchor(Anchor::Bottom),
+//!                             C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
+//!                             ESC_KEY => return ReturnData::RequestExist,
+//!                             _ => {}
+//!                         }
+//!                     }
+//!                     None => {
+//!                         for ev_unit in ev.get_unit_iter() {
+//!                             match *key {
+//!                                 Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
+//!                                 W_KEY => ev_unit.set_anchor(Anchor::Top),
+//!                                 E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
+//!                                 A_KEY => ev_unit.set_anchor(Anchor::Left),
+//!                                 S_KEY => ev_unit.set_anchor(
+//!                                     Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
+//!                                 ),
+//!                                 D_KEY => ev_unit.set_anchor(Anchor::Right),
+//!                                 Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
+//!                                 X_KEY => ev_unit.set_anchor(Anchor::Bottom),
+//!                                 C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
+//!                                 ESC_KEY => return ReturnData::RequestExist,
+//!                                 _ => {}
+//!                             }
+//!                         }
+//!                     }
+//!                 };
+//! 
+//!                 ReturnData::None
+//!             }
+//!             _ => ReturnData::None,
+//!         }
+//!     })
+//!     .unwrap();
+//! }
+//! 
+//! fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
+//!     use std::{cmp::min, io::Write};
+//!     let mut buf = std::io::BufWriter::new(tmp);
+//!     for y in 0..buf_y {
+//!         for x in 0..buf_x {
+//!             let a = 0xFF;
+//!             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+//!             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+//!             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+//! 
+//!             let color = (a << 24) + (r << 16) + (g << 8) + b;
+//!             buf.write_all(&color.to_ne_bytes()).unwrap();
+//!         }
+//!     }
+//!     buf.flush().unwrap();
+//! }
+//! ```
+//!
+
 mod events;
 mod strtoshape;
 
@@ -106,6 +265,7 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
     }
 }
 
+/// this struct store the xdg_output information
 #[derive(Debug)]
 pub struct ZxdgOutputInfo {
     zxdgoutput: ZxdgOutputV1,
@@ -122,15 +282,24 @@ impl ZxdgOutputInfo {
         }
     }
 
+    /// you can get the Logic positon of the screen current surface in
     pub fn get_positon(&self) -> (i32, i32) {
         self.position
     }
 
+    /// you can get the LogicalPosition of the screen current surface in
     pub fn get_logical_size(&self) -> (i32, i32) {
         self.logical_size
     }
 }
 
+/// This is the unit, binding to per screen.
+/// Because layer_shell is so unique, on surface bind to only one
+/// wl_output, only one buffer, only one output, so it will store
+/// includes the information of ZxdgOutput, size, and layer_shell
+///
+/// and it can set a binding, you to store the related data. like
+/// a cario_context, which is binding to the buffer on the wl_surface.
 #[derive(Debug)]
 pub struct WindowStateUnit<T: Debug> {
     wl_surface: WlSurface,
@@ -142,42 +311,57 @@ pub struct WindowStateUnit<T: Debug> {
 }
 
 impl<T: Debug> WindowStateUnit<T> {
+
+    /// get the xdg_output info related to this unit
+    pub fn get_xdgoutput_info(&self) -> Option<&ZxdgOutputInfo> {
+        self.zxdgoutput.as_ref()
+    }
+
+    /// set the anchor of the current unit. please take the simple.rs as refrence
     pub fn set_anchor(&self, anchor: Anchor) {
         self.layer_shell.set_anchor(anchor);
         self.wl_surface.commit();
     }
 
-    pub fn get_xdgoutput_info(&self) -> Option<&ZxdgOutputInfo> {
-        self.zxdgoutput.as_ref()
-    }
 
+    /// you can reset the margin which bind to the surface
     pub fn set_margin(&self, (top, right, bottom, left): (i32, i32, i32, i32)) {
         self.layer_shell.set_margin(top, right, bottom, left);
         self.wl_surface.commit();
     }
 
+    /// set the layer size of current unit
     pub fn set_size(&self, (width, height): (u32, u32)) {
         self.layer_shell.set_size(width, height);
         self.wl_surface.commit();
     }
 
+    /// set current exclusive_zone
     pub fn set_exclusive_zone(&self, zone: i32) {
         self.layer_shell.set_exclusive_zone(zone);
         self.wl_surface.commit();
     }
 
+    /// you can use this function to set a binding data. the message passed back contain
+    /// a index, you can use that to get the unit. It will be very useful, because you can
+    /// use the binding data to operate the file binding to the buffer. you can take
+    /// startcolorkeyboard as reference.
     pub fn set_binding(&mut self, binding: T) {
         self.binding = Some(binding);
     }
 
+    /// return the binding data, with mut reference
     pub fn get_binding_mut(&mut self) -> Option<&mut T> {
         self.binding.as_mut()
     }
 
+    /// get the size of the surface
     pub fn get_size(&self) -> (u32, u32) {
         self.size
     }
 
+    /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
+    /// and finall commit
     pub fn request_refresh(&self, (width, height): (i32, i32)) {
         self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
         self.wl_surface.damage(0, 0, width, height);
@@ -185,6 +369,7 @@ impl<T: Debug> WindowStateUnit<T> {
     }
 }
 
+/// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T: Debug> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
@@ -215,20 +400,24 @@ impl<T: Debug> WindowState<T> {
         self.seat.as_ref().unwrap()
     }
 
+    /// get the keyboard
     pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
         self.keyboard.as_ref()
     }
 
+    /// get the pointer
     pub fn get_pointer(&self) -> Option<&WlPointer> {
         self.pointer.as_ref()
     }
 
+    /// get the touch
     pub fn get_touch(&self) -> Option<&WlTouch> {
         self.touch.as_ref()
     }
 }
 
 impl<T: Debug> WindowState<T> {
+    /// create a WindowState, you need to pass a namespace in
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
         Self {
@@ -237,11 +426,14 @@ impl<T: Debug> WindowState<T> {
         }
     }
 
+    /// if the shell is a single one, only display on one screen,
+    /// fi true, the layer will binding to current screen
     pub fn with_single(mut self, single: bool) -> Self {
         self.is_single = single;
         self
     }
 
+    /// keyboard_interacivity, pleace take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_keyboard_interacivity(
         mut self,
         keyboard_interacivity: zwlr_layer_surface_v1::KeyboardInteractivity,
@@ -250,26 +442,34 @@ impl<T: Debug> WindowState<T> {
         self
     }
 
+    /// set the layer_shell anchor
     pub fn with_anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = anchor;
         self
     }
 
+    /// set the layer_shell layer
     pub fn with_layer(mut self, layer: Layer) -> Self {
         self.layer = layer;
         self
     }
 
+    /// set the layer margin
     pub fn with_margin(mut self, (top, right, bottom, left): (i32, i32, i32, i32)) -> Self {
         self.margin = Some((top, right, bottom, left));
         self
     }
 
+    /// if not set, it will be the size suggested by layer_shell, like anchor to four ways,
+    /// and margins to 0,0,0,0 , the size will be the size of screen.
+    ///
+    /// if set, layer_shell will use the size you set
     pub fn with_size(mut self, size: (u32, u32)) -> Self {
         self.size = Some(size);
         self
     }
 
+    /// exclusive_zone, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
         self.exclusive_zone = Some(exclusive_zone);
         self
@@ -302,14 +502,17 @@ impl<T: Debug> Default for WindowState<T> {
 }
 
 impl<T: Debug> WindowState<T> {
+    /// get the unit with the index returned by eventloop
     pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
     }
 
+    /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
     }
 
+    /// it return the mut iter of units. you can do loop with it
     pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T>> {
         self.units.iter_mut()
     }
@@ -608,6 +811,11 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
+    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
+    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
+    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// it will return [None].
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,

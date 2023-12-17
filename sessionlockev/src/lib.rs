@@ -1,3 +1,102 @@
+//! # Handle the ext_session_lock with a winit way
+//!
+//! Min example is under
+//!
+//! ```rust, no_run
+//! use std::fs::File;
+//! use std::os::fd::AsFd;
+//!
+//! use sessionlockev::reexport::*;
+//! use sessionlockev::*;
+//!
+//! const ESC_KEY: u32 = 1;
+//!
+//! fn main() {
+//!     let mut ev: WindowState<()> = WindowState::new();
+//!
+//!     let mut virtual_keyboard_manager = None;
+//!     ev.running(|event, _ev, _index| {
+//!         println!("{:?}", event);
+//!         match event {
+//!             // NOTE: this will send when init, you can request bind extra object from here
+//!             LayerEvent::InitRequest => ReturnData::RequestBind,
+//!             LayerEvent::BindProvide(globals, qh) => {
+//!                 // NOTE: you can get implied wayland object from here
+//!                 virtual_keyboard_manager = Some(
+//!                     globals
+//!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+//!                             qh,
+//!                             1..=1,
+//!                             (),
+//!                         )
+//!                         .unwrap(),
+//!                 );
+//!                 println!("{:?}", virtual_keyboard_manager);
+//!                 ReturnData::RequestLock
+//!             }
+//!             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+//!                 draw(file, (init_w, init_h));
+//!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
+//!                 ReturnData::WlBuffer(pool.create_buffer(
+//!                     0,
+//!                     init_w as i32,
+//!                     init_h as i32,
+//!                     (init_w * 4) as i32,
+//!                     wl_shm::Format::Argb8888,
+//!                     qh,
+//!                     (),
+//!                 ))
+//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+//!                 println!("{width}, {height}");
+//!                 ReturnData::None
+//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+//!             LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
+//!                 serial, pointer, ..
+//!             }) => ReturnData::RequestSetCursorShape((
+//!                 "crosshair".to_owned(),
+//!                 pointer.clone(),
+//!                 *serial,
+//!             )),
+//!             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
+//!                 if *key == ESC_KEY {
+//!                     return ReturnData::RequestUnlockAndExist;
+//!                 }
+//!                 ReturnData::None
+//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!                 time,
+//!                 surface_x,
+//!                 surface_y,
+//!             }) => {
+//!                 println!("{time}, {surface_x}, {surface_y}");
+//!                 ReturnData::None
+//!             }
+//!             _ => ReturnData::None,
+//!         }
+//!     })
+//!     .unwrap();
+//! }
+//!
+//! fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
+//!     use std::{cmp::min, io::Write};
+//!     let mut buf = std::io::BufWriter::new(tmp);
+//!     for y in 0..buf_y {
+//!         for x in 0..buf_x {
+//!             let a = 0xFF;
+//!             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+//!             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+//!             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+//!
+//!             let color = (a << 24) + (r << 16) + (g << 8) + b;
+//!             buf.write_all(&color.to_ne_bytes()).unwrap();
+//!         }
+//!     }
+//!     buf.flush().unwrap();
+//! }
+//! ```
+
 mod events;
 
 mod strtoshape;
@@ -46,6 +145,7 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
+/// return the error during running the eventloop
 #[derive(Debug, thiserror::Error)]
 pub enum LayerEventError {
     #[error("connect error")]
@@ -60,6 +160,7 @@ pub enum LayerEventError {
     TempFileCreateFailed(#[from] std::io::Error),
 }
 
+/// reexport the wayland objects which are needed
 pub mod reexport {
     pub use wayland_protocols_wlr::layer_shell::v1::client::{
         zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
@@ -113,15 +214,26 @@ pub struct WindowStateUnit<T: Debug> {
     binding: Option<T>,
 }
 
+/// This is the unit, binding to per screen.
+/// Because ext-session-shell is so unique, on surface bind to only one
+/// wl_output, only one buffer, only one output, so it will store
+/// includes the information of ZxdgOutput, size, and layer_shell
+///
+/// and it can set a binding, you to store the related data. like
+/// a cario_context, which is binding to the buffer on the wl_surface.
 impl<T: Debug> WindowStateUnit<T> {
+    /// set the data binding to the unit
     pub fn set_binding(&mut self, binding: T) {
         self.binding = Some(binding);
     }
 
+    /// the the unit binding data with mut way
     pub fn get_binding_mut(&mut self) -> Option<&mut T> {
         self.binding.as_mut()
     }
 
+    /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
+    /// and finall commit
     pub fn request_refresh(&self, (width, height): (i32, i32)) {
         self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
         self.wl_surface.damage(0, 0, width, height);
@@ -149,20 +261,24 @@ impl<T: Debug> WindowState<T> {
         self.seat.as_ref().unwrap()
     }
 
+    /// get the keyboard
     pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
         self.keyboard.as_ref()
     }
 
+    /// get the pointer
     pub fn get_pointer(&self) -> Option<&WlPointer> {
         self.pointer.as_ref()
     }
 
+    /// get the touch
     pub fn get_touch(&self) -> Option<&WlTouch> {
         self.touch.as_ref()
     }
 }
 
 impl<T: Debug> WindowState<T> {
+    /// create a new WindowState
     pub fn new() -> Self {
         Self::default()
     }
@@ -185,14 +301,17 @@ impl<T: Debug> Default for WindowState<T> {
 }
 
 impl<T: Debug> WindowState<T> {
+    /// get the unit with the index returned by eventloop
     pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
     }
 
+    /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
     }
 
+    /// it return the mut iter of units. you can do loop with it
     pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T>> {
         self.units.iter_mut()
     }
@@ -455,6 +574,11 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
+    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
+    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
+    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// it will return [None].
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,
