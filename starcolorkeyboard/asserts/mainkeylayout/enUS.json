@@ -1,0 +1,437 @@
+[
+  [
+    {
+      "text": "Tab",
+      "width": 4,
+      "line": 0,
+      "start_pos": 0,
+      "key": 15
+    },
+    {
+      "text": "q",
+      "cap": "Q",
+      "width": 2,
+      "line": 0,
+      "start_pos": 4,
+      "key": 16
+    },
+    {
+      "text": "w",
+      "cap": "W",
+      "width": 2,
+      "line": 0,
+      "start_pos": 6,
+      "key": 17
+    },
+    {
+      "text": "e",
+      "cap": "E",
+      "width": 2,
+      "line": 0,
+      "start_pos": 8,
+      "key": 18
+    },
+    {
+      "text": "r",
+      "cap": "R",
+      "width": 2,
+      "line": 0,
+      "start_pos": 10,
+      "key": 19
+    },
+    {
+      "text": "t",
+      "cap": "T",
+      "width": 2,
+      "line": 0,
+      "start_pos": 12,
+      "key": 20
+    },
+    {
+      "text": "y",
+      "cap": "Y",
+      "width": 2,
+      "line": 0,
+      "start_pos": 14,
+      "key": 21
+    },
+    {
+      "text": "u",
+      "cap": "U",
+      "width": 2,
+      "line": 0,
+      "start_pos": 16,
+      "key": 22
+    },
+    {
+      "text": "i",
+      "cap": "I",
+      "width": 2,
+      "line": 0,
+      "start_pos": 18,
+      "key": 23
+    },
+    {
+      "text": "o",
+      "cap": "O",
+      "width": 2,
+      "line": 0,
+      "start_pos": 20,
+      "key": 24
+    },
+    {
+      "text": "p",
+      "cap": "P",
+      "width": 2,
+      "line": 0,
+      "start_pos": 22,
+      "key": 25
+    },
+    {
+      "text": "[",
+      "shift": "{",
+      "width": 2,
+      "line": 0,
+      "start_pos": 24,
+      "key": 26
+    },
+    {
+      "text": "]",
+      "shift": "}",
+      "width": 2,
+      "line": 0,
+      "start_pos": 26,
+      "key": 27
+    },
+    {
+      "text": "\\",
+      "shift": "|",
+      "width": 2,
+      "line": 0,
+      "start_pos": 28,
+      "key": 43
+    },
+    {
+      "text": "Back",
+      "width": 5,
+      "line": 0,
+      "start_pos": 30,
+      "key": 14
+    }
+  ],
+  [
+    {
+      "text": "ESC",
+      "width": 2,
+      "line": 1,
+      "start_pos": 0,
+      "key": 1
+    },
+    {
+      "text": "Caps",
+      "width": 3,
+      "line": 1,
+      "start_pos": 2,
+      "key": 58
+    },
+    {
+      "text": "a",
+      "width": 2,
+      "line": 1,
+      "cap": "A",
+      "start_pos": 5,
+      "key": 30
+    },
+    {
+      "text": "s",
+      "width": 2,
+      "line": 1,
+      "cap": "S",
+      "start_pos": 7,
+      "key": 31
+    },
+    {
+      "text": "d",
+      "width": 2,
+      "line": 1,
+      "cap": "D",
+      "start_pos": 9,
+      "key": 32
+    },
+    {
+      "text": "f",
+      "width": 2,
+      "line": 1,
+      "cap": "F",
+      "start_pos": 11,
+      "key": 33
+    },
+    {
+      "text": "g",
+      "width": 2,
+      "line": 1,
+      "cap": "G",
+      "start_pos": 13,
+      "key": 34
+    },
+    {
+      "text": "h",
+      "width": 2,
+      "line": 1,
+      "cap": "H",
+      "start_pos": 15,
+      "key": 35
+    },
+    {
+      "text": "j",
+      "width": 2,
+      "line": 1,
+      "cap": "J",
+      "start_pos": 17,
+      "key": 36
+    },
+    {
+      "text": "k",
+      "width": 2,
+      "line": 1,
+      "cap": "K",
+      "start_pos": 19,
+      "key": 37
+    },
+    {
+      "text": "l",
+      "width": 2,
+      "line": 1,
+      "cap": "L",
+      "start_pos": 21,
+      "key": 38
+    },
+    {
+      "text": ";",
+      "shift": ":",
+      "width": 2,
+      "line": 1,
+      "start_pos": 23,
+      "key": 39
+    },
+    {
+      "text": "'",
+      "shift": "\"",
+      "width": 2,
+      "line": 1,
+      "start_pos": 25,
+      "key": 40
+    },
+    {
+      "text": "`",
+      "shift": "~",
+      "width": 2,
+      "line": 1,
+      "start_pos": 27,
+      "key": 41
+    },
+    {
+      "text": "   Enter",
+      "width": 6,
+      "line": 1,
+      "start_pos": 29,
+      "key": 28
+    }
+  ],
+  [
+    {
+      "text": "Shift",
+      "width": 6,
+      "line": 2,
+      "start_pos": 0,
+      "key": 42
+    },
+    {
+      "text": "z",
+      "width": 2,
+      "line": 2,
+      "cap": "Z",
+      "start_pos": 6,
+      "key": 44
+    },
+    {
+      "text": "x",
+      "width": 2,
+      "line": 2,
+      "cap": "X",
+      "start_pos": 8,
+      "key": 45
+    },
+    {
+      "text": "c",
+      "width": 2,
+      "line": 2,
+      "cap": "C",
+      "start_pos": 10,
+      "key": 46
+    },
+    {
+      "text": "v",
+      "width": 2,
+      "line": 2,
+      "cap": "V",
+      "start_pos": 12,
+      "key": 47
+    },
+    {
+      "text": "b",
+      "width": 2,
+      "line": 2,
+      "cap": "B",
+      "start_pos": 14,
+      "key": 48
+    },
+    {
+      "text": "n",
+      "width": 2,
+      "line": 2,
+      "cap": "N",
+      "start_pos": 16,
+      "key": 49
+    },
+    {
+      "text": "m",
+      "width": 2,
+      "line": 2,
+      "cap": "M",
+      "start_pos": 18,
+      "key": 50
+    },
+    {
+      "text": ",",
+      "width": 2,
+      "shift": "<",
+      "line": 2,
+      "start_pos": 20,
+      "key": 51
+    },
+    {
+      "text": ".",
+      "width": 2,
+      "shift": ">",
+      "line": 2,
+      "start_pos": 22,
+      "key": 52
+    },
+    {
+      "text": "/",
+      "width": 2,
+      "shift": "?",
+      "line": 2,
+      "start_pos": 24,
+      "key": 53
+    },
+    {
+      "text": "Up",
+      "width": 2,
+      "line": 2,
+      "start_pos": 27,
+      "key": 103
+    },
+    {
+      "text": "Shift",
+      "width": 5,
+      "line": 2,
+      "start_pos": 30,
+      "key": 54
+    }
+  ],
+  [
+    {
+      "text": "Ctrl",
+      "width": 3,
+      "line": 3,
+      "start_pos": 0,
+      "key": 29
+    },
+    {
+      "text": "Mu",
+      "width": 2,
+      "start_pos": 3,
+      "line": 3,
+      "key": 139
+    },
+    {
+      "text": "Alt",
+      "width": 2,
+      "line": 3,
+      "start_pos": 5,
+      "key": 56
+    },
+    {
+      "text": "Cy",
+      "width": 2,
+      "line": 3,
+      "start_pos": 7,
+      "key": 133
+    },
+    {
+      "text": "            Space            ",
+      "width": 9,
+      "line": 3,
+      "start_pos": 9,
+      "key": 57
+    },
+    {
+      "text": "pa",
+      "width": 2,
+      "line": 3,
+      "start_pos": 18,
+      "key": 135
+    },
+    {
+      "text": "Alt",
+      "width": 2,
+      "line": 3,
+      "start_pos": 20,
+      "key": 100
+    },
+    {
+      "text": "Ctrl",
+      "width": 3,
+      "line": 3,
+      "start_pos": 22,
+      "key": 97
+    },
+    {
+      "text": "<-",
+      "width": 2,
+      "line": 3,
+      "start_pos": 25,
+      "key": 105
+    },
+    {
+      "text": "Dn",
+      "width": 2,
+      "line": 3,
+      "start_pos": 27,
+      "key": 108
+    },
+    {
+      "text": "->",
+      "width": 2,
+      "line": 3,
+      "start_pos": 29,
+      "key": 106
+    },
+    {
+      "text": "PU",
+      "width": 2,
+      "line": 3,
+      "start_pos": 31,
+      "key": 104
+    },
+    {
+      "text": "PD",
+      "width": 2,
+      "line": 3,
+      "start_pos": 33,
+      "key": 109
+    }
+  ]
+]

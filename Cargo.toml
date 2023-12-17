@@ -1,25 +1,17 @@
-[package]
-name = "layershellev"
-version = "0.1.0"
+[workspace]
+resolver = "2"
+members = ["./layershellev", "./starcolorkeyboard"]
+
+[workspace.package]
+authors = [
+	"Decodertalkers <aakari@tutanota.com>",
+	"Aakash Sen Sharma <aakashsensharma@gmail.com>",
+]
 edition = "2021"
+version = "0.1.0"
+license = "MIT"
+description = "Wayland extra shell lib"
+keywords = ["wayland"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-tempfile = "3.8.1"
-thiserror = "1.0.50"
-wayland-client = { version = "0.31.1" }
-
-wayland-protocols = { version = "0.31.0", default-features = false, features = [
-	"unstable",
-	"staging",
-	"client",
-] }
-
-wayland-cursor = "0.31.0"
-
-wayland-protocols-wlr = { version = "0.2.0", default-features = false, features = [
-	"client",
-] }
-
-wayland-protocols-misc = { version = "0.2.0", features = ["client"] }
+[workspace.dependencies]
+layershellev = { version = "0.1.0", path = "./layershellev" }

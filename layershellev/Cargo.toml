@@ -1,0 +1,28 @@
+[package]
+name = "layershellev"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tempfile = "3.8.1"
+thiserror = "1.0.50"
+wayland-client = { version = "0.31.1" }
+
+wayland-protocols = { version = "0.31.0", default-features = false, features = [
+	"unstable",
+	"staging",
+	"client",
+] }
+
+wayland-cursor = "0.31.0"
+
+wayland-protocols-wlr = { version = "0.2.0", default-features = false, features = [
+	"client",
+] }
+
+wayland-protocols-misc = { version = "0.2.0", features = ["client"] }
