@@ -45,6 +45,12 @@ fn main() {
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::None
             }
+            LayerEvent::XdgInfoChanged => {
+                let index = index.unwrap();
+                let unit = ev.get_unit(index);
+                println!("{:?}", unit.get_xdgoutput_info());
+                ReturnData::None
+            }
             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
                 draw(file, (init_w, init_h));
                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());

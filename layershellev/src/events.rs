@@ -16,6 +16,7 @@ use std::{fmt::Debug, fs::File};
 #[derive(Debug)]
 pub enum LayerEvent<'a, T: Debug> {
     InitRequest,
+    XdgInfoChanged,
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     RequestBuffer(
         &'a mut File,
@@ -89,6 +90,7 @@ pub(crate) enum DispatchMessageInner {
         width: u32,
         height: u32,
     },
+    XdgInfoChanged,
 }
 
 #[derive(Debug)]
@@ -209,6 +211,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 DispatchMessage::RequestRefresh { width, height }
             }
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
+            DispatchMessageInner::XdgInfoChanged => unimplemented!(),
         }
     }
 }

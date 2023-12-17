@@ -33,6 +33,11 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
 };
 
+use wayland_protocols::xdg::xdg_output::zv1::client::{
+    zxdg_output_manager_v1::ZxdgOutputManagerV1,
+    zxdg_output_v1::{self, ZxdgOutputV1},
+};
+
 use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
     wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
@@ -102,11 +107,37 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
 }
 
 #[derive(Debug)]
+pub struct ZxdgOutputInfo {
+    zxdgoutput: ZxdgOutputV1,
+    logical_size: (i32, i32),
+    position: (i32, i32),
+}
+
+impl ZxdgOutputInfo {
+    fn new(zxdgoutput: ZxdgOutputV1) -> Self {
+        Self {
+            zxdgoutput,
+            logical_size: (0, 0),
+            position: (0, 0),
+        }
+    }
+
+    pub fn get_positon(&self) -> (i32, i32) {
+        self.position
+    }
+
+    pub fn get_logical_size(&self) -> (i32, i32) {
+        self.logical_size
+    }
+}
+
+#[derive(Debug)]
 pub struct WindowStateUnit<T: Debug> {
     wl_surface: WlSurface,
     size: (u32, u32),
     buffer: Option<WlBuffer>,
     layer_shell: ZwlrLayerSurfaceV1,
+    zxdgoutput: Option<ZxdgOutputInfo>,
     binding: Option<T>,
 }
 
@@ -114,6 +145,10 @@ impl<T: Debug> WindowStateUnit<T> {
     pub fn set_anchor(&self, anchor: Anchor) {
         self.layer_shell.set_anchor(anchor);
         self.wl_surface.commit();
+    }
+
+    pub fn get_xdgoutput_info(&self) -> Option<&ZxdgOutputInfo> {
+        self.zxdgoutput.as_ref()
     }
 
     pub fn set_margin(&self, (top, right, bottom, left): (i32, i32, i32, i32)) {
@@ -516,6 +551,39 @@ impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Windo
     }
 }
 
+impl<T: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &zxdg_output_v1::ZxdgOutputV1,
+        event: <zxdg_output_v1::ZxdgOutputV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        let Some(index) = state.units.iter().position(|info| {
+            info.zxdgoutput
+                .as_ref()
+                .is_some_and(|zxdgoutput| zxdgoutput.zxdgoutput == *proxy)
+        }) else {
+            return;
+        };
+        let info = &mut state.units[index];
+        let xdg_info = info.zxdgoutput.as_mut().unwrap();
+        match event {
+            zxdg_output_v1::Event::LogicalSize { width, height } => {
+                xdg_info.logical_size = (width, height);
+            }
+            zxdg_output_v1::Event::LogicalPosition { x, y } => {
+                xdg_info.position = (x, y);
+            }
+            _ => {}
+        }
+        state
+            .message
+            .push((Some(index), DispatchMessageInner::XdgInfoChanged));
+    }
+}
+
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
@@ -531,6 +599,8 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeDeviceV1);
 
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
+
+delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
@@ -564,6 +634,9 @@ impl<T: Debug + 'static> WindowState<T> {
 
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
+
+        let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qh, 1..=3, ())?; // bind
+                                                                                             // xdg_output_manager
 
         event_queue.blocking_dispatch(self)?; // then make a dispatch
 
@@ -632,6 +705,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 size: (0, 0),
                 buffer: None,
                 layer_shell: layer,
+                zxdgoutput: None,
                 binding: None,
             });
         } else {
@@ -665,6 +739,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
                 wl_surface.commit();
 
+                let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
                 // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                 // and if you need to reconfigure it, you need to commit the wl_surface again
                 // so because this is just an example, so we just commit it once
@@ -675,6 +750,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     size: (0, 0),
                     buffer: None,
                     layer_shell: layer,
+                    zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                     binding: None,
                 });
             }
@@ -717,6 +793,9 @@ impl<T: Debug + 'static> WindowState<T> {
 
                         surface.commit();
                     }
+                    (index_info, DispatchMessageInner::XdgInfoChanged) => {
+                        event_hander(LayerEvent::XdgInfoChanged, self, *index_info);
+                    }
                     (_, DispatchMessageInner::NewDisplay(display)) => {
                         if self.is_single {
                             continue;
@@ -749,6 +828,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
                         wl_surface.commit();
 
+                        let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
                         // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                         // and if you need to reconfigure it, you need to commit the wl_surface again
                         // so because this is just an example, so we just commit it once
@@ -759,6 +839,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             size: (0, 0),
                             buffer: None,
                             layer_shell: layer,
+                            zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                             binding: None,
                         });
                     }
