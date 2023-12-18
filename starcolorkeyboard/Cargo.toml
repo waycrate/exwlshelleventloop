@@ -7,12 +7,11 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-xkbcommon = "0.6.0"
-
+# workspace dependencies
 layershellev.workspace = true
+tempfile.workspace = true
 
-#calloop = "0.12.1"
-tempfile = "3.8.0"
+xkbcommon = "0.6.0"
 
 cairo-rs = "0.18.2"
 pango = "0.18.0"

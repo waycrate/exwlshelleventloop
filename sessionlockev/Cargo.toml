@@ -9,20 +9,14 @@ keywords.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tempfile = "3.8.1"
-thiserror = "1.0.50"
-wayland-client = { version = "0.31.1" }
+tempfile.workspace = true
+thiserror.workspace = true
+wayland-client.workspace = true
 
-wayland-protocols = { version = "0.31.0", default-features = false, features = [
-	"unstable",
-	"staging",
-	"client",
-] }
+wayland-protocols.workspace = true
 
-wayland-cursor = "0.31.0"
+wayland-cursor.workspace = true
 
-wayland-protocols-wlr = { version = "0.2.0", default-features = false, features = [
-	"client",
-] }
+wayland-protocols-wlr.workspace = true
 
-wayland-protocols-misc = { version = "0.2.0", features = ["client"] }
+wayland-protocols-misc.workspace = true
