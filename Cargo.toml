@@ -11,7 +11,8 @@ edition = "2021"
 version = "0.1.0"
 license = "MIT"
 description = "Wayland extra shell lib"
-keywords = ["wayland"]
+keywords = ["wayland", "wlroots"]
+readme = "README.md"
 
 [workspace.dependencies]
 layershellev = { version = "0.1.0", path = "./layershellev" }

@@ -5,6 +5,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 keywords.workspace = true
+readme.workspace = true
+description = "extra shell binding for ext-session-shell with winit like eventloop"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
