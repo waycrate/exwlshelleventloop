@@ -369,6 +369,27 @@ impl<T: Debug> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
     }
 }
 
+// if is only one window, use it will be easy
+impl<T: Debug> rwh_06::HasWindowHandle for WindowState<T> {
+    fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+        let raw = self.main_window().raw_window_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+    }
+}
+
+// if is only one window, use it will be easy
+impl<T: Debug> rwh_06::HasDisplayHandle for WindowState<T> {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        let raw = self.main_window().raw_display_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+    }
+}
 impl<T: Debug> WindowStateUnit<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
