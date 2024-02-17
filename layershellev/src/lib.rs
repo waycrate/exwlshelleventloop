@@ -469,6 +469,19 @@ pub struct WindowState<T: Debug> {
 }
 
 impl<T: Debug> WindowState<T> {
+    // return the first window
+    // I will use it in iced
+    pub fn main_window(&self) -> &WindowStateUnit<T> {
+        &self.units[0]
+    }
+
+    // return all windows
+    pub fn windows(&self) -> &Vec<WindowStateUnit<T>> {
+        &self.units
+    }
+}
+
+impl<T: Debug> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -1132,11 +1145,10 @@ impl<T: Debug + 'static> WindowState<T> {
             for msg in messages.iter() {
                 match msg {
                     (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
-                        if self.use_display_handle {
-                            continue;
-                        }
                         let index = *unit_index;
-                        if self.units[index].buffer.is_none() {
+                        // NOTE: is is use_display_handle, just send request_refresh
+                        // I will use it in iced
+                        if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_hander(
                                 LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
