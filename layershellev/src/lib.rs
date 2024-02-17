@@ -175,6 +175,7 @@ use wayland_client::{
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
+        wl_display::WlDisplay,
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
@@ -316,6 +317,7 @@ impl ZxdgOutputInfo {
 /// a cario_context, which is binding to the buffer on the wl_surface.
 #[derive(Debug)]
 pub struct WindowStateUnit<T: Debug> {
+    display: WlDisplay,
     wl_surface: WlSurface,
     size: (u32, u32),
     buffer: Option<WlBuffer>,
@@ -323,6 +325,48 @@ pub struct WindowStateUnit<T: Debug> {
     zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
     binding: Option<T>,
+}
+
+impl<T: Debug> WindowStateUnit<T> {
+    #[inline]
+    pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandWindowHandle::new({
+            let ptr = self.wl_surface.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+        })
+        .into())
+    }
+
+    #[inline]
+    pub fn raw_display_handle_rwh_06(
+        &self,
+    ) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into())
+    }
+}
+
+impl<T: Debug> rwh_06::HasWindowHandle for WindowStateUnit<T> {
+    fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_window_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+    }
+}
+
+impl<T: Debug> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_display_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+    }
 }
 
 impl<T: Debug> WindowStateUnit<T> {
@@ -419,6 +463,9 @@ pub struct WindowState<T: Debug> {
     size: Option<(u32, u32)>,
     exclusive_zone: Option<i32>,
     margin: Option<(i32, i32, i32, i32)>,
+
+    // settings
+    use_display_handle: bool,
 }
 
 impl<T: Debug> WindowState<T> {
@@ -501,6 +548,11 @@ impl<T: Debug> WindowState<T> {
         self.exclusive_zone = Some(exclusive_zone);
         self
     }
+
+    pub fn with_use_display_handle(mut self, use_display_handle: bool) -> Self {
+        self.use_display_handle = use_display_handle;
+        self
+    }
 }
 
 impl<T: Debug> Default for WindowState<T> {
@@ -533,6 +585,8 @@ impl<T: Debug> Default for WindowState<T> {
             size: None,
             exclusive_zone: None,
             margin: None,
+
+            use_display_handle: false,
         }
     }
 }
@@ -959,6 +1013,7 @@ impl<T: Debug + 'static> WindowState<T> {
             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
             self.units.push(WindowStateUnit {
+                display: connection.display(),
                 wl_surface,
                 size: (0, 0),
                 buffer: None,
@@ -1010,6 +1065,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                 self.units.push(WindowStateUnit {
+                    display: connection.display(),
                     wl_surface,
                     size: (0, 0),
                     buffer: None,
@@ -1076,6 +1132,9 @@ impl<T: Debug + 'static> WindowState<T> {
             for msg in messages.iter() {
                 match msg {
                     (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
+                        if self.use_display_handle {
+                            continue;
+                        }
                         let index = *unit_index;
                         if self.units[index].buffer.is_none() {
                             let mut file = tempfile::tempfile()?;
@@ -1153,6 +1212,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                         self.units.push(WindowStateUnit {
+                            display: connection.display(),
                             wl_surface,
                             size: (0, 0),
                             buffer: None,

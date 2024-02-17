@@ -23,3 +23,7 @@ wayland-cursor.workspace = true
 wayland-protocols-wlr.workspace = true
 
 wayland-protocols-misc.workspace = true
+
+wayland-backend.workspace = true
+
+rwh_06.workspace = true
