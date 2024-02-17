@@ -23,7 +23,9 @@ fn main() {
         .with_margin((20, 20, 100, 20))
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
-        .with_exclusize_zone(-1);
+        .with_exclusize_zone(-1)
+        .build()
+        .unwrap();
 
     let mut virtual_keyboard_manager = None;
     ev.running(|event, ev, index| {

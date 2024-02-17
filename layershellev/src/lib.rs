@@ -28,7 +28,9 @@
 //!         .with_margin((20, 20, 100, 20))
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
 //!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
-//!         .with_exclusize_zone(-1);
+//!         .with_exclusize_zone(-1)
+//!         .build()
+//!         .unwrap();
 //!
 //!     let mut virtual_keyboard_manager = None;
 //!     ev.running(|event, ev, index| {
@@ -169,7 +171,7 @@ pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
-    globals::{registry_queue_init, BindError, GlobalError, GlobalListContents},
+    globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
@@ -183,7 +185,7 @@ use wayland_client::{
         wl_surface::WlSurface,
         wl_touch::{self, WlTouch},
     },
-    ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
+    ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
 
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
@@ -394,6 +396,15 @@ pub struct WindowState<T: Debug> {
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<usize>, DispatchMessageInner)>,
 
+    connection: Option<Connection>,
+    event_queue: Option<EventQueue<WindowState<T>>>,
+    wl_compositor: Option<WlCompositor>,
+    xdg_output_manager: Option<ZxdgOutputManagerV1>,
+    shm: Option<WlShm>,
+    cursor_manager: Option<WpCursorShapeManagerV1>,
+    fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
+    globals: Option<GlobalList>,
+
     // base managers
     seat: Option<WlSeat>,
     keyboard: Option<WlKeyboard>,
@@ -500,6 +511,15 @@ impl<T: Debug> Default for WindowState<T> {
             is_single: true,
             units: Vec::new(),
             message: Vec::new(),
+
+            connection: None,
+            event_queue: None,
+            wl_compositor: None,
+            shm: None,
+            cursor_manager: None,
+            xdg_output_manager: None,
+            globals: None,
+            fractional_scale_manager: None,
 
             seat: None,
             keyboard: None,
@@ -852,15 +872,7 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
-    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
-    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
-    /// it will return [None].
-    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
-    where
-        F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,
-    {
+    pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
                                                                            // global, the
@@ -880,6 +892,7 @@ impl<T: Debug + 'static> WindowState<T> {
         // we need to create more
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
+        self.shm = Some(shm);
         self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
 
         let cursor_manager = globals
@@ -896,25 +909,7 @@ impl<T: Debug + 'static> WindowState<T> {
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
 
-        event_queue.blocking_dispatch(self)?; // then make a dispatch
-
-        let mut init_event = None;
-
-        while !matches!(init_event, Some(ReturnData::None)) {
-            match init_event {
-                None => {
-                    init_event = Some(event_hander(LayerEvent::InitRequest, self, None));
-                }
-                Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_hander(
-                        LayerEvent::BindProvide(&globals, &qh),
-                        self,
-                        None,
-                    ));
-                }
-                _ => panic!("Not privide server here"),
-            }
-        }
+        event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
         // do the step before, you get empty list
 
@@ -1025,6 +1020,51 @@ impl<T: Debug + 'static> WindowState<T> {
                 });
             }
             self.message.clear();
+        }
+        self.event_queue = Some(event_queue);
+        self.globals = Some(globals);
+        self.wl_compositor = Some(wmcompositer);
+        self.fractional_scale_manager = fractional_scale_manager;
+        self.cursor_manager = cursor_manager;
+        self.xdg_output_manager = Some(xdg_output_manager);
+        self.connection = Some(connection);
+
+        Ok(self)
+    }
+    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
+    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
+    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// it will return [None].
+    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
+    where
+        F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+    {
+        let globals = self.globals.take().unwrap();
+        let mut event_queue = self.event_queue.take().unwrap();
+        let qh = event_queue.handle();
+        let wmcompositer = self.wl_compositor.take().unwrap();
+        let shm = self.shm.take().unwrap();
+        let fractional_scale_manager = self.fractional_scale_manager.take();
+        let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.take();
+        let xdg_output_manager = self.xdg_output_manager.take().unwrap();
+        let connection = self.connection.take().unwrap();
+        let mut init_event = None;
+
+        while !matches!(init_event, Some(ReturnData::None)) {
+            match init_event {
+                None => {
+                    init_event = Some(event_hander(LayerEvent::InitRequest, self, None));
+                }
+                Some(ReturnData::RequestBind) => {
+                    init_event = Some(event_hander(
+                        LayerEvent::BindProvide(&globals, &qh),
+                        self,
+                        None,
+                    ));
+                }
+                _ => panic!("Not privide server here"),
+            }
         }
         'out: loop {
             event_queue.blocking_dispatch(self)?;
