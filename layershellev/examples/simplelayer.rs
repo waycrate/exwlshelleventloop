@@ -16,7 +16,7 @@ const C_KEY: u32 = 46;
 const ESC_KEY: u32 = 1;
 
 fn main() {
-    let mut ev: WindowState<()> = WindowState::new("Hello")
+    let ev: WindowState<()> = WindowState::new("Hello")
         .with_single(false)
         .with_size((0, 400))
         .with_layer(Layer::Top)

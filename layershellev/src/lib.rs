@@ -1126,7 +1126,7 @@ impl<T: Debug + 'static> WindowState<T> {
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
     /// it will return [None].
-    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
+    pub fn running<F>(mut self, mut event_hander: F) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,
     {
@@ -1144,12 +1144,12 @@ impl<T: Debug + 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_hander(LayerEvent::InitRequest, self, None));
+                    init_event = Some(event_hander(LayerEvent::InitRequest, &mut self, None));
                 }
                 Some(ReturnData::RequestBind) => {
                     init_event = Some(event_hander(
                         LayerEvent::BindProvide(&globals, &qh),
-                        self,
+                        &mut self,
                         None,
                     ));
                 }
@@ -1157,7 +1157,7 @@ impl<T: Debug + 'static> WindowState<T> {
             }
         }
         'out: loop {
-            event_queue.blocking_dispatch(self)?;
+            event_queue.blocking_dispatch(&mut self)?;
             if self.message.is_empty() {
                 continue;
             }
@@ -1173,7 +1173,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_hander(
                                 LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
-                                self,
+                                &mut self,
                                 Some(index),
                             ) else {
                                 panic!("You cannot return this one");
@@ -1187,7 +1187,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                     width: *width,
                                     height: *height,
                                 }),
-                                self,
+                                &mut self,
                                 Some(index),
                             );
                         }
@@ -1196,7 +1196,11 @@ impl<T: Debug + 'static> WindowState<T> {
                         surface.commit();
                     }
                     (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
-                        event_hander(LayerEvent::XdgInfoChanged(*change_type), self, *index_info);
+                        event_hander(
+                            LayerEvent::XdgInfoChanged(*change_type),
+                            &mut self,
+                            *index_info,
+                        );
                     }
                     (_, DispatchMessageInner::NewDisplay(display)) => {
                         if self.is_single {
@@ -1258,8 +1262,11 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {
                         let (index_message, msg) = msg;
                         let msg: DispatchMessage = msg.clone().into();
-                        match event_hander(LayerEvent::RequestMessages(&msg), self, *index_message)
-                        {
+                        match event_hander(
+                            LayerEvent::RequestMessages(&msg),
+                            &mut self,
+                            *index_message,
+                        ) {
                             ReturnData::RequestExist => {
                                 break 'out;
                             }
