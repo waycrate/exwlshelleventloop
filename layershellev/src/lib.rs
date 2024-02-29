@@ -168,6 +168,8 @@ use events::DispatchMessageInner;
 
 pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
+use sctk::reexports::calloop_wayland_source::WaylandSource;
+
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
@@ -958,6 +960,32 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
+
+#[allow(unused)]
+pub struct EventLoop<T: Debug> {
+    connection: Connection,
+    wayland_dispatcher: WaylandDispatcher<T>,
+}
+
+type WaylandDispatcher<T> =
+    calloop::Dispatcher<'static, WaylandSource<WindowState<T>>, WindowState<T>>;
+
+impl<T: Debug + 'static> EventLoop<T> {
+    pub fn new() -> Result<Self, LayerEventError> {
+        let connection = Connection::connect_to_env()?;
+        let event_queue = connection.new_event_queue::<WindowState<T>>();
+        let wayland_source = WaylandSource::new(connection.clone(), event_queue);
+
+        let wayland_dispatcher = calloop::Dispatcher::new(
+            wayland_source,
+            |_, queue, winit_state: &mut WindowState<T>| queue.dispatch_pending(winit_state),
+        );
+        Ok(Self {
+            connection,
+            wayland_dispatcher,
+        })
+    }
+}
 
 impl<T: Debug + 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
