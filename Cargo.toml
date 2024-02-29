@@ -38,5 +38,13 @@ wayland-protocols-wlr = { version = "0.2.0", default-features = false, features 
 wayland-protocols-misc = { version = "0.2.0", features = ["client"] }
 wayland-backend = { version = "0.3.0", features = ["client_system"] }
 
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = ["std"] }
-rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"]}
+sctk = { package = "smithay-client-toolkit", version = "0.18.1", features = [
+	"calloop",
+] }
+
+calloop = "0.12.3"
+
+rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
+	"std",
+] }
+rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
