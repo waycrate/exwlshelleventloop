@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["./layershellev", "./starcolorkeyboard", "./sessionlockev"]
+members = [
+	"./layershellev",
+	"./iced_layershell",
+	"./starcolorkeyboard",
+	"./sessionlockev",
+]
 
 [workspace.package]
 authors = [
