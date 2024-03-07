@@ -13,36 +13,15 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use layershellev::{reexport::Anchor, LayerEvent, LayerEventError, ReturnData, WindowState};
+use layershellev::{
+    reexport::Anchor, LayerEvent, LayerEventError, ReturnData, WindowState, WindowWrapper,
+};
 
 use futures::channel::mpsc;
 
 use std::sync::Mutex;
 
 use crate::proxy::IcedProxy;
-
-struct EventLoop(WindowState<()>);
-
-impl rwh_06::HasWindowHandle for EventLoop {
-    fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
-        self.0.window_handle()
-    }
-}
-
-impl rwh_06::HasDisplayHandle for EventLoop {
-    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
-        self.0.display_handle()
-    }
-}
-
-impl EventLoop {
-    fn run<F>(self, event_hander: F) -> Result<(), LayerEventError>
-    where
-        F: FnMut(LayerEvent<()>, &mut WindowState<()>, Option<usize>) -> ReturnData,
-    {
-       self.0.running(event_hander)
-    }
-}
 
 /// An interactive, native cross-platform application.
 ///
@@ -178,14 +157,15 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let window: WindowState<()> = layershellev::WindowState::new(&application.namespace())
+    let ev: WindowState<()> = layershellev::WindowState::new(&application.namespace())
         .with_single(true)
         .with_use_display_handle(true)
         .with_layer(layershellev::reexport::Layer::Top)
         .with_anchor(Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom)
         .build()
         .unwrap();
-    let window = Arc::new(EventLoop(window));
+
+    let window = Arc::new(ev.gen_wrapper());
     let compositor = C::new(compositor_settings, window.clone())?;
     let mut renderer = compositor.create_renderer();
 
@@ -207,7 +187,7 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    //let _ = window.run(|event, ev, _| layershellev::ReturnData::None);
+    let _ = ev.running(|event, ev, _| layershellev::ReturnData::None);
     //let (mut event_sender, event_receiver) = mpsc::unbounded();
     //let (control_sender, mut control_receiver) = mpsc::unbounded();
     todo!()
@@ -220,7 +200,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy, A::Message>,
     mut debug: Debug,
     init_command: Command<A::Message>,
-    window: Arc<EventLoop>,
+    window: Arc<WindowWrapper>,
 ) where
     A: Application + 'static,
     E: Executor + 'static,

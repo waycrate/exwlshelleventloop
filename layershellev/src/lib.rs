@@ -168,8 +168,6 @@ use events::DispatchMessageInner;
 
 pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
-use sctk::reexports::calloop_wayland_source::WaylandSource;
-
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
@@ -504,6 +502,11 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
+pub struct WindowWrapper {
+    display: WlDisplay,
+    wl_surface: WlSurface,
+}
+
 impl<T: Debug> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
@@ -523,6 +526,55 @@ impl<T: Debug> WindowState<T> {
     /// get the touch
     pub fn get_touch(&self) -> Option<&WlTouch> {
         self.touch.as_ref()
+    }
+}
+impl<T: Debug> WindowState<T> {
+    pub fn gen_wrapper(&self) -> WindowWrapper {
+        WindowWrapper {
+            display: self.main_window().display.clone(),
+            wl_surface: self.main_window().wl_surface.clone(),
+        }
+    }
+}
+
+impl WindowWrapper {
+    #[inline]
+    pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandWindowHandle::new({
+            let ptr = self.wl_surface.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+        })
+        .into())
+    }
+
+    #[inline]
+    pub fn raw_display_handle_rwh_06(
+        &self,
+    ) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into())
+    }
+}
+impl rwh_06::HasWindowHandle for WindowWrapper {
+    fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_window_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+    }
+}
+
+impl rwh_06::HasDisplayHandle for WindowWrapper {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_display_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
     }
 }
 
@@ -961,31 +1013,6 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
-#[allow(unused)]
-pub struct EventLoop<T: Debug> {
-    connection: Connection,
-    wayland_dispatcher: WaylandDispatcher<T>,
-}
-
-type WaylandDispatcher<T> =
-    calloop::Dispatcher<'static, WaylandSource<WindowState<T>>, WindowState<T>>;
-
-impl<T: Debug + 'static> EventLoop<T> {
-    pub fn new() -> Result<Self, LayerEventError> {
-        let connection = Connection::connect_to_env()?;
-        let event_queue = connection.new_event_queue::<WindowState<T>>();
-        let wayland_source = WaylandSource::new(connection.clone(), event_queue);
-
-        let wayland_dispatcher = calloop::Dispatcher::new(
-            wayland_source,
-            |_, queue, winit_state: &mut WindowState<T>| queue.dispatch_pending(winit_state),
-        );
-        Ok(Self {
-            connection,
-            wayland_dispatcher,
-        })
-    }
-}
 
 impl<T: Debug + 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
