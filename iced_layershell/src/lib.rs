@@ -1,4 +1,5 @@
 mod error;
+mod event;
 mod proxy;
 
 use std::{borrow::Cow, sync::Arc};
@@ -13,15 +14,11 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use layershellev::{
-    reexport::Anchor, LayerEvent, LayerEventError, ReturnData, WindowState, WindowWrapper,
-};
+use layershellev::{reexport::Anchor, LayerEvent, ReturnData, WindowState, WindowWrapper};
 
-use futures::channel::mpsc;
+use futures::{channel::mpsc, StreamExt};
 
-use std::sync::Mutex;
-
-use crate::proxy::IcedProxy;
+use crate::{event::IcedLayerEvent, proxy::IcedProxy};
 
 /// An interactive, native cross-platform application.
 ///
@@ -175,30 +172,58 @@ where
         renderer.load_font(font);
     }
 
+    let init_window_size = ev.main_window().get_size();
+
+    let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent>();
+
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
         compositor,
         renderer,
         runtime,
         debug,
+        event_receiver,
+        init_window_size,
         init_command,
         window.clone(),
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    let _ = ev.running(|event, ev, _| layershellev::ReturnData::None);
-    //let (mut event_sender, event_receiver) = mpsc::unbounded();
-    //let (control_sender, mut control_receiver) = mpsc::unbounded();
-    todo!()
+    let _ = ev.running(move |event, ev, _| {
+        use layershellev::DispatchMessage;
+        match event {
+            LayerEvent::InitRequest => {}
+            LayerEvent::BindProvide(global, queue) => {}
+            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+                event_sender
+                    .start_send(IcedLayerEvent::RequestRefresh {
+                        width: *width,
+                        height: *height,
+                    })
+                    .expect("Cannot send");
+            }
+            _ => {}
+        }
+        let poll = instance.as_mut().poll(&mut context);
+        if let task::Poll::Ready(_) = poll {
+            ReturnData::RequestExist
+        } else {
+            layershellev::ReturnData::None
+        }
+    });
+    Ok(())
 }
 
+#[allow(unused_mut)]
 async fn run_instance<A, E, C>(
     mut application: A,
     mut compositor: C,
     mut renderer: A::Renderer,
     mut runtime: Runtime<E, IcedProxy, A::Message>,
     mut debug: Debug,
+    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent>,
+    (init_w, init_h): (u32, u32),
     init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
 ) where
@@ -207,4 +232,13 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
 {
+    let mut surface = compositor.create_surface(window.clone(), init_w, init_h);
+    runtime.track(application.subscription().into_recipes());
+    while let Some(event) = event_receiver.next().await {
+        match event {
+            IcedLayerEvent::RequestRefresh { width, height } => {
+                compositor.configure_surface(&mut surface, width, height);
+            }
+        }
+    }
 }
