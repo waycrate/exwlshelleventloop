@@ -4,6 +4,8 @@ mod error;
 mod event;
 mod proxy;
 
+pub use error::Error;
+
 use iced::theme;
 use iced::Element;
 use iced::Settings;
