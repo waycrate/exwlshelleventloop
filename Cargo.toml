@@ -1,10 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-	"./layershellev",
-	"./iced_layershell",
-	"./starcolorkeyboard",
-	"./sessionlockev",
+	"layershellev",
+	"iced_layershell",
+	"starcolorkeyboard",
+	"sessionlockev",
+	"iced_examples/*",
 ]
 
 [workspace.package]
@@ -23,6 +24,8 @@ readme = "README.md"
 [workspace.dependencies]
 layershellev = { version = "0.1.0", path = "./layershellev" }
 sessionlockev = { version = "0.1.0", path = "./sessionlockev" }
+
+iced_layershell = { version = "0.1.0", path = "./iced_layershell" }
 
 tempfile = "3.8.1"
 thiserror = "1.0.50"
