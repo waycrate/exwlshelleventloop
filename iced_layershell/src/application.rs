@@ -125,9 +125,7 @@ pub struct Settings<Flags> {
 
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
-    // TODO: settings
     settings: Settings<A::Flags>,
-
     compositor_settings: C::Settings,
 ) -> Result<(), Error>
 where
@@ -157,8 +155,10 @@ where
     let ev: WindowState<()> = layershellev::WindowState::new(&application.namespace())
         .with_single(true)
         .with_use_display_handle(true)
+        .with_size((0, 400))
         .with_layer(layershellev::reexport::Layer::Top)
         .with_anchor(Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom)
+        .with_exclusize_zone(-1)
         .build()
         .unwrap();
 
