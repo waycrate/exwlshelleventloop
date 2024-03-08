@@ -1,10 +1,14 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, mem::ManuallyDrop, sync::Arc};
 
-use crate::error::Error;
+use crate::{clipboard::LayerShellClipboard, error::Error};
 
 use iced_graphics::Compositor;
 
-use iced_runtime::{Command, Debug, Program};
+use iced_core::{
+    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size,
+};
+
+use iced_runtime::{user_interface, Command, Debug, Program, UserInterface};
 
 use iced_style::application::StyleSheet;
 
@@ -231,8 +235,26 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
 {
+    let mut cache = user_interface::Cache::default();
     let mut surface = compositor.create_surface(window.clone(), init_w, init_h);
+    let mut clipboard = LayerShellClipboard;
+
+    let mut messages = Vec::new();
+
+    // TODO: run command
+
     runtime.track(application.subscription().into_recipes());
+
+    let mut user_interface = ManuallyDrop::new(build_user_interface(
+        &application,
+        cache,
+        &mut renderer,
+        Size {
+            width: init_w as f32,
+            height: init_h as f32,
+        },
+        &mut debug,
+    ));
 
     debug.startup_finished();
 
@@ -240,7 +262,44 @@ async fn run_instance<A, E, C>(
         match event {
             IcedLayerEvent::RequestRefresh { width, height } => {
                 compositor.configure_surface(&mut surface, width, height);
+                let redraw_event = IcedCoreEvent::Window(
+                    IcedCoreWindow::Id::MAIN,
+                    IcedCoreWindow::Event::RedrawRequested(Instant::now()),
+                );
+
+                let (interface_state, _) = user_interface.update(
+                    &[redraw_event.clone()],
+                    IcedCoreMouse::Cursor::Unavailable,
+                    &mut renderer,
+                    &mut clipboard,
+                    &mut messages,
+                );
+                // TODO: send event
+                runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
+                // TODO: draw mouse and something later
             }
         }
     }
+}
+
+/// Builds a [`UserInterface`] for the provided [`Application`], logging
+/// [`struct@Debug`] information accordingly.
+pub fn build_user_interface<'a, A: Application>(
+    application: &'a A,
+    cache: user_interface::Cache,
+    renderer: &mut A::Renderer,
+    size: Size,
+    debug: &mut Debug,
+) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
+where
+    A::Theme: StyleSheet,
+{
+    debug.view_started();
+    let view = application.view();
+    debug.view_finished();
+
+    debug.layout_started();
+    let user_interface = UserInterface::build(view, size, cache, renderer);
+    debug.layout_finished();
+    user_interface
 }
