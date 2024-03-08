@@ -53,3 +53,9 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 	"std",
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
+
+iced_runtime = "0.12"
+iced_style = "0.12"
+iced_core = "0.12"
+iced_futures = "0.12.0"
+iced_graphics = "0.12.0"
