@@ -7,6 +7,8 @@ edition.workspace = true
 
 [dependencies]
 sctk.workspace = true
+iced.workspace = true
+iced_renderer.workspace = true
 iced_runtime.workspace = true
 iced_style.workspace = true
 iced_core.workspace = true
