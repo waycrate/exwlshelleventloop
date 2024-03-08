@@ -6,7 +6,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sctk = { package = "smithay-client-toolkit", version = "0.18.1" }
+sctk.workspace = true
 iced_runtime = "0.12"
 iced_style = "0.12"
 iced_core = "0.12"
