@@ -7,11 +7,10 @@ mod proxy;
 use iced::theme;
 use iced::Element;
 use iced::Settings;
-use iced_style::application::StyleSheet;
 use iced_futures::Subscription;
 use iced_runtime::Command;
+use iced_style::application::StyleSheet;
 use iced_style::Theme;
-
 
 // layershell application
 pub trait Application: Sized {
@@ -112,14 +111,39 @@ pub trait Application: Sized {
     /// [`Error`] during startup.
     ///
     /// [`Error`]: crate::Error
-    fn run(_settings: Settings<Self::Flags>) -> iced::Result
+    fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
     {
-        todo!()
+        #[allow(clippy::needless_update)]
+        let renderer_settings = iced_renderer::Settings {
+            default_font: settings.default_font,
+            default_text_size: settings.default_text_size,
+            antialiasing: if settings.antialiasing {
+                Some(iced_graphics::Antialiasing::MSAAx4)
+            } else {
+                None
+            },
+            ..iced_renderer::Settings::default()
+        };
+
+        Ok(application::run::<
+            Instance<Self>,
+            Self::Executor,
+            iced_renderer::Compositor,
+        >(settings.into(), renderer_settings)?)
     }
 }
 
+impl<Flags> From<Settings<Flags>> for application::Settings<Flags> {
+    fn from(settings: Settings<Flags>) -> application::Settings<Flags> {
+        application::Settings {
+            id: settings.id,
+            flags: settings.flags,
+            fonts: settings.fonts,
+        }
+    }
+}
 
 struct Instance<A: Application>(A);
 
@@ -235,7 +259,7 @@ pub trait LayerShellSandbox {
     /// and __will NOT return__.
     ///
     /// It should probably be that last thing you call in your `main` function.
-    fn run(settings: Settings<()>) -> Result<(), iced::Error>
+    fn run(settings: Settings<()>) -> Result<(), error::Error>
     where
         Self: 'static + Sized,
     {
