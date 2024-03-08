@@ -2,10 +2,10 @@ use std::{borrow::Cow, mem::ManuallyDrop, sync::Arc};
 
 use crate::{clipboard::LayerShellClipboard, error::Error};
 
-use iced_graphics::Compositor;
+use iced_graphics::{Compositor, Viewport};
 
 use iced_core::{
-    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size,
+    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Color, Event as IcedCoreEvent, Size
 };
 
 use iced_runtime::{user_interface, Command, Debug, Program, UserInterface};
@@ -193,6 +193,7 @@ where
     #[allow(unused)]
     let _ = ev.running(move |event, ev, _| {
         use layershellev::DispatchMessage;
+        println!("{event:?}");
         match event {
             LayerEvent::InitRequest => {}
             // TODO: maybe use it later
@@ -276,7 +277,22 @@ async fn run_instance<A, E, C>(
                 );
                 // TODO: send event
                 runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
+                debug.startup_started();
                 // TODO: draw mouse and something later
+                compositor.present(
+                    &mut renderer,
+                    &mut surface,
+                    &Viewport::with_physical_size(
+                        Size {
+                            width,
+                            height,
+                        },
+                        1.,
+                    ),
+                    Color::TRANSPARENT,
+                    &debug.overlay(),
+                ).ok();
+                debug.draw_finished();
             }
         }
     }
