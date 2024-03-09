@@ -63,7 +63,7 @@ where
 pub struct LayerShellSettings {
     pub anchor: Anchor,
     pub layer: Layer,
-    pub exclsize_zone: i32,
+    pub exclusize_zone: i32,
     pub size: Option<(u32, u32)>,
 }
 
@@ -72,7 +72,7 @@ impl Default for LayerShellSettings {
         LayerShellSettings {
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             layer: Layer::Top,
-            exclsize_zone: -1,
+            exclusize_zone: -1,
             size: None,
         }
     }
