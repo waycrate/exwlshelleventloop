@@ -194,7 +194,6 @@ where
     #[allow(unused)]
     let _ = ev.running(move |event, ev, _| {
         use layershellev::DispatchMessage;
-        println!("{event:?}");
         match event {
             LayerEvent::InitRequest => {}
             // TODO: maybe use it later
@@ -263,6 +262,17 @@ async fn run_instance<A, E, C>(
     while let Some(event) = event_receiver.next().await {
         match event {
             IcedLayerEvent::RequestRefresh { width, height } => {
+                debug.layout_started();
+                user_interface =
+                    ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
+                        Size {
+                            width: width as f32,
+                            height: height as f32,
+                        },
+                        &mut renderer,
+                    ));
+                debug.layout_finished();
+
                 compositor.configure_surface(&mut surface, width, height);
                 let redraw_event = IcedCoreEvent::Window(
                     IcedCoreWindow::Id::MAIN,
@@ -279,6 +289,17 @@ async fn run_instance<A, E, C>(
                 // TODO: send event
                 runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
                 debug.render_started();
+
+                debug.draw_started();
+                user_interface.draw(
+                    &mut renderer,
+                    &application.theme(),
+                    &iced_core::renderer::Style {
+                        text_color: Color::BLACK,
+                    },
+                    IcedCoreMouse::Cursor::Unavailable,
+                );
+                debug.draw_finished();
                 // TODO: draw mouse and something later
                 compositor
                     .present(
