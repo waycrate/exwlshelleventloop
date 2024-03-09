@@ -1,14 +1,22 @@
 pub mod application;
+
 mod clipboard;
 mod error;
 mod event;
 mod proxy;
+pub mod settings;
+
+pub mod reexport {
+    pub use layershellev::reexport::Anchor;
+    pub use layershellev::reexport::Layer;
+}
+
+use settings::Settings;
 
 pub use error::Error;
 
 use iced::theme;
 use iced::Element;
-use iced::Settings;
 use iced_futures::Subscription;
 use iced_runtime::Command;
 use iced_style::application::StyleSheet;
@@ -129,21 +137,10 @@ pub trait Application: Sized {
             ..iced_renderer::Settings::default()
         };
 
-        Ok(application::run::<
-            Instance<Self>,
-            Self::Executor,
-            iced_renderer::Compositor,
-        >(settings.into(), renderer_settings)?)
-    }
-}
-
-impl<Flags> From<Settings<Flags>> for application::Settings<Flags> {
-    fn from(settings: Settings<Flags>) -> application::Settings<Flags> {
-        application::Settings {
-            id: settings.id,
-            flags: settings.flags,
-            fonts: settings.fonts,
-        }
+        application::run::<Instance<Self>, Self::Executor, iced_renderer::Compositor>(
+            settings,
+            renderer_settings,
+        )
     }
 }
 
