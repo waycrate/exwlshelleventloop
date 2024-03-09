@@ -190,7 +190,7 @@ where
             _ => {}
         }
         let poll = instance.as_mut().poll(&mut context);
-        if let task::Poll::Ready(_) = poll {
+        if poll.is_ready() {
             ReturnData::RequestExist
         } else {
             layershellev::ReturnData::None
@@ -199,6 +199,7 @@ where
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[allow(unused)]
 #[allow(unused_mut)]
 async fn run_instance<A, E, C>(
