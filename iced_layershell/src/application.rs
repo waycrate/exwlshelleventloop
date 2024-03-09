@@ -287,7 +287,10 @@ async fn run_instance<A, E, C>(
                     .present(
                         &mut renderer,
                         &mut surface,
-                        &Viewport::with_physical_size(Size { width, height }, 1.),
+                        &Viewport::with_physical_size(
+                            Size { width, height },
+                            application.scale_factor(),
+                        ),
                         Color::WHITE,
                         &debug.overlay(),
                     )

@@ -33,7 +33,7 @@ impl LayerShellSandbox for Counter {
         Self { value: 0 }
     }
 
-    fn title(&self) -> String {
+    fn namespace(&self) -> String {
         String::from("Counter - Iced")
     }
 

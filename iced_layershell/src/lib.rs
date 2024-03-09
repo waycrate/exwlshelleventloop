@@ -57,7 +57,7 @@ pub trait Application: Sized {
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your application when necessary.
-    fn title(&self) -> String;
+    fn namespace(&self) -> String;
 
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
@@ -176,7 +176,7 @@ where
     }
 
     fn namespace(&self) -> String {
-        self.0.title()
+        self.0.namespace()
     }
 
     fn theme(&self) -> A::Theme {
@@ -209,7 +209,7 @@ pub trait LayerShellSandbox {
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your application when necessary.
-    fn title(&self) -> String;
+    fn namespace(&self) -> String;
 
     /// Handles a __message__ and updates the state of the [`Sandbox`].
     ///
@@ -279,8 +279,8 @@ where
         (T::new(), Command::none())
     }
 
-    fn title(&self) -> String {
-        T::title(self)
+    fn namespace(&self) -> String {
+        T::namespace(self)
     }
 
     fn update(&mut self, message: T::Message) -> Command<T::Message> {
