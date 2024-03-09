@@ -631,6 +631,11 @@ impl<T: Debug> WindowState<T> {
         self
     }
 
+    pub fn with_option_size(mut self, size: Option<(u32, u32)>) -> Self {
+        self.size = size;
+        self
+    }
+
     /// exclusive_zone, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
         self.exclusive_zone = Some(exclusive_zone);

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, mem::ManuallyDrop, sync::Arc};
+use std::{mem::ManuallyDrop, sync::Arc};
 
 use crate::{clipboard::LayerShellClipboard, error::Error};
 
@@ -15,11 +15,11 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use layershellev::{reexport::Anchor, LayerEvent, ReturnData, WindowState, WindowWrapper};
+use layershellev::{LayerEvent, ReturnData, WindowState, WindowWrapper};
 
 use futures::{channel::mpsc, StreamExt};
 
-use crate::{event::IcedLayerEvent, proxy::IcedProxy};
+use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
 /// An interactive, native cross-platform application.
 ///
@@ -105,25 +105,6 @@ where
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Settings<Flags> {
-    /// The identifier of the application.
-    ///
-    /// If provided, this identifier may be used to identify the application or
-    /// communicate with it through the windowing system.
-    pub id: Option<String>,
-
-    /// The [`window::Settings`].
-
-    /// The data needed to initialize an [`Application`].
-    ///
-    /// [`Application`]: crate::Application
-    pub flags: Flags,
-
-    /// The fonts to load on boot.
-    pub fonts: Vec<Cow<'static, [u8]>>,
-}
-
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
     settings: Settings<A::Flags>,
@@ -156,10 +137,10 @@ where
     let ev: WindowState<()> = layershellev::WindowState::new(&application.namespace())
         .with_single(true)
         .with_use_display_handle(true)
-        .with_size((0, 400))
-        .with_layer(layershellev::reexport::Layer::Top)
-        .with_anchor(Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom)
-        .with_exclusize_zone(-1)
+        .with_option_size(settings.layer_settings.size)
+        .with_layer(settings.layer_settings.layer)
+        .with_anchor(settings.layer_settings.anchor)
+        .with_exclusize_zone(settings.layer_settings.exclsize_zone)
         .build()
         .unwrap();
 
