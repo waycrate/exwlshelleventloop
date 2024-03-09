@@ -1,12 +1,12 @@
 use iced::widget::{button, column, text};
-use iced::{Alignment, Element};
+use iced::{Alignment, Element, Length};
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::LayerShellSandbox;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
-    Counter::run(Settings{
-        layer_settings : LayerShellSettings {
+    Counter::run(Settings {
+        layer_settings: LayerShellSettings {
             size: Some((0, 300)),
             exclsize_zone: 300,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
@@ -56,6 +56,7 @@ impl LayerShellSandbox for Counter {
         ]
         .padding(20)
         .align_items(Alignment::Center)
+        .width(Length::Fill)
         .into()
     }
 }
