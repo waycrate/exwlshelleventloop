@@ -5,7 +5,8 @@ use crate::{clipboard::LayerShellClipboard, error::Error};
 use iced_graphics::{Compositor, Viewport};
 
 use iced_core::{
-    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Color, Event as IcedCoreEvent, Size
+    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Color, Event as IcedCoreEvent,
+    Size,
 };
 
 use iced_runtime::{user_interface, Command, Debug, Program, UserInterface};
@@ -277,25 +278,23 @@ async fn run_instance<A, E, C>(
                 );
                 // TODO: send event
                 runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
-                debug.startup_started();
+                debug.render_started();
                 // TODO: draw mouse and something later
-                compositor.present(
-                    &mut renderer,
-                    &mut surface,
-                    &Viewport::with_physical_size(
-                        Size {
-                            width,
-                            height,
-                        },
-                        1.,
-                    ),
-                    Color::TRANSPARENT,
-                    &debug.overlay(),
-                ).ok();
-                debug.draw_finished();
+                compositor
+                    .present(
+                        &mut renderer,
+                        &mut surface,
+                        &Viewport::with_physical_size(Size { width, height }, 1.),
+                        Color::WHITE,
+                        &debug.overlay(),
+                    )
+                    .ok();
+                debug.render_finished();
             }
         }
     }
+
+    drop(ManuallyDrop::into_inner(user_interface));
 }
 
 /// Builds a [`UserInterface`] for the provided [`Application`], logging
