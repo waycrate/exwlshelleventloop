@@ -8,7 +8,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 300)),
-            exclsize_zone: 300,
+            exclusize_zone: 300,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             ..Default::default()
         },
