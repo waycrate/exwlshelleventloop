@@ -1,4 +1,4 @@
-use iced::widget::{button, column, text};
+use iced::widget::{button, column, row, text};
 use iced::{Alignment, Command, Element, Length, Theme};
 use iced_layershell::actions::LayershellActions;
 use iced_layershell::reexport::Anchor;
@@ -23,9 +23,18 @@ struct Counter {
 }
 
 #[derive(Debug, Clone, Copy)]
+enum WindowDirection {
+    Top,
+    Left,
+    Right,
+    Bottom,
+}
+
+#[derive(Debug, Clone, Copy)]
 enum Message {
     IncrementPressed,
     DecrementPressed,
+    Direction(WindowDirection),
 }
 
 impl Application for Counter {
@@ -46,34 +55,51 @@ impl Application for Counter {
         match message {
             Message::IncrementPressed => {
                 self.value += 1;
+                Command::none()
             }
             Message::DecrementPressed => {
                 self.value -= 1;
+                Command::none()
             }
-        }
-        if self.value % 2 == 0 {
-            Command::batch(vec![
-                Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
-                    Anchor::Left | Anchor::Top | Anchor::Bottom,
-                )))),
-                Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
-                    300, 0,
-                ))))),
-            ])
-        } else {
-            Command::batch(vec![
-                Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
-                    Anchor::Bottom | Anchor::Left | Anchor::Right,
-                )))),
-                Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
-                    0, 300,
-                ))))),
-            ])
+            Message::Direction(direction) => match direction {
+                WindowDirection::Left => Command::batch(vec![
+                    Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
+                        Anchor::Left | Anchor::Top | Anchor::Bottom,
+                    )))),
+                    Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
+                        300, 0,
+                    ))))),
+                ]),
+                WindowDirection::Right => Command::batch(vec![
+                    Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
+                        Anchor::Right | Anchor::Top | Anchor::Bottom,
+                    )))),
+                    Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
+                        300, 0,
+                    ))))),
+                ]),
+                WindowDirection::Bottom => Command::batch(vec![
+                    Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
+                        Anchor::Bottom | Anchor::Left | Anchor::Right,
+                    )))),
+                    Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
+                        0, 300,
+                    ))))),
+                ]),
+                WindowDirection::Top => Command::batch(vec![
+                    Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
+                        Anchor::Top | Anchor::Left | Anchor::Right,
+                    )))),
+                    Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
+                        0, 300,
+                    ))))),
+                ]),
+            },
         }
     }
 
     fn view(&self) -> Element<Message> {
-        column![
+        let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
             button("Decrement").on_press(Message::DecrementPressed)
@@ -81,6 +107,30 @@ impl Application for Counter {
         .padding(20)
         .align_items(Alignment::Center)
         .width(Length::Fill)
+        .height(Length::Fill);
+        row![
+            button("left")
+                .on_press(Message::Direction(WindowDirection::Left))
+                .height(Length::Fill),
+            column![
+                button("top")
+                    .on_press(Message::Direction(WindowDirection::Top))
+                    .width(Length::Fill),
+                center,
+                button("bottom")
+                    .on_press(Message::Direction(WindowDirection::Bottom))
+                    .width(Length::Fill),
+            ]
+            .width(Length::Fill),
+            button("right")
+                .on_press(Message::Direction(WindowDirection::Right))
+                .height(Length::Fill),
+        ]
+        .padding(20)
+        .spacing(10)
+        .align_items(Alignment::Center)
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into()
     }
 }
