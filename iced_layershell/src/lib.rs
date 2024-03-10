@@ -1,12 +1,12 @@
 pub mod application;
 
-mod sandbox;
+pub mod actions;
 mod clipboard;
+mod conversion;
 mod error;
 mod event;
 mod proxy;
-mod conversion;
-pub mod actions;
+mod sandbox;
 pub mod settings;
 
 pub mod reexport {
@@ -198,5 +198,3 @@ where
         self.0.scale_factor()
     }
 }
-
-

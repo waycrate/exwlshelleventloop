@@ -195,7 +195,7 @@ where
         }
         let poll = instance.as_mut().poll(&mut context);
         match poll {
-            task::Poll::Pending => {
+            task::Poll::Pending => 'peddingBlock: {
                 if let Ok(Some(flow)) = control_receiver.try_next() {
                     for flow in flow {
                         match flow {
@@ -207,6 +207,9 @@ where
                             }
                             LayershellActions::SizeChange((width, height)) => {
                                 ev.main_window().set_size((width, height));
+                            }
+                            LayershellActions::CloseWindow => {
+                                break 'peddingBlock ReturnData::RequestExist;
                             }
                         }
                     }
@@ -347,8 +350,6 @@ async fn run_instance<A, E, C>(
                 redraw!();
             }
             IcedLayerEvent::Window(event) => {
-                // TODO: exit
-
                 state.update(&event);
 
                 if let Some(event) = conversion::window_event(IcedCoreWindow::Id::MAIN, &event) {
@@ -497,6 +498,7 @@ pub(crate) fn run_command<A, C, E>(
 {
     use iced_core::widget::operation;
     use iced_runtime::command;
+    use iced_runtime::window::Action as WinowAction;
     let mut customactions = Vec::new();
     for action in command.actions() {
         match action {
@@ -537,6 +539,9 @@ pub(crate) fn run_command<A, C, E>(
 
                 current_cache = user_interface.into_cache();
                 *cache = current_cache;
+            }
+            command::Action::Window(WinowAction::Close(_)) => {
+                customactions.push(LayershellActions::CloseWindow);
             }
             command::Action::LoadFont { bytes, tagger } => {
                 use iced_core::text::Renderer;

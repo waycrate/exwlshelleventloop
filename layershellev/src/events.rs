@@ -160,9 +160,18 @@ pub enum DispatchMessage {
         y: f64,
     },
     /// forward the event of wayland-touch
-    TouchUp { serial: u32, time: u32, id: i32 },
+    TouchUp {
+        serial: u32,
+        time: u32,
+        id: i32,
+    },
     /// forward the event of wayland-touch
-    TouchMotion { time: u32, id: i32, x: f64, y: f64 },
+    TouchMotion {
+        time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
+    },
     /// forward the event of wayland-keyboard
     KeyBoard {
         state: WEnum<KeyState>,
@@ -172,7 +181,10 @@ pub enum DispatchMessage {
     },
     /// this will request to do refresh the whole screen, because the layershell tell that a new
     /// configure happened
-    RequestRefresh { width: u32, height: u32 },
+    RequestRefresh {
+        width: u32,
+        height: u32,
+    },
     /// fractal scale handle
     PrefredScale(u32),
 }

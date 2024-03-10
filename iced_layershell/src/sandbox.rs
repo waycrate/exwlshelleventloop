@@ -4,9 +4,9 @@ use iced_futures::Subscription;
 use iced_runtime::Command;
 use iced_style::Theme;
 
+use crate::error;
 use crate::settings::Settings;
 use crate::Application;
-use crate::error;
 
 pub trait LayerShellSandbox {
     /// The type of __messages__ your [`Sandbox`] will produce.

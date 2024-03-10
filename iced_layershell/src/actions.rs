@@ -3,5 +3,6 @@ use crate::reexport::{Anchor, Layer};
 pub enum LayershellActions {
     AnchorChange(Anchor),
     LayerChange(Layer),
-    SizeChange((u32, u32))
+    SizeChange((u32, u32)),
+    CloseWindow,
 }
