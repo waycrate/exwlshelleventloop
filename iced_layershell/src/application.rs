@@ -7,9 +7,7 @@ use crate::{actions::LayershellActions, clipboard::LayerShellClipboard, conversi
 use iced_graphics::Compositor;
 use state::State;
 
-use iced_core::{
-    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size,
-};
+use iced_core::{time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
 
 use iced_runtime::{user_interface, Command, Debug, Program, UserInterface};
 
@@ -327,7 +325,7 @@ async fn run_instance<A, E, C>(
                 &iced_core::renderer::Style {
                     text_color: state.text_color(),
                 },
-                IcedCoreMouse::Cursor::Unavailable,
+                state.cursor(),
             );
             debug.draw_finished();
             compositor
