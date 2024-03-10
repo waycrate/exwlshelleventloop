@@ -1,8 +1,10 @@
 use iced::widget::{button, column, text};
-use iced::{Alignment, Element, Length};
+use iced::{Alignment, Command, Element, Length, Theme};
+use iced_layershell::actions::LayershellActions;
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
-use iced_layershell::LayerShellSandbox;
+use iced_layershell::Application;
+use iced_runtime::command::Action;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
@@ -26,18 +28,21 @@ enum Message {
     DecrementPressed,
 }
 
-impl LayerShellSandbox for Counter {
+impl Application for Counter {
     type Message = Message;
+    type Flags = ();
+    type Theme = Theme;
+    type Executor = iced::executor::Default;
 
-    fn new() -> Self {
-        Self { value: 0 }
+    fn new(_flags: ()) -> (Self, Command<Message>) {
+        (Self { value: 0 }, Command::none())
     }
 
     fn namespace(&self) -> String {
         String::from("Counter - Iced")
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::IncrementPressed => {
                 self.value += 1;
@@ -45,6 +50,25 @@ impl LayerShellSandbox for Counter {
             Message::DecrementPressed => {
                 self.value -= 1;
             }
+        }
+        if self.value % 2 == 0 {
+            Command::batch(vec![
+                Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
+                    Anchor::Left | Anchor::Top | Anchor::Bottom,
+                )))),
+                Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
+                    300, 0,
+                ))))),
+            ])
+        } else {
+            Command::batch(vec![
+                Command::single(Action::Custom(Box::new(LayershellActions::AnchorChange(
+                    Anchor::Bottom | Anchor::Left | Anchor::Right,
+                )))),
+                Command::single(Action::Custom(Box::new(LayershellActions::SizeChange((
+                    0, 300,
+                ))))),
+            ])
         }
     }
 
