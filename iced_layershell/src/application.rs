@@ -432,7 +432,8 @@ where
 
 /// Updates an [`Application`] by feeding it the provided messages, spawning any
 /// resulting [`Command`], and tracking its [`Subscription`].
-pub fn update<A: Application, C, E: Executor>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn update<A: Application, C, E: Executor>(
     application: &mut A,
     compositor: &mut C,
     surface: &mut C::Surface,
@@ -440,10 +441,9 @@ pub fn update<A: Application, C, E: Executor>(
     state: &mut State<A>,
     renderer: &mut A::Renderer,
     runtime: &mut Runtime<E, IcedProxy, A::Message>,
-    //should_exit: &mut bool,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    mut control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
+    control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
 ) where
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
@@ -465,7 +465,7 @@ pub fn update<A: Application, C, E: Executor>(
             renderer,
             command,
             runtime,
-            &mut control_sender,
+            control_sender,
             debug,
         );
     }
@@ -476,7 +476,8 @@ pub fn update<A: Application, C, E: Executor>(
 }
 
 #[allow(unused)]
-pub fn run_command<A, C, E>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn run_command<A, C, E>(
     application: &A,
     compositor: &mut C,
     surface: &mut C::Surface,
@@ -485,7 +486,7 @@ pub fn run_command<A, C, E>(
     renderer: &mut A::Renderer,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy, A::Message>,
-    mut control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
+    control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
     debug: &mut Debug,
 ) where
     A: Application,
@@ -547,7 +548,7 @@ pub fn run_command<A, C, E>(
             }
             command::Action::Custom(custom) => {
                 if let Some(action) = custom.downcast_ref::<LayershellActions>() {
-                    customactions.push(action.clone());
+                    customactions.push(*action);
                 }
             }
             _ => {}
