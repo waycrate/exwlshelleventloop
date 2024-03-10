@@ -413,6 +413,11 @@ impl<T: Debug> WindowStateUnit<T> {
         self.wl_surface.commit();
     }
 
+    pub fn set_layer(&self, layer: Layer) {
+        self.layer_shell.set_layer(layer);
+        self.wl_surface.commit();
+    }
+
     /// set the layer size of current unit
     pub fn set_size(&self, (width, height): (u32, u32)) {
         self.layer_shell.set_size(width, height);

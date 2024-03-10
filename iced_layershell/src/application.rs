@@ -204,7 +204,9 @@ where
                             LayershellActions::AnchorChange(anchor) => {
                                 ev.main_window().set_anchor(anchor);
                             }
-                            LayershellActions::LayerChange(layer) => {}
+                            LayershellActions::LayerChange(layer) => {
+                                ev.main_window().set_layer(layer);
+                            }
                             LayershellActions::SizeChange((width, height)) => {
                                 ev.main_window().set_size((width, height));
                             }
