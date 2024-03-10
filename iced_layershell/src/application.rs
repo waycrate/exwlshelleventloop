@@ -2,7 +2,7 @@ mod state;
 
 use std::{mem::ManuallyDrop, sync::Arc};
 
-use crate::{clipboard::LayerShellClipboard, error::Error};
+use crate::{clipboard::LayerShellClipboard, conversion, error::Error};
 
 use iced_graphics::Compositor;
 use state::State;
@@ -181,12 +181,14 @@ where
             LayerEvent::InitRequest => {}
             // TODO: maybe use it later
             LayerEvent::BindProvide(_, _) => {}
-            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+            LayerEvent::RequestMessages(message) => {
                 event_sender
-                    .start_send(IcedLayerEvent::RequestRefresh {
-                        width: *width,
-                        height: *height,
-                    })
+                    .start_send(message.into())
+                    .expect("Cannot send");
+            }
+            LayerEvent::NormalDispatch => {
+                event_sender
+                    .start_send(IcedLayerEvent::NormalUpdate)
                     .expect("Cannot send");
             }
             _ => {}
@@ -220,6 +222,7 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
 {
+    use iced_core::Event;
     let physical_size = state.physical_size();
     let mut cache = user_interface::Cache::default();
     let mut surface =
@@ -227,6 +230,7 @@ async fn run_instance<A, E, C>(
     let mut clipboard = LayerShellClipboard;
 
     let mut messages = Vec::new();
+    let mut events: Vec<Event> = Vec::new();
 
     // TODO: run command
 
@@ -308,6 +312,35 @@ async fn run_instance<A, E, C>(
                     )
                     .ok();
                 debug.render_finished();
+            }
+            IcedLayerEvent::Window(event) => {
+                // TODO: exit
+
+                state.update(&event);
+
+                if let Some(event) = conversion::window_event(IcedCoreWindow::Id::MAIN, &event) {
+                    events.push(event);
+                }
+            }
+            IcedLayerEvent::NormalUpdate => {
+                if events.is_empty() && messages.is_empty() {
+                    continue;
+                }
+                debug.event_processing_started();
+                let (interface_state, statuses) = user_interface.update(
+                    &events,
+                    state.cursor(),
+                    &mut renderer,
+                    &mut clipboard,
+                    &mut messages,
+                );
+                debug.event_processing_finished();
+
+                for (event, status) in events.drain(..).zip(statuses.into_iter()) {
+                    runtime.broadcast(event, status);
+                }
+
+                // TODO: handle messages
             }
         }
     }
