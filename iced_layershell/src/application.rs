@@ -176,9 +176,7 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    #[allow(unused)]
     let _ = ev.running(move |event, ev, _| {
-        use layershellev::DispatchMessage;
         match event {
             LayerEvent::InitRequest => {}
             // TODO: maybe use it later
@@ -222,8 +220,6 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(unused)]
-#[allow(unused_mut)]
 async fn run_instance<A, E, C>(
     mut application: A,
     mut compositor: C,
@@ -298,18 +294,17 @@ async fn run_instance<A, E, C>(
                 IcedCoreWindow::Event::RedrawRequested(Instant::now()),
             );
 
-            let (interface_state, _) = user_interface.update(
+            user_interface.update(
                 &[redraw_event.clone()],
                 state.cursor(),
                 &mut renderer,
                 &mut clipboard,
                 &mut messages,
             );
-            // TODO: send event
             runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
 
             debug.draw_started();
-            let new_mouse_interaction = user_interface.draw(
+            user_interface.draw(
                 &mut renderer,
                 state.theme(),
                 &iced_core::renderer::Style {
@@ -332,7 +327,6 @@ async fn run_instance<A, E, C>(
                 IcedCoreMouse::Cursor::Unavailable,
             );
             debug.draw_finished();
-            // TODO: draw mouse and something later
             compositor
                 .present(
                     &mut renderer,
@@ -344,7 +338,7 @@ async fn run_instance<A, E, C>(
                 .ok();
             debug.render_finished();
         };
-    };
+    }
 
     while let Some(event) = event_receiver.next().await {
         match event {
@@ -438,7 +432,6 @@ where
 
 /// Updates an [`Application`] by feeding it the provided messages, spawning any
 /// resulting [`Command`], and tracking its [`Subscription`].
-#[allow(unused)]
 pub fn update<A: Application, C, E: Executor>(
     application: &mut A,
     compositor: &mut C,
@@ -475,8 +468,8 @@ pub fn update<A: Application, C, E: Executor>(
             &mut control_sender,
             debug,
         );
-        // TODO: run command
     }
+    state.synchronize(application);
 
     let subscription = application.subscription();
     runtime.track(subscription.into_recipes());
