@@ -865,6 +865,12 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     },
                 ));
             }
+            wl_pointer::Event::Leave { .. } => {
+                state.current_surface = None;
+                state
+                    .message
+                    .push((state.surface_pos(), DispatchMessageInner::MouseLeave));
+            }
             wl_pointer::Event::Enter {
                 serial,
                 surface,
@@ -1017,7 +1023,6 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
-
 
 impl<T: Debug + 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
@@ -1200,6 +1205,7 @@ impl<T: Debug + 'static> WindowState<T> {
         let xdg_output_manager = self.xdg_output_manager.take().unwrap();
         let connection = self.connection.take().unwrap();
         let mut init_event = None;
+        let mut timecounter = 0;
 
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
@@ -1217,8 +1223,15 @@ impl<T: Debug + 'static> WindowState<T> {
             }
         }
         'out: loop {
-            event_queue.blocking_dispatch(&mut self)?;
+            // TODO: use blocking_dispatch will block the event,
+            // so use roundtrip is ok?
+            event_queue.roundtrip(&mut self)?;
+            timecounter += 1;
             if self.message.is_empty() {
+                if timecounter > 10000 {
+                    event_hander(LayerEvent::NormalDispatch, &mut self, None);
+                    timecounter = 0;
+                }
                 continue;
             }
             let mut messages = Vec::new();

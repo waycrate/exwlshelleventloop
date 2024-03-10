@@ -5,6 +5,7 @@ mod clipboard;
 mod error;
 mod event;
 mod proxy;
+mod conversion;
 pub mod settings;
 
 pub mod reexport {

@@ -1,7 +1,9 @@
 use crate::application::Application;
-use iced_core::{mouse as IcedMouse, Color, Size};
+use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
 use iced_style::application::{self, StyleSheet};
+
+use crate::event::WindowEvent;
 
 #[allow(unused)]
 pub struct State<A: Application>
@@ -13,6 +15,7 @@ where
     viewport_version: usize,
     theme: A::Theme,
     appearance: application::Appearance,
+    mouse_position: Option<Point>,
 }
 
 impl<A: Application> State<A>
@@ -35,6 +38,7 @@ where
             viewport_version: 0,
             theme,
             appearance,
+            mouse_position: None,
         }
     }
 
@@ -74,6 +78,20 @@ where
     }
 
     pub fn cursor(&self) -> IcedMouse::Cursor {
-        IcedMouse::Cursor::Unavailable
+        self.mouse_position
+            .map(IcedMouse::Cursor::Available)
+            .unwrap_or(IcedMouse::Cursor::Unavailable)
+    }
+
+    pub fn update(&mut self, event: &WindowEvent) {
+        match event {
+            WindowEvent::CursorLeft => {
+                self.mouse_position = None;
+            }
+            WindowEvent::CursorMoved { x, y } => {
+                self.mouse_position = Some(Point::new(*x as f32, *y as f32));
+            }
+            _ => {}
+        }
     }
 }
