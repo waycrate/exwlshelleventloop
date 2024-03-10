@@ -1186,8 +1186,6 @@ dependencies = [
  "iced_runtime",
  "iced_style",
  "layershellev",
- "raw-window-handle",
- "smithay-client-toolkit",
  "thiserror",
  "tracing",
 ]

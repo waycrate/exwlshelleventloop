@@ -6,7 +6,6 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sctk.workspace = true
 iced.workspace = true
 iced_renderer.workspace = true
 iced_runtime.workspace = true
@@ -18,4 +17,3 @@ tracing = "0.1.40"
 thiserror = "1.0.56"
 layershellev.workspace = true
 futures = "0.3.30"
-rwh_06.workspace = true
