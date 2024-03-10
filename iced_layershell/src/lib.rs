@@ -6,6 +6,7 @@ mod error;
 mod event;
 mod proxy;
 mod conversion;
+pub mod actions;
 pub mod settings;
 
 pub mod reexport {

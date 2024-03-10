@@ -2,7 +2,7 @@ mod state;
 
 use std::{mem::ManuallyDrop, sync::Arc};
 
-use crate::{clipboard::LayerShellClipboard, conversion, error::Error, event::ActionState};
+use crate::{actions::LayershellActions, clipboard::LayerShellClipboard, conversion, error::Error};
 
 use iced_graphics::Compositor;
 use state::State;
@@ -159,7 +159,7 @@ where
     let state = State::new(&application, &ev);
 
     let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<ActionState>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayershellActions>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -198,7 +198,19 @@ where
         let poll = instance.as_mut().poll(&mut context);
         match poll {
             task::Poll::Pending => {
-                if let Ok(Some(flow)) = control_receiver.try_next() {}
+                if let Ok(Some(flow)) = control_receiver.try_next() {
+                    for flow in flow {
+                        match flow {
+                            LayershellActions::AnchorChange(anchor) => {
+                                ev.main_window().set_anchor(anchor);
+                            }
+                            LayershellActions::LayerChange(layer) => {}
+                            LayershellActions::SizeChange((width, height)) => {
+                                ev.main_window().set_size((width, height));
+                            }
+                        }
+                    }
+                }
                 ReturnData::None
             }
             task::Poll::Ready(_) => ReturnData::RequestExist,
@@ -217,7 +229,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent>,
-    mut control_sender: mpsc::UnboundedSender<ActionState>,
+    mut control_sender: mpsc::UnboundedSender<Vec<LayershellActions>>,
     mut state: State<A>,
     init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
@@ -237,7 +249,18 @@ async fn run_instance<A, E, C>(
     let mut messages = Vec::new();
     let mut events: Vec<Event> = Vec::new();
 
-    // TODO: run command
+    run_command(
+        &application,
+        &mut compositor,
+        &mut surface,
+        &mut cache,
+        &state,
+        &mut renderer,
+        init_command,
+        &mut runtime,
+        &mut control_sender,
+        &mut debug,
+    );
 
     runtime.track(application.subscription().into_recipes());
 
@@ -370,6 +393,7 @@ async fn run_instance<A, E, C>(
                         &mut runtime,
                         &mut debug,
                         &mut messages,
+                        &mut control_sender,
                     );
 
                     user_interface = ManuallyDrop::new(build_user_interface(
@@ -424,6 +448,7 @@ pub fn update<A: Application, C, E: Executor>(
     //should_exit: &mut bool,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
+    mut control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
 ) where
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
@@ -435,9 +460,103 @@ pub fn update<A: Application, C, E: Executor>(
         debug.update_started();
         let command: Command<A::Message> = runtime.enter(|| application.update(message));
         debug.update_finished();
+
+        run_command(
+            application,
+            compositor,
+            surface,
+            cache,
+            state,
+            renderer,
+            command,
+            runtime,
+            &mut control_sender,
+            debug,
+        );
         // TODO: run command
     }
 
     let subscription = application.subscription();
     runtime.track(subscription.into_recipes());
+}
+
+#[allow(unused)]
+pub fn run_command<A, C, E>(
+    application: &A,
+    compositor: &mut C,
+    surface: &mut C::Surface,
+    cache: &mut user_interface::Cache,
+    state: &State<A>,
+    renderer: &mut A::Renderer,
+    command: Command<A::Message>,
+    runtime: &mut Runtime<E, IcedProxy, A::Message>,
+    mut control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
+    debug: &mut Debug,
+) where
+    A: Application,
+    E: Executor,
+    C: Compositor<Renderer = A::Renderer> + 'static,
+    A::Theme: StyleSheet,
+    A::Message: 'static,
+{
+    use iced_core::widget::operation;
+    use iced_runtime::command;
+    let mut customactions = Vec::new();
+    for action in command.actions() {
+        match action {
+            command::Action::Future(future) => {
+                runtime.spawn(future);
+            }
+            command::Action::Stream(stream) => {
+                runtime.run(stream);
+            }
+            command::Action::Clipboard(_action) => {
+                // TODO:
+            }
+            command::Action::Widget(action) => {
+                let mut current_cache = std::mem::take(cache);
+                let mut current_operation = Some(action);
+
+                let mut user_interface = build_user_interface(
+                    application,
+                    current_cache,
+                    renderer,
+                    state.logical_size(),
+                    debug,
+                );
+
+                while let Some(mut operation) = current_operation.take() {
+                    user_interface.operate(renderer, operation.as_mut());
+
+                    match operation.finish() {
+                        operation::Outcome::None => {}
+                        operation::Outcome::Some(_message) => {
+                            // TODO:
+                        }
+                        operation::Outcome::Chain(next) => {
+                            current_operation = Some(next);
+                        }
+                    }
+                }
+
+                current_cache = user_interface.into_cache();
+                *cache = current_cache;
+            }
+            command::Action::LoadFont { bytes, tagger } => {
+                use iced_core::text::Renderer;
+
+                // TODO: Error handling (?)
+                renderer.load_font(bytes);
+
+                // TODO: proxy?
+            }
+            command::Action::Custom(custom) => {
+                if let Some(action) = custom.downcast_ref::<LayershellActions>() {
+                    customactions.push(action.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+    control_sender.start_send(customactions).ok();
 }

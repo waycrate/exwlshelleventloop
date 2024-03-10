@@ -502,6 +502,7 @@ version = "0.1.0"
 dependencies = [
  "iced",
  "iced_layershell",
+ "iced_runtime",
 ]
 
 [[package]]

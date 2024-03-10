@@ -1,5 +1,6 @@
 use layershellev::reexport::wayland_client::{ButtonState, WEnum};
 use layershellev::DispatchMessage;
+
 #[derive(Debug, Clone, Copy)]
 pub enum IcedButtonState {
     Pressed,
@@ -58,9 +59,4 @@ impl From<&DispatchMessage> for IcedLayerEvent {
             _ => Self::NormalUpdate,
         }
     }
-}
-
-#[allow(unused)]
-pub enum ActionState {
-    RefreshSurface,
 }
