@@ -94,4 +94,16 @@ where
             _ => {}
         }
     }
+
+    pub fn synchronize(&mut self, application: &A) {
+        let new_scale_factor = application.scale_factor();
+        if self.scale_factor != new_scale_factor {
+            self.viewport =
+                Viewport::with_physical_size(self.physical_size(), 1. * new_scale_factor);
+            self.viewport_version = self.viewport_version.wrapping_add(1);
+            self.scale_factor = new_scale_factor;
+        }
+        self.theme = application.theme();
+        self.appearance = self.theme.appearance(&application.style());
+    }
 }
