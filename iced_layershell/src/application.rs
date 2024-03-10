@@ -1,12 +1,14 @@
+mod state;
+
 use std::{mem::ManuallyDrop, sync::Arc};
 
 use crate::{clipboard::LayerShellClipboard, error::Error};
 
-use iced_graphics::{Compositor, Viewport};
+use iced_graphics::Compositor;
+use state::State;
 
 use iced_core::{
-    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Color, Event as IcedCoreEvent,
-    Size,
+    mouse as IcedCoreMouse, time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size,
 };
 
 use iced_runtime::{user_interface, Command, Debug, Program, UserInterface};
@@ -154,7 +156,7 @@ where
         renderer.load_font(font);
     }
 
-    let init_window_size = ev.main_window().get_size();
+    let state = State::new(&application, &ev);
 
     let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent>();
 
@@ -165,7 +167,7 @@ where
         runtime,
         debug,
         event_receiver,
-        init_window_size,
+        state,
         init_command,
         window.clone(),
     ));
@@ -209,7 +211,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent>,
-    (init_w, init_h): (u32, u32),
+    mut state: State<A>,
     init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
 ) where
@@ -218,8 +220,10 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
 {
+    let physical_size = state.physical_size();
     let mut cache = user_interface::Cache::default();
-    let mut surface = compositor.create_surface(window.clone(), init_w, init_h);
+    let mut surface =
+        compositor.create_surface(window.clone(), physical_size.width, physical_size.height);
     let mut clipboard = LayerShellClipboard;
 
     let mut messages = Vec::new();
@@ -232,10 +236,7 @@ async fn run_instance<A, E, C>(
         &application,
         cache,
         &mut renderer,
-        Size {
-            width: init_w as f32,
-            height: init_h as f32,
-        },
+        state.logical_size(),
         &mut debug,
     ));
 
@@ -244,6 +245,7 @@ async fn run_instance<A, E, C>(
     while let Some(event) = event_receiver.next().await {
         match event {
             IcedLayerEvent::RequestRefresh { width, height } => {
+                state.update_view_port(width, height);
                 debug.layout_started();
                 user_interface =
                     ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
@@ -270,6 +272,19 @@ async fn run_instance<A, E, C>(
                 );
                 // TODO: send event
                 runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
+
+                debug.draw_started();
+                let new_mouse_interaction = user_interface.draw(
+                    &mut renderer,
+                    state.theme(),
+                    &iced_core::renderer::Style {
+                        text_color: state.text_color(),
+                    },
+                    state.cursor(),
+                );
+                debug.draw_finished();
+                // TODO: check mosue_interaction
+
                 debug.render_started();
 
                 debug.draw_started();
@@ -277,7 +292,7 @@ async fn run_instance<A, E, C>(
                     &mut renderer,
                     &application.theme(),
                     &iced_core::renderer::Style {
-                        text_color: Color::BLACK,
+                        text_color: state.text_color(),
                     },
                     IcedCoreMouse::Cursor::Unavailable,
                 );
@@ -287,11 +302,8 @@ async fn run_instance<A, E, C>(
                     .present(
                         &mut renderer,
                         &mut surface,
-                        &Viewport::with_physical_size(
-                            Size { width, height },
-                            application.scale_factor(),
-                        ),
-                        Color::WHITE,
+                        &state.viewport(),
+                        state.background_color(),
                         &debug.overlay(),
                     )
                     .ok();
