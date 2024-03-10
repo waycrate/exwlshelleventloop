@@ -269,7 +269,7 @@ async fn run_instance<A, E, C>(
 
                 let (interface_state, _) = user_interface.update(
                     &[redraw_event.clone()],
-                    IcedCoreMouse::Cursor::Unavailable,
+                    state.cursor(),
                     &mut renderer,
                     &mut clipboard,
                     &mut messages,
@@ -340,7 +340,34 @@ async fn run_instance<A, E, C>(
                     runtime.broadcast(event, status);
                 }
 
-                // TODO: handle messages
+                if !messages.is_empty()
+                    || matches!(interface_state, user_interface::State::Outdated)
+                {
+                    let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
+
+                    // Update application
+                    update(
+                        &mut application,
+                        &mut compositor,
+                        &mut surface,
+                        &mut cache,
+                        &mut state,
+                        &mut renderer,
+                        &mut runtime,
+                        &mut debug,
+                        &mut messages,
+                    );
+
+                    user_interface = ManuallyDrop::new(build_user_interface(
+                        &application,
+                        cache,
+                        &mut renderer,
+                        state.logical_size(),
+                        &mut debug,
+                    ));
+                }
+
+                // TODO: redraw ping
             }
         }
     }
@@ -368,4 +395,36 @@ where
     let user_interface = UserInterface::build(view, size, cache, renderer);
     debug.layout_finished();
     user_interface
+}
+
+/// Updates an [`Application`] by feeding it the provided messages, spawning any
+/// resulting [`Command`], and tracking its [`Subscription`].
+#[allow(unused)]
+pub fn update<A: Application, C, E: Executor>(
+    application: &mut A,
+    compositor: &mut C,
+    surface: &mut C::Surface,
+    cache: &mut user_interface::Cache,
+    state: &mut State<A>,
+    renderer: &mut A::Renderer,
+    runtime: &mut Runtime<E, IcedProxy, A::Message>,
+    //should_exit: &mut bool,
+    debug: &mut Debug,
+    messages: &mut Vec<A::Message>,
+) where
+    C: Compositor<Renderer = A::Renderer> + 'static,
+    A::Theme: StyleSheet,
+    A::Message: 'static,
+{
+    for message in messages.drain(..) {
+        debug.log_message(&message);
+
+        debug.update_started();
+        let command: Command<A::Message> = runtime.enter(|| application.update(message));
+        debug.update_finished();
+        // TODO: run command
+    }
+
+    let subscription = application.subscription();
+    runtime.track(subscription.into_recipes());
 }
