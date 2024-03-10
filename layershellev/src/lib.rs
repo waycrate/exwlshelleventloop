@@ -1231,13 +1231,7 @@ impl<T: Debug + 'static> WindowState<T> {
             // so use roundtrip is ok?
             event_queue.roundtrip(&mut self)?;
             timecounter += 1;
-            if self.message.is_empty() {
-                if timecounter > 100 {
-                    event_hander(LayerEvent::NormalDispatch, &mut self, None);
-                    timecounter = 0;
-                }
-                continue;
-            }
+
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut self.message);
             for msg in messages.iter() {
@@ -1381,6 +1375,45 @@ impl<T: Debug + 'static> WindowState<T> {
                     }
                 }
             }
+            if timecounter > 100 {
+                match event_hander(LayerEvent::NormalDispatch, &mut self, None) {
+                    ReturnData::RequestExist => {
+                        break 'out;
+                    }
+                    ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
+                        if let Some(ref cursor_manager) = cursor_manager {
+                            let Some(shape) = str_to_shape(&shape_name) else {
+                                eprintln!("Not supported shape");
+                                continue;
+                            };
+                            let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                            device.set_shape(serial, shape);
+                            device.destroy();
+                        } else {
+                            let Some(cursor_buffer) =
+                                get_cursor_buffer(&shape_name, &connection, &shm)
+                            else {
+                                eprintln!("Cannot find cursor {shape_name}");
+                                continue;
+                            };
+                            let cursor_surface = wmcompositer.create_surface(&qh, ());
+                            cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                            // and create a surface. if two or more,
+                            let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                            pointer.set_cursor(
+                                serial,
+                                Some(&cursor_surface),
+                                hotspot_x as i32,
+                                hotspot_y as i32,
+                            );
+                            cursor_surface.commit();
+                        }
+                    }
+                    _ => {}
+                }
+                timecounter = 0;
+            }
+            continue;
         }
         Ok(())
     }

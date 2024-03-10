@@ -22,3 +22,22 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
         _ => None,
     }
 }
+
+pub(crate) fn mouse_interaction(
+    interaction: mouse::Interaction
+) -> String {
+    use mouse::Interaction;
+    match interaction {
+        Interaction::Idle => "default".to_owned(),
+        Interaction::Pointer => "pointer".to_owned(),
+        Interaction::Working => "progress".to_owned(),
+        Interaction::Grab => "grab".to_owned(),
+        Interaction::Text => "text".to_owned(),
+        Interaction::ZoomIn => "zoom_in".to_owned(),
+        Interaction::Grabbing => "grabbing".to_owned(),
+        Interaction::Crosshair => "crosshair".to_owned(),
+        Interaction::NotAllowed => "not_allowed".to_owned(),
+        Interaction::ResizingVertically => "ew_resize".to_owned(),
+        Interaction::ResizingHorizontally => "ns_resize".to_owned()
+    }
+}

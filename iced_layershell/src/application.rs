@@ -2,7 +2,12 @@ mod state;
 
 use std::{mem::ManuallyDrop, sync::Arc};
 
-use crate::{actions::LayershellActions, clipboard::LayerShellClipboard, conversion, error::Error};
+use crate::{
+    actions::{LayerShellActions, LayershellCustomActions},
+    clipboard::LayerShellClipboard,
+    conversion,
+    error::Error,
+};
 
 use iced_graphics::Compositor;
 use state::State;
@@ -157,7 +162,7 @@ where
     let state = State::new(&application, &ev);
 
     let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayershellActions>>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayerShellActions>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -174,12 +179,19 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
+    let mut pointer_serial: u32 = 0;
     let _ = ev.running(move |event, ev, _| {
+        use layershellev::DispatchMessage;
         match event {
             LayerEvent::InitRequest => {}
             // TODO: maybe use it later
             LayerEvent::BindProvide(_, _) => {}
             LayerEvent::RequestMessages(message) => {
+
+                if let DispatchMessage::MouseEnter { serial, .. } = message {
+                    pointer_serial = *serial;
+                }
+
                 event_sender
                     .start_send(message.into())
                     .expect("Cannot send");
@@ -197,17 +209,34 @@ where
                 if let Ok(Some(flow)) = control_receiver.try_next() {
                     for flow in flow {
                         match flow {
-                            LayershellActions::AnchorChange(anchor) => {
-                                ev.main_window().set_anchor(anchor);
+                            LayerShellActions::CustomActions(actions) => {
+                                for action in actions {
+                                    match action {
+                                        LayershellCustomActions::AnchorChange(anchor) => {
+                                            ev.main_window().set_anchor(anchor);
+                                        }
+                                        LayershellCustomActions::LayerChange(layer) => {
+                                            ev.main_window().set_layer(layer);
+                                        }
+                                        LayershellCustomActions::SizeChange((width, height)) => {
+                                            ev.main_window().set_size((width, height));
+                                        }
+                                        LayershellCustomActions::CloseWindow => {
+                                            break 'peddingBlock ReturnData::RequestExist;
+                                        }
+                                    }
+                                }
                             }
-                            LayershellActions::LayerChange(layer) => {
-                                ev.main_window().set_layer(layer);
-                            }
-                            LayershellActions::SizeChange((width, height)) => {
-                                ev.main_window().set_size((width, height));
-                            }
-                            LayershellActions::CloseWindow => {
-                                break 'peddingBlock ReturnData::RequestExist;
+                            LayerShellActions::Mouse(mouse) => {
+                                let Some(pointer) = ev.get_pointer() else {
+                                    break 'peddingBlock ReturnData::None;
+                                };
+
+                                break 'peddingBlock ReturnData::RequestSetCursorShape((
+                                    conversion::mouse_interaction(mouse),
+                                    pointer.clone(),
+                                    pointer_serial,
+                                ));
                             }
                         }
                     }
@@ -228,7 +257,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent>,
-    mut control_sender: mpsc::UnboundedSender<Vec<LayershellActions>>,
+    mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions>>,
     mut state: State<A>,
     init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
@@ -238,6 +267,7 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
 {
+    use iced_core::mouse;
     use iced_core::Event;
     let physical_size = state.physical_size();
     let mut cache = user_interface::Cache::default();
@@ -245,8 +275,10 @@ async fn run_instance<A, E, C>(
         compositor.create_surface(window.clone(), physical_size.width, physical_size.height);
     let mut clipboard = LayerShellClipboard;
 
+    let mut mouse_interaction = mouse::Interaction::default();
     let mut messages = Vec::new();
     let mut events: Vec<Event> = Vec::new();
+    let mut custom_actions = Vec::new();
 
     run_command(
         &application,
@@ -257,7 +289,7 @@ async fn run_instance<A, E, C>(
         &mut renderer,
         init_command,
         &mut runtime,
-        &mut control_sender,
+        &mut custom_actions,
         &mut debug,
     );
 
@@ -305,7 +337,7 @@ async fn run_instance<A, E, C>(
             runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
 
             debug.draw_started();
-            user_interface.draw(
+            let new_mouse_interaction = user_interface.draw(
                 &mut renderer,
                 state.theme(),
                 &iced_core::renderer::Style {
@@ -314,6 +346,11 @@ async fn run_instance<A, E, C>(
                 state.cursor(),
             );
             debug.draw_finished();
+
+            if new_mouse_interaction != mouse_interaction {
+                custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
+                mouse_interaction = new_mouse_interaction;
+            }
             // TODO: check mosue_interaction
 
             debug.render_started();
@@ -388,7 +425,7 @@ async fn run_instance<A, E, C>(
                         &mut runtime,
                         &mut debug,
                         &mut messages,
-                        &mut control_sender,
+                        &mut custom_actions,
                     );
 
                     user_interface = ManuallyDrop::new(build_user_interface(
@@ -402,6 +439,8 @@ async fn run_instance<A, E, C>(
                 redraw!();
             }
         }
+        control_sender.start_send(custom_actions.clone()).ok();
+        custom_actions.clear();
     }
 
     drop(ManuallyDrop::into_inner(user_interface));
@@ -442,7 +481,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     runtime: &mut Runtime<E, IcedProxy, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
+    custom_actions: &mut Vec<LayerShellActions>,
 ) where
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
@@ -464,7 +503,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             renderer,
             command,
             runtime,
-            control_sender,
+            custom_actions,
             debug,
         );
     }
@@ -485,7 +524,7 @@ pub(crate) fn run_command<A, C, E>(
     renderer: &mut A::Renderer,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy, A::Message>,
-    control_sender: &mut mpsc::UnboundedSender<Vec<LayershellActions>>,
+    custom_actions: &mut Vec<LayerShellActions>,
     debug: &mut Debug,
 ) where
     A: Application,
@@ -539,7 +578,7 @@ pub(crate) fn run_command<A, C, E>(
                 *cache = current_cache;
             }
             command::Action::Window(WinowAction::Close(_)) => {
-                customactions.push(LayershellActions::CloseWindow);
+                customactions.push(LayershellCustomActions::CloseWindow);
             }
             command::Action::LoadFont { bytes, tagger } => {
                 use iced_core::text::Renderer;
@@ -550,12 +589,12 @@ pub(crate) fn run_command<A, C, E>(
                 // TODO: proxy?
             }
             command::Action::Custom(custom) => {
-                if let Some(action) = custom.downcast_ref::<LayershellActions>() {
+                if let Some(action) = custom.downcast_ref::<LayershellCustomActions>() {
                     customactions.push(*action);
                 }
             }
             _ => {}
         }
     }
-    control_sender.start_send(customactions).ok();
+    custom_actions.push(LayerShellActions::CustomActions(customactions));
 }
