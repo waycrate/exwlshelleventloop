@@ -2,7 +2,7 @@ mod state;
 
 use std::{mem::ManuallyDrop, sync::Arc};
 
-use crate::{clipboard::LayerShellClipboard, conversion, error::Error};
+use crate::{clipboard::LayerShellClipboard, conversion, error::Error, event::ActionState};
 
 use iced_graphics::Compositor;
 use state::State;
@@ -159,6 +159,7 @@ where
     let state = State::new(&application, &ev);
 
     let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<ActionState>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -167,6 +168,7 @@ where
         runtime,
         debug,
         event_receiver,
+        control_sender,
         state,
         init_command,
         window.clone(),
@@ -194,10 +196,12 @@ where
             _ => {}
         }
         let poll = instance.as_mut().poll(&mut context);
-        if poll.is_ready() {
-            ReturnData::RequestExist
-        } else {
-            layershellev::ReturnData::None
+        match poll {
+            task::Poll::Pending => {
+                if let Ok(Some(flow)) = control_receiver.try_next() {}
+                ReturnData::None
+            }
+            task::Poll::Ready(_) => ReturnData::RequestExist,
         }
     });
     Ok(())
@@ -213,6 +217,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent>,
+    mut control_sender: mpsc::UnboundedSender<ActionState>,
     mut state: State<A>,
     init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
@@ -246,72 +251,81 @@ async fn run_instance<A, E, C>(
 
     debug.startup_finished();
 
+    macro_rules! redraw {
+        () => {
+            let ps = state.physical_size();
+            let width = ps.width;
+            let height = ps.height;
+            //state.update_view_port(width, height);
+            debug.layout_started();
+            user_interface = ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
+                Size {
+                    width: width as f32,
+                    height: height as f32,
+                },
+                &mut renderer,
+            ));
+            debug.layout_finished();
+
+            compositor.configure_surface(&mut surface, width, height);
+            let redraw_event = IcedCoreEvent::Window(
+                IcedCoreWindow::Id::MAIN,
+                IcedCoreWindow::Event::RedrawRequested(Instant::now()),
+            );
+
+            let (interface_state, _) = user_interface.update(
+                &[redraw_event.clone()],
+                state.cursor(),
+                &mut renderer,
+                &mut clipboard,
+                &mut messages,
+            );
+            // TODO: send event
+            runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
+
+            debug.draw_started();
+            let new_mouse_interaction = user_interface.draw(
+                &mut renderer,
+                state.theme(),
+                &iced_core::renderer::Style {
+                    text_color: state.text_color(),
+                },
+                state.cursor(),
+            );
+            debug.draw_finished();
+            // TODO: check mosue_interaction
+
+            debug.render_started();
+
+            debug.draw_started();
+            user_interface.draw(
+                &mut renderer,
+                &application.theme(),
+                &iced_core::renderer::Style {
+                    text_color: state.text_color(),
+                },
+                IcedCoreMouse::Cursor::Unavailable,
+            );
+            debug.draw_finished();
+            // TODO: draw mouse and something later
+            compositor
+                .present(
+                    &mut renderer,
+                    &mut surface,
+                    &state.viewport(),
+                    state.background_color(),
+                    &debug.overlay(),
+                )
+                .ok();
+            debug.render_finished();
+        };
+    };
+
     while let Some(event) = event_receiver.next().await {
         match event {
             IcedLayerEvent::RequestRefresh { width, height } => {
                 state.update_view_port(width, height);
-                debug.layout_started();
-                user_interface =
-                    ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
-                        Size {
-                            width: width as f32,
-                            height: height as f32,
-                        },
-                        &mut renderer,
-                    ));
-                debug.layout_finished();
-
-                compositor.configure_surface(&mut surface, width, height);
-                let redraw_event = IcedCoreEvent::Window(
-                    IcedCoreWindow::Id::MAIN,
-                    IcedCoreWindow::Event::RedrawRequested(Instant::now()),
-                );
-
-                let (interface_state, _) = user_interface.update(
-                    &[redraw_event.clone()],
-                    state.cursor(),
-                    &mut renderer,
-                    &mut clipboard,
-                    &mut messages,
-                );
-                // TODO: send event
-                runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
-
-                debug.draw_started();
-                let new_mouse_interaction = user_interface.draw(
-                    &mut renderer,
-                    state.theme(),
-                    &iced_core::renderer::Style {
-                        text_color: state.text_color(),
-                    },
-                    state.cursor(),
-                );
-                debug.draw_finished();
-                // TODO: check mosue_interaction
-
-                debug.render_started();
-
-                debug.draw_started();
-                user_interface.draw(
-                    &mut renderer,
-                    &application.theme(),
-                    &iced_core::renderer::Style {
-                        text_color: state.text_color(),
-                    },
-                    IcedCoreMouse::Cursor::Unavailable,
-                );
-                debug.draw_finished();
-                // TODO: draw mouse and something later
-                compositor
-                    .present(
-                        &mut renderer,
-                        &mut surface,
-                        &state.viewport(),
-                        state.background_color(),
-                        &debug.overlay(),
-                    )
-                    .ok();
-                debug.render_finished();
+                redraw!();
             }
             IcedLayerEvent::Window(event) => {
                 // TODO: exit
@@ -366,8 +380,7 @@ async fn run_instance<A, E, C>(
                         &mut debug,
                     ));
                 }
-
-                // TODO: redraw ping
+                redraw!();
             }
         }
     }
