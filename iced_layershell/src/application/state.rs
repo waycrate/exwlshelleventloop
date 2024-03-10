@@ -5,7 +5,6 @@ use iced_style::application::{self, StyleSheet};
 
 use crate::event::WindowEvent;
 
-#[allow(unused)]
 pub struct State<A: Application>
 where
     A::Theme: application::StyleSheet,
