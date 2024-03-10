@@ -1110,7 +1110,6 @@ impl<T: Debug + 'static> WindowState<T> {
             // and if you need to reconfigure it, you need to commit the wl_surface again
             // so because this is just an example, so we just commit it once
             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-
             self.units.push(WindowStateUnit {
                 display: connection.display(),
                 wl_surface,
@@ -1228,7 +1227,7 @@ impl<T: Debug + 'static> WindowState<T> {
             event_queue.roundtrip(&mut self)?;
             timecounter += 1;
             if self.message.is_empty() {
-                if timecounter > 10000 {
+                if timecounter > 100 {
                     event_hander(LayerEvent::NormalDispatch, &mut self, None);
                     timecounter = 0;
                 }

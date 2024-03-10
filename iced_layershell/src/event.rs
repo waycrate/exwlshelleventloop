@@ -59,3 +59,8 @@ impl From<&DispatchMessage> for IcedLayerEvent {
         }
     }
 }
+
+#[allow(unused)]
+pub enum ActionState {
+    RefreshSurface,
+}
