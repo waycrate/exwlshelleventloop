@@ -12,8 +12,8 @@ pub struct Settings<Flags> {
     /// communicate with it through the windowing system.
     pub id: Option<String>,
 
-    /// The [`window::Settings`].
-
+    /// settings for layer shell
+    pub layer_settings: LayerShellSettings,
     /// The data needed to initialize an [`Application`].
     ///
     /// [`Application`]: crate::Application
@@ -22,7 +22,9 @@ pub struct Settings<Flags> {
     /// The fonts to load on boot.
     pub fonts: Vec<Cow<'static, [u8]>>,
 
-    pub layer_settings: LayerShellSettings,
+    /// The default [`Font`] to be used.
+    ///
+    /// By default, it uses [`Family::SansSerif`](crate::font::Family::SansSerif).
     pub default_font: Font,
 
     /// The text size that will be used by default.

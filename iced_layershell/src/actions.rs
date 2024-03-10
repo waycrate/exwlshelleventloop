@@ -2,7 +2,7 @@ use iced_core::mouse::Interaction;
 use crate::reexport::{Anchor, Layer};
 
 #[derive(Debug, Clone)]
-pub enum LayerShellActions {
+pub(crate) enum LayerShellActions {
     Mouse(Interaction),
     CustomActions(Vec<LayershellCustomActions>)
 }
