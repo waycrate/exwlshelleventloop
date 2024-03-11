@@ -3,7 +3,7 @@ mod keymap;
 use crate::event::IcedButtonState;
 use crate::event::IcedKeyState;
 use crate::event::WindowEvent as LayerShellEvent;
-use keymap::{key_from_u32, text_from_u32};
+use keymap::{key_from_u32, text_from_key};
 
 use iced_core::{keyboard, mouse, Event as IcedEvent};
 
@@ -28,19 +28,23 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
             state,
             key,
             modifiers,
-        } => match state {
-            IcedKeyState::Pressed => Some(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
-                key: key_from_u32(*key),
-                location: keyboard::Location::Standard,
-                modifiers: *modifiers,
-                text: text_from_u32(*key),
-            })),
-            IcedKeyState::Released => Some(IcedEvent::Keyboard(keyboard::Event::KeyReleased {
-                key: key_from_u32(*key),
-                location: keyboard::Location::Standard,
-                modifiers: *modifiers,
-            })),
-        },
+        } => {
+            let key = key_from_u32(*key);
+            let text = text_from_key(&key);
+            match state {
+                IcedKeyState::Pressed => Some(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
+                    key,
+                    location: keyboard::Location::Standard,
+                    modifiers: *modifiers,
+                    text,
+                })),
+                IcedKeyState::Released => Some(IcedEvent::Keyboard(keyboard::Event::KeyReleased {
+                    key,
+                    location: keyboard::Location::Standard,
+                    modifiers: *modifiers,
+                })),
+            }
+        }
         _ => None,
     }
 }

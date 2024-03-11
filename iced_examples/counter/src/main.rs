@@ -20,6 +20,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
 
 struct Counter {
     value: i32,
+    text: String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,7 +46,7 @@ impl Application for Counter {
     type Executor = iced::executor::Default;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        (Self { value: 0 }, Command::none())
+        (Self { value: 0, text: "eee".to_string() }, Command::none())
     }
 
     fn namespace(&self) -> String {
@@ -63,7 +64,7 @@ impl Application for Counter {
                 Command::none()
             }
             Message::TextInput(text) => {
-                println!("{text}");
+                self.text = text;
                 Command::none()
             }
             Message::Direction(direction) => match direction {
@@ -130,7 +131,7 @@ impl Application for Counter {
                     .on_press(Message::Direction(WindowDirection::Top))
                     .width(Length::Fill),
                 center,
-                text_input("hello", "eeee")
+                text_input("hello", &self.text)
                     .on_input(Message::TextInput)
                     .padding(10),
                 button("bottom")

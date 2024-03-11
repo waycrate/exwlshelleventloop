@@ -20,7 +20,10 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use layershellev::{LayerEvent, ReturnData, WindowState, WindowWrapper};
+use layershellev::{
+    reexport::wayland_client::{KeyState, WEnum},
+    LayerEvent, ReturnData, WindowState, WindowWrapper,
+};
 
 use futures::{channel::mpsc, StreamExt};
 
@@ -123,6 +126,7 @@ where
 {
     use futures::task;
     use futures::Future;
+
     let mut debug = Debug::new();
     debug.startup_started();
 
@@ -180,6 +184,9 @@ where
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
     let mut pointer_serial: u32 = 0;
+    let mut key_event: Option<IcedLayerEvent> = None;
+    let mut key_ping_count: u32 = 100;
+
     let _ = ev.running(move |event, ev, _| {
         use layershellev::DispatchMessage;
         match event {
@@ -187,19 +194,47 @@ where
             // TODO: maybe use it later
             LayerEvent::BindProvide(_, _) => {}
             LayerEvent::RequestMessages(message) => {
-                if let DispatchMessage::MouseEnter { serial, .. } = message {
-                    pointer_serial = *serial;
+                match message {
+                    DispatchMessage::MouseEnter { serial, .. } => {
+                        pointer_serial = *serial;
+                    }
+                    DispatchMessage::KeyBoard { state, .. } => {
+                        if let WEnum::Value(KeyState::Pressed) = state {
+                            key_event = Some(message.into());
+                        } else {
+                            key_event = None;
+                            key_ping_count = 100;
+                        }
+                    }
+                    _ => {}
                 }
 
                 event_sender
                     .start_send(message.into())
                     .expect("Cannot send");
             }
-            LayerEvent::NormalDispatch => {
-                event_sender
-                    .start_send(IcedLayerEvent::NormalUpdate)
-                    .expect("Cannot send");
-            }
+            LayerEvent::NormalDispatch => match key_event {
+                Some(keyevent) => {
+                    if key_ping_count > 20 && key_ping_count < 24 {
+                        event_sender.start_send(keyevent).expect("Cannot send");
+                        key_ping_count = 0;
+                    } else {
+                        event_sender
+                            .start_send(IcedLayerEvent::NormalUpdate)
+                            .expect("Cannot send");
+                    }
+                    if key_ping_count >= 24 {
+                        key_ping_count -= 1;
+                    } else {
+                        key_ping_count += 1;
+                    }
+                }
+                None => {
+                    event_sender
+                        .start_send(IcedLayerEvent::NormalUpdate)
+                        .expect("Cannot send");
+                }
+            },
             _ => {}
         }
         let poll = instance.as_mut().poll(&mut context);
