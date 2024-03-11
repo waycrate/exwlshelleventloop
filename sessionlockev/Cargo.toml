@@ -23,3 +23,5 @@ wayland-cursor.workspace = true
 wayland-protocols-wlr.workspace = true
 
 wayland-protocols-misc.workspace = true
+
+bitflags.workspace = true

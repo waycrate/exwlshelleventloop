@@ -1400,6 +1400,7 @@ dependencies = [
 name = "layershellev"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.4.2",
  "calloop",
  "raw-window-handle",
  "smithay-client-toolkit",
@@ -2213,6 +2214,7 @@ dependencies = [
 name = "sessionlockev"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.4.2",
  "tempfile",
  "thiserror",
  "wayland-client",

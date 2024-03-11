@@ -1,6 +1,11 @@
+mod keymap;
+
 use crate::event::IcedButtonState;
+use crate::event::IcedKeyState;
 use crate::event::WindowEvent as LayerShellEvent;
-use iced_core::{mouse, Event as IcedEvent};
+use keymap::{key_from_u32, text_from_u32};
+
+use iced_core::{keyboard, mouse, Event as IcedEvent};
 
 #[allow(unused)]
 pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> Option<IcedEvent> {
@@ -19,13 +24,28 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
             IcedButtonState::Pressed => mouse::Event::ButtonPressed(mouse::Button::Left),
             IcedButtonState::Released => mouse::Event::ButtonReleased(mouse::Button::Left),
         })),
+        LayerShellEvent::Keyboard {
+            state,
+            key,
+            modifiers,
+        } => match state {
+            IcedKeyState::Pressed => Some(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
+                key: key_from_u32(*key),
+                location: keyboard::Location::Standard,
+                modifiers: *modifiers,
+                text: text_from_u32(*key),
+            })),
+            IcedKeyState::Released => Some(IcedEvent::Keyboard(keyboard::Event::KeyReleased {
+                key: key_from_u32(*key),
+                location: keyboard::Location::Standard,
+                modifiers: *modifiers,
+            })),
+        },
         _ => None,
     }
 }
 
-pub(crate) fn mouse_interaction(
-    interaction: mouse::Interaction
-) -> String {
+pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
     use mouse::Interaction;
     match interaction {
         Interaction::Idle => "default".to_owned(),
@@ -38,6 +58,11 @@ pub(crate) fn mouse_interaction(
         Interaction::Crosshair => "crosshair".to_owned(),
         Interaction::NotAllowed => "not_allowed".to_owned(),
         Interaction::ResizingVertically => "ew_resize".to_owned(),
-        Interaction::ResizingHorizontally => "ns_resize".to_owned()
+        Interaction::ResizingHorizontally => "ns_resize".to_owned(),
     }
+}
+
+#[allow(unused)]
+fn is_private_use(c: char) -> bool {
+    ('\u{E000}'..='\u{F8FF}').contains(&c)
 }
