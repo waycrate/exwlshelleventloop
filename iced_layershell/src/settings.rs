@@ -67,6 +67,7 @@ pub struct LayerShellSettings {
     pub layer: Layer,
     pub exclusize_zone: i32,
     pub size: Option<(u32, u32)>,
+    pub margins: (i32, i32, i32, i32),
 }
 
 impl Default for LayerShellSettings {
@@ -76,6 +77,7 @@ impl Default for LayerShellSettings {
             layer: Layer::Top,
             exclusize_zone: -1,
             size: None,
+            margins: (0, 0, 0, 0),
         }
     }
 }

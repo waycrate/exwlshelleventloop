@@ -46,7 +46,13 @@ impl Application for Counter {
     type Executor = iced::executor::Default;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        (Self { value: 0, text: "eee".to_string() }, Command::none())
+        (
+            Self {
+                value: 0,
+                text: "eee".to_string(),
+            },
+            Command::none(),
+        )
     }
 
     fn namespace(&self) -> String {
