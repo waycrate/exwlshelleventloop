@@ -1,6 +1,8 @@
-use layershellev::reexport::wayland_client::{ButtonState, WEnum};
+use layershellev::key::KeyModifierType;
+use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
 use layershellev::DispatchMessage;
 
+use iced_core::keyboard::Modifiers as IcedModifiers;
 #[derive(Debug, Clone, Copy)]
 pub enum IcedButtonState {
     Pressed,
@@ -8,12 +10,43 @@ pub enum IcedButtonState {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum IcedKeyState {
+    Pressed,
+    Released,
+}
+
+impl From<WEnum<KeyState>> for IcedKeyState {
+    fn from(value: WEnum<KeyState>) -> Self {
+        match value {
+            WEnum::Value(KeyState::Released) => Self::Released,
+            WEnum::Value(KeyState::Pressed) => Self::Pressed,
+            _ => unreachable!(),
+        }
+    }
+}
+
+fn modifier_from_layershell_to_iced(modifier: KeyModifierType) -> IcedModifiers {
+    IcedModifiers::from_bits(modifier.bits()).unwrap_or(IcedModifiers::empty())
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum WindowEvent {
     ScaleChanged(u32),
-    CursorEnter { x: f64, y: f64 },
-    CursorMoved { x: f64, y: f64 },
+    CursorEnter {
+        x: f64,
+        y: f64,
+    },
+    CursorMoved {
+        x: f64,
+        y: f64,
+    },
     CursorLeft,
     MouseInput(IcedButtonState),
+    Keyboard {
+        state: IcedKeyState,
+        key: u32,
+        modifiers: IcedModifiers,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -56,6 +89,16 @@ impl From<&DispatchMessage> for IcedLayerEvent {
             DispatchMessage::PrefredScale(scale) => {
                 IcedLayerEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
+            DispatchMessage::KeyBoard {
+                state,
+                key,
+                modifier,
+                ..
+            } => IcedLayerEvent::Window(WindowEvent::Keyboard {
+                state: (*state).into(),
+                key: *key,
+                modifiers: modifier_from_layershell_to_iced(*modifier),
+            }),
             _ => Self::NormalUpdate,
         }
     }

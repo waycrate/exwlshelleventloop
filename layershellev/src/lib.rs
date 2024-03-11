@@ -166,8 +166,11 @@ use std::fmt::Debug;
 
 use events::DispatchMessageInner;
 
+pub mod key;
+
 pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
+use key::KeyModifierType;
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
@@ -490,6 +493,9 @@ pub struct WindowState<T: Debug> {
     exclusive_zone: Option<i32>,
     margin: Option<(i32, i32, i32, i32)>,
 
+    // keyboard
+    modifier: KeyModifierType,
+
     // settings
     use_display_handle: bool,
 }
@@ -684,6 +690,8 @@ impl<T: Debug> Default for WindowState<T> {
             exclusive_zone: None,
             margin: None,
 
+            modifier: KeyModifierType::NoMod,
+
             use_display_handle: false,
         }
     }
@@ -786,22 +794,33 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key {
-            state: keystate,
-            serial,
-            key,
-            time,
-        } = event
-        {
-            state.message.push((
-                state.surface_pos(),
-                DispatchMessageInner::KeyBoard {
-                    state: keystate,
-                    serial,
-                    key,
-                    time,
-                },
-            ));
+        match event {
+            wl_keyboard::Event::Key {
+                state: keystate,
+                serial,
+                key,
+                time,
+            } => {
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::KeyBoard {
+                        state: keystate,
+                        modifier: state.modifier,
+                        serial,
+                        key,
+                        time,
+                    },
+                ));
+            }
+            wl_keyboard::Event::Modifiers {
+                mods_depressed,
+                mods_locked,
+                ..
+            } => {
+                state.modifier = KeyModifierType::from_bits(mods_depressed | mods_locked)
+                    .unwrap_or(KeyModifierType::empty());
+            }
+            _ => {}
         }
     }
 }

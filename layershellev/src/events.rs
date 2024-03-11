@@ -10,6 +10,8 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
+use crate::key::KeyModifierType;
+
 use super::WindowState;
 use std::{fmt::Debug, fs::File};
 
@@ -111,6 +113,7 @@ pub(crate) enum DispatchMessageInner {
     },
     KeyBoard {
         state: WEnum<KeyState>,
+        modifier: KeyModifierType,
         serial: u32,
         key: u32,
         time: u32,
@@ -175,6 +178,7 @@ pub enum DispatchMessage {
     /// forward the event of wayland-keyboard
     KeyBoard {
         state: WEnum<KeyState>,
+        modifier: KeyModifierType,
         serial: u32,
         key: u32,
         time: u32,
@@ -246,11 +250,13 @@ impl From<DispatchMessageInner> for DispatchMessage {
             }
             DispatchMessageInner::KeyBoard {
                 state,
+                modifier,
                 serial,
                 key,
                 time,
             } => DispatchMessage::KeyBoard {
                 state,
+                modifier,
                 serial,
                 key,
                 time,

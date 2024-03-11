@@ -1,4 +1,4 @@
-use iced::widget::{button, column, row, text};
+use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Command, Element, Length, Theme};
 use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::Anchor;
@@ -9,8 +9,8 @@ use iced_runtime::command::Action;
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
-            size: Some((0, 300)),
-            exclusize_zone: 300,
+            size: Some((0, 400)),
+            exclusize_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             ..Default::default()
         },
@@ -30,10 +30,11 @@ enum WindowDirection {
     Bottom,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
     DecrementPressed,
+    TextInput(String),
     Direction(WindowDirection),
 }
 
@@ -61,38 +62,50 @@ impl Application for Counter {
                 self.value -= 1;
                 Command::none()
             }
+            Message::TextInput(text) => {
+                println!("{text}");
+                Command::none()
+            }
             Message::Direction(direction) => match direction {
                 WindowDirection::Left => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::AnchorChange(
-                        Anchor::Left | Anchor::Top | Anchor::Bottom,
-                    )))),
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::SizeChange((
-                        300, 0,
-                    ))))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::AnchorChange(
+                            Anchor::Left | Anchor::Top | Anchor::Bottom,
+                        ),
+                    ))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::SizeChange((400, 0)),
+                    ))),
                 ]),
                 WindowDirection::Right => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::AnchorChange(
-                        Anchor::Right | Anchor::Top | Anchor::Bottom,
-                    )))),
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::SizeChange((
-                        300, 0,
-                    ))))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::AnchorChange(
+                            Anchor::Right | Anchor::Top | Anchor::Bottom,
+                        ),
+                    ))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::SizeChange((400, 0)),
+                    ))),
                 ]),
                 WindowDirection::Bottom => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::AnchorChange(
-                        Anchor::Bottom | Anchor::Left | Anchor::Right,
-                    )))),
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::SizeChange((
-                        0, 300,
-                    ))))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::AnchorChange(
+                            Anchor::Bottom | Anchor::Left | Anchor::Right,
+                        ),
+                    ))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::SizeChange((0, 400)),
+                    ))),
                 ]),
                 WindowDirection::Top => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::AnchorChange(
-                        Anchor::Top | Anchor::Left | Anchor::Right,
-                    )))),
-                    Command::single(Action::Custom(Box::new(LayershellCustomActions::SizeChange((
-                        0, 300,
-                    ))))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::AnchorChange(
+                            Anchor::Top | Anchor::Left | Anchor::Right,
+                        ),
+                    ))),
+                    Command::single(Action::Custom(Box::new(
+                        LayershellCustomActions::SizeChange((0, 400)),
+                    ))),
                 ]),
             },
         }
@@ -117,6 +130,9 @@ impl Application for Counter {
                     .on_press(Message::Direction(WindowDirection::Top))
                     .width(Length::Fill),
                 center,
+                text_input("hello", "eeee")
+                    .on_input(Message::TextInput)
+                    .padding(10),
                 button("bottom")
                     .on_press(Message::Direction(WindowDirection::Bottom))
                     .width(Length::Fill),

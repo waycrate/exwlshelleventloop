@@ -101,6 +101,9 @@ mod events;
 
 mod strtoshape;
 
+pub mod key;
+
+use key::KeyModifierType;
 use strtoshape::str_to_shape;
 
 use std::fmt::Debug;
@@ -269,6 +272,9 @@ pub struct WindowState<T: Debug> {
     keyboard: Option<WlKeyboard>,
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
+
+    // keyboard
+    modifier: KeyModifierType,
 }
 
 impl<T: Debug> WindowState<T> {
@@ -312,6 +318,8 @@ impl<T: Debug> Default for WindowState<T> {
             keyboard: None,
             pointer: None,
             touch: None,
+
+            modifier: KeyModifierType::NoMod,
         }
     }
 }
@@ -413,22 +421,33 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let wl_keyboard::Event::Key {
-            state: keystate,
-            serial,
-            key,
-            time,
-        } = event
-        {
-            state.message.push((
-                state.surface_pos(),
-                DispatchMessageInner::KeyBoard {
-                    state: keystate,
-                    serial,
-                    key,
-                    time,
-                },
-            ));
+        match event {
+            wl_keyboard::Event::Key {
+                state: keystate,
+                serial,
+                key,
+                time,
+            } => {
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::KeyBoard {
+                        state: keystate,
+                        modifier: state.modifier,
+                        serial,
+                        key,
+                        time,
+                    },
+                ));
+            }
+            wl_keyboard::Event::Modifiers {
+                mods_depressed,
+                mods_locked,
+                ..
+            } => {
+                state.modifier = KeyModifierType::from_bits(mods_depressed | mods_locked)
+                    .unwrap_or(KeyModifierType::empty());
+            }
+            _ => {}
         }
     }
 }
