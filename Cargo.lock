@@ -498,7 +498,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -1175,7 +1175,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "futures",
  "iced",
@@ -1398,7 +1398,7 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags 2.4.2",
  "calloop",
@@ -2212,7 +2212,7 @@ dependencies = [
 
 [[package]]
 name = "sessionlockev"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bitflags 2.4.2",
  "tempfile",

@@ -14,7 +14,7 @@ authors = [
 	"Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2021"
-version = "0.1.0"
+version = "0.2.0"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"
 description = "Wayland extra shell lib"
@@ -22,10 +22,10 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-layershellev = { version = "0.1.0", path = "./layershellev" }
-sessionlockev = { version = "0.1.0", path = "./sessionlockev" }
+layershellev = { version = "0.2.0", path = "./layershellev" }
+sessionlockev = { version = "0.2.0", path = "./sessionlockev" }
 
-iced_layershell = { version = "0.1.0", path = "./iced_layershell" }
+iced_layershell = { version = "0.2.0", path = "./iced_layershell" }
 
 tempfile = "3.8.1"
 thiserror = "1.0.50"
