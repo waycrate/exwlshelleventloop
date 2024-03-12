@@ -49,14 +49,15 @@ pub enum WindowEvent {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum IcedLayerEvent {
+#[derive(Debug)]
+pub enum IcedLayerEvent<Message: 'static> {
     RequestRefresh { width: u32, height: u32 },
     Window(WindowEvent),
     NormalUpdate,
+    UserEvent(Message)
 }
 
-impl From<&DispatchMessage> for IcedLayerEvent {
+impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
             DispatchMessage::RequestRefresh { width, height } => IcedLayerEvent::RequestRefresh {

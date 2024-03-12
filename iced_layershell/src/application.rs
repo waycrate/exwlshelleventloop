@@ -130,8 +130,9 @@ where
     let mut debug = Debug::new();
     debug.startup_started();
 
-    let runtime: Runtime<E, IcedProxy, <A as Program>::Message> = {
-        let proxy = IcedProxy;
+    let (message_sender, message_receiver) = std::sync::mpsc::channel::<A::Message>();
+    let runtime: Runtime<E, IcedProxy<A::Message>, <A as Program>::Message> = {
+        let proxy = IcedProxy::new(message_sender);
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
@@ -166,7 +167,7 @@ where
 
     let state = State::new(&application, &ev);
 
-    let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent>();
+    let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent<A::Message>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayerShellActions>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
@@ -185,7 +186,7 @@ where
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
     let mut pointer_serial: u32 = 0;
-    let mut key_event: Option<IcedLayerEvent> = None;
+    let mut key_event: Option<IcedLayerEvent<A::Message>> = None;
     let mut key_ping_count: u32 = 100;
 
     let _ = ev.running(move |event, ev, _| {
@@ -214,20 +215,23 @@ where
                     .start_send(message.into())
                     .expect("Cannot send");
             }
-            LayerEvent::NormalDispatch => match key_event {
+            LayerEvent::NormalDispatch => match &key_event {
                 Some(keyevent) => {
-                    if key_ping_count > 20 && key_ping_count < 24 {
-                        event_sender.start_send(keyevent).expect("Cannot send");
-                        key_ping_count = 0;
-                    } else {
-                        event_sender
-                            .start_send(IcedLayerEvent::NormalUpdate)
-                            .expect("Cannot send");
-                    }
-                    if key_ping_count >= 24 {
-                        key_ping_count -= 1;
-                    } else {
-                        key_ping_count += 1;
+                    if let IcedLayerEvent::Window(windowevent) = keyevent {
+                        let event = IcedLayerEvent::Window(*windowevent);
+                        if key_ping_count > 40 && key_ping_count < 44 {
+                            event_sender.start_send(event).expect("Cannot send");
+                            key_ping_count = 0;
+                        } else {
+                            event_sender
+                                .start_send(IcedLayerEvent::NormalUpdate)
+                                .expect("Cannot send");
+                        }
+                        if key_ping_count >= 44 {
+                            key_ping_count -= 1;
+                        } else {
+                            key_ping_count += 1;
+                        }
                     }
                 }
                 None => {
@@ -237,6 +241,9 @@ where
                 }
             },
             _ => {}
+        }
+        if let Ok(event) = message_receiver.try_recv() {
+            event_sender.start_send(IcedLayerEvent::UserEvent(event)).ok();
         }
         let poll = instance.as_mut().poll(&mut context);
         match poll {
@@ -289,9 +296,9 @@ async fn run_instance<A, E, C>(
     mut application: A,
     mut compositor: C,
     mut renderer: A::Renderer,
-    mut runtime: Runtime<E, IcedProxy, A::Message>,
+    mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
     mut debug: Debug,
-    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent>,
+    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<A::Message>>,
     mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions>>,
     mut state: State<A>,
     init_command: Command<A::Message>,
@@ -426,6 +433,9 @@ async fn run_instance<A, E, C>(
                     events.push(event);
                 }
             }
+            IcedLayerEvent::UserEvent(event) => {
+                messages.push(event);
+            }
             IcedLayerEvent::NormalUpdate => {
                 if events.is_empty() && messages.is_empty() {
                     continue;
@@ -513,7 +523,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     cache: &mut user_interface::Cache,
     state: &mut State<A>,
     renderer: &mut A::Renderer,
-    runtime: &mut Runtime<E, IcedProxy, A::Message>,
+    runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
     custom_actions: &mut Vec<LayerShellActions>,
@@ -558,7 +568,7 @@ pub(crate) fn run_command<A, C, E>(
     state: &State<A>,
     renderer: &mut A::Renderer,
     command: Command<A::Message>,
-    runtime: &mut Runtime<E, IcedProxy, A::Message>,
+    runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
     custom_actions: &mut Vec<LayerShellActions>,
     debug: &mut Debug,
 ) where
