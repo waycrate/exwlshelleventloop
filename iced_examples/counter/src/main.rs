@@ -1,5 +1,5 @@
 use iced::widget::{button, column, row, text, text_input};
-use iced::{Alignment, Command, Element, Length, Theme};
+use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
@@ -37,6 +37,7 @@ enum Message {
     DecrementPressed,
     TextInput(String),
     Direction(WindowDirection),
+    IcedEvent(Event),
 }
 
 impl Application for Counter {
@@ -59,8 +60,16 @@ impl Application for Counter {
         String::from("Counter - Iced")
     }
 
+    fn subscription(&self) -> iced::Subscription<Self::Message> {
+        event::listen().map(Message::IcedEvent)
+    }
+
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::IcedEvent(event) => {
+                println!("{event:?}");
+                Command::none()
+            }
             Message::IncrementPressed => {
                 self.value += 1;
                 Command::none()
