@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use iced::{Font, Pixels};
 
-use crate::reexport::{Anchor, Layer};
+use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
 #[derive(Debug, Clone)]
 pub struct Settings<Flags> {
@@ -68,6 +68,7 @@ pub struct LayerShellSettings {
     pub exclusize_zone: i32,
     pub size: Option<(u32, u32)>,
     pub margins: (i32, i32, i32, i32),
+    pub keyboard_interactivity: KeyboardInteractivity,
 }
 
 impl Default for LayerShellSettings {
@@ -78,6 +79,7 @@ impl Default for LayerShellSettings {
             exclusize_zone: -1,
             size: None,
             margins: (0, 0, 0, 0),
+            keyboard_interactivity: KeyboardInteractivity::OnDemand,
         }
     }
 }
