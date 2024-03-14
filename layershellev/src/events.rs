@@ -26,8 +26,7 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-#[derive(Debug)]
-pub enum LayerEvent<'a, T: Debug> {
+pub enum LayerEvent<'a, T: Debug, Message> {
     InitRequest,
     XdgInfoChanged(XdgInfoChangedType),
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
@@ -40,6 +39,7 @@ pub enum LayerEvent<'a, T: Debug> {
     ),
     RequestMessages(&'a DispatchMessage),
     NormalDispatch,
+    UserEvent(Message)
 }
 
 /// the return data

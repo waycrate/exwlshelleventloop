@@ -25,7 +25,7 @@ use layershellev::{
     LayerEvent, ReturnData, WindowState, WindowWrapper,
 };
 
-use futures::{channel::mpsc, StreamExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 
 use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
@@ -131,11 +131,12 @@ where
     debug.startup_started();
 
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<A::Message>();
+
+    let proxy = IcedProxy::new(message_sender);
     let runtime: Runtime<E, IcedProxy<A::Message>, <A as Program>::Message> = {
-        let proxy = IcedProxy::new(message_sender);
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
-        Runtime::new(executor, proxy)
+        Runtime::new(executor, proxy.clone())
     };
 
     let (application, init_command) = {
@@ -176,6 +177,7 @@ where
         compositor,
         renderer,
         runtime,
+        proxy,
         debug,
         event_receiver,
         control_sender,
@@ -190,7 +192,7 @@ where
     let mut key_event: Option<IcedLayerEvent<A::Message>> = None;
     let mut key_ping_count: u32 = 200;
 
-    let _ = ev.running(move |event, ev, _| {
+    let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
         use layershellev::DispatchMessage;
         match event {
             LayerEvent::InitRequest => {}
@@ -241,12 +243,12 @@ where
                         .expect("Cannot send");
                 }
             },
+            LayerEvent::UserEvent(event) => {
+                event_sender
+                    .start_send(IcedLayerEvent::UserEvent(event))
+                    .ok();
+            }
             _ => {}
-        }
-        if let Ok(event) = message_receiver.try_recv() {
-            event_sender
-                .start_send(IcedLayerEvent::UserEvent(event))
-                .ok();
         }
         let poll = instance.as_mut().poll(&mut context);
         match poll {
@@ -300,6 +302,7 @@ async fn run_instance<A, E, C>(
     mut compositor: C,
     mut renderer: A::Renderer,
     mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
+    mut proxy: IcedProxy<A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<A::Message>>,
     mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions>>,
@@ -335,6 +338,7 @@ async fn run_instance<A, E, C>(
         init_command,
         &mut runtime,
         &mut custom_actions,
+        &mut proxy,
         &mut debug,
     );
 
@@ -471,6 +475,7 @@ async fn run_instance<A, E, C>(
                         &mut state,
                         &mut renderer,
                         &mut runtime,
+                        &mut proxy,
                         &mut debug,
                         &mut messages,
                         &mut custom_actions,
@@ -527,6 +532,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     state: &mut State<A>,
     renderer: &mut A::Renderer,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
     custom_actions: &mut Vec<LayerShellActions>,
@@ -552,6 +558,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             command,
             runtime,
             custom_actions,
+            proxy,
             debug,
         );
     }
@@ -573,6 +580,7 @@ pub(crate) fn run_command<A, C, E>(
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
     custom_actions: &mut Vec<LayerShellActions>,
+    proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
 ) where
     A: Application,
@@ -583,6 +591,7 @@ pub(crate) fn run_command<A, C, E>(
 {
     use iced_core::widget::operation;
     use iced_runtime::command;
+    use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
     let mut customactions = Vec::new();
     for action in command.actions() {
@@ -625,16 +634,30 @@ pub(crate) fn run_command<A, C, E>(
                 current_cache = user_interface.into_cache();
                 *cache = current_cache;
             }
-            command::Action::Window(WinowAction::Close(_)) => {
-                customactions.push(LayershellCustomActions::CloseWindow);
-            }
+            command::Action::Window(action) => match action {
+                WinowAction::Close(_) => {
+                    customactions.push(LayershellCustomActions::CloseWindow);
+                }
+                WinowAction::Screenshot(_id, tag) => {
+                    let bytes = compositor.screenshot(
+                        renderer,
+                        surface,
+                        state.viewport(),
+                        state.background_color(),
+                        &debug.overlay(),
+                    );
+
+                    proxy.send(tag(window::Screenshot::new(bytes, state.physical_size())));
+                }
+                _ => {}
+            },
             command::Action::LoadFont { bytes, tagger } => {
                 use iced_core::text::Renderer;
 
                 // TODO: Error handling (?)
                 renderer.load_font(bytes);
 
-                // TODO: proxy?
+                proxy.send(tagger(Ok(())));
             }
             command::Action::Custom(custom) => {
                 if let Some(action) = custom.downcast_ref::<LayershellCustomActions>() {

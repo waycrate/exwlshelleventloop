@@ -29,7 +29,6 @@ fn main() {
 
     let mut virtual_keyboard_manager = None;
     ev.running(|event, ev, index| {
-        println!("{:?}", event);
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
             LayerEvent::InitRequest => ReturnData::RequestBind,
