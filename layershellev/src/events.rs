@@ -39,7 +39,7 @@ pub enum LayerEvent<'a, T: Debug, Message> {
     ),
     RequestMessages(&'a DispatchMessage),
     NormalDispatch,
-    UserEvent(Message)
+    UserEvent(Message),
 }
 
 /// the return data

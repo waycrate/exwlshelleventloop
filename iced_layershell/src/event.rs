@@ -54,7 +54,7 @@ pub enum IcedLayerEvent<Message: 'static> {
     RequestRefresh { width: u32, height: u32 },
     Window(WindowEvent),
     NormalUpdate,
-    UserEvent(Message)
+    UserEvent(Message),
 }
 
 impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {

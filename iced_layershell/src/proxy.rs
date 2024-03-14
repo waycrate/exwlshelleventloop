@@ -7,7 +7,6 @@ use std::pin::Pin;
 
 use std::sync::mpsc as stdmpsc;
 
-
 /// An event loop proxy that implements `Sink`.
 /// NOTE: not proxy anything now
 #[derive(Debug)]
