@@ -268,9 +268,6 @@ where
                                         LayershellCustomActions::SizeChange((width, height)) => {
                                             ev.main_window().set_size((width, height));
                                         }
-                                        LayershellCustomActions::CloseWindow => {
-                                            break 'peddingBlock ReturnData::RequestExist;
-                                        }
                                     }
                                 }
                             }
@@ -321,6 +318,9 @@ async fn run_instance<A, E, C>(
     let mut cache = user_interface::Cache::default();
     let mut surface =
         compositor.create_surface(window.clone(), physical_size.width, physical_size.height);
+
+    let mut should_exit = false;
+
     let mut clipboard = LayerShellClipboard;
 
     let mut mouse_interaction = mouse::Interaction::default();
@@ -338,6 +338,7 @@ async fn run_instance<A, E, C>(
         init_command,
         &mut runtime,
         &mut custom_actions,
+        &mut should_exit,
         &mut proxy,
         &mut debug,
     );
@@ -475,6 +476,7 @@ async fn run_instance<A, E, C>(
                         &mut state,
                         &mut renderer,
                         &mut runtime,
+                        &mut should_exit,
                         &mut proxy,
                         &mut debug,
                         &mut messages,
@@ -488,6 +490,10 @@ async fn run_instance<A, E, C>(
                         state.logical_size(),
                         &mut debug,
                     ));
+
+                    if should_exit {
+                        break;
+                    }
                 }
                 redraw!();
             }
@@ -532,6 +538,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     state: &mut State<A>,
     renderer: &mut A::Renderer,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
@@ -558,6 +565,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             command,
             runtime,
             custom_actions,
+            should_exit,
             proxy,
             debug,
         );
@@ -580,6 +588,7 @@ pub(crate) fn run_command<A, C, E>(
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
     custom_actions: &mut Vec<LayerShellActions>,
+    should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
 ) where
@@ -636,7 +645,7 @@ pub(crate) fn run_command<A, C, E>(
             }
             command::Action::Window(action) => match action {
                 WinowAction::Close(_) => {
-                    customactions.push(LayershellCustomActions::CloseWindow);
+                    *should_exit = true;
                 }
                 WinowAction::Screenshot(_id, tag) => {
                     let bytes = compositor.screenshot(

@@ -12,5 +12,4 @@ pub enum LayershellCustomActions {
     AnchorChange(Anchor),
     LayerChange(Layer),
     SizeChange((u32, u32)),
-    CloseWindow,
 }
