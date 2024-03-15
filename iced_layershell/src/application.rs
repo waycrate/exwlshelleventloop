@@ -190,7 +190,7 @@ where
 
     let mut pointer_serial: u32 = 0;
     let mut key_event: Option<IcedLayerEvent<A::Message>> = None;
-    let mut key_ping_count: u32 = 200;
+    let mut key_ping_count: u32 = 400;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
         use layershellev::DispatchMessage;
@@ -208,7 +208,7 @@ where
                             key_event = Some(message.into());
                         } else {
                             key_event = None;
-                            key_ping_count = 200;
+                            key_ping_count = 400;
                         }
                     }
                     _ => {}
