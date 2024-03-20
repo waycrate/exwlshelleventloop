@@ -4,7 +4,6 @@ use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
-use iced_runtime::command::Action;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
@@ -84,44 +83,40 @@ impl Application for Counter {
             }
             Message::Direction(direction) => match direction {
                 WindowDirection::Left => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(
+                    Command::single(
                         LayershellCustomActions::AnchorChange(
                             Anchor::Left | Anchor::Top | Anchor::Bottom,
-                        ),
-                    ))),
-                    Command::single(Action::Custom(Box::new(
-                        LayershellCustomActions::SizeChange((400, 0)),
-                    ))),
+                        )
+                        .into(),
+                    ),
+                    Command::single(LayershellCustomActions::SizeChange((400, 0)).into()),
                 ]),
                 WindowDirection::Right => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(
+                    Command::single(
                         LayershellCustomActions::AnchorChange(
                             Anchor::Right | Anchor::Top | Anchor::Bottom,
-                        ),
-                    ))),
-                    Command::single(Action::Custom(Box::new(
-                        LayershellCustomActions::SizeChange((400, 0)),
-                    ))),
+                        )
+                        .into(),
+                    ),
+                    Command::single(LayershellCustomActions::SizeChange((400, 0)).into()),
                 ]),
                 WindowDirection::Bottom => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(
+                    Command::single(
                         LayershellCustomActions::AnchorChange(
                             Anchor::Bottom | Anchor::Left | Anchor::Right,
-                        ),
-                    ))),
-                    Command::single(Action::Custom(Box::new(
-                        LayershellCustomActions::SizeChange((0, 400)),
-                    ))),
+                        )
+                        .into(),
+                    ),
+                    Command::single(LayershellCustomActions::SizeChange((0, 400)).into()),
                 ]),
                 WindowDirection::Top => Command::batch(vec![
-                    Command::single(Action::Custom(Box::new(
+                    Command::single(
                         LayershellCustomActions::AnchorChange(
                             Anchor::Top | Anchor::Left | Anchor::Right,
-                        ),
-                    ))),
-                    Command::single(Action::Custom(Box::new(
-                        LayershellCustomActions::SizeChange((0, 400)),
-                    ))),
+                        )
+                        .into(),
+                    ),
+                    Command::single(LayershellCustomActions::SizeChange((0, 400)).into()),
                 ]),
             },
         }
