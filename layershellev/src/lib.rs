@@ -1400,16 +1400,24 @@ impl<T: Debug + 'static> WindowState<T> {
                                     );
                                 }
                             }
-                            ReturnData::RedrawIndexRequest(index) => {
-                                let unit = &self.units[index];
-                                event_hander(
-                                    LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                                        width: unit.size.0,
-                                        height: unit.size.1,
-                                    }),
-                                    &mut self,
-                                    Some(index),
-                                );
+                            ReturnData::RedrawIndexRequest(id) => {
+                                if let Some((index, unit)) = &self
+                                    .units
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, unit)| unit.id == id)
+                                {
+                                    event_hander(
+                                        LayerEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        &mut self,
+                                        Some(*index),
+                                    );
+                                }
                             }
                             ReturnData::RequestExist => {
                                 break 'out;
@@ -1500,16 +1508,22 @@ impl<T: Debug + 'static> WindowState<T> {
                             );
                         }
                     }
-                    ReturnData::RedrawIndexRequest(index) => {
-                        let unit = &self.units[index];
-                        event_hander(
-                            LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                                width: unit.size.0,
-                                height: unit.size.1,
-                            }),
-                            &mut self,
-                            Some(index),
-                        );
+                    ReturnData::RedrawIndexRequest(id) => {
+                        if let Some((index, unit)) = &self
+                            .units
+                            .iter()
+                            .enumerate()
+                            .find(|(_, unit)| unit.id == id)
+                        {
+                            event_hander(
+                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                                    width: unit.size.0,
+                                    height: unit.size.1,
+                                }),
+                                &mut self,
+                                Some(*index),
+                            );
+                        }
                     }
                     ReturnData::RequestExist => {
                         break 'out;

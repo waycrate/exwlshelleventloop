@@ -13,6 +13,9 @@ use wayland_client::{
 use crate::key::KeyModifierType;
 
 use super::WindowState;
+
+use crate::id::Id;
+
 use std::{fmt::Debug, fs::File};
 
 /// tell program what event is happened
@@ -61,7 +64,7 @@ pub enum ReturnData {
     RequestBind,
     RequestExist,
     RedrawAllRequest,
-    RedrawIndexRequest(usize),
+    RedrawIndexRequest(Id),
     RequestSetCursorShape((String, WlPointer, u32)),
     None,
 }

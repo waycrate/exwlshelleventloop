@@ -428,7 +428,7 @@ async fn run_instance<A, E, C>(
                     .present(
                         &mut renderer,
                         &mut surface,
-                        &state.viewport(),
+                        state.viewport(),
                         state.background_color(),
                         &debug.overlay(),
                     )

@@ -1,6 +1,7 @@
 use crate::reexport::{Anchor, Layer};
 use iced_core::mouse::Interaction;
 use iced_runtime::command::Action;
+use layershellev::id::Id;
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
@@ -8,7 +9,7 @@ pub(crate) enum LayerShellActions {
     Mouse(Interaction),
     CustomActions(Vec<LayershellCustomActions>),
     RedrawAll,
-    RedrawWindow(usize)
+    RedrawWindow(Id)
 }
 
 #[derive(Debug, Clone, Copy)]
