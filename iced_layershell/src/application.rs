@@ -282,6 +282,12 @@ where
                                     pointer_serial,
                                 ));
                             }
+                            LayerShellActions::RedrawAll => {
+                                break 'peddingBlock ReturnData::RedrawAllRequest;
+                            }
+                            LayerShellActions::RedrawWindow(index) => {
+                                break 'peddingBlock ReturnData::RedrawIndexRequest(index);
+                            }
                         }
                     }
                 }
@@ -355,84 +361,79 @@ async fn run_instance<A, E, C>(
 
     debug.startup_finished();
 
-    macro_rules! redraw {
-        () => {
-            let ps = state.physical_size();
-            let width = ps.width;
-            let height = ps.height;
-            //state.update_view_port(width, height);
-            debug.layout_started();
-            user_interface = ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
-                Size {
-                    width: width as f32,
-                    height: height as f32,
-                },
-                &mut renderer,
-            ));
-            debug.layout_finished();
-
-            compositor.configure_surface(&mut surface, width, height);
-            let redraw_event = IcedCoreEvent::Window(
-                IcedCoreWindow::Id::MAIN,
-                IcedCoreWindow::Event::RedrawRequested(Instant::now()),
-            );
-
-            user_interface.update(
-                &[redraw_event.clone()],
-                state.cursor(),
-                &mut renderer,
-                &mut clipboard,
-                &mut messages,
-            );
-            runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
-
-            debug.draw_started();
-            let new_mouse_interaction = user_interface.draw(
-                &mut renderer,
-                state.theme(),
-                &iced_core::renderer::Style {
-                    text_color: state.text_color(),
-                },
-                state.cursor(),
-            );
-            debug.draw_finished();
-
-            if new_mouse_interaction != mouse_interaction {
-                custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
-                mouse_interaction = new_mouse_interaction;
-            }
-            // TODO: check mosue_interaction
-
-            debug.render_started();
-
-            debug.draw_started();
-            user_interface.draw(
-                &mut renderer,
-                &application.theme(),
-                &iced_core::renderer::Style {
-                    text_color: state.text_color(),
-                },
-                state.cursor(),
-            );
-            debug.draw_finished();
-            compositor
-                .present(
-                    &mut renderer,
-                    &mut surface,
-                    &state.viewport(),
-                    state.background_color(),
-                    &debug.overlay(),
-                )
-                .ok();
-            debug.render_finished();
-        };
-    }
-
     while let Some(event) = event_receiver.next().await {
         match event {
             IcedLayerEvent::RequestRefresh { width, height } => {
                 state.update_view_port(width, height);
-                redraw!();
+                let ps = state.physical_size();
+                let width = ps.width;
+                let height = ps.height;
+                //state.update_view_port(width, height);
+                debug.layout_started();
+                user_interface =
+                    ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
+                        Size {
+                            width: width as f32,
+                            height: height as f32,
+                        },
+                        &mut renderer,
+                    ));
+                debug.layout_finished();
+
+                compositor.configure_surface(&mut surface, width, height);
+                let redraw_event = IcedCoreEvent::Window(
+                    IcedCoreWindow::Id::MAIN,
+                    IcedCoreWindow::Event::RedrawRequested(Instant::now()),
+                );
+
+                user_interface.update(
+                    &[redraw_event.clone()],
+                    state.cursor(),
+                    &mut renderer,
+                    &mut clipboard,
+                    &mut messages,
+                );
+                runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
+
+                debug.draw_started();
+                let new_mouse_interaction = user_interface.draw(
+                    &mut renderer,
+                    state.theme(),
+                    &iced_core::renderer::Style {
+                        text_color: state.text_color(),
+                    },
+                    state.cursor(),
+                );
+                debug.draw_finished();
+
+                if new_mouse_interaction != mouse_interaction {
+                    custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
+                    mouse_interaction = new_mouse_interaction;
+                }
+                // TODO: check mosue_interaction
+
+                debug.render_started();
+
+                debug.draw_started();
+                user_interface.draw(
+                    &mut renderer,
+                    &application.theme(),
+                    &iced_core::renderer::Style {
+                        text_color: state.text_color(),
+                    },
+                    state.cursor(),
+                );
+                debug.draw_finished();
+                compositor
+                    .present(
+                        &mut renderer,
+                        &mut surface,
+                        &state.viewport(),
+                        state.background_color(),
+                        &debug.overlay(),
+                    )
+                    .ok();
+                debug.render_finished();
             }
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
@@ -495,7 +496,7 @@ async fn run_instance<A, E, C>(
                         break;
                     }
                 }
-                redraw!();
+                custom_actions.push(LayerShellActions::RedrawAll);
             }
         }
         control_sender.start_send(custom_actions.clone()).ok();

@@ -60,6 +60,8 @@ pub enum ReturnData {
     WlBuffer(WlBuffer),
     RequestBind,
     RequestExist,
+    RedrawAllRequest,
+    RedrawIndexRequest(usize),
     RequestSetCursorShape((String, WlPointer, u32)),
     None,
 }

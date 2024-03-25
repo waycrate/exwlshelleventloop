@@ -1385,6 +1385,32 @@ impl<T: Debug + 'static> WindowState<T> {
                             &mut self,
                             *index_message,
                         ) {
+                            ReturnData::RedrawAllRequest => {
+                                for index in 0..self.units.len() {
+                                    let unit = &self.units[index];
+                                    event_hander(
+                                        LayerEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        &mut self,
+                                        None,
+                                    );
+                                }
+                            }
+                            ReturnData::RedrawIndexRequest(index) => {
+                                let unit = &self.units[index];
+                                event_hander(
+                                    LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                                        width: unit.size.0,
+                                        height: unit.size.1,
+                                    }),
+                                    &mut self,
+                                    Some(index),
+                                );
+                            }
                             ReturnData::RequestExist => {
                                 break 'out;
                             }
@@ -1461,6 +1487,30 @@ impl<T: Debug + 'static> WindowState<T> {
             }
             if timecounter > 100 {
                 match event_hander(LayerEvent::NormalDispatch, &mut self, None) {
+                    ReturnData::RedrawAllRequest => {
+                        for index in 0..self.units.len() {
+                            let unit = &self.units[index];
+                            event_hander(
+                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                                    width: unit.size.0,
+                                    height: unit.size.1,
+                                }),
+                                &mut self,
+                                None,
+                            );
+                        }
+                    }
+                    ReturnData::RedrawIndexRequest(index) => {
+                        let unit = &self.units[index];
+                        event_hander(
+                            LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                                width: unit.size.0,
+                                height: unit.size.1,
+                            }),
+                            &mut self,
+                            Some(index),
+                        );
+                    }
                     ReturnData::RequestExist => {
                         break 'out;
                     }
