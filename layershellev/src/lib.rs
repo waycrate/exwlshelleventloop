@@ -166,6 +166,8 @@ use std::fmt::Debug;
 
 use events::DispatchMessageInner;
 
+pub mod id;
+
 pub mod key;
 
 pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
@@ -320,6 +322,7 @@ impl ZxdgOutputInfo {
 /// a cario_context, which is binding to the buffer on the wl_surface.
 #[derive(Debug)]
 pub struct WindowStateUnit<T: Debug> {
+    id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
     size: (u32, u32),
@@ -330,6 +333,17 @@ pub struct WindowStateUnit<T: Debug> {
     binding: Option<T>,
 }
 
+impl<T: Debug> WindowStateUnit<T> {
+    pub fn id(&self) -> id::Id {
+        self.id
+    }
+    pub fn gen_wrapper(&self) -> WindowWrapper {
+        WindowWrapper {
+            display: self.display.clone(),
+            wl_surface: self.wl_surface.clone(),
+        }
+    }
+}
 impl<T: Debug> WindowStateUnit<T> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
@@ -1135,6 +1149,7 @@ impl<T: Debug + 'static> WindowState<T> {
             // so because this is just an example, so we just commit it once
             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
             self.units.push(WindowStateUnit {
+                id: id::Id::unique(),
                 display: connection.display(),
                 wl_surface,
                 size: (0, 0),
@@ -1187,6 +1202,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                 self.units.push(WindowStateUnit {
+                    id: id::Id::unique(),
                     display: connection.display(),
                     wl_surface,
                     size: (0, 0),
@@ -1350,6 +1366,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                         self.units.push(WindowStateUnit {
+                            id: id::Id::unique(),
                             display: connection.display(),
                             wl_surface,
                             size: (0, 0),
@@ -1621,6 +1638,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                         self.units.push(WindowStateUnit {
+                            id: id::Id::unique(),
                             display: connection.display(),
                             wl_surface,
                             size: (0, 0),
