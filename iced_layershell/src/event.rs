@@ -1,3 +1,4 @@
+use layershellev::id::Id;
 use layershellev::key::KeyModifierType;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
 use layershellev::DispatchMessage;
@@ -55,6 +56,18 @@ pub enum IcedLayerEvent<Message: 'static> {
     Window(WindowEvent),
     NormalUpdate,
     UserEvent(Message),
+}
+
+#[allow(unused)]
+#[derive(Debug)]
+pub struct MutiWindowIcedLayerEvent<Message: 'static>(pub Option<Id>, pub IcedLayerEvent<Message>);
+
+impl<Message: 'static> From<(Option<Id>, IcedLayerEvent<Message>)>
+    for MutiWindowIcedLayerEvent<Message>
+{
+    fn from((id, message): (Option<Id>, IcedLayerEvent<Message>)) -> Self {
+        MutiWindowIcedLayerEvent(id, message)
+    }
 }
 
 impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {

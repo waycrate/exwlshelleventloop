@@ -58,7 +58,7 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
 iced = "0.12"
-iced_runtime = "0.12"
+iced_runtime = { version = "0.12", features = ["multi-window"] }
 iced_style = "0.12"
 iced_core = "0.12"
 iced_renderer = "0.12.0"
