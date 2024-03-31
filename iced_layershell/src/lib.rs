@@ -5,7 +5,7 @@ mod clipboard;
 mod conversion;
 mod error;
 mod event;
-mod multi_window;
+pub mod multi_window;
 mod proxy;
 mod sandbox;
 
