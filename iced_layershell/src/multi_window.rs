@@ -391,7 +391,7 @@ async fn run_instance<A, E, C>(
                 },
             ) => {
                 let layerid = wrapper.id();
-                if window_manager.get_mut_alias(wrapper.id()).is_none() {
+                let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     let id = window::Id::unique();
 
                     let window = window_manager.insert(
@@ -426,23 +426,31 @@ async fn run_instance<A, E, C>(
                             },
                         ),
                     ));
-                    custom_actions.push(LayerShellActions::RedrawWindow(layerid));
-                    continue;
-                }
-                let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
-                if !window.is_configured {
-                    custom_actions.push(LayerShellActions::RedrawWindow(layerid));
-                    window.is_configured = true;
-                    continue;
-                }
+                    (id, window)
+                } else {
+                    let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
+                    let ui = user_interfaces.remove(&id).expect("Get User interface");
+                    window.state.update_view_port(width, height);
+                    let renderer = &window.renderer;
+                    let _ = user_interfaces.insert(
+                        id,
+                        ui.relayout(
+                            Size {
+                                width: width as f32,
+                                height: height as f32,
+                            },
+                            &mut window.renderer,
+                        ),
+                    );
+                    (id, window)
+                };
 
-                // TODO: do redraw
+                let ui = user_interfaces.get_mut(&id).expect("Get User interface");
+
                 let redraw_event =
                     Event::Window(id, window::Event::RedrawRequested(Instant::now()));
 
                 let cursor = window.state.cursor();
-
-                let ui = user_interfaces.get_mut(&id).expect("Get User interface");
 
                 ui.update(
                     &[redraw_event.clone()],
@@ -465,10 +473,10 @@ async fn run_instance<A, E, C>(
 
                 if new_mouse_interaction != window.mouse_interaction {
                     custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
-
                     window.mouse_interaction = new_mouse_interaction;
                 }
 
+                compositor.configure_surface(&mut window.surface, width, height);
                 runtime.broadcast(redraw_event.clone(), iced_core::event::Status::Ignored);
                 debug.render_started();
 
@@ -491,6 +499,7 @@ async fn run_instance<A, E, C>(
                         &debug.overlay(),
                     )
                     .ok();
+
                 debug.render_finished();
             }
             _ => {}
