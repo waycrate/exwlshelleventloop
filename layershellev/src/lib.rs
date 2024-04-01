@@ -1510,7 +1510,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                     height: unit.size.1,
                                 }),
                                 &mut self,
-                                None,
+                                Some(index),
                             );
                         }
                     }

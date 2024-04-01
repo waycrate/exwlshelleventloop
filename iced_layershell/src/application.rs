@@ -497,8 +497,8 @@ async fn run_instance<A, E, C>(
                     }
                 }
                 custom_actions.push(LayerShellActions::RedrawAll);
-            },
-            _ => unreachable!()
+            }
+            _ => unreachable!(),
         }
         control_sender.start_send(custom_actions.clone()).ok();
         custom_actions.clear();
