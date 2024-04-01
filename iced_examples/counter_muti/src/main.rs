@@ -123,6 +123,7 @@ impl MutiApplication for Counter {
     }
 
     fn view(&self, _id: iced::window::Id) -> Element<Message> {
+        println!("{:?}", _id);
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),

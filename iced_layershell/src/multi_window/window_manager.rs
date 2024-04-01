@@ -20,7 +20,6 @@ where
     pub surface: C::Surface,
     pub state: State<A>,
     pub mouse_interaction: mouse::Interaction,
-    pub is_configured: bool
 }
 
 pub struct WindowManager<A: Application, C: Compositor>
@@ -68,7 +67,6 @@ where
                 surface,
                 state,
                 mouse_interaction: mouse::Interaction::Idle,
-                is_configured: false
             },
         );
         self.entries
