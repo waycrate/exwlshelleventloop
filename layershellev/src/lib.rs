@@ -1500,70 +1500,88 @@ impl<T: Debug + 'static> WindowState<T> {
                 }
             }
             if timecounter > 100 {
-                match event_hander(LayerEvent::NormalDispatch, &mut self, None) {
-                    ReturnData::RedrawAllRequest => {
-                        for index in 0..self.units.len() {
-                            let unit = &self.units[index];
-                            event_hander(
-                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                                    width: unit.size.0,
-                                    height: unit.size.1,
-                                }),
-                                &mut self,
-                                Some(index),
-                            );
+                let mut return_data =
+                    vec![event_hander(LayerEvent::NormalDispatch, &mut self, None)];
+                loop {
+                    let mut replace_datas = Vec::new();
+                    for data in return_data {
+                        match data {
+                            ReturnData::RedrawAllRequest => {
+                                for index in 0..self.units.len() {
+                                    let unit = &self.units[index];
+                                    replace_datas.push(
+                                        event_hander(
+                                            LayerEvent::RequestMessages(
+                                                &DispatchMessage::RequestRefresh {
+                                                    width: unit.size.0,
+                                                    height: unit.size.1,
+                                                }
+                                            ),
+                                            &mut self,
+                                            Some(index),
+                                        )
+                                    );
+                                }
+                            }
+                            ReturnData::RedrawIndexRequest(id) => {
+                                if let Some((index, unit)) = &self
+                                    .units
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, unit)| unit.id == id)
+                                {
+                                    replace_datas.push(event_hander(
+                                        LayerEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        &mut self,
+                                        Some(*index),
+                                    ));
+                                }
+                            }
+                            ReturnData::RequestExist => {
+                                break 'out;
+                            }
+                            ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
+                                if let Some(ref cursor_manager) = cursor_manager {
+                                    let Some(shape) = str_to_shape(&shape_name) else {
+                                        eprintln!("Not supported shape");
+                                        continue;
+                                    };
+                                    let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                                    device.set_shape(serial, shape);
+                                    device.destroy();
+                                } else {
+                                    let Some(cursor_buffer) =
+                                        get_cursor_buffer(&shape_name, &connection, &shm)
+                                    else {
+                                        eprintln!("Cannot find cursor {shape_name}");
+                                        continue;
+                                    };
+                                    let cursor_surface = wmcompositer.create_surface(&qh, ());
+                                    cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                                    // and create a surface. if two or more,
+                                    let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                                    pointer.set_cursor(
+                                        serial,
+                                        Some(&cursor_surface),
+                                        hotspot_x as i32,
+                                        hotspot_y as i32,
+                                    );
+                                    cursor_surface.commit();
+                                }
+                            }
+                            _ => {}
                         }
                     }
-                    ReturnData::RedrawIndexRequest(id) => {
-                        if let Some((index, unit)) = &self
-                            .units
-                            .iter()
-                            .enumerate()
-                            .find(|(_, unit)| unit.id == id)
-                        {
-                            event_hander(
-                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                                    width: unit.size.0,
-                                    height: unit.size.1,
-                                }),
-                                &mut self,
-                                Some(*index),
-                            );
-                        }
+                    replace_datas.retain(|x| *x != ReturnData::None);
+                    if replace_datas.is_empty() {
+                        break;
                     }
-                    ReturnData::RequestExist => {
-                        break 'out;
-                    }
-                    ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
-                        if let Some(ref cursor_manager) = cursor_manager {
-                            let Some(shape) = str_to_shape(&shape_name) else {
-                                eprintln!("Not supported shape");
-                                continue;
-                            };
-                            let device = cursor_manager.get_pointer(&pointer, &qh, ());
-                            device.set_shape(serial, shape);
-                            device.destroy();
-                        } else {
-                            let Some(cursor_buffer) =
-                                get_cursor_buffer(&shape_name, &connection, &shm)
-                            else {
-                                eprintln!("Cannot find cursor {shape_name}");
-                                continue;
-                            };
-                            let cursor_surface = wmcompositer.create_surface(&qh, ());
-                            cursor_surface.attach(Some(&cursor_buffer), 0, 0);
-                            // and create a surface. if two or more,
-                            let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
-                            pointer.set_cursor(
-                                serial,
-                                Some(&cursor_surface),
-                                hotspot_x as i32,
-                                hotspot_y as i32,
-                            );
-                            cursor_surface.commit();
-                        }
-                    }
-                    _ => {}
+                    return_data = replace_datas;
                 }
                 timecounter = 0;
             }

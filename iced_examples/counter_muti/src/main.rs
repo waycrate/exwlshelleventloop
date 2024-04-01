@@ -66,7 +66,7 @@ impl MutiApplication for Counter {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::IcedEvent(event) => {
-                //println!("hello {event:?}");
+                println!("hello {event:?}");
                 Command::none()
             }
             Message::IncrementPressed => {
