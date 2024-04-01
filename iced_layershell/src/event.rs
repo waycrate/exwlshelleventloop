@@ -1,7 +1,7 @@
 use layershellev::id::Id;
 use layershellev::key::KeyModifierType;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
-use layershellev::DispatchMessage;
+use layershellev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
 #[derive(Debug, Clone, Copy)]
@@ -52,7 +52,15 @@ pub enum WindowEvent {
 
 #[derive(Debug)]
 pub enum IcedLayerEvent<Message: 'static> {
-    RequestRefresh { width: u32, height: u32 },
+    RequestRefreshWithWrapper {
+        width: u32,
+        height: u32,
+        wrapper: WindowWrapper,
+    },
+    RequestRefresh {
+        width: u32,
+        height: u32,
+    },
     Window(WindowEvent),
     NormalUpdate,
     UserEvent(Message),

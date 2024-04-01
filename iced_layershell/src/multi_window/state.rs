@@ -4,11 +4,13 @@ use iced_graphics::Viewport;
 use iced_style::application::{self, StyleSheet};
 
 use crate::event::WindowEvent;
+use iced::window;
 
 pub struct State<A: Application>
 where
     A::Theme: application::StyleSheet,
 {
+    id: window::Id,
     scale_factor: f64,
     viewport: Viewport,
     viewport_version: usize,
@@ -21,17 +23,15 @@ impl<A: Application> State<A>
 where
     A::Theme: application::StyleSheet,
 {
-    pub fn new(application: &A, window: &layershellev::WindowStateUnit<()>) -> Self {
-        let scale_factor = application.scale_factor();
+    pub fn new(id: window::Id, application: &A, (width, height): (u32, u32)) -> Self {
+        let scale_factor = application.scale_factor(id);
         let theme = application.theme();
         let appearance = theme.appearance(&application.style());
 
-        let viewport = {
-            let (width, height) = window.get_size();
-
-            Viewport::with_physical_size(iced_core::Size::new(width, height), 1. * scale_factor)
-        };
+        let viewport =
+            Viewport::with_physical_size(iced_core::Size::new(width, height), 1. * scale_factor);
         Self {
+            id,
             scale_factor,
             viewport,
             viewport_version: 0,
@@ -95,7 +95,7 @@ where
     }
 
     pub fn synchronize(&mut self, application: &A) {
-        let new_scale_factor = application.scale_factor();
+        let new_scale_factor = application.scale_factor(self.id);
         if self.scale_factor != new_scale_factor {
             self.viewport =
                 Viewport::with_physical_size(self.physical_size(), 1. * new_scale_factor);

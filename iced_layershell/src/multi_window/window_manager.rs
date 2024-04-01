@@ -1,10 +1,13 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::multi_window::Application;
 use iced_graphics::Compositor;
 use iced_style::application::StyleSheet;
-use layershellev::id::Id;
+use layershellev::{id::Id as LayerId, WindowWrapper};
+
+use iced::mouse;
+use iced::window::Id as IcedId;
 
 pub struct Window<A, C>
 where
@@ -12,10 +15,12 @@ where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: StyleSheet,
 {
-    pub id: Id,
+    pub id: LayerId,
     pub renderer: A::Renderer,
     pub surface: C::Surface,
     pub state: State<A>,
+    pub mouse_interaction: mouse::Interaction,
+    pub is_configured: bool
 }
 
 pub struct WindowManager<A: Application, C: Compositor>
@@ -23,7 +28,8 @@ where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: StyleSheet,
 {
-    entries: BTreeMap<Id, Window<A, C>>,
+    aliases: BTreeMap<LayerId, IcedId>,
+    entries: BTreeMap<IcedId, Window<A, C>>,
 }
 
 impl<A, C> WindowManager<A, C>
@@ -34,33 +40,35 @@ where
 {
     pub fn new() -> Self {
         Self {
+            aliases: BTreeMap::new(),
             entries: BTreeMap::new(),
         }
     }
 
     pub fn insert(
         &mut self,
-        window: &layershellev::WindowStateUnit<()>,
+        id: IcedId,
+        size: (u32, u32),
+        window: Arc<WindowWrapper>,
         application: &A,
         compositor: &mut C,
     ) -> &mut Window<A, C> {
-        use std::sync::Arc;
-        let id = window.id();
-        let state = State::new(application, window);
+        let layerid = window.id();
+        let state = State::new(id, application, size);
         let physical_size = state.physical_size();
-        let surface = compositor.create_surface(
-            Arc::new(window.gen_wrapper()),
-            physical_size.width,
-            physical_size.height,
-        );
+        let surface = compositor.create_surface(window, physical_size.width, physical_size.height);
         let renderer = compositor.create_renderer();
+        let _ = self.aliases.insert(layerid, id);
+
         let _ = self.entries.insert(
             id,
             Window {
-                id,
+                id: layerid,
                 renderer,
                 surface,
                 state,
+                mouse_interaction: mouse::Interaction::Idle,
+                is_configured: false
             },
         );
         self.entries
@@ -72,11 +80,17 @@ where
         self.entries.is_empty()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Id, &mut Window<A, C>)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (IcedId, &mut Window<A, C>)> {
         self.entries.iter_mut().map(|(k, v)| (*k, v))
     }
 
-    pub fn get_mut(&mut self, id: Id) -> Option<&mut Window<A, C>> {
+    pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<A, C>)> {
+        let id = self.aliases.get(&id).copied()?;
+
+        Some((id, self.get_mut(id)?))
+    }
+
+    pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<A, C>> {
         self.entries.get_mut(&id)
     }
 }

@@ -1,6 +1,6 @@
 mod state;
 use crate::multi_window::window_manager::WindowManager;
-use std::{collections::HashMap, mem::ManuallyDrop, sync::Arc};
+use std::{collections::HashMap, f64, mem::ManuallyDrop, sync::Arc};
 
 use crate::{
     actions::{LayerShellActions, LayershellCustomActions},
@@ -13,7 +13,7 @@ use iced_graphics::Compositor;
 
 use iced_core::{time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
 
-use iced_runtime::{user_interface, Command, Debug, multi_window::Program, UserInterface};
+use iced_runtime::{multi_window::Program, user_interface, Command, Debug, UserInterface};
 
 use iced_style::application::StyleSheet;
 
@@ -101,7 +101,7 @@ where
     /// while a scale factor of `0.5` will shrink them to half their size.
     ///
     /// By default, it returns `1.0`.
-    fn scale_factor(&self) -> f64 {
+    fn scale_factor(&self, _window: iced::window::Id) -> f64 {
         1.0
     }
 
@@ -131,6 +131,7 @@ where
 {
     use futures::task;
     use futures::Future;
+    use iced::window;
 
     let mut debug = Debug::new();
     debug.startup_started();
@@ -162,11 +163,17 @@ where
         .build()
         .unwrap();
 
-    let window = Arc::new(ev.gen_wrapper());
+    let window = Arc::new(ev.gen_main_wrapper());
     let mut compositor = C::new(compositor_settings, window.clone())?;
 
     let mut window_manager = WindowManager::new();
-    let _ = window_manager.insert(ev.main_window(), &application, &mut compositor);
+    let _ = window_manager.insert(
+        window::Id::MAIN,
+        ev.main_window().get_size(),
+        window,
+        &application,
+        &mut compositor,
+    );
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<MutiWindowIcedLayerEvent<A::Message>>();
@@ -198,8 +205,21 @@ where
             LayerEvent::InitRequest => {}
             // TODO: maybe use it later
             LayerEvent::BindProvide(_, _) => {}
-            LayerEvent::RequestMessages(message) => {
+            LayerEvent::RequestMessages(message) => 'outside: {
                 match message {
+                    DispatchMessage::RequestRefresh { width, height } => {
+                        event_sender
+                            .start_send(MutiWindowIcedLayerEvent(
+                                id,
+                                IcedLayerEvent::RequestRefreshWithWrapper {
+                                    width: *width,
+                                    height: *height,
+                                    wrapper: ev.get_unit(index.unwrap()).gen_wrapper(),
+                                },
+                            ))
+                            .expect("Cannot send");
+                        break 'outside;
+                    }
                     DispatchMessage::MouseEnter { serial, .. } => {
                         pointer_serial = *serial;
                     }
@@ -306,6 +326,8 @@ where
     });
     Ok(())
 }
+
+#[allow(unused)]
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
     mut application: A,
@@ -315,7 +337,6 @@ async fn run_instance<A, E, C>(
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<MutiWindowIcedLayerEvent<A::Message>>,
     mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions>>,
-    //mut state: State<A>,
     mut window_manager: WindowManager<A, C>,
     init_command: Command<A::Message>,
 ) where
@@ -324,17 +345,167 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
 {
+    use iced::window;
     use iced_core::mouse;
     use iced_core::Event;
-    use layershellev::id::Id;
-    let main_window = window_manager.get_mut(Id::MAIN).expect("Get main window");
+    let main_window = window_manager
+        .get_mut(window::Id::MAIN)
+        .expect("Get main window");
+    let main_window_size = main_window.state.logical_size();
+    let mut clipboard = LayerShellClipboard;
+    let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
+
+    let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
+        &application,
+        &mut debug,
+        &mut window_manager,
+        HashMap::from_iter([(window::Id::MAIN, user_interface::Cache::default())]),
+    ));
+
+    let mut events = {
+        vec![(
+            Some(window::Id::MAIN),
+            Event::Window(
+                window::Id::MAIN,
+                window::Event::Opened {
+                    position: None,
+                    size: main_window_size,
+                },
+            ),
+        )]
+    };
+    let mut custom_actions = Vec::new();
+
+    let mut messages = Vec::new();
+
+    // TODO: run_command
+    runtime.track(application.subscription().into_recipes());
+    while let Some(event) = event_receiver.next().await {
+        match event {
+            MutiWindowIcedLayerEvent(
+                _id,
+                IcedLayerEvent::RequestRefreshWithWrapper {
+                    width,
+                    height,
+                    wrapper,
+                },
+            ) => {
+                let layerid = wrapper.id();
+                if window_manager.get_mut_alias(wrapper.id()).is_none() {
+                    let id = window::Id::unique();
+
+                    let window = window_manager.insert(
+                        id,
+                        (width, height),
+                        Arc::new(wrapper),
+                        &application,
+                        &mut compositor,
+                    );
+                    let logical_size = window.state.logical_size();
+
+                    let _ = user_interfaces.insert(
+                        id,
+                        build_user_interface(
+                            &application,
+                            user_interface::Cache::default(),
+                            &mut window.renderer,
+                            logical_size,
+                            &mut debug,
+                            id,
+                        ),
+                    );
+                    let _ = ui_caches.insert(id, user_interface::Cache::default());
+
+                    events.push((
+                        Some(id),
+                        Event::Window(
+                            id,
+                            window::Event::Opened {
+                                position: None,
+                                size: window.state.logical_size(),
+                            },
+                        ),
+                    ));
+                    custom_actions.push(LayerShellActions::RedrawWindow(layerid));
+                    continue;
+                }
+                let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
+                if !window.is_configured {
+                    custom_actions.push(LayerShellActions::RedrawWindow(layerid));
+                    window.is_configured = true;
+                    continue;
+                }
+
+                // TODO: do redraw
+                let redraw_event =
+                    Event::Window(id, window::Event::RedrawRequested(Instant::now()));
+
+                let cursor = window.state.cursor();
+
+                let ui = user_interfaces.get_mut(&id).expect("Get User interface");
+
+                ui.update(
+                    &[redraw_event.clone()],
+                    cursor,
+                    &mut window.renderer,
+                    &mut clipboard,
+                    &mut messages,
+                );
+
+                debug.draw_started();
+                let new_mouse_interaction = ui.draw(
+                    &mut window.renderer,
+                    window.state.theme(),
+                    &iced_core::renderer::Style {
+                        text_color: window.state.text_color(),
+                    },
+                    cursor,
+                );
+                debug.draw_finished();
+
+                if new_mouse_interaction != window.mouse_interaction {
+                    custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
+
+                    window.mouse_interaction = new_mouse_interaction;
+                }
+
+                runtime.broadcast(redraw_event.clone(), iced_core::event::Status::Ignored);
+                debug.render_started();
+
+                debug.draw_started();
+                ui.draw(
+                    &mut window.renderer,
+                    &application.theme(),
+                    &iced_core::renderer::Style {
+                        text_color: window.state.text_color(),
+                    },
+                    window.state.cursor(),
+                );
+                debug.draw_finished();
+                compositor
+                    .present(
+                        &mut window.renderer,
+                        &mut window.surface,
+                        window.state.viewport(),
+                        window.state.background_color(),
+                        &debug.overlay(),
+                    )
+                    .ok();
+                debug.render_finished();
+            }
+            _ => {}
+        }
+        control_sender.start_send(custom_actions.clone()).ok();
+        custom_actions.clear();
+    }
+    let _ = ManuallyDrop::into_inner(user_interfaces);
 }
 pub fn build_user_interfaces<'a, A: Application, C: Compositor>(
     application: &'a A,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
-    mut cached_user_interfaces: HashMap<layershellev::id::Id, user_interface::Cache>,
-) -> HashMap<layershellev::id::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
+    mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
+) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
 where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: StyleSheet,
@@ -352,7 +523,7 @@ where
                     &mut window.renderer,
                     window.state.logical_size(),
                     debug,
-                    // id,
+                    id,
                 ),
             ))
         })
@@ -367,17 +538,17 @@ fn build_user_interface<'a, A: Application>(
     renderer: &mut A::Renderer,
     size: Size,
     debug: &mut Debug,
+    id: iced::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
     A::Theme: StyleSheet,
 {
     debug.view_started();
-    //let view = application.view();
+    let view = application.view(id);
     debug.view_finished();
 
     debug.layout_started();
-    //let user_interface = UserInterface::build(view, size, cache, renderer);
+    let user_interface = UserInterface::build(view, size, cache, renderer);
     debug.layout_finished();
-    //user_interface
-    todo!()
+    user_interface
 }

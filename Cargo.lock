@@ -506,6 +506,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_muti"
+version = "0.2.3"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

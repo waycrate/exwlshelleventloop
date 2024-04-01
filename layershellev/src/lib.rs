@@ -339,6 +339,7 @@ impl<T: Debug> WindowStateUnit<T> {
     }
     pub fn gen_wrapper(&self) -> WindowWrapper {
         WindowWrapper {
+            id: self.id,
             display: self.display.clone(),
             wl_surface: self.wl_surface.clone(),
         }
@@ -527,9 +528,17 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct WindowWrapper {
+    pub id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
+}
+
+impl WindowWrapper {
+    pub fn id(&self) -> id::Id {
+        self.id
+    }
 }
 
 impl<T: Debug> WindowState<T> {
@@ -554,11 +563,8 @@ impl<T: Debug> WindowState<T> {
     }
 }
 impl<T: Debug> WindowState<T> {
-    pub fn gen_wrapper(&self) -> WindowWrapper {
-        WindowWrapper {
-            display: self.main_window().display.clone(),
-            wl_surface: self.main_window().wl_surface.clone(),
-        }
+    pub fn gen_main_wrapper(&self) -> WindowWrapper {
+        self.main_window().gen_wrapper()
     }
 }
 
