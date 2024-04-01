@@ -66,7 +66,7 @@ impl MutiApplication for Counter {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::IcedEvent(event) => {
-                println!("hello {event:?}");
+                //println!("hello {event:?}");
                 Command::none()
             }
             Message::IncrementPressed => {
@@ -123,7 +123,7 @@ impl MutiApplication for Counter {
     }
 
     fn view(&self, _id: iced::window::Id) -> Element<Message> {
-        println!("{:?}", _id);
+        //println!("{:?}, {}", _id, self.value);
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
