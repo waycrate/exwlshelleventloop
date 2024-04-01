@@ -157,7 +157,7 @@ where
         .build()
         .unwrap();
 
-    let window = Arc::new(ev.gen_wrapper());
+    let window = Arc::new(ev.gen_main_wrapper());
     let compositor = C::new(compositor_settings, window.clone())?;
     let mut renderer = compositor.create_renderer();
 
@@ -497,7 +497,8 @@ async fn run_instance<A, E, C>(
                     }
                 }
                 custom_actions.push(LayerShellActions::RedrawAll);
-            }
+            },
+            _ => unreachable!()
         }
         control_sender.start_send(custom_actions.clone()).ok();
         custom_actions.clear();
