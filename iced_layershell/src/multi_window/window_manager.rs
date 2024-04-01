@@ -32,6 +32,17 @@ where
     entries: BTreeMap<IcedId, Window<A, C>>,
 }
 
+impl<A, C> Default for WindowManager<A, C>
+where
+    A: Application,
+    C: Compositor<Renderer = A::Renderer>,
+    A::Theme: StyleSheet,
+ {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<A, C> WindowManager<A, C>
 where
     A: Application,

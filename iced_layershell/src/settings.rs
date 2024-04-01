@@ -42,8 +42,6 @@ pub struct Settings<Flags> {
     ///
     /// [`Canvas`]: crate::widget::Canvas
     pub antialiasing: bool,
-
-    pub listen_on_output: bool,
 }
 
 impl<Flags> Default for Settings<Flags>
@@ -59,7 +57,6 @@ where
             default_font: Font::default(),
             default_text_size: Pixels(16.0),
             antialiasing: false,
-            listen_on_output: false,
         }
     }
 }

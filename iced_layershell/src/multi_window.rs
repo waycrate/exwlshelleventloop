@@ -622,6 +622,8 @@ async fn run_instance<A, E, C>(
     }
     let _ = ManuallyDrop::into_inner(user_interfaces);
 }
+
+#[allow(clippy::type_complexity)]
 pub fn build_user_interfaces<'a, A: Application, C: Compositor>(
     application: &'a A,
     debug: &mut Debug,
