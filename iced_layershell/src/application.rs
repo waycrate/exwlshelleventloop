@@ -288,6 +288,7 @@ where
                             LayerShellActions::RedrawWindow(index) => {
                                 break 'peddingBlock ReturnData::RedrawIndexRequest(index);
                             }
+                            _ => {}
                         }
                     }
                 }

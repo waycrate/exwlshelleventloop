@@ -1,5 +1,8 @@
 mod state;
-use crate::multi_window::window_manager::WindowManager;
+use crate::{
+    actions::{LayershellCustomActionsWithId, LayershellCustomActionsWithIdInner},
+    multi_window::window_manager::WindowManager,
+};
 use std::{collections::HashMap, f64, mem::ManuallyDrop, sync::Arc};
 
 use crate::{
@@ -284,17 +287,20 @@ where
                 if let Ok(Some(flow)) = control_receiver.try_next() {
                     for flow in flow {
                         match flow {
-                            LayerShellActions::CustomActions(actions) => {
-                                for action in actions {
+                            LayerShellActions::CustomActionsWithId(actions) => {
+                                for LayershellCustomActionsWithIdInner(id, action) in actions {
+                                    let Some(window) = ev.get_window_with_id(id) else {
+                                        continue;
+                                    };
                                     match action {
                                         LayershellCustomActions::AnchorChange(anchor) => {
-                                            ev.main_window().set_anchor(anchor);
+                                            window.set_anchor(anchor);
                                         }
                                         LayershellCustomActions::LayerChange(layer) => {
-                                            ev.main_window().set_layer(layer);
+                                            window.set_layer(layer);
                                         }
                                         LayershellCustomActions::SizeChange((width, height)) => {
-                                            ev.main_window().set_size((width, height));
+                                            window.set_size((width, height));
                                         }
                                     }
                                 }
@@ -316,6 +322,7 @@ where
                             LayerShellActions::RedrawWindow(index) => {
                                 break 'peddingBlock ReturnData::RedrawIndexRequest(index);
                             }
+                            _ => {}
                         }
                     }
                 }
@@ -814,12 +821,14 @@ pub(crate) fn run_command<A, C, E>(
                 proxy.send(tagger(Ok(())));
             }
             command::Action::Custom(custom) => {
-                if let Some(action) = custom.downcast_ref::<LayershellCustomActions>() {
-                    customactions.push(*action);
+                if let Some(action) = custom.downcast_ref::<LayershellCustomActionsWithId>() {
+                    if let Some(id) = window_manager.get_iced_id(action.0) {
+                        customactions.push(LayershellCustomActionsWithIdInner(id, action.1));
+                    }
                 }
             }
             _ => {}
         }
     }
-    custom_actions.push(LayerShellActions::CustomActions(customactions));
+    custom_actions.push(LayerShellActions::CustomActionsWithId(customactions));
 }

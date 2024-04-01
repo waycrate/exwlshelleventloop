@@ -28,6 +28,7 @@ where
     A::Theme: StyleSheet,
 {
     aliases: BTreeMap<LayerId, IcedId>,
+    back_aliases: BTreeMap<IcedId, LayerId>,
     entries: BTreeMap<IcedId, Window<A, C>>,
 }
 
@@ -40,6 +41,7 @@ where
     pub fn new() -> Self {
         Self {
             aliases: BTreeMap::new(),
+            back_aliases: BTreeMap::new(),
             entries: BTreeMap::new(),
         }
     }
@@ -58,6 +60,7 @@ where
         let surface = compositor.create_surface(window, physical_size.width, physical_size.height);
         let renderer = compositor.create_renderer();
         let _ = self.aliases.insert(layerid, id);
+        let _ = self.back_aliases.insert(id, layerid);
 
         let _ = self.entries.insert(
             id,
@@ -86,6 +89,10 @@ where
         let id = self.aliases.get(&id).copied()?;
 
         Some((id, self.get_mut(id)?))
+    }
+
+    pub fn get_iced_id(&self, id: IcedId) -> Option<LayerId> {
+        self.back_aliases.get(&id).copied()
     }
 
     pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<A, C>> {

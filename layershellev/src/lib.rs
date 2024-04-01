@@ -522,6 +522,9 @@ impl<T: Debug> WindowState<T> {
         &self.units[0]
     }
 
+    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
+        self.units.iter().find(|w| w.id() == id)
+    }
     // return all windows
     pub fn windows(&self) -> &Vec<WindowStateUnit<T>> {
         &self.units
