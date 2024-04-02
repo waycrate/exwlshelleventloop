@@ -613,6 +613,9 @@ async fn run_instance<A, E, C>(
                         &mut window_manager,
                         cached_interfaces,
                     ));
+                    if should_exit {
+                        break;
+                    }
                 }
             }
             _ => {}
