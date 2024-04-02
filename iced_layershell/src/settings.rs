@@ -1,10 +1,19 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fs::File};
 
 use iced::{Font, Pixels};
 
 use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
-#[derive(Debug, Clone)]
+use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
+
+#[derive(Debug)]
+pub struct VirtualKeyboardSettings {
+    pub file: File,
+    pub keymap_size: u32,
+    pub keymap_format: KeymapFormat,
+}
+
+#[derive(Debug)]
 pub struct Settings<Flags> {
     /// The identifier of the application.
     ///
@@ -42,6 +51,8 @@ pub struct Settings<Flags> {
     ///
     /// [`Canvas`]: crate::widget::Canvas
     pub antialiasing: bool,
+
+    pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
 }
 
 impl<Flags> Default for Settings<Flags>
@@ -57,6 +68,7 @@ where
             default_font: Font::default(),
             default_text_size: Pixels(16.0),
             antialiasing: false,
+            virtual_keyboard_support: None,
         }
     }
 }
