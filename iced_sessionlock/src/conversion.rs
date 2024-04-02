@@ -2,16 +2,16 @@ mod keymap;
 
 use crate::event::IcedButtonState;
 use crate::event::IcedKeyState;
-use crate::event::WindowEvent as LayerShellEvent;
+use crate::event::WindowEvent as SessionLockEvent;
 use keymap::{key_from_u32, text_from_key};
 
 use iced_core::{keyboard, mouse, Event as IcedEvent};
 
 #[allow(unused)]
-pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> Option<IcedEvent> {
+pub fn window_event(id: iced_core::window::Id, layerevent: &SessionLockEvent) -> Option<IcedEvent> {
     match layerevent {
-        LayerShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
-        LayerShellEvent::CursorMoved { x, y } => {
+        SessionLockEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
+        SessionLockEvent::CursorMoved { x, y } => {
             Some(IcedEvent::Mouse(mouse::Event::CursorMoved {
                 position: iced_core::Point {
                     x: *x as f32,
@@ -19,12 +19,12 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
                 },
             }))
         }
-        LayerShellEvent::CursorEnter { .. } => Some(IcedEvent::Mouse(mouse::Event::CursorEntered)),
-        LayerShellEvent::MouseInput(state) => Some(IcedEvent::Mouse(match state {
+        SessionLockEvent::CursorEnter { .. } => Some(IcedEvent::Mouse(mouse::Event::CursorEntered)),
+        SessionLockEvent::MouseInput(state) => Some(IcedEvent::Mouse(match state {
             IcedButtonState::Pressed => mouse::Event::ButtonPressed(mouse::Button::Left),
             IcedButtonState::Released => mouse::Event::ButtonReleased(mouse::Button::Left),
         })),
-        LayerShellEvent::Keyboard {
+        SessionLockEvent::Keyboard {
             state,
             key,
             modifiers,
