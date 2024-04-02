@@ -7,15 +7,15 @@ use sessionlockev::*;
 const ESC_KEY: u32 = 1;
 
 fn main() {
-    let mut ev: WindowState<()> = WindowState::new();
+    let mut ev: WindowState<()> = WindowState::new().build().unwrap();
 
     let mut virtual_keyboard_manager = None;
     ev.running(|event, _ev, _index| {
         println!("{:?}", event);
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
-            LayerEvent::InitRequest => ReturnData::RequestBind,
-            LayerEvent::BindProvide(globals, qh) => {
+            SessionLockEvent::InitRequest => ReturnData::RequestBind,
+            SessionLockEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
                 virtual_keyboard_manager = Some(
                     globals
@@ -27,9 +27,9 @@ fn main() {
                         .unwrap(),
                 );
                 println!("{:?}", virtual_keyboard_manager);
-                ReturnData::RequestLock
+                ReturnData::None
             }
-            LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+            SessionLockEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
                 draw(file, (init_w, init_h));
                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
                 ReturnData::WlBuffer(pool.create_buffer(
@@ -42,25 +42,32 @@ fn main() {
                     (),
                 ))
             }
-            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+            SessionLockEvent::RequestMessages(DispatchMessage::RequestRefresh {
+                width,
+                height,
+            }) => {
                 println!("{width}, {height}");
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-            LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
-                serial, pointer, ..
+            SessionLockEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => {
+                ReturnData::None
+            }
+            SessionLockEvent::RequestMessages(DispatchMessage::MouseEnter {
+                serial,
+                pointer,
+                ..
             }) => ReturnData::RequestSetCursorShape((
                 "crosshair".to_owned(),
                 pointer.clone(),
                 *serial,
             )),
-            LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
+            SessionLockEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
                 if *key == ESC_KEY {
                     return ReturnData::RequestUnlockAndExist;
                 }
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+            SessionLockEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
                 surface_x,
                 surface_y,

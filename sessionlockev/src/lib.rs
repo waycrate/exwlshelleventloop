@@ -103,6 +103,8 @@ mod strtoshape;
 
 pub mod key;
 
+pub mod id;
+
 use key::KeyModifierType;
 use strtoshape::str_to_shape;
 
@@ -110,11 +112,11 @@ use std::fmt::Debug;
 
 use events::DispatchMessageInner;
 
-pub use events::{DispatchMessage, LayerEvent, ReturnData};
+pub use events::{DispatchMessage, ReturnData, SessionLockEvent};
 
 use wayland_client::{
     delegate_noop,
-    globals::{registry_queue_init, BindError, GlobalError, GlobalListContents},
+    globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
@@ -128,7 +130,7 @@ use wayland_client::{
         wl_surface::WlSurface,
         wl_touch::{self, WlTouch},
     },
-    ConnectError, Connection, Dispatch, DispatchError, Proxy, QueueHandle, WEnum,
+    ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
 
 use wayland_protocols::ext::session_lock::v1::client::{
@@ -155,7 +157,7 @@ use wayland_protocols::wp::fractional_scale::v1::client::{
 
 /// return the error during running the eventloop
 #[derive(Debug, thiserror::Error)]
-pub enum LayerEventError {
+pub enum SessonLockEventError {
     #[error("connect error")]
     ConnectError(#[from] ConnectError),
     #[error("Global Error")]
@@ -267,6 +269,15 @@ pub struct WindowState<T: Debug> {
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<usize>, DispatchMessageInner)>,
 
+    connection: Option<Connection>,
+    event_queue: Option<EventQueue<WindowState<T>>>,
+    wl_compositor: Option<WlCompositor>,
+    shm: Option<WlShm>,
+    cursor_manager: Option<WpCursorShapeManagerV1>,
+    lock: Option<ExtSessionLockV1>,
+    fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
+    globals: Option<GlobalList>,
+
     // base managers
     seat: Option<WlSeat>,
     keyboard: Option<WlKeyboard>,
@@ -313,6 +324,15 @@ impl<T: Debug> Default for WindowState<T> {
             current_surface: None,
             units: Vec::new(),
             message: Vec::new(),
+
+            connection: None,
+            event_queue: None,
+            wl_compositor: None,
+            shm: None,
+            cursor_manager: None,
+            fractional_scale_manager: None,
+            lock: None,
+            globals: None,
 
             seat: None,
             keyboard: None,
@@ -636,15 +656,7 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 impl<T: Debug + 'static> WindowState<T> {
-    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
-    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
-    /// it will return [None].
-    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), LayerEventError>
-    where
-        F: FnMut(LayerEvent<T>, &mut WindowState<T>, Option<usize>) -> ReturnData,
-    {
+    pub fn build(mut self) -> Result<Self, SessonLockEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
                                                                            // global, the
@@ -664,6 +676,7 @@ impl<T: Debug + 'static> WindowState<T> {
         // we need to create more
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
+        self.shm = Some(shm);
         self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
 
         let cursor_manager = globals
@@ -675,50 +688,14 @@ impl<T: Debug + 'static> WindowState<T> {
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
-
         let lock_manager = globals.bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())?;
-        let mut lock: Option<ExtSessionLockV1> = None;
-        event_queue.blocking_dispatch(self)?; // then make a dispatch
-
-        let mut init_event = None;
-
-        while !matches!(init_event, Some(ReturnData::None)) {
-            match init_event {
-                None => {
-                    init_event = Some(event_hander(LayerEvent::InitRequest, self, None));
-                }
-                Some(ReturnData::RequestLock) => {
-                    lock = Some(lock_manager.lock(&qh, ()));
-                    break;
-                }
-                Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_hander(
-                        LayerEvent::BindProvide(&globals, &qh),
-                        self,
-                        None,
-                    ));
-                }
-                _ => panic!("Not privide server here"),
-            }
-        }
-
-        // do the step before, you get empty list
-
-        // so it is the same way, to get surface detach to protocol, first get the shell, like wmbase
-        // or layer_shell or session-shell, then get `surface` from the wl_surface you get before, and
-        // set it
-        // finally thing to remember is to commit the surface, make the shell to init.
-        //let (init_w, init_h) = self.size;
-        // this example is ok for both xdg_surface and layer_shell
-
+        event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
+        let lock = lock_manager.lock(&qh, ());
         let displays = self.outputs.clone();
         for (_, display) in displays.iter() {
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
             wl_surface.commit();
-            let session_lock_surface =
-                lock.as_ref()
-                    .unwrap()
-                    .get_lock_surface(&wl_surface, display, &qh, ());
+            let session_lock_surface = lock.get_lock_surface(&wl_surface, display, &qh, ());
 
             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
             // and if you need to reconfigure it, you need to commit the wl_surface again
@@ -739,6 +716,51 @@ impl<T: Debug + 'static> WindowState<T> {
                 binding: None,
             });
         }
+        self.connection = Some(connection);
+        self.event_queue = Some(event_queue);
+        self.wl_compositor = Some(wmcompositer);
+        self.cursor_manager = cursor_manager;
+        self.lock = Some(lock);
+        self.fractional_scale_manager = fractional_scale_manager;
+        self.globals = Some(globals);
+        Ok(self)
+    }
+    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
+    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
+    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// it will return [None].
+    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), SessonLockEventError>
+    where
+        F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+    {
+        let globals = self.globals.take().unwrap();
+        let mut event_queue = self.event_queue.take().unwrap();
+        let qh = event_queue.handle();
+        let wmcompositer = self.wl_compositor.take().unwrap();
+        let shm = self.shm.take().unwrap();
+        let fractional_scale_manager = self.fractional_scale_manager.take();
+        let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.take();
+        let connection = self.connection.take().unwrap();
+        let lock = self.lock.take().unwrap();
+        let mut init_event = None;
+
+        while !matches!(init_event, Some(ReturnData::None)) {
+            match init_event {
+                None => {
+                    init_event = Some(event_hander(SessionLockEvent::InitRequest, self, None));
+                }
+                Some(ReturnData::RequestBind) => {
+                    init_event = Some(event_hander(
+                        SessionLockEvent::BindProvide(&globals, &qh),
+                        self,
+                        None,
+                    ));
+                }
+                _ => panic!("Not privide server here"),
+            }
+        }
+
         self.message.clear();
         'out: loop {
             event_queue.blocking_dispatch(self)?;
@@ -754,7 +776,9 @@ impl<T: Debug + 'static> WindowState<T> {
                         if self.units[index].buffer.is_none() {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_hander(
-                                LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
+                                SessionLockEvent::RequestBuffer(
+                                    &mut file, &shm, &qh, *width, *height,
+                                ),
                                 self,
                                 Some(index),
                             ) else {
@@ -765,10 +789,12 @@ impl<T: Debug + 'static> WindowState<T> {
                             self.units[index].buffer = Some(buffer);
                         } else {
                             event_hander(
-                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                                    width: *width,
-                                    height: *height,
-                                }),
+                                SessionLockEvent::RequestMessages(
+                                    &DispatchMessage::RequestRefresh {
+                                        width: *width,
+                                        height: *height,
+                                    },
+                                ),
                                 self,
                                 Some(index),
                             );
@@ -782,9 +808,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                                                                //
                         wl_surface.commit();
                         let session_lock_surface =
-                            lock.as_ref()
-                                .unwrap()
-                                .get_lock_surface(&wl_surface, display, &qh, ());
+                            lock.get_lock_surface(&wl_surface, display, &qh, ());
 
                         let mut fractional_scale = None;
                         if let Some(ref fractional_scale_manager) = fractional_scale_manager {
@@ -811,10 +835,13 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {
                         let (index_message, msg) = msg;
                         let msg: DispatchMessage = msg.clone().into();
-                        match event_hander(LayerEvent::RequestMessages(&msg), self, *index_message)
-                        {
+                        match event_hander(
+                            SessionLockEvent::RequestMessages(&msg),
+                            self,
+                            *index_message,
+                        ) {
                             ReturnData::RequestUnlockAndExist => {
-                                lock.as_ref().unwrap().unlock_and_destroy();
+                                lock.unlock_and_destroy();
                                 event_queue.blocking_dispatch(self)?;
                                 break 'out;
                             }

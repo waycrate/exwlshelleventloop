@@ -27,7 +27,7 @@ use std::{fmt::Debug, fs::File};
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
 #[derive(Debug)]
-pub enum LayerEvent<'a, T: Debug> {
+pub enum SessionLockEvent<'a, T: Debug, Message> {
     InitRequest,
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     RequestBuffer(
@@ -38,6 +38,7 @@ pub enum LayerEvent<'a, T: Debug> {
         u32,
     ),
     RequestMessages(&'a DispatchMessage),
+    UserEvent(Message)
 }
 
 /// the return data
@@ -59,7 +60,6 @@ pub enum LayerEvent<'a, T: Debug> {
 pub enum ReturnData {
     WlBuffer(WlBuffer),
     RequestBind,
-    RequestLock,
     RequestUnlockAndExist,
     RequestSetCursorShape((String, WlPointer, u32)),
     None,
