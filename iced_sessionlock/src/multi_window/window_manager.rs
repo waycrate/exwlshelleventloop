@@ -4,7 +4,7 @@ use super::state::State;
 use crate::multi_window::Application;
 use iced_graphics::Compositor;
 use iced_style::application::StyleSheet;
-use sessionlockev::{id::Id as LayerId, WindowWrapper};
+use sessionlockev::{id::Id as SessionId, WindowWrapper};
 
 use iced::mouse;
 use iced::window::Id as IcedId;
@@ -15,7 +15,7 @@ where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: StyleSheet,
 {
-    pub id: LayerId,
+    pub id: SessionId,
     pub renderer: A::Renderer,
     pub surface: C::Surface,
     pub state: State<A>,
@@ -27,8 +27,8 @@ where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: StyleSheet,
 {
-    aliases: BTreeMap<LayerId, IcedId>,
-    back_aliases: BTreeMap<IcedId, LayerId>,
+    aliases: BTreeMap<SessionId, IcedId>,
+    back_aliases: BTreeMap<IcedId, SessionId>,
     entries: BTreeMap<IcedId, Window<A, C>>,
 }
 
@@ -96,13 +96,13 @@ where
         self.entries.iter_mut().map(|(k, v)| (*k, v))
     }
 
-    pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<A, C>)> {
+    pub fn get_mut_alias(&mut self, id: SessionId) -> Option<(IcedId, &mut Window<A, C>)> {
         let id = self.aliases.get(&id).copied()?;
 
         Some((id, self.get_mut(id)?))
     }
 
-    pub fn get_iced_id(&self, id: IcedId) -> Option<LayerId> {
+    pub fn get_iced_id(&self, id: IcedId) -> Option<SessionId> {
         self.back_aliases.get(&id).copied()
     }
 

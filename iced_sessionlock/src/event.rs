@@ -51,7 +51,7 @@ pub enum WindowEvent {
 }
 
 #[derive(Debug)]
-pub enum IcedLayerEvent<Message: 'static> {
+pub enum IcedSessionLockEvent<Message: 'static> {
     RequestRefreshWithWrapper {
         width: u32,
         height: u32,
@@ -66,22 +66,21 @@ pub enum IcedLayerEvent<Message: 'static> {
     UserEvent(Message),
 }
 
-#[allow(unused)]
 #[derive(Debug)]
-pub struct MutiWindowIcedLayerEvent<Message: 'static>(pub Option<Id>, pub IcedLayerEvent<Message>);
+pub struct MutiWindowIcedSessionLockEvent<Message: 'static>(pub Option<Id>, pub IcedSessionLockEvent<Message>);
 
-impl<Message: 'static> From<(Option<Id>, IcedLayerEvent<Message>)>
-    for MutiWindowIcedLayerEvent<Message>
+impl<Message: 'static> From<(Option<Id>, IcedSessionLockEvent<Message>)>
+    for MutiWindowIcedSessionLockEvent<Message>
 {
-    fn from((id, message): (Option<Id>, IcedLayerEvent<Message>)) -> Self {
-        MutiWindowIcedLayerEvent(id, message)
+    fn from((id, message): (Option<Id>, IcedSessionLockEvent<Message>)) -> Self {
+        MutiWindowIcedSessionLockEvent(id, message)
     }
 }
 
-impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
+impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { width, height } => IcedLayerEvent::RequestRefresh {
+            DispatchMessage::RequestRefresh { width, height } => IcedSessionLockEvent::RequestRefresh {
                 width: *width,
                 height: *height,
             },
@@ -89,34 +88,34 @@ impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => IcedLayerEvent::Window(WindowEvent::CursorEnter { x: *x, y: *y }),
+            } => IcedSessionLockEvent::Window(WindowEvent::CursorEnter { x: *x, y: *y }),
             DispatchMessage::MouseMotion {
                 surface_x: x,
                 surface_y: y,
                 ..
             }
             | DispatchMessage::TouchMotion { x, y, .. } => {
-                IcedLayerEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y })
+                IcedSessionLockEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y })
             }
-            DispatchMessage::MouseLeave => IcedLayerEvent::Window(WindowEvent::CursorLeft),
+            DispatchMessage::MouseLeave => IcedSessionLockEvent::Window(WindowEvent::CursorLeft),
             DispatchMessage::MouseButton { state, .. } => match state {
                 WEnum::Value(ButtonState::Pressed) => {
-                    IcedLayerEvent::Window(WindowEvent::MouseInput(IcedButtonState::Pressed))
+                    IcedSessionLockEvent::Window(WindowEvent::MouseInput(IcedButtonState::Pressed))
                 }
                 WEnum::Value(ButtonState::Released) => {
-                    IcedLayerEvent::Window(WindowEvent::MouseInput(IcedButtonState::Released))
+                    IcedSessionLockEvent::Window(WindowEvent::MouseInput(IcedButtonState::Released))
                 }
                 _ => unreachable!(),
             },
             DispatchMessage::PrefredScale(scale) => {
-                IcedLayerEvent::Window(WindowEvent::ScaleChanged(*scale))
+                IcedSessionLockEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
             DispatchMessage::KeyBoard {
                 state,
                 key,
                 modifier,
                 ..
-            } => IcedLayerEvent::Window(WindowEvent::Keyboard {
+            } => IcedSessionLockEvent::Window(WindowEvent::Keyboard {
                 state: (*state).into(),
                 key: *key,
                 modifiers: modifier_from_layershell_to_iced(*modifier),
