@@ -1,12 +1,13 @@
 mod state;
 
-use std::{mem::ManuallyDrop, sync::Arc};
+use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc};
 
 use crate::{
     actions::{LayerShellActions, LayershellCustomActions},
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
+    settings::VirtualKeyboardSettings,
 };
 
 use iced_graphics::Compositor;
@@ -20,7 +21,9 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use layershellev::{LayerEvent, ReturnData, WindowState, WindowWrapper};
+use layershellev::{
+    reexport::zwp_virtual_keyboard_v1, LayerEvent, ReturnData, WindowState, WindowWrapper,
+};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
 
@@ -187,12 +190,36 @@ where
 
     let mut pointer_serial: u32 = 0;
 
+    let mut virtuan_keyboard = None;
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
         use layershellev::DispatchMessage;
+        let mut def_returndata = ReturnData::None;
         match event {
-            LayerEvent::InitRequest => {}
+            LayerEvent::InitRequest => {
+                if settings.virtual_keyboard_support.is_some() {
+                    def_returndata = ReturnData::RequestBind;
+                }
+            }
             // TODO: maybe use it later
-            LayerEvent::BindProvide(_, _) => {}
+            LayerEvent::BindProvide(globals, qh) => {
+                let virtual_keyboard_manager = globals
+                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                        qh,
+                        1..=1,
+                        (),
+                    )
+                    .expect("no support virtual_keyboard");
+                let VirtualKeyboardSettings {
+                    file,
+                    keymap_size,
+                    keymap_format,
+                } = settings.virtual_keyboard_support.as_ref().unwrap();
+                let seat = ev.get_seat();
+                let virtual_keyboard_in =
+                    virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
+                virtual_keyboard_in.keymap((*keymap_format).into(), file.as_fd(), *keymap_size);
+                virtuan_keyboard = Some(virtual_keyboard_in);
+            }
             LayerEvent::RequestMessages(message) => {
                 if let DispatchMessage::MouseEnter { serial, .. } = message {
                     pointer_serial = *serial;
@@ -232,6 +259,17 @@ where
                                         LayershellCustomActions::SizeChange((width, height)) => {
                                             ev.main_window().set_size((width, height));
                                         }
+                                        LayershellCustomActions::VirtualKeyboardPressed {
+                                            time,
+                                            key,
+                                            keystate,
+                                        } => {
+                                            virtuan_keyboard.as_ref().unwrap().key(
+                                                time,
+                                                key,
+                                                keystate.into(),
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -256,7 +294,7 @@ where
                         }
                     }
                 }
-                ReturnData::None
+                def_returndata
             }
             task::Poll::Ready(_) => ReturnData::RequestExist,
         }
