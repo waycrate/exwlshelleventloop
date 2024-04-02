@@ -10,7 +10,7 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::key::KeyModifierType;
+use crate::{id::Id, key::KeyModifierType};
 
 use super::WindowState;
 use std::{fmt::Debug, fs::File};
@@ -38,6 +38,7 @@ pub enum SessionLockEvent<'a, T: Debug, Message> {
         u32,
     ),
     RequestMessages(&'a DispatchMessage),
+    NormalDispatch,
     UserEvent(Message)
 }
 
@@ -61,6 +62,8 @@ pub enum ReturnData {
     WlBuffer(WlBuffer),
     RequestBind,
     RequestUnlockAndExist,
+    RedrawAllRequest,
+    RedrawIndexRequest(Id),
     RequestSetCursorShape((String, WlPointer, u32)),
     None,
 }

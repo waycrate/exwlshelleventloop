@@ -842,6 +842,303 @@ impl<T: Debug + 'static> WindowState<T> {
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
     /// it will return [None].
+    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
+    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
+    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// it will return [None].
+    ///
+    /// Different with running, it receiver a receiver
+    pub fn running_with_proxy<F, Message>(
+        &mut self,
+        message_receiver: std::sync::mpsc::Receiver<Message>,
+        mut event_hander: F,
+    ) -> Result<(), SessonLockEventError>
+    where
+        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+    {
+        let globals = self.globals.take().unwrap();
+        let mut event_queue = self.event_queue.take().unwrap();
+        let qh = event_queue.handle();
+        let wmcompositer = self.wl_compositor.take().unwrap();
+        let shm = self.shm.take().unwrap();
+        let fractional_scale_manager = self.fractional_scale_manager.take();
+        let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.take();
+        let connection = self.connection.take().unwrap();
+        let lock = self.lock.take().unwrap();
+        let mut init_event = None;
+        let mut timecounter = 0;
+
+        while !matches!(init_event, Some(ReturnData::None)) {
+            match init_event {
+                None => {
+                    init_event = Some(event_hander(SessionLockEvent::InitRequest, self, None));
+                }
+                Some(ReturnData::RequestBind) => {
+                    init_event = Some(event_hander(
+                        SessionLockEvent::BindProvide(&globals, &qh),
+                        self,
+                        None,
+                    ));
+                }
+                _ => panic!("Not privide server here"),
+            }
+        }
+
+        self.message.clear();
+        'out: loop {
+            event_queue.roundtrip(self)?;
+            timecounter += 1;
+            //if self.message.is_empty() {
+            //    continue;
+            //}
+            let mut messages = Vec::new();
+            std::mem::swap(&mut messages, &mut self.message);
+            for msg in messages.iter() {
+                match msg {
+                    (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
+                        let index = *unit_index;
+                        if self.units[index].buffer.is_none() {
+                            let mut file = tempfile::tempfile()?;
+                            let ReturnData::WlBuffer(buffer) = event_hander(
+                                SessionLockEvent::RequestBuffer(
+                                    &mut file, &shm, &qh, *width, *height,
+                                ),
+                                self,
+                                Some(index),
+                            ) else {
+                                panic!("You cannot return this one");
+                            };
+                            let surface = &self.units[index].wl_surface;
+                            surface.attach(Some(&buffer), 0, 0);
+                            self.units[index].buffer = Some(buffer);
+                        } else {
+                            event_hander(
+                                SessionLockEvent::RequestMessages(
+                                    &DispatchMessage::RequestRefresh {
+                                        width: *width,
+                                        height: *height,
+                                    },
+                                ),
+                                self,
+                                Some(index),
+                            );
+                        }
+                        let surface = &self.units[index].wl_surface;
+
+                        surface.commit();
+                    }
+                    (_, DispatchMessageInner::NewDisplay(display)) => {
+                        let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                                                               //
+                        wl_surface.commit();
+                        let session_lock_surface =
+                            lock.get_lock_surface(&wl_surface, display, &qh, ());
+
+                        let mut fractional_scale = None;
+                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
+                                &wl_surface,
+                                &qh,
+                                (),
+                            ));
+                        }
+                        // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                        // and if you need to reconfigure it, you need to commit the wl_surface again
+                        // so because this is just an example, so we just commit it once
+                        // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+
+                        self.units.push(WindowStateUnit {
+                            id: id::Id::unique(),
+                            display: connection.display(),
+                            wl_surface,
+                            size: (0, 0),
+                            buffer: None,
+                            session_shell: session_lock_surface,
+                            fractional_scale,
+                            binding: None,
+                        });
+                    }
+                    _ => {
+                        let (index_message, msg) = msg;
+                        let msg: DispatchMessage = msg.clone().into();
+                        match event_hander(
+                            SessionLockEvent::RequestMessages(&msg),
+                            self,
+                            *index_message,
+                        ) {
+                            ReturnData::RequestUnlockAndExist => {
+                                lock.unlock_and_destroy();
+                                event_queue.blocking_dispatch(self)?;
+                                break 'out;
+                            }
+                            ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
+                                if let Some(ref cursor_manager) = cursor_manager {
+                                    let Some(shape) = str_to_shape(&shape_name) else {
+                                        eprintln!("Not supported shape");
+                                        continue;
+                                    };
+                                    let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                                    device.set_shape(serial, shape);
+                                    device.destroy();
+                                } else {
+                                    let Some(cursor_buffer) =
+                                        get_cursor_buffer(&shape_name, &connection, &shm)
+                                    else {
+                                        eprintln!("Cannot find cursor {shape_name}");
+                                        continue;
+                                    };
+                                    let cursor_surface = wmcompositer.create_surface(&qh, ());
+                                    cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                                    // and create a surface. if two or more,
+                                    let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                                    pointer.set_cursor(
+                                        serial,
+                                        Some(&cursor_surface),
+                                        hotspot_x as i32,
+                                        hotspot_y as i32,
+                                    );
+                                    cursor_surface.commit();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            if let Ok(event) = message_receiver.try_recv() {
+                match event_hander(SessionLockEvent::UserEvent(event), self, None) {
+                    ReturnData::RequestUnlockAndExist => {
+                        lock.unlock_and_destroy();
+                        event_queue.blocking_dispatch(self)?;
+                        break 'out;
+                    }
+                    ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
+                        if let Some(ref cursor_manager) = cursor_manager {
+                            let Some(shape) = str_to_shape(&shape_name) else {
+                                eprintln!("Not supported shape");
+                                continue;
+                            };
+                            let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                            device.set_shape(serial, shape);
+                            device.destroy();
+                        } else {
+                            let Some(cursor_buffer) =
+                                get_cursor_buffer(&shape_name, &connection, &shm)
+                            else {
+                                eprintln!("Cannot find cursor {shape_name}");
+                                continue;
+                            };
+                            let cursor_surface = wmcompositer.create_surface(&qh, ());
+                            cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                            // and create a surface. if two or more,
+                            let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                            pointer.set_cursor(
+                                serial,
+                                Some(&cursor_surface),
+                                hotspot_x as i32,
+                                hotspot_y as i32,
+                            );
+                            cursor_surface.commit();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if timecounter > 100 {
+                let mut return_data =
+                    vec![event_hander(SessionLockEvent::NormalDispatch, self, None)];
+                loop {
+                    let mut replace_datas = Vec::new();
+                    for data in return_data {
+                        match data {
+                            ReturnData::RedrawAllRequest => {
+                                for index in 0..self.units.len() {
+                                    let unit = &self.units[index];
+                                    replace_datas.push(event_hander(
+                                        SessionLockEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        self,
+                                        Some(index),
+                                    ));
+                                }
+                            }
+                            ReturnData::RedrawIndexRequest(id) => {
+                                if let Some((index, unit)) = &self
+                                    .units
+                                    .iter()
+                                    .enumerate()
+                                    .find(|(_, unit)| unit.id == id)
+                                {
+                                    replace_datas.push(event_hander(
+                                        SessionLockEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        self,
+                                        Some(*index),
+                                    ));
+                                }
+                            }
+                            ReturnData::RequestUnlockAndExist => {
+                                lock.unlock_and_destroy();
+                                event_queue.blocking_dispatch(self)?;
+                                break 'out;
+                            }
+                            ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
+                                if let Some(ref cursor_manager) = cursor_manager {
+                                    let Some(shape) = str_to_shape(&shape_name) else {
+                                        eprintln!("Not supported shape");
+                                        continue;
+                                    };
+                                    let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                                    device.set_shape(serial, shape);
+                                    device.destroy();
+                                } else {
+                                    let Some(cursor_buffer) =
+                                        get_cursor_buffer(&shape_name, &connection, &shm)
+                                    else {
+                                        eprintln!("Cannot find cursor {shape_name}");
+                                        continue;
+                                    };
+                                    let cursor_surface = wmcompositer.create_surface(&qh, ());
+                                    cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                                    // and create a surface. if two or more,
+                                    let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                                    pointer.set_cursor(
+                                        serial,
+                                        Some(&cursor_surface),
+                                        hotspot_x as i32,
+                                        hotspot_y as i32,
+                                    );
+                                    cursor_surface.commit();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    replace_datas.retain(|x| *x != ReturnData::None);
+                    if replace_datas.is_empty() {
+                        break;
+                    }
+                    return_data = replace_datas;
+                }
+                timecounter = 0;
+            }
+        }
+        Ok(())
+    }
+    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
+    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
+    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// it will return [None].
     pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), SessonLockEventError>
     where
         F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData,
