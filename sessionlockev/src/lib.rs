@@ -120,6 +120,7 @@ use wayland_client::{
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
+        wl_display::WlDisplay,
         wl_keyboard::{self, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
@@ -220,15 +221,105 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
     ) {
     }
 }
+#[derive(Debug)]
+pub struct WindowWrapper {
+    pub id: id::Id,
+    display: WlDisplay,
+    wl_surface: WlSurface,
+}
+
+impl WindowWrapper {
+    pub fn id(&self) -> id::Id {
+        self.id
+    }
+}
+
+impl WindowWrapper {
+    #[inline]
+    pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandWindowHandle::new({
+            let ptr = self.wl_surface.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+        })
+        .into())
+    }
+
+    #[inline]
+    pub fn raw_display_handle_rwh_06(
+        &self,
+    ) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into())
+    }
+}
+impl rwh_06::HasWindowHandle for WindowWrapper {
+    fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_window_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
+    }
+}
+
+impl rwh_06::HasDisplayHandle for WindowWrapper {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_display_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+    }
+}
 
 #[derive(Debug)]
 pub struct WindowStateUnit<T: Debug> {
+    id: id::Id,
+    display: WlDisplay,
     wl_surface: WlSurface,
     size: (u32, u32),
     buffer: Option<WlBuffer>,
     session_shell: ExtSessionLockSurfaceV1,
     fractional_scale: Option<WpFractionalScaleV1>,
     binding: Option<T>,
+}
+
+impl<T: Debug> WindowStateUnit<T> {
+    pub fn id(&self) -> id::Id {
+        self.id
+    }
+    pub fn gen_wrapper(&self) -> WindowWrapper {
+        WindowWrapper {
+            id: self.id,
+            display: self.display.clone(),
+            wl_surface: self.wl_surface.clone(),
+        }
+    }
+}
+
+impl<T: Debug> WindowStateUnit<T> {
+    #[inline]
+    pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandWindowHandle::new({
+            let ptr = self.wl_surface.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_surface will never be null")
+        })
+        .into())
+    }
+
+    #[inline]
+    pub fn raw_display_handle_rwh_06(
+        &self,
+    ) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into())
+    }
 }
 
 /// This is the unit, binding to per screen.
@@ -307,6 +398,25 @@ impl<T: Debug> WindowState<T> {
     /// get the touch
     pub fn get_touch(&self) -> Option<&WlTouch> {
         self.touch.as_ref()
+    }
+}
+
+impl<T: Debug> WindowState<T> {
+    pub fn gen_main_wrapper(&self) -> WindowWrapper {
+        self.main_window().gen_wrapper()
+    }
+    // return the first window
+    // I will use it in iced
+    pub fn main_window(&self) -> &WindowStateUnit<T> {
+        &self.units[0]
+    }
+
+    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
+        self.units.iter().find(|w| w.id() == id)
+    }
+    // return all windows
+    pub fn windows(&self) -> &Vec<WindowStateUnit<T>> {
+        &self.units
     }
 }
 
@@ -708,6 +818,8 @@ impl<T: Debug + 'static> WindowState<T> {
             }
 
             self.units.push(WindowStateUnit {
+                id: id::Id::unique(),
+                display: connection.display(),
                 wl_surface,
                 size: (0, 0),
                 buffer: None,
@@ -824,6 +936,8 @@ impl<T: Debug + 'static> WindowState<T> {
                         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                         self.units.push(WindowStateUnit {
+                            id: id::Id::unique(),
+                            display: connection.display(),
                             wl_surface,
                             size: (0, 0),
                             buffer: None,

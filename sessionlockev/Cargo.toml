@@ -25,3 +25,5 @@ wayland-protocols-wlr.workspace = true
 wayland-protocols-misc.workspace = true
 
 bitflags.workspace = true
+
+rwh_06.workspace = true
