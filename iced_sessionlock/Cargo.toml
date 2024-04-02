@@ -1,0 +1,24 @@
+[package]
+name = "iced_sessionlock"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "sessionlock binding for iced"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+iced.workspace = true
+iced_renderer.workspace = true
+iced_runtime.workspace = true
+iced_style.workspace = true
+iced_core.workspace = true
+iced_futures.workspace = true
+iced_graphics.workspace = true
+tracing = "0.1.40"
+thiserror = "1.0.56"
+sessionlockev.workspace = true
+futures = "0.3.30"

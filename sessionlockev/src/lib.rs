@@ -351,6 +351,10 @@ impl<T: Debug> WindowStateUnit<T> {
         self.wl_surface.damage(0, 0, width, height);
         self.wl_surface.commit();
     }
+
+    pub fn get_size(&self) -> (u32, u32) {
+        self.size
+    }
 }
 
 #[derive(Debug)]
@@ -377,6 +381,7 @@ pub struct WindowState<T: Debug> {
 
     // keyboard
     modifier: KeyModifierType,
+    use_display_handle: bool,
 }
 
 impl<T: Debug> WindowState<T> {
@@ -450,6 +455,7 @@ impl<T: Debug> Default for WindowState<T> {
             touch: None,
 
             modifier: KeyModifierType::NoMod,
+            use_display_handle: false
         }
     }
 }
@@ -480,6 +486,10 @@ impl<T: Debug> WindowState<T> {
         self.units
             .iter()
             .position(|unit| &unit.wl_surface == surface)
+    }
+    pub fn with_use_display_handle(mut self, use_display_handle: bool) -> Self {
+        self.use_display_handle = use_display_handle;
+        self
     }
 }
 
@@ -898,7 +908,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 match msg {
                     (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
                         let index = *unit_index;
-                        if self.units[index].buffer.is_none() {
+                        if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_hander(
                                 SessionLockEvent::RequestBuffer(

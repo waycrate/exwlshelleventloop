@@ -3,6 +3,7 @@ resolver = "2"
 members = [
 	"layershellev",
 	"iced_layershell",
+	"iced_sessionlock",
 	"starcolorkeyboard",
 	"sessionlockev",
 	"iced_examples/*",
@@ -26,6 +27,7 @@ layershellev = { version = "0.2.3", path = "./layershellev" }
 sessionlockev = { version = "0.2.3", path = "./sessionlockev" }
 
 iced_layershell = { version = "0.2.3", path = "./iced_layershell" }
+iced_sessionlock = { version = "0.2.3", path = "./iced_sessionlock"}
 
 tempfile = "3.8.1"
 thiserror = "1.0.50"

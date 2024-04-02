@@ -506,6 +506,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_lock"
+version = "0.2.3"
+dependencies = [
+ "iced",
+ "iced_runtime",
+ "iced_sessionlock",
+]
+
+[[package]]
 name = "counter_muti"
 version = "0.2.3"
 dependencies = [
@@ -1222,6 +1231,23 @@ dependencies = [
  "iced_futures",
  "raw-window-handle",
  "thiserror",
+]
+
+[[package]]
+name = "iced_sessionlock"
+version = "0.2.3"
+dependencies = [
+ "futures",
+ "iced",
+ "iced_core",
+ "iced_futures",
+ "iced_graphics",
+ "iced_renderer",
+ "iced_runtime",
+ "iced_style",
+ "sessionlockev",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

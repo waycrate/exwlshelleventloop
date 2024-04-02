@@ -78,6 +78,7 @@ pub(crate) enum DispatchMessageInner {
         button: u32,
         time: u32,
     },
+    MouseLeave,
     MouseEnter {
         pointer: WlPointer,
         serial: u32,
@@ -135,6 +136,7 @@ pub enum DispatchMessage {
         button: u32,
         time: u32,
     },
+    MouseLeave,
     /// forward the event of wayland-mouse
     MouseEnter {
         pointer: WlPointer,
@@ -201,6 +203,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 button,
                 time,
             },
+            DispatchMessageInner::MouseLeave => DispatchMessage::MouseLeave,
             DispatchMessageInner::MouseEnter {
                 pointer,
                 serial,
