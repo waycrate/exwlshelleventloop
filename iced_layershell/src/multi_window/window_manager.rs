@@ -37,7 +37,7 @@ where
     A: Application,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: StyleSheet,
- {
+{
     fn default() -> Self {
         Self::new()
     }

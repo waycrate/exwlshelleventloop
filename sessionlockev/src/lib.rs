@@ -455,7 +455,7 @@ impl<T: Debug> Default for WindowState<T> {
             touch: None,
 
             modifier: KeyModifierType::NoMod,
-            use_display_handle: false
+            use_display_handle: false,
         }
     }
 }

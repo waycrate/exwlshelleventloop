@@ -1,9 +1,9 @@
 use iced::widget::{button, column, text, text_input};
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 
+use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
 use iced_sessionlock::MutiApplication;
-use iced_sessionlock::actions::UnLockAction;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
     Counter::run(Settings::default())
@@ -65,9 +65,7 @@ impl MutiApplication for Counter {
                 self.text = text;
                 Command::none()
             }
-            Message::Lock => {
-                Command::single(UnLockAction.into())
-            }
+            Message::Lock => Command::single(UnLockAction.into()),
         }
     }
 

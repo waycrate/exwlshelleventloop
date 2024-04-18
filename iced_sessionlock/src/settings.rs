@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use iced::{Font, Pixels};
 
-
 #[derive(Debug, Clone)]
 pub struct Settings<Flags> {
     /// The identifier of the application.
@@ -10,7 +9,6 @@ pub struct Settings<Flags> {
     /// If provided, this identifier may be used to identify the application or
     /// communicate with it through the windowing system.
     pub id: Option<String>,
-
 
     /// The data needed to initialize an [`Application`].
     ///
@@ -57,4 +55,3 @@ where
         }
     }
 }
-

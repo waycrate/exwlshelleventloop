@@ -17,7 +17,6 @@ use iced_futures::Subscription;
 use iced_runtime::Command;
 use iced_style::application::StyleSheet;
 
-
 pub trait MutiApplication: Sized {
     /// The [`Executor`] that will run commands and subscriptions.
     ///

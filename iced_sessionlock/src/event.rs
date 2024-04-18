@@ -67,7 +67,10 @@ pub enum IcedSessionLockEvent<Message: 'static> {
 }
 
 #[derive(Debug)]
-pub struct MutiWindowIcedSessionLockEvent<Message: 'static>(pub Option<Id>, pub IcedSessionLockEvent<Message>);
+pub struct MutiWindowIcedSessionLockEvent<Message: 'static>(
+    pub Option<Id>,
+    pub IcedSessionLockEvent<Message>,
+);
 
 impl<Message: 'static> From<(Option<Id>, IcedSessionLockEvent<Message>)>
     for MutiWindowIcedSessionLockEvent<Message>
@@ -80,10 +83,12 @@ impl<Message: 'static> From<(Option<Id>, IcedSessionLockEvent<Message>)>
 impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { width, height } => IcedSessionLockEvent::RequestRefresh {
-                width: *width,
-                height: *height,
-            },
+            DispatchMessage::RequestRefresh { width, height } => {
+                IcedSessionLockEvent::RequestRefresh {
+                    width: *width,
+                    height: *height,
+                }
+            }
             DispatchMessage::MouseEnter {
                 surface_x: x,
                 surface_y: y,

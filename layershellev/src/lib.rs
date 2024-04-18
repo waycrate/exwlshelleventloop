@@ -1512,18 +1512,16 @@ impl<T: Debug + 'static> WindowState<T> {
                             ReturnData::RedrawAllRequest => {
                                 for index in 0..self.units.len() {
                                     let unit = &self.units[index];
-                                    replace_datas.push(
-                                        event_hander(
-                                            LayerEvent::RequestMessages(
-                                                &DispatchMessage::RequestRefresh {
-                                                    width: unit.size.0,
-                                                    height: unit.size.1,
-                                                }
-                                            ),
-                                            &mut self,
-                                            Some(index),
-                                        )
-                                    );
+                                    replace_datas.push(event_hander(
+                                        LayerEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        &mut self,
+                                        Some(index),
+                                    ));
                                 }
                             }
                             ReturnData::RedrawIndexRequest(id) => {

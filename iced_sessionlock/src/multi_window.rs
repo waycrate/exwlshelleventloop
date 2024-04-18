@@ -254,7 +254,10 @@ where
                 }
                 None => {
                     event_sender
-                        .start_send(MutiWindowIcedSessionLockEvent(id, IcedSessionLockEvent::NormalUpdate))
+                        .start_send(MutiWindowIcedSessionLockEvent(
+                            id,
+                            IcedSessionLockEvent::NormalUpdate,
+                        ))
                         .expect("Cannot send");
                 }
             },
@@ -272,25 +275,26 @@ where
         match poll {
             task::Poll::Pending => 'peddingBlock: {
                 if let Ok(Some(flow)) = control_receiver.try_next() {
-                    for flow in flow {
-                        match flow {
-                            SessionShellActions::Mouse(mouse) => {
-                                let Some(pointer) = ev.get_pointer() else {
-                                    break 'peddingBlock ReturnData::None;
-                                };
+                    let Some(flow) = flow.first() else {
+                        return ReturnData::None;
+                    };
+                    match flow {
+                        SessionShellActions::Mouse(mouse) => {
+                            let Some(pointer) = ev.get_pointer() else {
+                                break 'peddingBlock ReturnData::None;
+                            };
 
-                                break 'peddingBlock ReturnData::RequestSetCursorShape((
-                                    conversion::mouse_interaction(mouse),
-                                    pointer.clone(),
-                                    pointer_serial,
-                                ));
-                            }
-                            SessionShellActions::RedrawAll => {
-                                break 'peddingBlock ReturnData::RedrawAllRequest;
-                            }
-                            SessionShellActions::RedrawWindow(index) => {
-                                break 'peddingBlock ReturnData::RedrawIndexRequest(index);
-                            }
+                            break 'peddingBlock ReturnData::RequestSetCursorShape((
+                                conversion::mouse_interaction(*mouse),
+                                pointer.clone(),
+                                pointer_serial,
+                            ));
+                        }
+                        SessionShellActions::RedrawAll => {
+                            break 'peddingBlock ReturnData::RedrawAllRequest;
+                        }
+                        SessionShellActions::RedrawWindow(index) => {
+                            break 'peddingBlock ReturnData::RedrawIndexRequest(*index);
                         }
                     }
                 }
@@ -657,7 +661,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    custom_actions: &mut Vec<SessionShellActions>,
+    custom_actions: &mut [SessionShellActions],
     window_manager: &mut WindowManager<A, C>,
     ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
@@ -697,7 +701,7 @@ pub(crate) fn run_command<A, C, E>(
     compositor: &mut C,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
-    custom_actions: &mut Vec<SessionShellActions>,
+    custom_actions: &mut [SessionShellActions],
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
