@@ -156,6 +156,13 @@ use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_v1::{self, WpFractionalScaleV1},
 };
 
+use sctk::reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource};
+
+use sctk::reexports::calloop::Error as CallLoopError;
+use std::time::Duration;
+
+use wayland_client::backend::WaylandError;
+
 /// return the error during running the eventloop
 #[derive(Debug, thiserror::Error)]
 pub enum SessonLockEventError {
@@ -169,6 +176,10 @@ pub enum SessonLockEventError {
     DispatchError(#[from] DispatchError),
     #[error("create file failed")]
     TempFileCreateFailed(#[from] std::io::Error),
+    #[error("Event Loop Error")]
+    EventLoopInitError(#[from] CallLoopError),
+    #[error("roundtrip Error")]
+    RoundTripError(#[from] WaylandError)
 }
 
 /// reexport the wayland objects which are needed
@@ -868,7 +879,7 @@ impl<T: Debug + 'static> WindowState<T> {
         F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
     {
         let globals = self.globals.take().unwrap();
-        let mut event_queue = self.event_queue.take().unwrap();
+        let event_queue = self.event_queue.take().unwrap();
         let qh = event_queue.handle();
         let wmcompositer = self.wl_compositor.take().unwrap();
         let shm = self.shm.take().unwrap();
@@ -877,7 +888,6 @@ impl<T: Debug + 'static> WindowState<T> {
         let connection = self.connection.take().unwrap();
         let lock = self.lock.take().unwrap();
         let mut init_event = None;
-        let mut timecounter = 0;
 
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
@@ -896,12 +906,15 @@ impl<T: Debug + 'static> WindowState<T> {
         }
 
         self.message.clear();
+        let mut event_loop: EventLoop<Self> =
+            EventLoop::try_new().expect("Failed to initialize the event loop");
+
+        WaylandSource::new(connection.clone(), event_queue)
+            .insert(event_loop.handle())
+            .expect("Failed to init Wayland Source");
+
         'out: loop {
-            event_queue.roundtrip(self)?;
-            timecounter += 1;
-            //if self.message.is_empty() {
-            //    continue;
-            //}
+            event_loop.dispatch(Duration::from_millis(1), self).unwrap();
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut self.message);
             for msg in messages.iter() {
@@ -979,7 +992,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         ) {
                             ReturnData::RequestUnlockAndExist => {
                                 lock.unlock_and_destroy();
-                                event_queue.blocking_dispatch(self)?;
+                                connection.roundtrip()?;
                                 break 'out;
                             }
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
@@ -1020,7 +1033,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 match event_hander(SessionLockEvent::UserEvent(event), self, None) {
                     ReturnData::RequestUnlockAndExist => {
                         lock.unlock_and_destroy();
-                        event_queue.blocking_dispatch(self)?;
+                        connection.roundtrip()?;
                         break 'out;
                     }
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
@@ -1055,91 +1068,87 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {}
                 }
             }
-            if timecounter > 100 {
-                let mut return_data =
-                    vec![event_hander(SessionLockEvent::NormalDispatch, self, None)];
-                loop {
-                    let mut replace_datas = Vec::new();
-                    for data in return_data {
-                        match data {
-                            ReturnData::RedrawAllRequest => {
-                                for index in 0..self.units.len() {
-                                    let unit = &self.units[index];
-                                    replace_datas.push(event_hander(
-                                        SessionLockEvent::RequestMessages(
-                                            &DispatchMessage::RequestRefresh {
-                                                width: unit.size.0,
-                                                height: unit.size.1,
-                                            },
-                                        ),
-                                        self,
-                                        Some(index),
-                                    ));
-                                }
+            let mut return_data = vec![event_hander(SessionLockEvent::NormalDispatch, self, None)];
+            loop {
+                let mut replace_datas = Vec::new();
+                for data in return_data {
+                    match data {
+                        ReturnData::RedrawAllRequest => {
+                            for index in 0..self.units.len() {
+                                let unit = &self.units[index];
+                                replace_datas.push(event_hander(
+                                    SessionLockEvent::RequestMessages(
+                                        &DispatchMessage::RequestRefresh {
+                                            width: unit.size.0,
+                                            height: unit.size.1,
+                                        },
+                                    ),
+                                    self,
+                                    Some(index),
+                                ));
                             }
-                            ReturnData::RedrawIndexRequest(id) => {
-                                if let Some((index, unit)) = &self
-                                    .units
-                                    .iter()
-                                    .enumerate()
-                                    .find(|(_, unit)| unit.id == id)
-                                {
-                                    replace_datas.push(event_hander(
-                                        SessionLockEvent::RequestMessages(
-                                            &DispatchMessage::RequestRefresh {
-                                                width: unit.size.0,
-                                                height: unit.size.1,
-                                            },
-                                        ),
-                                        self,
-                                        Some(*index),
-                                    ));
-                                }
-                            }
-                            ReturnData::RequestUnlockAndExist => {
-                                lock.unlock_and_destroy();
-                                event_queue.blocking_dispatch(self)?;
-                                break 'out;
-                            }
-                            ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
-                                if let Some(ref cursor_manager) = cursor_manager {
-                                    let Some(shape) = str_to_shape(&shape_name) else {
-                                        eprintln!("Not supported shape");
-                                        continue;
-                                    };
-                                    let device = cursor_manager.get_pointer(&pointer, &qh, ());
-                                    device.set_shape(serial, shape);
-                                    device.destroy();
-                                } else {
-                                    let Some(cursor_buffer) =
-                                        get_cursor_buffer(&shape_name, &connection, &shm)
-                                    else {
-                                        eprintln!("Cannot find cursor {shape_name}");
-                                        continue;
-                                    };
-                                    let cursor_surface = wmcompositer.create_surface(&qh, ());
-                                    cursor_surface.attach(Some(&cursor_buffer), 0, 0);
-                                    // and create a surface. if two or more,
-                                    let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
-                                    pointer.set_cursor(
-                                        serial,
-                                        Some(&cursor_surface),
-                                        hotspot_x as i32,
-                                        hotspot_y as i32,
-                                    );
-                                    cursor_surface.commit();
-                                }
-                            }
-                            _ => {}
                         }
+                        ReturnData::RedrawIndexRequest(id) => {
+                            if let Some((index, unit)) = &self
+                                .units
+                                .iter()
+                                .enumerate()
+                                .find(|(_, unit)| unit.id == id)
+                            {
+                                replace_datas.push(event_hander(
+                                    SessionLockEvent::RequestMessages(
+                                        &DispatchMessage::RequestRefresh {
+                                            width: unit.size.0,
+                                            height: unit.size.1,
+                                        },
+                                    ),
+                                    self,
+                                    Some(*index),
+                                ));
+                            }
+                        }
+                        ReturnData::RequestUnlockAndExist => {
+                            lock.unlock_and_destroy();
+                            connection.roundtrip()?;
+                            break 'out;
+                        }
+                        ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
+                            if let Some(ref cursor_manager) = cursor_manager {
+                                let Some(shape) = str_to_shape(&shape_name) else {
+                                    eprintln!("Not supported shape");
+                                    continue;
+                                };
+                                let device = cursor_manager.get_pointer(&pointer, &qh, ());
+                                device.set_shape(serial, shape);
+                                device.destroy();
+                            } else {
+                                let Some(cursor_buffer) =
+                                    get_cursor_buffer(&shape_name, &connection, &shm)
+                                else {
+                                    eprintln!("Cannot find cursor {shape_name}");
+                                    continue;
+                                };
+                                let cursor_surface = wmcompositer.create_surface(&qh, ());
+                                cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+                                // and create a surface. if two or more,
+                                let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+                                pointer.set_cursor(
+                                    serial,
+                                    Some(&cursor_surface),
+                                    hotspot_x as i32,
+                                    hotspot_y as i32,
+                                );
+                                cursor_surface.commit();
+                            }
+                        }
+                        _ => {}
                     }
-                    replace_datas.retain(|x| *x != ReturnData::None);
-                    if replace_datas.is_empty() {
-                        break;
-                    }
-                    return_data = replace_datas;
                 }
-                timecounter = 0;
+                replace_datas.retain(|x| *x != ReturnData::None);
+                if replace_datas.is_empty() {
+                    break;
+                }
+                return_data = replace_datas;
             }
         }
         Ok(())
