@@ -29,3 +29,5 @@ wayland-backend.workspace = true
 rwh_06.workspace = true
 
 bitflags.workspace = true
+
+sctk.workspace = true
