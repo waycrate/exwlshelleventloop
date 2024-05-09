@@ -627,7 +627,7 @@ async fn run_instance<A, E, C>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn build_user_interfaces<'a, A: Application, C>(
+pub fn build_user_interfaces<'a, A: Application, C: Compositor>(
     application: &'a A,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
