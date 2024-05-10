@@ -2253,6 +2253,7 @@ dependencies = [
  "smithay-client-toolkit",
  "tempfile",
  "thiserror",
+ "wayland-backend",
  "wayland-client",
  "wayland-cursor",
  "wayland-protocols",
