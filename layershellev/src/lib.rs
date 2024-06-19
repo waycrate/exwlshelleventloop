@@ -159,6 +159,7 @@
 //!
 
 mod events;
+mod keyboard;
 mod strtoshape;
 
 use std::fmt::Debug;
@@ -180,7 +181,7 @@ use wayland_client::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
         wl_display::WlDisplay,
-        wl_keyboard::{self, WlKeyboard},
+        wl_keyboard::{self, KeymapFormat, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
         wl_registry,
@@ -822,9 +823,20 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         event: <wl_keyboard::WlKeyboard as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
+        _qhandle: &QueueHandle<Self>,
     ) {
+        use keyboard::*;
         match event {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                if !matches!(format, WEnum::Value(KeymapFormat::XkbV1)) {
+                    return;
+                }
+                println!("it is {format:?}, {fd:?}, {size}");
+                let context = XkbContext::new();
+                let keymap = XkbKeymap::from_fd(&context, fd, size as usize).unwrap();
+                let state = XkbState::new_wayland(&keymap).unwrap();
+                println!("{state:?}");
+            }
             wl_keyboard::Event::Key {
                 state: keystate,
                 serial,
@@ -1736,11 +1748,9 @@ impl<T: Debug + 'static> WindowState<T> {
 
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
-            .unwrap();
+            .expect("Failed to init wayland source");
         'out: loop {
-            event_loop
-                .dispatch(Duration::from_millis(1), &mut self)
-                .unwrap();
+            event_loop.dispatch(Duration::from_millis(1), &mut self)?;
 
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut self.message);
