@@ -515,7 +515,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter_muti"
+name = "counter_multi"
 version = "0.2.4"
 dependencies = [
  "iced",

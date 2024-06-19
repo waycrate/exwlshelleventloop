@@ -1,5 +1,5 @@
 [package]
-name = "counter_muti"
+name = "counter_multi"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true

@@ -45,14 +45,14 @@ pub enum SessionLockEvent<'a, T: Debug, Message> {
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
-/// can bind virtual-keybaord. you can take startcolorkeyboard as refrence, or the simple.rs. Also,
+/// can bind virtual-keyboard. you can take startcolorkeyboard as reference, or the simple.rs. Also,
 /// it should can bind with text-input, but I am not fully understand about this, maybe someone
 /// famillar with it can do
 ///
 /// When send RequestExist, it will tell the event to finish.
 ///
-/// When send RequestSetCursorShape, you can set current pointer shape. pleace take
-/// [cursor-shape](https://wayland.app/protocols/cursor-shape-v1#wp_cursor_shape_device_v1:enum:shape) as refrence.
+/// When send RequestSetCursorShape, you can set current pointer shape. please take
+/// [cursor-shape](https://wayland.app/protocols/cursor-shape-v1#wp_cursor_shape_device_v1:enum:shape) as reference.
 ///
 /// None means nothing will happened, no request, and no return data
 ///

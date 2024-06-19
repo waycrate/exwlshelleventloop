@@ -3,7 +3,7 @@ use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
-use iced_sessionlock::MutiApplication;
+use iced_sessionlock::MultiApplication;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
     Counter::run(Settings::default())
@@ -23,7 +23,7 @@ enum Message {
     Lock,
 }
 
-impl MutiApplication for Counter {
+impl MultiApplication for Counter {
     type Message = Message;
     type Flags = ();
     type Theme = Theme;

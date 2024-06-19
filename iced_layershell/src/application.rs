@@ -411,7 +411,7 @@ async fn run_instance<A, E, C>(
                     custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
                     mouse_interaction = new_mouse_interaction;
                 }
-                // TODO: check mosue_interaction
+                // TODO: check mouse_interaction
 
                 debug.render_started();
 

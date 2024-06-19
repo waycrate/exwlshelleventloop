@@ -356,7 +356,7 @@ impl<T: Debug> WindowStateUnit<T> {
     }
 
     /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
-    /// and finall commit
+    /// and final commit
     pub fn request_refresh(&self, (width, height): (i32, i32)) {
         self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
         self.wl_surface.damage(0, 0, width, height);
@@ -873,7 +873,7 @@ impl<T: Debug + 'static> WindowState<T> {
     pub fn running_with_proxy<F, Message>(
         &mut self,
         message_receiver: std::sync::mpsc::Receiver<Message>,
-        mut event_hander: F,
+        mut event_handler: F,
     ) -> Result<(), SessonLockEventError>
     where
         F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
@@ -892,16 +892,16 @@ impl<T: Debug + 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_hander(SessionLockEvent::InitRequest, self, None));
+                    init_event = Some(event_handler(SessionLockEvent::InitRequest, self, None));
                 }
                 Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_hander(
+                    init_event = Some(event_handler(
                         SessionLockEvent::BindProvide(&globals, &qh),
                         self,
                         None,
                     ));
                 }
-                _ => panic!("Not privide server here"),
+                _ => panic!("Not provide server here"),
             }
         }
 
@@ -923,7 +923,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         let index = *unit_index;
                         if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
-                            let ReturnData::WlBuffer(buffer) = event_hander(
+                            let ReturnData::WlBuffer(buffer) = event_handler(
                                 SessionLockEvent::RequestBuffer(
                                     &mut file, &shm, &qh, *width, *height,
                                 ),
@@ -936,7 +936,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             surface.attach(Some(&buffer), 0, 0);
                             self.units[index].buffer = Some(buffer);
                         } else {
-                            event_hander(
+                            event_handler(
                                 SessionLockEvent::RequestMessages(
                                     &DispatchMessage::RequestRefresh {
                                         width: *width,
@@ -985,7 +985,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {
                         let (index_message, msg) = msg;
                         let msg: DispatchMessage = msg.clone().into();
-                        match event_hander(
+                        match event_handler(
                             SessionLockEvent::RequestMessages(&msg),
                             self,
                             *index_message,
@@ -1030,7 +1030,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 }
             }
             if let Ok(event) = message_receiver.try_recv() {
-                match event_hander(SessionLockEvent::UserEvent(event), self, None) {
+                match event_handler(SessionLockEvent::UserEvent(event), self, None) {
                     ReturnData::RequestUnlockAndExist => {
                         lock.unlock_and_destroy();
                         connection.roundtrip()?;
@@ -1068,15 +1068,15 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {}
                 }
             }
-            let mut return_data = vec![event_hander(SessionLockEvent::NormalDispatch, self, None)];
+            let mut return_data = vec![event_handler(SessionLockEvent::NormalDispatch, self, None)];
             loop {
-                let mut replace_datas = Vec::new();
+                let mut replace_data = Vec::new();
                 for data in return_data {
                     match data {
                         ReturnData::RedrawAllRequest => {
                             for index in 0..self.units.len() {
                                 let unit = &self.units[index];
-                                replace_datas.push(event_hander(
+                                replace_data.push(event_handler(
                                     SessionLockEvent::RequestMessages(
                                         &DispatchMessage::RequestRefresh {
                                             width: unit.size.0,
@@ -1095,7 +1095,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                 .enumerate()
                                 .find(|(_, unit)| unit.id == id)
                             {
-                                replace_datas.push(event_hander(
+                                replace_data.push(event_handler(
                                     SessionLockEvent::RequestMessages(
                                         &DispatchMessage::RequestRefresh {
                                             width: unit.size.0,
@@ -1144,11 +1144,11 @@ impl<T: Debug + 'static> WindowState<T> {
                         _ => {}
                     }
                 }
-                replace_datas.retain(|x| *x != ReturnData::None);
-                if replace_datas.is_empty() {
+                replace_data.retain(|x| *x != ReturnData::None);
+                if replace_data.is_empty() {
                     break;
                 }
-                return_data = replace_datas;
+                return_data = replace_data;
             }
         }
         Ok(())
@@ -1158,7 +1158,7 @@ impl<T: Debug + 'static> WindowState<T> {
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
     /// it will return [None].
-    pub fn running<F>(&mut self, mut event_hander: F) -> Result<(), SessonLockEventError>
+    pub fn running<F>(&mut self, mut event_handler: F) -> Result<(), SessonLockEventError>
     where
         F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData,
     {
@@ -1176,16 +1176,16 @@ impl<T: Debug + 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_hander(SessionLockEvent::InitRequest, self, None));
+                    init_event = Some(event_handler(SessionLockEvent::InitRequest, self, None));
                 }
                 Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_hander(
+                    init_event = Some(event_handler(
                         SessionLockEvent::BindProvide(&globals, &qh),
                         self,
                         None,
                     ));
                 }
-                _ => panic!("Not privide server here"),
+                _ => panic!("Not provide server here"),
             }
         }
 
@@ -1203,7 +1203,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         let index = *unit_index;
                         if self.units[index].buffer.is_none() {
                             let mut file = tempfile::tempfile()?;
-                            let ReturnData::WlBuffer(buffer) = event_hander(
+                            let ReturnData::WlBuffer(buffer) = event_handler(
                                 SessionLockEvent::RequestBuffer(
                                     &mut file, &shm, &qh, *width, *height,
                                 ),
@@ -1216,7 +1216,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             surface.attach(Some(&buffer), 0, 0);
                             self.units[index].buffer = Some(buffer);
                         } else {
-                            event_hander(
+                            event_handler(
                                 SessionLockEvent::RequestMessages(
                                     &DispatchMessage::RequestRefresh {
                                         width: *width,
@@ -1265,7 +1265,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {
                         let (index_message, msg) = msg;
                         let msg: DispatchMessage = msg.clone().into();
-                        match event_hander(
+                        match event_handler(
                             SessionLockEvent::RequestMessages(&msg),
                             self,
                             *index_message,

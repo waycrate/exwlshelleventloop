@@ -24,7 +24,7 @@ use sessionlockev::{
 use futures::{channel::mpsc, SinkExt, StreamExt};
 
 use crate::{
-    event::{IcedSessionLockEvent, MutiWindowIcedSessionLockEvent},
+    event::{IcedSessionLockEvent, MultiWindowIcedSessionLockEvent},
     proxy::IcedProxy,
     settings::Settings,
 };
@@ -166,7 +166,7 @@ where
     );
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<MutiWindowIcedSessionLockEvent<A::Message>>();
+        mpsc::unbounded::<MultiWindowIcedSessionLockEvent<A::Message>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<SessionShellActions>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
@@ -199,7 +199,7 @@ where
                 match message {
                     DispatchMessage::RequestRefresh { width, height } => {
                         event_sender
-                            .start_send(MutiWindowIcedSessionLockEvent(
+                            .start_send(MultiWindowIcedSessionLockEvent(
                                 id,
                                 IcedSessionLockEvent::RequestRefreshWithWrapper {
                                     width: *width,
@@ -225,7 +225,7 @@ where
                 }
 
                 event_sender
-                    .start_send(MutiWindowIcedSessionLockEvent(id, message.into()))
+                    .start_send(MultiWindowIcedSessionLockEvent(id, message.into()))
                     .expect("Cannot send");
             }
             SessionLockEvent::NormalDispatch => match &key_event {
@@ -234,12 +234,12 @@ where
                         let event = IcedSessionLockEvent::Window(*windowevent);
                         if key_ping_count > 70 && key_ping_count < 74 {
                             event_sender
-                                .start_send(MutiWindowIcedSessionLockEvent(id, event))
+                                .start_send(MultiWindowIcedSessionLockEvent(id, event))
                                 .expect("Cannot send");
                             key_ping_count = 0;
                         } else {
                             event_sender
-                                .start_send(MutiWindowIcedSessionLockEvent(
+                                .start_send(MultiWindowIcedSessionLockEvent(
                                     id,
                                     IcedSessionLockEvent::NormalUpdate,
                                 ))
@@ -254,7 +254,7 @@ where
                 }
                 None => {
                     event_sender
-                        .start_send(MutiWindowIcedSessionLockEvent(
+                        .start_send(MultiWindowIcedSessionLockEvent(
                             id,
                             IcedSessionLockEvent::NormalUpdate,
                         ))
@@ -263,7 +263,7 @@ where
             },
             SessionLockEvent::UserEvent(event) => {
                 event_sender
-                    .start_send(MutiWindowIcedSessionLockEvent(
+                    .start_send(MultiWindowIcedSessionLockEvent(
                         id,
                         IcedSessionLockEvent::UserEvent(event),
                     ))
@@ -314,7 +314,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
     mut proxy: IcedProxy<A::Message>,
     mut debug: Debug,
-    mut event_receiver: mpsc::UnboundedReceiver<MutiWindowIcedSessionLockEvent<A::Message>>,
+    mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedSessionLockEvent<A::Message>>,
     mut control_sender: mpsc::UnboundedSender<Vec<SessionShellActions>>,
     mut window_manager: WindowManager<A, C>,
     init_command: Command<A::Message>,
@@ -375,7 +375,7 @@ async fn run_instance<A, E, C>(
     runtime.track(application.subscription().into_recipes());
     while let Some(event) = event_receiver.next().await {
         match event {
-            MutiWindowIcedSessionLockEvent(
+            MultiWindowIcedSessionLockEvent(
                 _id,
                 IcedSessionLockEvent::RequestRefreshWithWrapper {
                     width,
@@ -495,7 +495,7 @@ async fn run_instance<A, E, C>(
 
                 debug.render_finished();
             }
-            MutiWindowIcedSessionLockEvent(Some(id), IcedSessionLockEvent::Window(event)) => {
+            MultiWindowIcedSessionLockEvent(Some(id), IcedSessionLockEvent::Window(event)) => {
                 let Some((id, window)) = window_manager.get_mut_alias(id) else {
                     continue;
                 };
@@ -504,10 +504,10 @@ async fn run_instance<A, E, C>(
                     events.push((Some(id), event));
                 }
             }
-            MutiWindowIcedSessionLockEvent(_, IcedSessionLockEvent::UserEvent(event)) => {
+            MultiWindowIcedSessionLockEvent(_, IcedSessionLockEvent::UserEvent(event)) => {
                 messages.push(event);
             }
-            MutiWindowIcedSessionLockEvent(_, IcedSessionLockEvent::NormalUpdate) => {
+            MultiWindowIcedSessionLockEvent(_, IcedSessionLockEvent::NormalUpdate) => {
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }

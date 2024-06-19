@@ -310,8 +310,8 @@ impl ZxdgOutputInfo {
         }
     }
 
-    /// you can get the Logic positon of the screen current surface in
-    pub fn get_positon(&self) -> (i32, i32) {
+    /// you can get the Logic position of the screen current surface in
+    pub fn get_position(&self) -> (i32, i32) {
         self.position
     }
 
@@ -427,7 +427,7 @@ impl<T: Debug> WindowStateUnit<T> {
         self.zxdgoutput.as_ref()
     }
 
-    /// set the anchor of the current unit. please take the simple.rs as refrence
+    /// set the anchor of the current unit. please take the simple.rs as reference
     pub fn set_anchor(&self, anchor: Anchor) {
         self.layer_shell.set_anchor(anchor);
         self.wl_surface.commit();
@@ -475,7 +475,7 @@ impl<T: Debug> WindowStateUnit<T> {
     }
 
     /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
-    /// and finall commit
+    /// and final commit
     pub fn request_refresh(&self, (width, height): (i32, i32)) {
         self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
         self.wl_surface.damage(0, 0, width, height);
@@ -637,7 +637,7 @@ impl<T: Debug> WindowState<T> {
         self
     }
 
-    /// keyboard_interacivity, pleace take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
+    /// keyboard_interacivity, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_keyboard_interacivity(
         mut self,
         keyboard_interacivity: zwlr_layer_surface_v1::KeyboardInteractivity,
@@ -1067,7 +1067,7 @@ delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShm); // shm is used to create buffer pool
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WlBuffer); // buffer show the picture
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwlrLayerShellV1); // it is simillar with xdg_toplevel, also the
+delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
                                                                     // ext-session-shell
 
 delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeManagerV1);
@@ -1257,7 +1257,7 @@ impl<T: Debug + 'static> WindowState<T> {
     pub fn running_with_proxy<F, Message>(
         mut self,
         message_receiver: std::sync::mpsc::Receiver<Message>,
-        mut event_hander: F,
+        mut event_handler: F,
     ) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
@@ -1276,16 +1276,16 @@ impl<T: Debug + 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_hander(LayerEvent::InitRequest, &mut self, None));
+                    init_event = Some(event_handler(LayerEvent::InitRequest, &mut self, None));
                 }
                 Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_hander(
+                    init_event = Some(event_handler(
                         LayerEvent::BindProvide(&globals, &qh),
                         &mut self,
                         None,
                     ));
                 }
-                _ => panic!("Not privide server here"),
+                _ => panic!("Not provide server here"),
             }
         }
 
@@ -1309,7 +1309,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         // I will use it in iced
                         if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
-                            let ReturnData::WlBuffer(buffer) = event_hander(
+                            let ReturnData::WlBuffer(buffer) = event_handler(
                                 LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
                                 &mut self,
                                 Some(index),
@@ -1320,7 +1320,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             surface.attach(Some(&buffer), 0, 0);
                             self.units[index].buffer = Some(buffer);
                         } else {
-                            event_hander(
+                            event_handler(
                                 LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                     width: *width,
                                     height: *height,
@@ -1334,7 +1334,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         surface.commit();
                     }
                     (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
-                        event_hander(
+                        event_handler(
                             LayerEvent::XdgInfoChanged(*change_type),
                             &mut self,
                             *index_info,
@@ -1401,7 +1401,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {
                         let (index_message, msg) = msg;
                         let msg: DispatchMessage = msg.clone().into();
-                        match event_hander(
+                        match event_handler(
                             LayerEvent::RequestMessages(&msg),
                             &mut self,
                             *index_message,
@@ -1409,7 +1409,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             ReturnData::RedrawAllRequest => {
                                 for index in 0..self.units.len() {
                                     let unit = &self.units[index];
-                                    event_hander(
+                                    event_handler(
                                         LayerEvent::RequestMessages(
                                             &DispatchMessage::RequestRefresh {
                                                 width: unit.size.0,
@@ -1428,7 +1428,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                     .enumerate()
                                     .find(|(_, unit)| unit.id == id)
                                 {
-                                    event_hander(
+                                    event_handler(
                                         LayerEvent::RequestMessages(
                                             &DispatchMessage::RequestRefresh {
                                                 width: unit.size.0,
@@ -1478,7 +1478,7 @@ impl<T: Debug + 'static> WindowState<T> {
                 }
             }
             if let Ok(event) = message_receiver.try_recv() {
-                match event_hander(LayerEvent::UserEvent(event), &mut self, None) {
+                match event_handler(LayerEvent::UserEvent(event), &mut self, None) {
                     ReturnData::RequestExist => {
                         break 'out;
                     }
@@ -1514,15 +1514,15 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {}
                 }
             }
-            let mut return_data = vec![event_hander(LayerEvent::NormalDispatch, &mut self, None)];
+            let mut return_data = vec![event_handler(LayerEvent::NormalDispatch, &mut self, None)];
             loop {
-                let mut replace_datas = Vec::new();
+                let mut replace_data = Vec::new();
                 for data in return_data {
                     match data {
                         ReturnData::RedrawAllRequest => {
                             for index in 0..self.units.len() {
                                 let unit = &self.units[index];
-                                replace_datas.push(event_hander(
+                                replace_data.push(event_handler(
                                     LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                         width: unit.size.0,
                                         height: unit.size.1,
@@ -1539,7 +1539,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                 .enumerate()
                                 .find(|(_, unit)| unit.id == id)
                             {
-                                replace_datas.push(event_hander(
+                                replace_data.push(event_handler(
                                     LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                         width: unit.size.0,
                                         height: unit.size.1,
@@ -1584,11 +1584,11 @@ impl<T: Debug + 'static> WindowState<T> {
                         _ => {}
                     }
                 }
-                replace_datas.retain(|x| *x != ReturnData::None);
-                if replace_datas.is_empty() {
+                replace_data.retain(|x| *x != ReturnData::None);
+                if replace_data.is_empty() {
                     break;
                 }
-                return_data = replace_datas;
+                return_data = replace_data;
             }
             continue;
         }
@@ -1606,7 +1606,7 @@ impl<T: Debug + 'static> WindowState<T> {
     /// it will return [None].
     ///
     ///
-    pub fn running<F>(mut self, mut event_hander: F) -> Result<(), LayerEventError>
+    pub fn running<F>(mut self, mut event_handler: F) -> Result<(), LayerEventError>
     where
         F: FnMut(LayerEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData,
     {
@@ -1624,16 +1624,16 @@ impl<T: Debug + 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_hander(LayerEvent::InitRequest, &mut self, None));
+                    init_event = Some(event_handler(LayerEvent::InitRequest, &mut self, None));
                 }
                 Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_hander(
+                    init_event = Some(event_handler(
                         LayerEvent::BindProvide(&globals, &qh),
                         &mut self,
                         None,
                     ));
                 }
-                _ => panic!("Not privide server here"),
+                _ => panic!("Not provide server here"),
             }
         }
         let mut event_loop: EventLoop<Self> =
@@ -1657,7 +1657,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         // I will use it in iced
                         if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
-                            let ReturnData::WlBuffer(buffer) = event_hander(
+                            let ReturnData::WlBuffer(buffer) = event_handler(
                                 LayerEvent::RequestBuffer(&mut file, &shm, &qh, *width, *height),
                                 &mut self,
                                 Some(index),
@@ -1668,7 +1668,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             surface.attach(Some(&buffer), 0, 0);
                             self.units[index].buffer = Some(buffer);
                         } else {
-                            event_hander(
+                            event_handler(
                                 LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                     width: *width,
                                     height: *height,
@@ -1682,7 +1682,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         surface.commit();
                     }
                     (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
-                        event_hander(
+                        event_handler(
                             LayerEvent::XdgInfoChanged(*change_type),
                             &mut self,
                             *index_info,
@@ -1749,7 +1749,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     _ => {
                         let (index_message, msg) = msg;
                         let msg: DispatchMessage = msg.clone().into();
-                        match event_hander(
+                        match event_handler(
                             LayerEvent::RequestMessages(&msg),
                             &mut self,
                             *index_message,
@@ -1791,7 +1791,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     }
                 }
             }
-            match event_hander(LayerEvent::NormalDispatch, &mut self, None) {
+            match event_handler(LayerEvent::NormalDispatch, &mut self, None) {
                 ReturnData::RequestExist => {
                     break 'out;
                 }

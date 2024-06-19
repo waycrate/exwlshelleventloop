@@ -202,7 +202,7 @@ where
     }
 }
 
-pub trait MutiApplication: Sized {
+pub trait MultiApplication: Sized {
     /// The [`Executor`] that will run commands and subscriptions.
     ///
     /// The [default executor] can be a good starting point!
@@ -320,18 +320,18 @@ pub trait MutiApplication: Sized {
             ..iced_renderer::Settings::default()
         };
 
-        multi_window::run::<MutiInstance<Self>, Self::Executor, iced_renderer::Compositor>(
+        multi_window::run::<MultiInstance<Self>, Self::Executor, iced_renderer::Compositor>(
             settings,
             renderer_settings,
         )
     }
 }
 
-struct MutiInstance<A: MutiApplication>(A);
+struct MultiInstance<A: MultiApplication>(A);
 
-impl<A> iced_runtime::multi_window::Program for MutiInstance<A>
+impl<A> iced_runtime::multi_window::Program for MultiInstance<A>
 where
-    A: MutiApplication,
+    A: MultiApplication,
 {
     type Message = A::Message;
     type Theme = A::Theme;
@@ -349,16 +349,16 @@ where
     }
 }
 
-impl<A> multi_window::Application for MutiInstance<A>
+impl<A> multi_window::Application for MultiInstance<A>
 where
-    A: MutiApplication,
+    A: MultiApplication,
 {
     type Flags = A::Flags;
 
     fn new(flags: Self::Flags) -> (Self, Command<A::Message>) {
         let (app, command) = A::new(flags);
 
-        (MutiInstance(app), command)
+        (MultiInstance(app), command)
     }
 
     fn namespace(&self) -> String {

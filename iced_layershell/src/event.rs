@@ -68,13 +68,13 @@ pub enum IcedLayerEvent<Message: 'static> {
 
 #[allow(unused)]
 #[derive(Debug)]
-pub struct MutiWindowIcedLayerEvent<Message: 'static>(pub Option<Id>, pub IcedLayerEvent<Message>);
+pub struct MultiWindowIcedLayerEvent<Message: 'static>(pub Option<Id>, pub IcedLayerEvent<Message>);
 
 impl<Message: 'static> From<(Option<Id>, IcedLayerEvent<Message>)>
-    for MutiWindowIcedLayerEvent<Message>
+    for MultiWindowIcedLayerEvent<Message>
 {
     fn from((id, message): (Option<Id>, IcedLayerEvent<Message>)) -> Self {
-        MutiWindowIcedLayerEvent(id, message)
+        MultiWindowIcedLayerEvent(id, message)
     }
 }
 

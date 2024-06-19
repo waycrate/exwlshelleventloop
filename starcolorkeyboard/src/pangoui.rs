@@ -18,7 +18,7 @@ use mainkeyboard::find_keycode_from_mainkeyboard;
 
 use super::KeyModifierType;
 
-use crate::consts::{EXCULDE_ZONE_RIGHT, EXCULDE_ZONE_TOP};
+use crate::consts::{EXCLUDE_ZONE_RIGHT, EXCLUDE_ZONE_TOP};
 
 #[derive(Debug, Default)]
 pub struct PangoUi {
@@ -86,16 +86,16 @@ impl PangoUi {
 
     pub fn get_key(&self, (pos_x, pos_y): (f64, f64)) -> Option<u32> {
         let (pos_x, pos_y) = (pos_x as i32, pos_y as i32);
-        let exclude_zone = EXCULDE_ZONE_TOP as i32;
+        let exclude_zone = EXCLUDE_ZONE_TOP as i32;
         let step = (self.height - exclude_zone) / 3;
         let x_1 = self.width - 4 * step;
         let x_4 = self.width - step;
-        let x_exclude = self.width - EXCULDE_ZONE_RIGHT as i32;
-        if pos_y < EXCULDE_ZONE_TOP as i32 {
+        let x_exclude = self.width - EXCLUDE_ZONE_RIGHT as i32;
+        if pos_y < EXCLUDE_ZONE_TOP as i32 {
             if pos_x < x_exclude {
                 return None;
             }
-            let step_right = EXCULDE_ZONE_TOP as i32;
+            let step_right = EXCLUDE_ZONE_TOP as i32;
             let right_w = pos_x - x_exclude;
             if right_w / step_right == 0 {
                 return Some(otherkeys::MIN_KEYBOARD);

@@ -4,7 +4,7 @@ use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{LayershellCustomActions, LayershellCustomActionsWithId};
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
-use iced_layershell::MutiApplication;
+use iced_layershell::MultiApplication;
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
@@ -39,7 +39,7 @@ enum Message {
     IcedEvent(Event),
 }
 
-impl MutiApplication for Counter {
+impl MultiApplication for Counter {
     type Message = Message;
     type Flags = ();
     type Theme = Theme;

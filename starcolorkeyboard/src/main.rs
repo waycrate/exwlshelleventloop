@@ -5,7 +5,7 @@ mod otherkeys;
 mod pangoui;
 use std::{ffi::CString, fs::File, io::Write, os::fd::AsFd, path::PathBuf};
 
-use consts::EXCULDE_ZONE_TOP;
+use consts::EXCLUDE_ZONE_TOP;
 use keyboardlayouts::Layouts;
 
 use layershellev::reexport::wayland_client::KeyState;
@@ -164,8 +164,8 @@ fn main() {
                         return ReturnData::None;
                     }
                     if is_min {
-                        windowunit.set_size((0, EXCULDE_ZONE_TOP as u32));
-                        windowunit.set_exclusive_zone(EXCULDE_ZONE_TOP as i32);
+                        windowunit.set_size((0, EXCLUDE_ZONE_TOP as u32));
+                        windowunit.set_exclusive_zone(EXCLUDE_ZONE_TOP as i32);
                     } else {
                         windowunit.set_size((0, 300));
                         windowunit.set_exclusive_zone(300);
@@ -216,8 +216,8 @@ fn main() {
                 otherkeys::CLOSE_KEYBOARD => ReturnData::RequestExist,
                 otherkeys::MIN_KEYBOARD => {
                     if is_min {
-                        windowunit.set_size((0, EXCULDE_ZONE_TOP as u32));
-                        windowunit.set_exclusive_zone(EXCULDE_ZONE_TOP as i32);
+                        windowunit.set_size((0, EXCLUDE_ZONE_TOP as u32));
+                        windowunit.set_exclusive_zone(EXCLUDE_ZONE_TOP as i32);
                     } else {
                         windowunit.set_size((0, 300));
                         windowunit.set_exclusive_zone(300);

@@ -6,7 +6,7 @@ use std::sync::OnceLock;
 
 use crate::KeyModifierType;
 
-use crate::consts::EXCULDE_ZONE_TOP;
+use crate::consts::EXCLUDE_ZONE_TOP;
 
 use super::contain_mode;
 
@@ -131,7 +131,7 @@ fn draw_unit_key(
         locked,
     }: DrawInfo,
 ) {
-    let exclude_zone = EXCULDE_ZONE_TOP;
+    let exclude_zone = EXCLUDE_ZONE_TOP;
     let start_x = step * start_pos as f64 / 2.0;
     let end_x = step * width as f64 / 2.0 + start_x;
     let start_y = step * line as f64 + exclude_zone;
@@ -169,7 +169,7 @@ pub(crate) fn draw_main_keyboard(
     font_size: i32,
     key_type: KeyModifierType,
 ) {
-    let exclude_zone = EXCULDE_ZONE_TOP;
+    let exclude_zone = EXCLUDE_ZONE_TOP;
     let step = (height - exclude_zone as i32) / 4;
 
     for oneline in get_main_layout().iter() {
@@ -184,7 +184,7 @@ pub(crate) fn draw_main_keyboard(
 }
 
 pub fn find_keycode_from_mainkeyboard((pos_x, pos_y): (i32, i32), step: i32) -> Option<u32> {
-    let exclude_zone = EXCULDE_ZONE_TOP;
+    let exclude_zone = EXCLUDE_ZONE_TOP;
     let main_layout = get_main_layout();
     let aby = (pos_y - exclude_zone as i32) / step;
     if aby >= main_layout.len() as i32 {

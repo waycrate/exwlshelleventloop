@@ -30,7 +30,7 @@ use layershellev::{
 use futures::{channel::mpsc, SinkExt, StreamExt};
 
 use crate::{
-    event::{IcedLayerEvent, MutiWindowIcedLayerEvent},
+    event::{IcedLayerEvent, MultiWindowIcedLayerEvent},
     proxy::IcedProxy,
     settings::Settings,
 };
@@ -179,7 +179,7 @@ where
     );
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<MutiWindowIcedLayerEvent<A::Message>>();
+        mpsc::unbounded::<MultiWindowIcedLayerEvent<A::Message>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayerShellActions>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
@@ -212,7 +212,7 @@ where
                 match message {
                     DispatchMessage::RequestRefresh { width, height } => {
                         event_sender
-                            .start_send(MutiWindowIcedLayerEvent(
+                            .start_send(MultiWindowIcedLayerEvent(
                                 id,
                                 IcedLayerEvent::RequestRefreshWithWrapper {
                                     width: *width,
@@ -238,7 +238,7 @@ where
                 }
 
                 event_sender
-                    .start_send(MutiWindowIcedLayerEvent(id, message.into()))
+                    .start_send(MultiWindowIcedLayerEvent(id, message.into()))
                     .expect("Cannot send");
             }
             LayerEvent::NormalDispatch => match &key_event {
@@ -247,12 +247,12 @@ where
                         let event = IcedLayerEvent::Window(*windowevent);
                         if key_ping_count > 70 && key_ping_count < 74 {
                             event_sender
-                                .start_send(MutiWindowIcedLayerEvent(id, event))
+                                .start_send(MultiWindowIcedLayerEvent(id, event))
                                 .expect("Cannot send");
                             key_ping_count = 0;
                         } else {
                             event_sender
-                                .start_send(MutiWindowIcedLayerEvent(
+                                .start_send(MultiWindowIcedLayerEvent(
                                     id,
                                     IcedLayerEvent::NormalUpdate,
                                 ))
@@ -267,13 +267,13 @@ where
                 }
                 None => {
                     event_sender
-                        .start_send(MutiWindowIcedLayerEvent(id, IcedLayerEvent::NormalUpdate))
+                        .start_send(MultiWindowIcedLayerEvent(id, IcedLayerEvent::NormalUpdate))
                         .expect("Cannot send");
                 }
             },
             LayerEvent::UserEvent(event) => {
                 event_sender
-                    .start_send(MutiWindowIcedLayerEvent(
+                    .start_send(MultiWindowIcedLayerEvent(
                         id,
                         IcedLayerEvent::UserEvent(event),
                     ))
@@ -342,7 +342,7 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
     mut proxy: IcedProxy<A::Message>,
     mut debug: Debug,
-    mut event_receiver: mpsc::UnboundedReceiver<MutiWindowIcedLayerEvent<A::Message>>,
+    mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<A::Message>>,
     mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions>>,
     mut window_manager: WindowManager<A, C>,
     init_command: Command<A::Message>,
@@ -403,7 +403,7 @@ async fn run_instance<A, E, C>(
     runtime.track(application.subscription().into_recipes());
     while let Some(event) = event_receiver.next().await {
         match event {
-            MutiWindowIcedLayerEvent(
+            MultiWindowIcedLayerEvent(
                 _id,
                 IcedLayerEvent::RequestRefreshWithWrapper {
                     width,
@@ -523,7 +523,7 @@ async fn run_instance<A, E, C>(
 
                 debug.render_finished();
             }
-            MutiWindowIcedLayerEvent(Some(id), IcedLayerEvent::Window(event)) => {
+            MultiWindowIcedLayerEvent(Some(id), IcedLayerEvent::Window(event)) => {
                 let Some((id, window)) = window_manager.get_mut_alias(id) else {
                     continue;
                 };
@@ -532,10 +532,10 @@ async fn run_instance<A, E, C>(
                     events.push((Some(id), event));
                 }
             }
-            MutiWindowIcedLayerEvent(_, IcedLayerEvent::UserEvent(event)) => {
+            MultiWindowIcedLayerEvent(_, IcedLayerEvent::UserEvent(event)) => {
                 messages.push(event);
             }
-            MutiWindowIcedLayerEvent(_, IcedLayerEvent::NormalUpdate) => {
+            MultiWindowIcedLayerEvent(_, IcedLayerEvent::NormalUpdate) => {
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }

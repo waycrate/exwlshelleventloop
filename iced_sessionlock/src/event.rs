@@ -57,6 +57,7 @@ pub enum IcedSessionLockEvent<Message: 'static> {
         height: u32,
         wrapper: WindowWrapper,
     },
+    #[allow(unused)]
     RequestRefresh {
         width: u32,
         height: u32,
@@ -67,16 +68,16 @@ pub enum IcedSessionLockEvent<Message: 'static> {
 }
 
 #[derive(Debug)]
-pub struct MutiWindowIcedSessionLockEvent<Message: 'static>(
+pub struct MultiWindowIcedSessionLockEvent<Message: 'static>(
     pub Option<Id>,
     pub IcedSessionLockEvent<Message>,
 );
 
 impl<Message: 'static> From<(Option<Id>, IcedSessionLockEvent<Message>)>
-    for MutiWindowIcedSessionLockEvent<Message>
+    for MultiWindowIcedSessionLockEvent<Message>
 {
     fn from((id, message): (Option<Id>, IcedSessionLockEvent<Message>)) -> Self {
-        MutiWindowIcedSessionLockEvent(id, message)
+        MultiWindowIcedSessionLockEvent(id, message)
     }
 }
 

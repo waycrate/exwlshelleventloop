@@ -1,6 +1,6 @@
 use cairo::Context;
 
-use crate::consts::{EXCULDE_ZONE_RIGHT, EXCULDE_ZONE_TOP};
+use crate::consts::{EXCLUDE_ZONE_RIGHT, EXCLUDE_ZONE_TOP};
 
 use super::contain_mode;
 use crate::KeyModifierType;
@@ -10,7 +10,7 @@ fn contain_shift(key_type: KeyModifierType) -> bool {
 }
 
 pub fn find_keycode_from_smallkeyboard((pos_x, pos_y): (i32, i32), start_x: i32, step: i32) -> u32 {
-    let exclude_zone = EXCULDE_ZONE_TOP as i32;
+    let exclude_zone = EXCLUDE_ZONE_TOP as i32;
     let abx = (pos_x - start_x) / step;
     let aby = (pos_y - exclude_zone) / step;
     let code = aby * 3 + abx + 2;
@@ -18,8 +18,8 @@ pub fn find_keycode_from_smallkeyboard((pos_x, pos_y): (i32, i32), start_x: i32,
 }
 
 fn draw_extra_btn(content: &Context, pangolayout: &pango::Layout, width: i32, font_size: i32) {
-    let step = EXCULDE_ZONE_RIGHT / 2.0;
-    let x_1 = width as f64 - EXCULDE_ZONE_RIGHT;
+    let step = EXCLUDE_ZONE_RIGHT / 2.0;
+    let x_1 = width as f64 - EXCLUDE_ZONE_RIGHT;
     let x_2 = width as f64 - step;
     let x_3 = width as f64;
     let y_1 = 0.0;
@@ -62,9 +62,9 @@ pub(super) fn draw_number_keyboard(
     key_type: KeyModifierType,
 ) {
     // NOTE: here require width > height
-    assert!(width - EXCULDE_ZONE_RIGHT as i32 > height);
+    assert!(width - EXCLUDE_ZONE_RIGHT as i32 > height);
 
-    let exclude_zone = EXCULDE_ZONE_RIGHT / 2.0;
+    let exclude_zone = EXCLUDE_ZONE_RIGHT / 2.0;
 
     let step = (height as f64 - exclude_zone) / 3.0;
     let x_1 = width as f64 - 4.0 * step;
