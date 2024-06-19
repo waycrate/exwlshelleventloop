@@ -158,7 +158,7 @@ fn draw_unit_key(
     let font_adjusty = step / 2.0 - font_size as f64;
     content.save().unwrap();
     content.move_to(start_x + font_adjusty, start_y);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 }
 

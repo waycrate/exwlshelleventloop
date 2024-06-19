@@ -43,13 +43,13 @@ fn draw_extra_btn(content: &Context, pangolayout: &pango::Layout, width: i32, fo
     pangolayout.set_text("-");
     content.save().unwrap();
     content.move_to(x_1 + font_adjustx, y_1);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     pangolayout.set_text("x");
     content.save().unwrap();
     content.move_to(x_2 + font_adjustx, y_1);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 }
 
@@ -112,7 +112,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_1 + font_adjustx, y_1 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -122,7 +122,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_2 + font_adjustx, y_1 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -132,7 +132,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_3 + font_adjustx, y_1 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -142,7 +142,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_1 + font_adjustx, y_2 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -152,7 +152,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_2 + font_adjustx, y_2 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -162,7 +162,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_3 + font_adjustx, y_2 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -172,7 +172,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_1 + font_adjustx, y_3 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -182,7 +182,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_2 + font_adjustx, y_3 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -192,7 +192,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_3 + font_adjustx, y_3 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -202,7 +202,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_4 + font_adjustx, y_1 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -212,7 +212,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_4 + font_adjustx, y_2 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     if shiftmode {
@@ -222,7 +222,7 @@ pub(super) fn draw_number_keyboard(
     }
     content.save().unwrap();
     content.move_to(x_4 + font_adjustx, y_3 + font_adjusty);
-    pangocairo::show_layout(content, pangolayout);
+    pangocairo::functions::show_layout(content, pangolayout);
     content.restore().unwrap();
 
     draw_extra_btn(content, pangolayout, width, font_size);

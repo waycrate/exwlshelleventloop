@@ -37,7 +37,7 @@ fn draw_title(context: &Context, pangolayout: &pango::Layout, width: i32) {
     let start_pos = (width - textwidth) / 2;
     context.save().unwrap();
     context.move_to(start_pos as f64, 0.0);
-    pangocairo::show_layout(context, pangolayout);
+    pangocairo::functions::show_layout(context, pangolayout);
     context.restore().unwrap()
 }
 
@@ -66,7 +66,7 @@ impl PangoUi {
         cr.paint().unwrap();
         cr.set_source_rgb(1_f64, 1_f64, 1_f64);
         let font_size = FONT_SIZE;
-        let pangolayout = pangocairo::create_layout(cr);
+        let pangolayout = pangocairo::functions::create_layout(cr);
         let mut desc = pango::FontDescription::new();
         desc.set_family(FONT_FAMILY);
         desc.set_weight(pango::Weight::Bold);
