@@ -896,25 +896,6 @@ dependencies = [
 
 [[package]]
 name = "gio"
-version = "0.18.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4fc8f532f87b79cbc51a79748f16a6828fb784be93145a322fa14d06d354c73"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-io",
- "futures-util",
- "gio-sys 0.18.1",
- "glib 0.18.5",
- "libc",
- "once_cell",
- "pin-project-lite",
- "smallvec",
- "thiserror",
-]
-
-[[package]]
-name = "gio"
 version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be548be810e45dd31d3bbb89c6210980bb7af9bca3ea1292b5f16b75f8e394a7"
@@ -1912,39 +1893,14 @@ dependencies = [
 
 [[package]]
 name = "pango"
-version = "0.18.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ca27ec1eb0457ab26f3036ea52229edbdb74dee1edd29063f5b9b010e7ebee4"
-dependencies = [
- "gio 0.18.4",
- "glib 0.18.5",
- "libc",
- "once_cell",
- "pango-sys 0.18.0",
-]
-
-[[package]]
-name = "pango"
 version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "504ce6e805439ea2c6791168fe7ef8e3da0c1b2ef82c44bc450dbc330592920d"
 dependencies = [
- "gio 0.19.5",
+ "gio",
  "glib 0.19.7",
  "libc",
- "pango-sys 0.19.5",
-]
-
-[[package]]
-name = "pango-sys"
-version = "0.18.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "436737e391a843e5933d6d9aa102cb126d501e815b83601365a948a518555dc5"
-dependencies = [
- "glib-sys 0.18.1",
- "gobject-sys 0.18.0",
- "libc",
- "system-deps",
+ "pango-sys",
 ]
 
 [[package]]
@@ -1968,7 +1924,7 @@ dependencies = [
  "cairo-rs 0.19.4",
  "glib 0.19.7",
  "libc",
- "pango 0.19.5",
+ "pango",
  "pangocairo-sys",
 ]
 
@@ -1981,7 +1937,7 @@ dependencies = [
  "cairo-sys-rs 0.19.2",
  "glib-sys 0.19.5",
  "libc",
- "pango-sys 0.19.5",
+ "pango-sys",
  "system-deps",
 ]
 
@@ -2542,7 +2498,7 @@ dependencies = [
  "cairo-rs 0.18.5",
  "layershellev",
  "memmap2 0.9.4",
- "pango 0.18.3",
+ "pango",
  "pangocairo",
  "serde",
  "serde_json",
