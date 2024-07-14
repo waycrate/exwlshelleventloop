@@ -914,7 +914,7 @@ impl<T: Debug + 'static> WindowState<T> {
             .expect("Failed to init Wayland Source");
 
         'out: loop {
-            event_loop.dispatch(Duration::from_millis(1), self).unwrap();
+            event_loop.dispatch(Duration::from_millis(1), self)?;
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut self.message);
             for msg in messages.iter() {
