@@ -213,39 +213,15 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cairo-rs"
-version = "0.19.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2ac2a4d0e69036cf0062976f6efcba1aaee3e448594e6514bb2ddf87acce562"
-dependencies = [
- "bitflags 2.6.0",
- "cairo-sys-rs 0.19.2",
- "glib 0.19.7",
- "libc",
- "thiserror",
-]
-
-[[package]]
-name = "cairo-rs"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "797fd5a634dcb0ad0d7d583df794deb0a236d88e759cd34b7da20198c6c9d145"
 dependencies = [
  "bitflags 2.6.0",
- "cairo-sys-rs 0.20.0",
+ "cairo-sys-rs",
  "glib 0.20.0",
  "libc",
  "thiserror",
-]
-
-[[package]]
-name = "cairo-sys-rs"
-version = "0.19.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd3bb3119664efbd78b5e6c93957447944f16bdbced84c17a9f41c7829b81e64"
-dependencies = [
- "glib-sys 0.19.5",
- "libc",
- "system-deps 6.2.0",
 ]
 
 [[package]]
@@ -905,6 +881,24 @@ dependencies = [
  "futures-util",
  "gio-sys 0.19.5",
  "glib 0.19.7",
+ "libc",
+ "pin-project-lite",
+ "smallvec",
+ "thiserror",
+]
+
+[[package]]
+name = "gio"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "398e3da68749fdc32783cbf7521ec3f65c9cf946db8c7774f8460af49e52c6e2"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-util",
+ "gio-sys 0.20.0",
+ "glib 0.20.0",
  "libc",
  "pin-project-lite",
  "smallvec",
@@ -1885,10 +1879,22 @@ version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "504ce6e805439ea2c6791168fe7ef8e3da0c1b2ef82c44bc450dbc330592920d"
 dependencies = [
- "gio",
+ "gio 0.19.5",
  "glib 0.19.7",
  "libc",
- "pango-sys",
+ "pango-sys 0.19.5",
+]
+
+[[package]]
+name = "pango"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54768854025df6903061d0084fd9702a253ddfd60db7d9b751d43b76689a7f0a"
+dependencies = [
+ "gio 0.20.0",
+ "glib 0.20.0",
+ "libc",
+ "pango-sys 0.20.0",
 ]
 
 [[package]]
@@ -1904,29 +1910,41 @@ dependencies = [
 ]
 
 [[package]]
-name = "pangocairo"
-version = "0.19.2"
+name = "pango-sys"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6620c77967c62c7a84c6ca15ab855e8eecb248beb8ee43bc0eeaadd39123f687"
+checksum = "b07cc57d10cee4ec661f718a6902cee18c2f4cfae08e87e5a390525946913390"
 dependencies = [
- "cairo-rs 0.19.4",
- "glib 0.19.7",
+ "glib-sys 0.20.0",
+ "gobject-sys 0.20.0",
  "libc",
- "pango",
+ "system-deps 7.0.1",
+]
+
+[[package]]
+name = "pangocairo"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "902cd6e53493a475f4524e7b3f4c09ef60ee87c7be16f08f1b41882fc74dac46"
+dependencies = [
+ "cairo-rs",
+ "glib 0.20.0",
+ "libc",
+ "pango 0.20.0",
  "pangocairo-sys",
 ]
 
 [[package]]
 name = "pangocairo-sys"
-version = "0.19.5"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d680caf5094d735c37312ce9166127a1d759d86a3d632b83d4a5354ee7568659"
+checksum = "bc23a5ea756e709ab1598f8446a64c799b10c99ec59aa2310965218bc1915853"
 dependencies = [
- "cairo-sys-rs 0.19.2",
- "glib-sys 0.19.5",
+ "cairo-sys-rs",
+ "glib-sys 0.20.0",
  "libc",
- "pango-sys",
- "system-deps 6.2.0",
+ "pango-sys 0.20.0",
+ "system-deps 7.0.1",
 ]
 
 [[package]]
@@ -2450,10 +2468,10 @@ name = "starcolorkeyboard"
 version = "0.2.0"
 dependencies = [
  "bitflags 2.6.0",
- "cairo-rs 0.20.0",
+ "cairo-rs",
  "layershellev",
  "memmap2 0.9.4",
- "pango",
+ "pango 0.19.5",
  "pangocairo",
  "serde",
  "serde_json",
