@@ -153,7 +153,7 @@ impl Application for Launcher {
             .on_submit(Message::SearchSubmit)
             .id(INPUT_ID.clone())
             .into();
-        let buttom_vec: Vec<Element<Message>> = self
+        let bottom_vec: Vec<Element<Message>> = self
             .apps
             .iter()
             .enumerate()
@@ -170,9 +170,9 @@ impl Application for Launcher {
             .filter(|(index, _)| *index >= self.scrollpos)
             .map(|(filter_index, (index, app))| app.view(index, filter_index == self.scrollpos))
             .collect();
-        let buttom: Element<Message> = scrollable(column(buttom_vec).width(Length::Fill))
+        let bottom: Element<Message> = scrollable(column(bottom_vec).width(Length::Fill))
             .id(SCROLLABLE_ID.clone())
             .into();
-        column![text_ip, buttom].into()
+        column![text_ip, bottom].into()
     }
 }
