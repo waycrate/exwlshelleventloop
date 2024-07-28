@@ -19,6 +19,8 @@ jobs:
             - uses: dtolnay/rust-toolchain@stable
               with:
                   targets: ${{ matrix.target }}
+            - name: Install Deps
+              run: sudo apt install -y libxkbcommon-dev
             - name: Run fmt check
               run: cargo fmt --all -- --check
             - name: Run clippy check
