@@ -46,3 +46,5 @@ jobs:
                    cargo publish -p iced_layershell --token ${{ secrets.CRATES_TOKEN }}
                    cargo publish -p iced_sessionlock --token ${{ secrets.CRATES_TOKEN }}
             - uses: softprops/action-gh-release@v2
+              with:
+                draft: true
