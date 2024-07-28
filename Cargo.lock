@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -563,7 +563,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "iced",
  "iced_runtime",
@@ -572,7 +572,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -1425,7 +1425,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "futures",
  "iced",
@@ -1467,7 +1467,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "futures",
  "iced",
@@ -1718,7 +1718,7 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "bitflags 2.6.0",
  "log",
@@ -2645,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "sessionlockev"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "bitflags 2.6.0",
  "log",
@@ -3129,7 +3129,7 @@ checksum = "17f77d76d837a7830fe1d4f12b7b4ba4192c1888001c7164257e4bc6d21d96b4"
 
 [[package]]
 name = "ulauncher"
-version = "0.2.5"
+version = "0.2.6"
 dependencies = [
  "gio 0.19.8",
  "iced",
