@@ -179,7 +179,7 @@ pub enum SessonLockEventError {
     #[error("Event Loop Error")]
     EventLoopInitError(#[from] CallLoopError),
     #[error("roundtrip Error")]
-    RoundTripError(#[from] WaylandError)
+    RoundTripError(#[from] WaylandError),
 }
 
 /// reexport the wayland objects which are needed
