@@ -928,8 +928,6 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 }
                 WEnum::Unknown(unknown) => {
                     log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-
-                    return;
                 }
             },
             wl_pointer::Event::AxisStop { time, axis } => match axis {
@@ -955,7 +953,6 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
 
                 WEnum::Unknown(unknown) => {
                     log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                    return;
                 }
             },
             wl_pointer::Event::AxisSource { axis_source } => match axis_source {
@@ -970,7 +967,6 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 )),
                 WEnum::Unknown(unknown) => {
                     log::warn!(target: "layershellev", "unknown pointer axis source: {:x}", unknown);
-                    return;
                 }
             },
             wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
@@ -1001,7 +997,6 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
 
                 WEnum::Unknown(unknown) => {
                     log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                    return;
                 }
             },
             wl_pointer::Event::Button {
