@@ -4,6 +4,8 @@ on:
     push:
         branches:
             - master
+        tags:
+            - v*
     pull_request:
         branches:
             - master
@@ -17,8 +19,6 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: ${{ matrix.target }}
             - name: Install Deps
               run: sudo apt install -y libxkbcommon-dev libpango1.0-dev
             - name: Run fmt check
@@ -27,3 +27,22 @@ jobs:
               run: cargo clippy
             - name: Run tests
               run: cargo test --verbose
+
+    release:
+        permissions:
+            contents: write
+        if: startsWith(github.ref, 'refs/tags/v')
+        needs:
+            - build
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/check@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Install Deps
+              run: sudo apt install -y libxkbcommon-dev libpango1.0-dev
+            - name: Publish to crate
+              run: cargo publish -p layershellev --token ${{ secrets.CRATES_TOKEN }}
+                   cargo publish -p sessionshellev --token ${{ secrets.CRATES_TOKEN }}
+                   cargo publish -p iced_layershell --token ${{ secrets.CRATES_TOKEN }}
+                   cargo publish -p iced_sessionlock --token ${{ secrets.CRATES_TOKEN }}
+            - uses: softprops/action-gh-release@v2
