@@ -24,6 +24,15 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &SessionLockEvent) ->
             IcedButtonState::Pressed => mouse::Event::ButtonPressed(mouse::Button::Left),
             IcedButtonState::Released => mouse::Event::ButtonReleased(mouse::Button::Left),
         })),
+        SessionLockEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Lines { x: *x, y: *y },
+        })),
+
+        SessionLockEvent::PixelDelta { x, y } => {
+            Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
+                delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
+            }))
+        }
         SessionLockEvent::Keyboard {
             state,
             key,

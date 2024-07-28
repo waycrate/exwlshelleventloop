@@ -19,8 +19,8 @@
 //!         println!("{:?}", event);
 //!         match event {
 //!             // NOTE: this will send when init, you can request bind extra object from here
-//!             LayerEvent::InitRequest => ReturnData::RequestBind,
-//!             LayerEvent::BindProvide(globals, qh) => {
+//!             SessionLockEvent::InitRequest => ReturnData::RequestBind,
+//!             SessionLockEvent::BindProvide(globals, qh) => {
 //!                 // NOTE: you can get implied wayland object from here
 //!                 virtual_keyboard_manager = Some(
 //!                     globals
@@ -32,9 +32,9 @@
 //!                         .unwrap(),
 //!                 );
 //!                 println!("{:?}", virtual_keyboard_manager);
-//!                 ReturnData::RequestLock
+//!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+//!             SessionLockEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
 //!                 draw(file, (init_w, init_h));
 //!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
 //!                 ReturnData::WlBuffer(pool.create_buffer(
@@ -47,25 +47,25 @@
 //!                     (),
 //!                 ))
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+//!             SessionLockEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
 //!                 println!("{width}, {height}");
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-//!             LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
+//!             SessionLockEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+//!             SessionLockEvent::RequestMessages(DispatchMessage::MouseEnter {
 //!                 serial, pointer, ..
 //!             }) => ReturnData::RequestSetCursorShape((
 //!                 "crosshair".to_owned(),
 //!                 pointer.clone(),
 //!                 *serial,
 //!             )),
-//!             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
+//!             SessionLockEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
 //!                 if *key == ESC_KEY {
 //!                     return ReturnData::RequestUnlockAndExist;
 //!                 }
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!             SessionLockEvent::RequestMessages(DispatchMessage::MouseMotion {
 //!                 time,
 //!                 surface_x,
 //!                 surface_y,
@@ -110,7 +110,7 @@ use strtoshape::str_to_shape;
 
 use std::fmt::Debug;
 
-use events::DispatchMessageInner;
+use events::{AxisScroll, DispatchMessageInner};
 
 pub use events::{DispatchMessage, ReturnData, SessionLockEvent};
 
@@ -651,6 +651,108 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
+            wl_pointer::Event::Axis { time, axis, value } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => {
+                            vertical.absolute = value;
+                        }
+                        wl_pointer::Axis::HorizontalScroll => {
+                            horizontal.absolute = value;
+                        }
+                        _ => unreachable!(),
+                    };
+
+                    state.message.push((
+                        state.surface_pos(),
+                        DispatchMessageInner::Axis {
+                            time,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ))
+                }
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "sessionlockev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+
+                    return;
+                }
+            },
+            wl_pointer::Event::AxisStop { time, axis } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => vertical.stop = true,
+                        wl_pointer::Axis::HorizontalScroll => horizontal.stop = true,
+
+                        _ => unreachable!(),
+                    }
+
+                    state.message.push((
+                        state.surface_pos(),
+                        DispatchMessageInner::Axis {
+                            time,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ));
+                }
+
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "sessionlockev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    return;
+                }
+            },
+            wl_pointer::Event::AxisSource { axis_source } => match axis_source {
+                WEnum::Value(source) => state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::Axis {
+                        horizontal: AxisScroll::default(),
+                        vertical: AxisScroll::default(),
+                        source: Some(source),
+                        time: 0,
+                    },
+                )),
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "sessionlockev", "unknown pointer axis source: {:x}", unknown);
+                    return;
+                }
+            },
+            wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => {
+                            vertical.discrete = discrete;
+                        }
+
+                        wl_pointer::Axis::HorizontalScroll => {
+                            horizontal.discrete = discrete;
+                        }
+
+                        _ => unreachable!(),
+                    };
+
+                    state.message.push((
+                        state.surface_pos(),
+                        DispatchMessageInner::Axis {
+                            time: 0,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ));
+                }
+
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "sessionlockev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    return;
+                }
+            },
+
             wl_pointer::Event::Button {
                 state: btnstate,
                 serial,

@@ -4,7 +4,7 @@ use wayland_client::{
         wl_buffer::WlBuffer,
         wl_keyboard::KeyState,
         wl_output::WlOutput,
-        wl_pointer::{ButtonState, WlPointer},
+        wl_pointer::{self, ButtonState, WlPointer},
         wl_shm::WlShm,
     },
     QueueHandle, WEnum,
@@ -76,6 +76,24 @@ pub enum XdgInfoChangedType {
     Size,
 }
 
+/// Describes a scroll along one axis
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct AxisScroll {
+    /// The scroll measured in pixels.
+    pub absolute: f64,
+
+    /// The scroll measured in steps.
+    ///
+    /// Note: this might always be zero if the scrolling is due to a touchpad or other continuous
+    /// source.
+    pub discrete: i32,
+
+    /// The scroll was stopped.
+    ///
+    /// Generally this is encountered when hardware indicates the end of some continuous scrolling.
+    pub stop: bool,
+}
+
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub(crate) enum DispatchMessageInner {
@@ -97,6 +115,12 @@ pub(crate) enum DispatchMessageInner {
         time: u32,
         surface_x: f64,
         surface_y: f64,
+    },
+    Axis {
+        time: u32,
+        horizontal: AxisScroll,
+        vertical: AxisScroll,
+        source: Option<wl_pointer::AxisSource>,
     },
     TouchDown {
         serial: u32,
@@ -158,6 +182,12 @@ pub enum DispatchMessage {
         time: u32,
         surface_x: f64,
         surface_y: f64,
+    },
+    Axis {
+        time: u32,
+        horizontal: AxisScroll,
+        vertical: AxisScroll,
+        source: Option<wl_pointer::AxisSource>,
     },
     /// forward the event of wayland-touch
     TouchDown {
@@ -269,6 +299,17 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::RequestRefresh { width, height } => {
                 DispatchMessage::RequestRefresh { width, height }
             }
+            DispatchMessageInner::Axis {
+                time,
+                horizontal,
+                vertical,
+                source,
+            } => DispatchMessage::Axis {
+                time,
+                horizontal,
+                vertical,
+                source,
+            },
             DispatchMessageInner::PrefredScale(scale) => DispatchMessage::PrefredScale(scale),
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
             DispatchMessageInner::XdgInfoChanged(_) => unimplemented!(),

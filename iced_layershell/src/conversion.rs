@@ -24,6 +24,15 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
             IcedButtonState::Pressed => mouse::Event::ButtonPressed(mouse::Button::Left),
             IcedButtonState::Released => mouse::Event::ButtonReleased(mouse::Button::Left),
         })),
+        LayerShellEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Lines { x: *x, y: *y },
+        })),
+
+        LayerShellEvent::PixelDelta { x, y } => {
+            Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
+                delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
+            }))
+        }
         LayerShellEvent::Keyboard {
             state,
             key,

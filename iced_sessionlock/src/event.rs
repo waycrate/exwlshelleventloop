@@ -48,6 +48,14 @@ pub enum WindowEvent {
         key: u32,
         modifiers: IcedModifiers,
     },
+    Axis {
+        x: f32,
+        y: f32,
+    },
+    PixelDelta {
+        x: f32,
+        y: f32,
+    },
 }
 
 #[derive(Debug)]
@@ -126,6 +134,26 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                 key: *key,
                 modifiers: modifier_from_layershell_to_iced(*modifier),
             }),
+            DispatchMessage::Axis {
+                horizontal,
+                vertical,
+                ..
+            } => {
+                if horizontal.stop && vertical.stop {
+                    return Self::NormalUpdate;
+                }
+                let has_scroll = vertical.discrete != 0 || horizontal.discrete != 0;
+                if has_scroll {
+                    return IcedSessionLockEvent::Window(WindowEvent::Axis {
+                        x: -horizontal.discrete as f32,
+                        y: -vertical.discrete as f32,
+                    });
+                }
+                IcedSessionLockEvent::Window(WindowEvent::Axis {
+                    x: -horizontal.absolute as f32,
+                    y: -vertical.absolute as f32,
+                })
+            }
             _ => Self::NormalUpdate,
         }
     }

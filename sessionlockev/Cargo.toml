@@ -31,3 +31,4 @@ bitflags.workspace = true
 rwh_06.workspace = true
 
 sctk.workspace = true
+log.workspace = true

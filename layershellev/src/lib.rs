@@ -34,7 +34,6 @@
 //!
 //!     let mut virtual_keyboard_manager = None;
 //!     ev.running(|event, ev, index| {
-//!         println!("{:?}", event);
 //!         match event {
 //!             // NOTE: this will send when init, you can request bind extra object from here
 //!             LayerEvent::InitRequest => ReturnData::RequestBind,
@@ -170,7 +169,7 @@ pub mod id;
 
 pub mod key;
 
-pub use events::{DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
+pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use key::KeyModifierType;
 use strtoshape::str_to_shape;
@@ -904,6 +903,107 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
+            wl_pointer::Event::Axis { time, axis, value } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => {
+                            vertical.absolute = value;
+                        }
+                        wl_pointer::Axis::HorizontalScroll => {
+                            horizontal.absolute = value;
+                        }
+                        _ => unreachable!(),
+                    };
+
+                    state.message.push((
+                        state.surface_pos(),
+                        DispatchMessageInner::Axis {
+                            time,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ))
+                }
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+
+                    return;
+                }
+            },
+            wl_pointer::Event::AxisStop { time, axis } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => vertical.stop = true,
+                        wl_pointer::Axis::HorizontalScroll => horizontal.stop = true,
+
+                        _ => unreachable!(),
+                    }
+
+                    state.message.push((
+                        state.surface_pos(),
+                        DispatchMessageInner::Axis {
+                            time,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ));
+                }
+
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    return;
+                }
+            },
+            wl_pointer::Event::AxisSource { axis_source } => match axis_source {
+                WEnum::Value(source) => state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::Axis {
+                        horizontal: AxisScroll::default(),
+                        vertical: AxisScroll::default(),
+                        source: Some(source),
+                        time: 0,
+                    },
+                )),
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "layershellev", "unknown pointer axis source: {:x}", unknown);
+                    return;
+                }
+            },
+            wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => {
+                            vertical.discrete = discrete;
+                        }
+
+                        wl_pointer::Axis::HorizontalScroll => {
+                            horizontal.discrete = discrete;
+                        }
+
+                        _ => unreachable!(),
+                    };
+
+                    state.message.push((
+                        state.surface_pos(),
+                        DispatchMessageInner::Axis {
+                            time: 0,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ));
+                }
+
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    return;
+                }
+            },
             wl_pointer::Event::Button {
                 state: btnstate,
                 serial,
