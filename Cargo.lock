@@ -1452,8 +1452,11 @@ dependencies = [
  "iced_runtime",
  "iced_style",
  "layershellev",
+ "memmap2 0.9.4",
+ "once_cell",
  "thiserror",
  "tracing",
+ "xkbcommon-dl",
 ]
 
 [[package]]
@@ -1738,6 +1741,8 @@ version = "0.2.7"
 dependencies = [
  "bitflags 2.6.0",
  "log",
+ "memmap2 0.9.4",
+ "once_cell",
  "raw-window-handle",
  "smithay-client-toolkit 0.18.1",
  "tempfile",
@@ -1748,6 +1753,7 @@ dependencies = [
  "wayland-protocols 0.31.2",
  "wayland-protocols-misc",
  "wayland-protocols-wlr 0.2.0",
+ "xkbcommon-dl",
 ]
 
 [[package]]

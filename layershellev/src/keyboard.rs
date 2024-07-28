@@ -122,4 +122,3 @@ pub struct ModifiersState {
     logo: bool,
     num_lock: bool,
 }
-
