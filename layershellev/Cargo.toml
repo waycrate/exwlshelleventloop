@@ -35,5 +35,5 @@ sctk.workspace = true
 log.workspace = true
 
 memmap2 = "0.9.4"
-once_cell = "1.19.0"
 xkbcommon-dl = "0.4.2"
+smol_str = "0.2.2"
