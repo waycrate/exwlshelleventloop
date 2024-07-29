@@ -1453,7 +1453,6 @@ dependencies = [
  "iced_style",
  "layershellev",
  "memmap2 0.9.4",
- "once_cell",
  "thiserror",
  "tracing",
  "xkbcommon-dl",
