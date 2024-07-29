@@ -9,10 +9,10 @@ use iced_layershell::Application;
 use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
-static SCROLLABLE_ID: Lazy<scrollable::Id> = Lazy::new(scrollable::Id::unique);
-static INPUT_ID: Lazy<text_input::Id> = Lazy::new(text_input::Id::unique);
+static SCROLLABLE_ID: LazyLock<scrollable::Id> = LazyLock::new(scrollable::Id::unique);
+static INPUT_ID: LazyLock<text_input::Id> = LazyLock::new(text_input::Id::unique);
 
 fn main() -> Result<(), iced_layershell::Error> {
     Launcher::run(Settings {

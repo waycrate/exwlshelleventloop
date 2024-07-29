@@ -25,5 +25,4 @@ iced_layershell.workspace = true
 gio = "0.19.2"
 regex = "1.10.3"
 xdg = "2.5.2"
-once_cell = "1.19.0"
 tracing = "0.1.40"
