@@ -173,6 +173,7 @@ pub mod key;
 pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use key::KeyModifierType;
+use keyboard::KeyboardState;
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
@@ -503,7 +504,8 @@ pub struct WindowState<T: Debug> {
 
     // base managers
     seat: Option<WlSeat>,
-    keyboard: Option<WlKeyboard>,
+    keyboard_state: Option<KeyboardState>,
+
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
 
@@ -560,7 +562,7 @@ impl<T: Debug> WindowState<T> {
 
     /// get the keyboard
     pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
-        self.keyboard.as_ref()
+        Some(&self.keyboard_state.as_ref()?.keyboard)
     }
 
     /// get the pointer
@@ -709,7 +711,7 @@ impl<T: Debug> Default for WindowState<T> {
             fractional_scale_manager: None,
 
             seat: None,
-            keyboard: None,
+            keyboard_state: None,
             pointer: None,
             touch: None,
 
@@ -804,7 +806,7 @@ impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
         } = event
         {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                state.keyboard = Some(seat.get_keyboard(qh, ()));
+                state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
             }
             if capabilities.contains(wl_seat::Capability::Pointer) {
                 state.pointer = Some(seat.get_pointer(qh, ()));
@@ -825,17 +827,23 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        use keyboard::*;
+        let keyboard_state = state.keyboard_state.as_mut().unwrap();
         match event {
-            wl_keyboard::Event::Keymap { format, fd, size } => {
-                if !matches!(format, WEnum::Value(KeymapFormat::XkbV1)) {
-                    return;
+            wl_keyboard::Event::Keymap { format, fd, size } => match format {
+                WEnum::Value(KeymapFormat::XkbV1) => {
+                    let context = &mut keyboard_state.xkb_context;
+                    context.set_keymap_from_fd(fd, size as usize)
                 }
-                println!("it is {format:?}, {fd:?}, {size}");
-                let context = XkbContext::new();
-                let keymap = XkbKeymap::from_fd(&context, fd, size as usize).unwrap();
-                let state = XkbState::new_wayland(&keymap).unwrap();
-                println!("{state:?}");
+                WEnum::Value(KeymapFormat::NoKeymap) => {
+                    log::warn!("non-xkb compatible keymap")
+                }
+                _ => unreachable!(),
+            },
+            wl_keyboard::Event::Leave { serial, surface } => {
+                // NOTE: clear modifier
+            }
+            wl_keyboard::Event::RepeatInfo { rate, delay } => {
+                // NOTE: RepeatInfo
             }
             wl_keyboard::Event::Key {
                 state: keystate,
