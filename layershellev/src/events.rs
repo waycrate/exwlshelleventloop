@@ -10,7 +10,10 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::key::KeyModifierType;
+use crate::{
+    key::KeyModifierType,
+    xkb_keyboard::{KeyEvent, ModifiersState, ModifiersStateXkb},
+};
 
 use super::WindowState;
 
@@ -147,6 +150,21 @@ pub(crate) enum DispatchMessageInner {
         key: u32,
         time: u32,
     },
+    ModifiersChanged(ModifiersState),
+    KeyboardInput {
+        event: KeyEvent,
+
+        /// If `true`, the event was generated synthetically by winit
+        /// in one of the following circumstances:
+        ///
+        /// * Synthetic key press events are generated for all keys pressed when a window gains
+        ///   focus. Likewise, synthetic key release events are generated for all keys pressed when
+        ///   a window goes out of focus. ***Currently, this is only functional on X11 and
+        ///   Windows***
+        ///
+        /// Otherwise, this value is always `false`.
+        is_synthetic: bool,
+    },
     RefreshSurface {
         width: u32,
         height: u32,
@@ -217,6 +235,21 @@ pub enum DispatchMessage {
         serial: u32,
         key: u32,
         time: u32,
+    },
+    ModifiersChanged(ModifiersState),
+    KeyboardInput {
+        event: KeyEvent,
+
+        /// If `true`, the event was generated synthetically by winit
+        /// in one of the following circumstances:
+        ///
+        /// * Synthetic key press events are generated for all keys pressed when a window gains
+        ///   focus. Likewise, synthetic key release events are generated for all keys pressed when
+        ///   a window goes out of focus. ***Currently, this is only functional on X11 and
+        ///   Windows***
+        ///
+        /// Otherwise, this value is always `false`.
+        is_synthetic: bool,
     },
     /// this will request to do refresh the whole screen, because the layershell tell that a new
     /// configure happened
@@ -309,6 +342,16 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 horizontal,
                 vertical,
                 source,
+            },
+            DispatchMessageInner::ModifiersChanged(modifier) => {
+                DispatchMessage::ModifiersChanged(modifier)
+            }
+            DispatchMessageInner::KeyboardInput {
+                event,
+                is_synthetic,
+            } => DispatchMessage::KeyboardInput {
+                event,
+                is_synthetic,
             },
             DispatchMessageInner::PrefredScale(scale) => DispatchMessage::PrefredScale(scale),
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),

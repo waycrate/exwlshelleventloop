@@ -159,8 +159,10 @@
 //!
 
 mod events;
-mod keyboard;
+pub mod keyboard;
+mod keymap;
 mod strtoshape;
+mod xkb_keyboard;
 
 use std::fmt::Debug;
 
@@ -173,7 +175,6 @@ pub mod key;
 pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use key::KeyModifierType;
-use keyboard::KeyboardState;
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
@@ -194,6 +195,7 @@ use wayland_client::{
     },
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
+pub use xkb_keyboard::*;
 
 use sctk::reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource};
 
@@ -839,11 +841,11 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 }
                 _ => unreachable!(),
             },
-            wl_keyboard::Event::Leave { serial, surface } => {
-                // NOTE: clear modifier
-            }
-            wl_keyboard::Event::RepeatInfo { rate, delay } => {
-                // NOTE: RepeatInfo
+            wl_keyboard::Event::Leave { .. } => {
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
+                ));
             }
             wl_keyboard::Event::Key {
                 state: keystate,
@@ -851,6 +853,18 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 key,
                 time,
             } => {
+
+                let key = key + 8;
+                if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
+                    let event = key_context.process_key_event(key, ElementState::Released, false);
+                    let event = DispatchMessageInner::KeyboardInput {
+                        event,
+                        is_synthetic: false,
+                    };
+                    state.message.push((state.surface_pos(), event));
+                }
+
+                // REMOVE it later
                 state.message.push((
                     state.surface_pos(),
                     DispatchMessageInner::KeyBoard {

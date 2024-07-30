@@ -221,7 +221,7 @@ where
             LayerEvent::NormalDispatch => match &key_event {
                 Some(keyevent) => {
                     if let IcedLayerEvent::Window(windowevent) = keyevent {
-                        let event = IcedLayerEvent::Window(*windowevent);
+                        let event = IcedLayerEvent::Window(windowevent.clone());
                         if key_ping_count > 70 && key_ping_count < 74 {
                             event_sender.start_send(event).expect("Cannot send");
                             key_ping_count = 0;
