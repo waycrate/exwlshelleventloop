@@ -8,6 +8,7 @@
 //!
 //! use sessionlockev::reexport::*;
 //! use sessionlockev::*;
+//! use sessionlockev::keyboard::{KeyCode, PhysicalKey};
 //!
 //! const ESC_KEY: u32 = 1;
 //!
@@ -59,12 +60,13 @@
 //!                 pointer.clone(),
 //!                 *serial,
 //!             )),
-//!             SessionLockEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
-//!                 if *key == ESC_KEY {
-//!                     return ReturnData::RequestUnlockAndExist;
-//!                 }
-//!                 ReturnData::None
-//!             }
+//!             SessionLockEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+//!                    ReturnData::RequestUnlockAndExist
+//!                } else {
+//!                    ReturnData::None
+//!                }
+//!            }
 //!             SessionLockEvent::RequestMessages(DispatchMessage::MouseMotion {
 //!                 time,
 //!                 surface_x,

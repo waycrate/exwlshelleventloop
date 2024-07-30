@@ -1,10 +1,9 @@
 use std::fs::File;
 use std::os::fd::AsFd;
 
+use sessionlockev::keyboard::{KeyCode, PhysicalKey};
 use sessionlockev::reexport::*;
 use sessionlockev::*;
-
-const ESC_KEY: u32 = 1;
 
 fn main() {
     let mut ev: WindowState<()> = WindowState::new().build().unwrap();
@@ -61,11 +60,12 @@ fn main() {
                 pointer.clone(),
                 *serial,
             )),
-            SessionLockEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
-                if *key == ESC_KEY {
-                    return ReturnData::RequestUnlockAndExist;
+            SessionLockEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+                    ReturnData::RequestUnlockAndExist
+                } else {
+                    ReturnData::None
                 }
-                ReturnData::None
             }
             SessionLockEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
