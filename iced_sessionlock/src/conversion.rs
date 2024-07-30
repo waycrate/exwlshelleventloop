@@ -1,14 +1,23 @@
 mod keymap;
 
 use crate::event::IcedButtonState;
-use crate::event::IcedKeyState;
 use crate::event::WindowEvent as SessionLockEvent;
-use keymap::{key_from_u32, text_from_key};
+use iced_core::SmolStr;
+use keymap::key;
+use sessionlockev::keyboard::KeyLocation;
+use sessionlockev::xkb_keyboard::ElementState;
+use sessionlockev::xkb_keyboard::KeyEvent as SessionLockKeyEvent;
 
 use iced_core::{keyboard, mouse, Event as IcedEvent};
+use sessionlockev::keyboard::ModifiersState;
 
 #[allow(unused)]
-pub fn window_event(id: iced_core::window::Id, layerevent: &SessionLockEvent) -> Option<IcedEvent> {
+pub fn window_event(
+    id: iced_core::window::Id,
+    layerevent: &SessionLockEvent,
+
+    modifiers: ModifiersState,
+) -> Option<IcedEvent> {
     match layerevent {
         SessionLockEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
         SessionLockEvent::CursorMoved { x, y } => {
@@ -33,27 +42,39 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &SessionLockEvent) ->
                 delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
             }))
         }
-        SessionLockEvent::Keyboard {
-            state,
-            key,
-            modifiers,
-        } => {
-            let key = key_from_u32(*key);
-            let text = text_from_key(&key);
+
+        SessionLockEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
+            let logical_key = event.key_without_modifiers();
+            let text = event
+                .text_with_all_modifiers()
+                .map(SmolStr::new)
+                .filter(|text| !text.as_str().chars().any(is_private_use));
+            let SessionLockKeyEvent {
+                state, location, ..
+            } = event;
+            let key = key(logical_key);
+            let modifiers = keymap::modifiers(modifiers);
+
+            let location = match location {
+                KeyLocation::Standard => keyboard::Location::Standard,
+                KeyLocation::Left => keyboard::Location::Left,
+                KeyLocation::Right => keyboard::Location::Right,
+                KeyLocation::Numpad => keyboard::Location::Numpad,
+            };
             match state {
-                IcedKeyState::Pressed => Some(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
+                ElementState::Pressed => keyboard::Event::KeyPressed {
                     key,
-                    location: keyboard::Location::Standard,
-                    modifiers: *modifiers,
+                    location,
+                    modifiers,
                     text,
-                })),
-                IcedKeyState::Released => Some(IcedEvent::Keyboard(keyboard::Event::KeyReleased {
+                },
+                ElementState::Released => keyboard::Event::KeyReleased {
                     key,
-                    location: keyboard::Location::Standard,
-                    modifiers: *modifiers,
-                })),
+                    location,
+                    modifiers,
+                },
             }
-        }
+        })),
         _ => None,
     }
 }
@@ -75,7 +96,6 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
     }
 }
 
-#[allow(unused)]
 fn is_private_use(c: char) -> bool {
     ('\u{E000}'..='\u{F8FF}').contains(&c)
 }

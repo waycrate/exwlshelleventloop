@@ -2800,8 +2800,10 @@ version = "0.2.7"
 dependencies = [
  "bitflags 2.6.0",
  "log",
+ "memmap2 0.9.4",
  "raw-window-handle",
  "smithay-client-toolkit 0.18.1",
+ "smol_str",
  "tempfile",
  "thiserror",
  "wayland-backend",
@@ -2810,6 +2812,7 @@ dependencies = [
  "wayland-protocols 0.31.2",
  "wayland-protocols-misc",
  "wayland-protocols-wlr 0.2.0",
+ "xkbcommon-dl",
 ]
 
 [[package]]

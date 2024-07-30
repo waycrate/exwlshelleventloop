@@ -34,6 +34,6 @@ sctk.workspace = true
 
 log.workspace = true
 
-memmap2 = "0.9.4"
-xkbcommon-dl = "0.4.2"
-smol_str = "0.2.2"
+xkbcommon-dl.workspace = true
+smol_str.workspace = true
+memmap2.workspace = true

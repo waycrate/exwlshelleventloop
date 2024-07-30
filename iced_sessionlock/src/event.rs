@@ -1,6 +1,7 @@
 use sessionlockev::id::Id;
-use sessionlockev::key::KeyModifierType;
+use sessionlockev::keyboard::ModifiersState;
 use sessionlockev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
+use sessionlockev::xkb_keyboard::KeyEvent as SessionLockEvent;
 use sessionlockev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
@@ -26,11 +27,7 @@ impl From<WEnum<KeyState>> for IcedKeyState {
     }
 }
 
-fn modifier_from_layershell_to_iced(modifier: KeyModifierType) -> IcedModifiers {
-    IcedModifiers::from_bits(modifier.bits()).unwrap_or(IcedModifiers::empty())
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum WindowEvent {
     ScaleChanged(u32),
     CursorEnter {
@@ -48,6 +45,11 @@ pub enum WindowEvent {
         key: u32,
         modifiers: IcedModifiers,
     },
+    KeyBoardInput {
+        event: SessionLockEvent,
+        is_synthetic: bool,
+    },
+    ModifiersChanged(ModifiersState),
     Axis {
         x: f32,
         y: f32,
@@ -124,16 +126,16 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
             DispatchMessage::PrefredScale(scale) => {
                 IcedSessionLockEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
-            DispatchMessage::KeyBoard {
-                state,
-                key,
-                modifier,
-                ..
-            } => IcedSessionLockEvent::Window(WindowEvent::Keyboard {
-                state: (*state).into(),
-                key: *key,
-                modifiers: modifier_from_layershell_to_iced(*modifier),
+            DispatchMessage::KeyboardInput {
+                event,
+                is_synthetic,
+            } => IcedSessionLockEvent::Window(WindowEvent::KeyBoardInput {
+                event: event.clone(),
+                is_synthetic: *is_synthetic,
             }),
+            DispatchMessage::ModifiersChanged(modifiers) => {
+                IcedSessionLockEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
+            }
             DispatchMessage::Axis {
                 horizontal,
                 vertical,

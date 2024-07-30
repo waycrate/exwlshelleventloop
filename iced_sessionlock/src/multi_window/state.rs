@@ -2,6 +2,7 @@ use crate::multi_window::Application;
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
 use iced_style::application::{self, StyleSheet};
+use sessionlockev::keyboard::ModifiersState;
 
 use crate::event::WindowEvent;
 use iced::window;
@@ -17,6 +18,7 @@ where
     theme: A::Theme,
     appearance: application::Appearance,
     mouse_position: Option<Point>,
+    modifiers: ModifiersState,
 }
 
 impl<A: Application> State<A>
@@ -38,9 +40,12 @@ where
             theme,
             appearance,
             mouse_position: None,
+            modifiers: ModifiersState::default(),
         }
     }
-
+    pub fn modifiers(&self) -> ModifiersState {
+        self.modifiers
+    }
     pub fn update_view_port(&mut self, width: u32, height: u32) {
         self.viewport = Viewport::with_physical_size(
             iced_core::Size::new(width, height),
