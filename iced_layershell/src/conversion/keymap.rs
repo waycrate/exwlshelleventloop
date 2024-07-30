@@ -430,7 +430,7 @@ pub fn key(key: layershellev::keyboard::Key) -> iced_core::keyboard::Key {
 }
 
 pub fn modifiers(
-    modifiers: layershellev::keyboard::ModifiersState,
+    modifiers: layershellev::ModifiersState,
 ) -> iced_core::keyboard::Modifiers {
     use iced_core::keyboard;
     let mut result = keyboard::Modifiers::empty();

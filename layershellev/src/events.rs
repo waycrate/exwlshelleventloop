@@ -12,7 +12,7 @@ use wayland_client::{
 
 use crate::{
     key::KeyModifierType,
-    xkb_keyboard::{KeyEvent, ModifiersState, ModifiersStateXkb},
+    xkb_keyboard::{KeyEvent, ModifiersState},
 };
 
 use super::WindowState;

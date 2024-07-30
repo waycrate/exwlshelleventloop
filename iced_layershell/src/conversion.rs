@@ -6,11 +6,19 @@ use crate::event::WindowEvent as LayerShellEvent;
 use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
 use keymap::key;
+use keymap::modifiers;
 use keymap::{key_from_u32, text_from_key};
+use layershellev::keyboard::KeyLocation;
+use layershellev::ElementState;
 use layershellev::KeyEvent as LayerShellKeyEvent;
+use layershellev::ModifiersState;
 
 #[allow(unused)]
-pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> Option<IcedEvent> {
+pub fn window_event(
+    id: iced_core::window::Id,
+    layerevent: &LayerShellEvent,
+    modifiers: ModifiersState,
+) -> Option<IcedEvent> {
     match layerevent {
         LayerShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
         LayerShellEvent::CursorMoved { x, y } => {
@@ -35,28 +43,7 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
                 delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
             }))
         }
-        LayerShellEvent::Keyboard {
-            state,
-            key,
-            modifiers,
-        } => {
-            let key = key_from_u32(*key);
-            let text = text_from_key(&key);
-            match state {
-                IcedKeyState::Pressed => Some(IcedEvent::Keyboard(keyboard::Event::KeyPressed {
-                    key,
-                    location: keyboard::Location::Standard,
-                    modifiers: *modifiers,
-                    text,
-                })),
-                IcedKeyState::Released => Some(IcedEvent::Keyboard(keyboard::Event::KeyReleased {
-                    key,
-                    location: keyboard::Location::Standard,
-                    modifiers: *modifiers,
-                })),
-            }
-        }
-        LayerShellEvent::KeyBoardInput { event, .. } => {
+        LayerShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
             let logical_key = event.key_without_modifiers();
             let text = event
                 .text_with_all_modifiers()
@@ -66,8 +53,31 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
                 state, location, ..
             } = event;
             let key = key(logical_key);
-            todo!()
-        }
+            let modifiers = keymap::modifiers(modifiers);
+
+            let location = match location {
+                KeyLocation::Standard => keyboard::Location::Standard,
+                KeyLocation::Left => keyboard::Location::Left,
+                KeyLocation::Right => keyboard::Location::Right,
+                KeyLocation::Numpad => keyboard::Location::Numpad,
+            };
+            match state {
+                ElementState::Pressed => keyboard::Event::KeyPressed {
+                    key,
+                    location,
+                    modifiers,
+                    text,
+                },
+                ElementState::Released => keyboard::Event::KeyReleased {
+                    key,
+                    location,
+                    modifiers,
+                },
+            }
+        })),
+        LayerShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
+            keyboard::Event::ModifiersChanged(keymap::modifiers(new_modifiers.clone())),
+        )),
         _ => None,
     }
 }
