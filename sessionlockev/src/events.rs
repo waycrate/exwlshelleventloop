@@ -13,8 +13,8 @@ use crate::id::Id;
 
 use crate::xkb_keyboard::KeyEvent;
 
-use crate::keyboard::ModifiersState;
 use super::WindowState;
+use crate::keyboard::ModifiersState;
 use std::{fmt::Debug, fs::File};
 
 /// tell program what event is happened

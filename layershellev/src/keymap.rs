@@ -269,7 +269,6 @@ pub fn scancode_to_physicalkey(scancode: u32) -> PhysicalKey {
     })
 }
 
-
 // NOTE: maybe one day need it
 #[allow(unused)]
 pub fn physicalkey_to_scancode(key: PhysicalKey) -> Option<u32> {

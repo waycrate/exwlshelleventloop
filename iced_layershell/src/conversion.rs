@@ -6,9 +6,9 @@ use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
 use keymap::key;
 use layershellev::keyboard::KeyLocation;
+use layershellev::keyboard::ModifiersState;
 use layershellev::xkb_keyboard::ElementState;
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
-use layershellev::keyboard::ModifiersState;
 
 #[allow(unused)]
 pub fn window_event(

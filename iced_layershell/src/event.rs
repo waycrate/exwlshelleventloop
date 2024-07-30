@@ -1,7 +1,7 @@
 use layershellev::id::Id;
+use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
-use layershellev::keyboard::ModifiersState;
 use layershellev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
@@ -26,7 +26,6 @@ impl From<WEnum<KeyState>> for IcedKeyState {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
