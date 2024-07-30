@@ -1,13 +1,10 @@
 mod keymap;
 
 use crate::event::IcedButtonState;
-use crate::event::IcedKeyState;
 use crate::event::WindowEvent as LayerShellEvent;
 use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
 use keymap::key;
-use keymap::modifiers;
-use keymap::{key_from_u32, text_from_key};
 use layershellev::keyboard::KeyLocation;
 use layershellev::ElementState;
 use layershellev::KeyEvent as LayerShellKeyEvent;

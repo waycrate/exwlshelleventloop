@@ -22,10 +22,7 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use layershellev::{
-    reexport::wayland_client::{KeyState, WEnum},
-    LayerEvent, ReturnData, WindowState,
-};
+use layershellev::{LayerEvent, ReturnData, WindowState};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
 
@@ -198,8 +195,6 @@ where
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
     let mut pointer_serial: u32 = 0;
-    let mut key_event: Option<IcedLayerEvent<A::Message>> = None;
-    let mut key_ping_count: u32 = 400;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
         use layershellev::DispatchMessage;
@@ -226,14 +221,6 @@ where
                     DispatchMessage::MouseEnter { serial, .. } => {
                         pointer_serial = *serial;
                     }
-                    DispatchMessage::KeyBoard { state, .. } => {
-                        if let WEnum::Value(KeyState::Pressed) = state {
-                            key_event = Some(message.into());
-                        } else {
-                            key_event = None;
-                            key_ping_count = 400;
-                        }
-                    }
                     _ => {}
                 }
 
@@ -241,36 +228,7 @@ where
                     .start_send(MultiWindowIcedLayerEvent(id, message.into()))
                     .expect("Cannot send");
             }
-            LayerEvent::NormalDispatch => match &key_event {
-                Some(keyevent) => {
-                    if let IcedLayerEvent::Window(windowevent) = keyevent {
-                        let event = IcedLayerEvent::Window(windowevent.clone());
-                        if key_ping_count > 70 && key_ping_count < 74 {
-                            event_sender
-                                .start_send(MultiWindowIcedLayerEvent(id, event))
-                                .expect("Cannot send");
-                            key_ping_count = 0;
-                        } else {
-                            event_sender
-                                .start_send(MultiWindowIcedLayerEvent(
-                                    id,
-                                    IcedLayerEvent::NormalUpdate,
-                                ))
-                                .expect("Cannot send");
-                        }
-                        if key_ping_count >= 74 {
-                            key_ping_count -= 1;
-                        } else {
-                            key_ping_count += 1;
-                        }
-                    }
-                }
-                None => {
-                    event_sender
-                        .start_send(MultiWindowIcedLayerEvent(id, IcedLayerEvent::NormalUpdate))
-                        .expect("Cannot send");
-                }
-            },
+
             LayerEvent::UserEvent(event) => {
                 event_sender
                     .start_send(MultiWindowIcedLayerEvent(
@@ -278,6 +236,11 @@ where
                         IcedLayerEvent::UserEvent(event),
                     ))
                     .ok();
+            }
+            LayerEvent::NormalDispatch => {
+                event_sender
+                    .start_send(MultiWindowIcedLayerEvent(id, IcedLayerEvent::NormalUpdate))
+                    .expect("Cannot send");
             }
             _ => {}
         }
