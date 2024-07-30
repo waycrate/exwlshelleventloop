@@ -3,9 +3,11 @@ mod keymap;
 use crate::event::IcedButtonState;
 use crate::event::IcedKeyState;
 use crate::event::WindowEvent as LayerShellEvent;
-use keymap::{key_from_u32, text_from_key};
-
+use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
+use keymap::key;
+use keymap::{key_from_u32, text_from_key};
+use layershellev::KeyEvent as LayerShellKeyEvent;
 
 #[allow(unused)]
 pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> Option<IcedEvent> {
@@ -54,6 +56,18 @@ pub fn window_event(id: iced_core::window::Id, layerevent: &LayerShellEvent) -> 
                 })),
             }
         }
+        LayerShellEvent::KeyBoardInput { event, .. } => {
+            let logical_key = event.key_without_modifiers();
+            let text = event
+                .text_with_all_modifiers()
+                .map(SmolStr::new)
+                .filter(|text| !text.as_str().chars().any(is_private_use));
+            let LayerShellKeyEvent {
+                state, location, ..
+            } = event;
+            let key = key(logical_key);
+            todo!()
+        }
         _ => None,
     }
 }
@@ -75,7 +89,6 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
     }
 }
 
-#[allow(unused)]
 fn is_private_use(c: char) -> bool {
     ('\u{E000}'..='\u{F8FF}').contains(&c)
 }

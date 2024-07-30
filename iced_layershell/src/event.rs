@@ -1,5 +1,6 @@
 use layershellev::id::Id;
 use layershellev::key::KeyModifierType;
+use layershellev::KeyEvent as LayerShellKeyEvent;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
 use layershellev::{DispatchMessage, WindowWrapper};
 
@@ -30,7 +31,7 @@ fn modifier_from_layershell_to_iced(modifier: KeyModifierType) -> IcedModifiers 
     IcedModifiers::from_bits(modifier.bits()).unwrap_or(IcedModifiers::empty())
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum WindowEvent {
     ScaleChanged(u32),
     CursorEnter {
@@ -47,6 +48,10 @@ pub enum WindowEvent {
         state: IcedKeyState,
         key: u32,
         modifiers: IcedModifiers,
+    },
+    KeyBoardInput {
+        event: LayerShellKeyEvent,
+        is_synthetic: bool,
     },
     Axis {
         x: f32,
@@ -128,6 +133,10 @@ impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
                 state: (*state).into(),
                 key: *key,
                 modifiers: modifier_from_layershell_to_iced(*modifier),
+            }),
+            DispatchMessage::KeyboardInput { event, is_synthetic } => IcedLayerEvent::Window(WindowEvent::KeyBoardInput{
+                event: event.clone(),
+                is_synthetic: *is_synthetic
             }),
             DispatchMessage::Axis {
                 horizontal,
