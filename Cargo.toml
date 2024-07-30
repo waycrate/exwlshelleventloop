@@ -8,7 +8,6 @@ members = [
 	"sessionlockev",
 	"waycrate_xkbkeycode",
 	"iced_examples/*",
-
 ]
 
 [workspace.package]
