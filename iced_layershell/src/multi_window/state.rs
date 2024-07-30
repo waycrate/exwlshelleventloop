@@ -2,7 +2,7 @@ use crate::multi_window::Application;
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
 use iced_style::application::{self, StyleSheet};
-use layershellev::ModifiersState;
+use layershellev::keyboard::ModifiersState;
 
 use crate::event::WindowEvent;
 use iced::window;

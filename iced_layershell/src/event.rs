@@ -1,6 +1,7 @@
 use layershellev::id::Id;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
-use layershellev::KeyEvent as LayerShellKeyEvent;
+use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
+use layershellev::keyboard::ModifiersState;
 use layershellev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
@@ -49,7 +50,7 @@ pub enum WindowEvent {
         event: LayerShellKeyEvent,
         is_synthetic: bool,
     },
-    ModifiersChanged(layershellev::ModifiersState),
+    ModifiersChanged(ModifiersState),
     Axis {
         x: f32,
         y: f32,
