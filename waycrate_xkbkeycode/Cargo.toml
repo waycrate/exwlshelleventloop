@@ -1,0 +1,19 @@
+[package]
+name = "waycrate_xkbkeycode"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[dependencies]
+xkbcommon-dl.workspace = true
+smol_str.workspace = true
+memmap2.workspace = true
+bitflags.workspace = true
+wayland-client.workspace = true
+wayland-backend.workspace = true
+log.workspace = true

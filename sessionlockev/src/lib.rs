@@ -101,10 +101,8 @@
 
 mod events;
 
-pub mod keyboard;
-pub mod xkb_keyboard;
-
-mod keymap;
+pub use waycrate_xkbkeycode::keyboard;
+pub use waycrate_xkbkeycode::xkb_keyboard;
 
 mod strtoshape;
 

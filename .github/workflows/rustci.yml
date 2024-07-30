@@ -42,6 +42,7 @@ jobs:
               run: sudo apt install -y libxkbcommon-dev libpango1.0-dev libwayland-dev
             - name: Publish to crate
               run: |
+                cargo publish -p waycrate_xkbkeycode --token ${{ secrets.CRATES_TOKEN }}
                 cargo publish -p layershellev --token ${{ secrets.CRATES_TOKEN }}
                 cargo publish -p sessionlockev --token ${{ secrets.CRATES_TOKEN }}
                 cargo publish -p iced_layershell --token ${{ secrets.CRATES_TOKEN }}

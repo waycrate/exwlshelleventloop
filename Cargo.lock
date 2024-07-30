@@ -1740,19 +1740,17 @@ version = "0.2.7"
 dependencies = [
  "bitflags 2.6.0",
  "log",
- "memmap2 0.9.4",
  "raw-window-handle",
  "smithay-client-toolkit 0.18.1",
- "smol_str",
  "tempfile",
  "thiserror",
+ "waycrate_xkbkeycode",
  "wayland-backend",
  "wayland-client",
  "wayland-cursor",
  "wayland-protocols 0.31.2",
  "wayland-protocols-misc",
  "wayland-protocols-wlr 0.2.0",
- "xkbcommon-dl",
 ]
 
 [[package]]
@@ -2800,19 +2798,17 @@ version = "0.2.7"
 dependencies = [
  "bitflags 2.6.0",
  "log",
- "memmap2 0.9.4",
  "raw-window-handle",
  "smithay-client-toolkit 0.18.1",
- "smol_str",
  "tempfile",
  "thiserror",
+ "waycrate_xkbkeycode",
  "wayland-backend",
  "wayland-client",
  "wayland-cursor",
  "wayland-protocols 0.31.2",
  "wayland-protocols-misc",
  "wayland-protocols-wlr 0.2.0",
- "xkbcommon-dl",
 ]
 
 [[package]]
@@ -3572,6 +3568,19 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "waycrate_xkbkeycode"
+version = "0.2.7"
+dependencies = [
+ "bitflags 2.6.0",
+ "log",
+ "memmap2 0.9.4",
+ "smol_str",
+ "wayland-backend",
+ "wayland-client",
+ "xkbcommon-dl",
 ]
 
 [[package]]
