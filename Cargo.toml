@@ -6,7 +6,9 @@ members = [
 	"iced_sessionlock",
 	"starcolorkeyboard",
 	"sessionlockev",
+	"waycrate_xkbkeycode",
 	"iced_examples/*",
+
 ]
 
 [workspace.package]
@@ -27,7 +29,8 @@ layershellev = { version = "0.2.7", path = "./layershellev" }
 sessionlockev = { version = "0.2.7", path = "./sessionlockev" }
 
 iced_layershell = { version = "0.2.7", path = "./iced_layershell" }
-iced_sessionlock = { version = "0.2.7", path = "./iced_sessionlock"}
+iced_sessionlock = { version = "0.2.7", path = "./iced_sessionlock" }
+waycrate_xkbkeycode = { version = "0.2.7", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.8.1"
 thiserror = "1.0.50"

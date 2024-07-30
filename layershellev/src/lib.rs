@@ -111,12 +111,11 @@
 //! }
 //! ```
 //!
+pub use waycrate_xkbkeycode::keyboard;
+pub use waycrate_xkbkeycode::xkb_keyboard;
 
 mod events;
-pub mod keyboard;
-mod keymap;
 mod strtoshape;
-pub mod xkb_keyboard;
 
 use std::fmt::Debug;
 

@@ -34,6 +34,4 @@ sctk.workspace = true
 
 log.workspace = true
 
-xkbcommon-dl.workspace = true
-smol_str.workspace = true
-memmap2.workspace = true
+waycrate_xkbkeycode.workspace = true
