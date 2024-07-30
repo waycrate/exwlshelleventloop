@@ -170,11 +170,8 @@ use events::DispatchMessageInner;
 
 pub mod id;
 
-pub mod key;
-
 pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
-use key::KeyModifierType;
 use strtoshape::str_to_shape;
 use wayland_client::{
     delegate_noop,
@@ -520,9 +517,6 @@ pub struct WindowState<T: Debug> {
     exclusive_zone: Option<i32>,
     margin: Option<(i32, i32, i32, i32)>,
 
-    // keyboard
-    modifier: KeyModifierType,
-
     // settings
     use_display_handle: bool,
 }
@@ -724,8 +718,6 @@ impl<T: Debug> Default for WindowState<T> {
             size: None,
             exclusive_zone: None,
             margin: None,
-
-            modifier: KeyModifierType::NoMod,
 
             use_display_handle: false,
         }

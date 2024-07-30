@@ -1,13 +1,6 @@
 //! XKB keymap.
 
-use std::ffi::c_char;
-use std::ptr::NonNull;
-
-use xkb::XKB_MOD_INVALID;
-use xkbcommon_dl::{self as xkb, xkb_keymap, xkb_mod_index_t};
-
 use crate::keyboard::{Key, KeyCode, KeyLocation, NamedKey, NativeKey, NativeKeyCode, PhysicalKey};
-use crate::xkb_keyboard::XKBH;
 
 /// Map the raw X11-style keycode to the `KeyCode` enum.
 ///
@@ -276,6 +269,9 @@ pub fn scancode_to_physicalkey(scancode: u32) -> PhysicalKey {
     })
 }
 
+
+// NOTE: maybe one day need it
+#[allow(unused)]
 pub fn physicalkey_to_scancode(key: PhysicalKey) -> Option<u32> {
     let code = match key {
         PhysicalKey::Code(code) => code,
@@ -894,29 +890,5 @@ pub fn keysym_location(keysym: u32) -> KeyLocation {
         | keysyms::KP_Decimal
         | keysyms::KP_Divide => KeyLocation::Numpad,
         _ => KeyLocation::Standard,
-    }
-}
-
-#[derive(Default, Debug, Clone, Copy)]
-pub struct ModsIndices {
-    pub shift: Option<xkb_mod_index_t>,
-    pub caps: Option<xkb_mod_index_t>,
-    pub ctrl: Option<xkb_mod_index_t>,
-    pub alt: Option<xkb_mod_index_t>,
-    pub num: Option<xkb_mod_index_t>,
-    pub mod3: Option<xkb_mod_index_t>,
-    pub logo: Option<xkb_mod_index_t>,
-    pub mod5: Option<xkb_mod_index_t>,
-}
-
-fn mod_index_for_name(keymap: NonNull<xkb_keymap>, name: &[u8]) -> Option<xkb_mod_index_t> {
-    unsafe {
-        let mod_index =
-            (XKBH.xkb_keymap_mod_get_index)(keymap.as_ptr(), name.as_ptr() as *const c_char);
-        if mod_index == XKB_MOD_INVALID {
-            None
-        } else {
-            Some(mod_index)
-        }
     }
 }

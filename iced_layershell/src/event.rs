@@ -1,5 +1,4 @@
 use layershellev::id::Id;
-use layershellev::key::KeyModifierType;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
 use layershellev::KeyEvent as LayerShellKeyEvent;
 use layershellev::{DispatchMessage, WindowWrapper};
@@ -27,9 +26,6 @@ impl From<WEnum<KeyState>> for IcedKeyState {
     }
 }
 
-fn modifier_from_layershell_to_iced(modifier: KeyModifierType) -> IcedModifiers {
-    IcedModifiers::from_bits(modifier.bits()).unwrap_or(IcedModifiers::empty())
-}
 
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
@@ -125,16 +121,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
             DispatchMessage::PrefredScale(scale) => {
                 IcedLayerEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
-            DispatchMessage::KeyBoard {
-                state,
-                key,
-                modifier,
-                ..
-            } => IcedLayerEvent::Window(WindowEvent::Keyboard {
-                state: (*state).into(),
-                key: *key,
-                modifiers: modifier_from_layershell_to_iced(*modifier),
-            }),
+
             DispatchMessage::KeyboardInput {
                 event,
                 is_synthetic,

@@ -2,7 +2,6 @@ use wayland_client::{
     globals::GlobalList,
     protocol::{
         wl_buffer::WlBuffer,
-        wl_keyboard::KeyState,
         wl_output::WlOutput,
         wl_pointer::{self, ButtonState, WlPointer},
         wl_shm::WlShm,
@@ -10,10 +9,7 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::{
-    key::KeyModifierType,
-    xkb_keyboard::{KeyEvent, ModifiersState},
-};
+use crate::xkb_keyboard::{KeyEvent, ModifiersState};
 
 use super::WindowState;
 
@@ -143,13 +139,7 @@ pub(crate) enum DispatchMessageInner {
         x: f64,
         y: f64,
     },
-    KeyBoard {
-        state: WEnum<KeyState>,
-        modifier: KeyModifierType,
-        serial: u32,
-        key: u32,
-        time: u32,
-    },
+
     ModifiersChanged(ModifiersState),
     KeyboardInput {
         event: KeyEvent,
@@ -228,14 +218,7 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
-    /// forward the event of wayland-keyboard
-    KeyBoard {
-        state: WEnum<KeyState>,
-        modifier: KeyModifierType,
-        serial: u32,
-        key: u32,
-        time: u32,
-    },
+
     ModifiersChanged(ModifiersState),
     KeyboardInput {
         event: KeyEvent,
@@ -316,19 +299,6 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::TouchMotion { time, id, x, y } => {
                 DispatchMessage::TouchMotion { time, id, x, y }
             }
-            DispatchMessageInner::KeyBoard {
-                state,
-                modifier,
-                serial,
-                key,
-                time,
-            } => DispatchMessage::KeyBoard {
-                state,
-                modifier,
-                serial,
-                key,
-                time,
-            },
             DispatchMessageInner::RequestRefresh { width, height } => {
                 DispatchMessage::RequestRefresh { width, height }
             }
