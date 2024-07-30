@@ -20,8 +20,7 @@ use xkbcommon_dl::{
     xkb_layout_index_t, xkbcommon_compose_handle, xkbcommon_handle, XkbCommon, XkbCommonCompose,
 };
 
-use bitflags::bitflags;
-
+use crate::keyboard::ModifiersState;
 use xkb::{
     xkb_context, xkb_context_flags, xkb_keymap, xkb_keymap_compile_flags, xkb_state,
     xkb_state_component,
@@ -29,76 +28,7 @@ use xkb::{
 
 use crate::keyboard::{Key, KeyLocation, PhysicalKey};
 
-bitflags! {
-    /// Represents the current state of the keyboard modifiers
-    ///
-    /// Each flag represents a modifier and is set if this modifier is active.
-    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct ModifiersState: u32 {
-        /// The "shift" key.
-        const SHIFT = 0b100;
-        /// The "control" key.
-        const CONTROL = 0b100 << 3;
-        /// The "alt" key.
-        const ALT = 0b100 << 6;
-        /// This is the "windows" key on PC and "command" key on Mac.
-        const SUPER = 0b100 << 9;
-    }
-}
 
-impl ModifiersState {
-    /// Returns `true` if the shift key is pressed.
-    pub fn shift_key(&self) -> bool {
-        self.intersects(Self::SHIFT)
-    }
-
-    /// Returns `true` if the control key is pressed.
-    pub fn control_key(&self) -> bool {
-        self.intersects(Self::CONTROL)
-    }
-
-    /// Returns `true` if the alt key is pressed.
-    pub fn alt_key(&self) -> bool {
-        self.intersects(Self::ALT)
-    }
-
-    /// Returns `true` if the super key is pressed.
-    pub fn super_key(&self) -> bool {
-        self.intersects(Self::SUPER)
-    }
-}
-
-/// The state of the particular modifiers key.
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModifiersKeyState {
-    /// The particular key is pressed.
-    Pressed,
-    /// The state of the key is unknown.
-    #[default]
-    Unknown,
-}
-
-// NOTE: the exact modifier key is not used to represent modifiers state in the
-// first place due to a fact that modifiers state could be changed without any
-// key being pressed and on some platforms like Wayland/X11 which key resulted
-// in modifiers change is hidden, also, not that it really matters.
-//
-// The reason this API is even exposed is mostly to provide a way for users
-// to treat modifiers differently based on their position, which is required
-// on macOS due to their AltGr/Option situation.
-bitflags! {
-    #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub(crate) struct ModifiersKeys: u8 {
-        const LSHIFT   = 0b0000_0001;
-        const RSHIFT   = 0b0000_0010;
-        const LCONTROL = 0b0000_0100;
-        const RCONTROL = 0b0000_1000;
-        const LALT     = 0b0001_0000;
-        const RALT     = 0b0010_0000;
-        const LSUPER   = 0b0100_0000;
-        const RSUPER   = 0b1000_0000;
-    }
-}
 
 static RESET_DEAD_KEYS: AtomicBool = AtomicBool::new(false);
 

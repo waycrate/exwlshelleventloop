@@ -6,19 +6,9 @@
 //! use std::fs::File;
 //! use std::os::fd::AsFd;
 //!
+//! use layershellev::keyboard::{KeyCode, PhysicalKey};
 //! use layershellev::reexport::*;
 //! use layershellev::*;
-//!
-//! const Q_KEY: u32 = 16;
-//! const W_KEY: u32 = 17;
-//! const E_KEY: u32 = 18;
-//! const A_KEY: u32 = 30;
-//! const S_KEY: u32 = 31;
-//! const D_KEY: u32 = 32;
-//! const Z_KEY: u32 = 44;
-//! const X_KEY: u32 = 45;
-//! const C_KEY: u32 = 46;
-//! const ESC_KEY: u32 = 1;
 //!
 //! fn main() {
 //!     let mut ev: WindowState<()> = WindowState::new("Hello")
@@ -90,49 +80,13 @@
 //!                 println!("{time}, {surface_x}, {surface_y}");
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
-//!                 match index {
-//!                     Some(index) => {
-//!                         let ev_unit = ev.get_unit(index);
-//!                         match *key {
-//!                             Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
-//!                             W_KEY => ev_unit.set_anchor(Anchor::Top),
-//!                             E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
-//!                             A_KEY => ev_unit.set_anchor(Anchor::Left),
-//!                             S_KEY => ev_unit.set_anchor(
-//!                                 Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
-//!                             ),
-//!                             D_KEY => ev_unit.set_anchor(Anchor::Right),
-//!                             Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
-//!                             X_KEY => ev_unit.set_anchor(Anchor::Bottom),
-//!                             C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
-//!                             ESC_KEY => return ReturnData::RequestExist,
-//!                             _ => {}
-//!                         }
-//!                     }
-//!                     None => {
-//!                         for ev_unit in ev.get_unit_iter() {
-//!                             match *key {
-//!                                 Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
-//!                                 W_KEY => ev_unit.set_anchor(Anchor::Top),
-//!                                 E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
-//!                                 A_KEY => ev_unit.set_anchor(Anchor::Left),
-//!                                 S_KEY => ev_unit.set_anchor(
-//!                                     Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
-//!                                 ),
-//!                                 D_KEY => ev_unit.set_anchor(Anchor::Right),
-//!                                 Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
-//!                                 X_KEY => ev_unit.set_anchor(Anchor::Bottom),
-//!                                 C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
-//!                                 ESC_KEY => return ReturnData::RequestExist,
-//!                                 _ => {}
-//!                             }
-//!                         }
-//!                     }
-//!                 };
-//!
-//!                 ReturnData::None
-//!             }
+//!             LayerEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+//!                    ReturnData::RequestExist
+//!                } else {
+//!                    ReturnData::None
+//!                }
+//!            }
 //!             _ => ReturnData::None,
 //!         }
 //!     })
@@ -162,7 +116,7 @@ mod events;
 pub mod keyboard;
 mod keymap;
 mod strtoshape;
-mod xkb_keyboard;
+pub mod xkb_keyboard;
 
 use std::fmt::Debug;
 
@@ -192,7 +146,6 @@ use wayland_client::{
     },
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
-pub use xkb_keyboard::*;
 
 use sctk::reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource};
 
@@ -503,7 +456,7 @@ pub struct WindowState<T: Debug> {
 
     // base managers
     seat: Option<WlSeat>,
-    keyboard_state: Option<KeyboardState>,
+    keyboard_state: Option<xkb_keyboard::KeyboardState>,
 
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
@@ -795,6 +748,7 @@ impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
         _conn: &Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
+        use xkb_keyboard::KeyboardState;
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(capabilities),
         } = event
@@ -821,6 +775,8 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
+        use keyboard::*;
+        use xkb_keyboard::ElementState;
         let keyboard_state = state.keyboard_state.as_mut().unwrap();
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {

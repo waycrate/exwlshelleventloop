@@ -9,7 +9,9 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::xkb_keyboard::{KeyEvent, ModifiersState};
+use crate::xkb_keyboard::KeyEvent;
+
+use crate::keyboard::ModifiersState;
 
 use super::WindowState;
 
