@@ -183,7 +183,7 @@ use wayland_client::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
         wl_display::WlDisplay,
-        wl_keyboard::{self, KeymapFormat, WlKeyboard},
+        wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
         wl_registry,
@@ -849,40 +849,45 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
             }
             wl_keyboard::Event::Key {
                 state: keystate,
-                serial,
                 key,
-                time,
+                ..
             } => {
-
+                let pressed_state = match keystate {
+                    WEnum::Value(KeyState::Pressed) => ElementState::Pressed,
+                    WEnum::Value(KeyState::Released) => ElementState::Released,
+                    _ => {
+                        return;
+                    }
+                };
                 let key = key + 8;
                 if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
-                    let event = key_context.process_key_event(key, ElementState::Released, false);
+                    let event = key_context.process_key_event(key, pressed_state, false);
                     let event = DispatchMessageInner::KeyboardInput {
                         event,
                         is_synthetic: false,
                     };
                     state.message.push((state.surface_pos(), event));
                 }
-
-                // REMOVE it later
-                state.message.push((
-                    state.surface_pos(),
-                    DispatchMessageInner::KeyBoard {
-                        state: keystate,
-                        modifier: state.modifier,
-                        serial,
-                        key,
-                        time,
-                    },
-                ));
             }
             wl_keyboard::Event::Modifiers {
                 mods_depressed,
                 mods_locked,
+                mods_latched,
+                group,
                 ..
             } => {
-                state.modifier = KeyModifierType::from_bits(mods_depressed | mods_locked)
-                    .unwrap_or(KeyModifierType::empty());
+                let xkb_context = &mut keyboard_state.xkb_context;
+                let xkb_state = match xkb_context.state_mut() {
+                    Some(state) => state,
+                    None => return,
+                };
+                xkb_state.update_modifiers(mods_depressed, mods_latched, mods_locked, 0, 0, group);
+                let modifiers = xkb_state.modifiers();
+
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::ModifiersChanged(modifiers.into()),
+                ))
             }
             _ => {}
         }

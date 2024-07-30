@@ -215,6 +215,10 @@ impl Context {
         self.state = state;
         self.keymap = keymap;
     }
+
+    pub fn state_mut(&mut self) -> Option<&mut XkbState> {
+        self.state.as_mut()
+    }
     /// Key builder context with the user provided xkb state.
     pub fn key_context(&mut self) -> Option<KeyContext<'_>> {
         let state = self.state.as_mut()?;
@@ -346,6 +350,36 @@ impl XkbState {
             ) > 0
         }
     }
+    pub fn modifiers(&self) -> ModifiersStateXkb {
+        self.modifiers
+    }
+    pub fn update_modifiers(
+        &mut self,
+        mods_depressed: u32,
+        mods_latched: u32,
+        mods_locked: u32,
+        depressed_group: u32,
+        latched_group: u32,
+        locked_group: u32,
+    ) {
+        let mask = unsafe {
+            (XKBH.xkb_state_update_mask)(
+                self.state.as_ptr(),
+                mods_depressed,
+                mods_latched,
+                mods_locked,
+                depressed_group,
+                latched_group,
+                locked_group,
+            )
+        };
+
+        if mask.contains(xkb_state_component::XKB_STATE_MODS_EFFECTIVE) {
+            // Effective value of mods have changed, we need to update our state.
+            self.reload_modifiers();
+        }
+    }
+
     fn reload_modifiers(&mut self) {
         self.modifiers.ctrl = self.mod_name_is_active(xkb::XKB_MOD_NAME_CTRL);
         self.modifiers.alt = self.mod_name_is_active(xkb::XKB_MOD_NAME_ALT);
