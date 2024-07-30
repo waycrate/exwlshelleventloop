@@ -68,3 +68,7 @@ iced_futures = "0.12.0"
 iced_graphics = "0.12.0"
 bitflags = "2.6.0"
 log = "0.4.22"
+
+xkbcommon-dl = "0.4.2"
+smol_str = "0.2.2"
+memmap2 = "0.9.4"

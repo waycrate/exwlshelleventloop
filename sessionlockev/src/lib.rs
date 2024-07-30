@@ -99,13 +99,15 @@
 
 mod events;
 
-mod strtoshape;
+pub mod keyboard;
+pub mod xkb_keyboard;
 
-pub mod key;
+mod keymap;
+
+mod strtoshape;
 
 pub mod id;
 
-use key::KeyModifierType;
 use strtoshape::str_to_shape;
 
 use std::fmt::Debug;
@@ -121,7 +123,7 @@ use wayland_client::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
         wl_display::WlDisplay,
-        wl_keyboard::{self, WlKeyboard},
+        wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
         wl_registry,
@@ -386,12 +388,11 @@ pub struct WindowState<T: Debug> {
 
     // base managers
     seat: Option<WlSeat>,
-    keyboard: Option<WlKeyboard>,
+    keyboard_state: Option<xkb_keyboard::KeyboardState>,
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
 
     // keyboard
-    modifier: KeyModifierType,
     use_display_handle: bool,
 }
 
@@ -403,7 +404,7 @@ impl<T: Debug> WindowState<T> {
 
     /// get the keyboard
     pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
-        self.keyboard.as_ref()
+        Some(&self.keyboard_state.as_ref()?.keyboard)
     }
 
     /// get the pointer
@@ -461,11 +462,10 @@ impl<T: Debug> Default for WindowState<T> {
             globals: None,
 
             seat: None,
-            keyboard: None,
+            keyboard_state: None,
             pointer: None,
             touch: None,
 
-            modifier: KeyModifierType::NoMod,
             use_display_handle: false,
         }
     }
@@ -546,12 +546,13 @@ impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
         _conn: &Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
+        use xkb_keyboard::KeyboardState;
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(capabilities),
         } = event
         {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                state.keyboard = Some(seat.get_keyboard(qh, ()));
+                state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
             }
             if capabilities.contains(wl_seat::Capability::Pointer) {
                 state.pointer = Some(seat.get_pointer(qh, ()));
@@ -570,33 +571,69 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         event: <wl_keyboard::WlKeyboard as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
+        _qhandle: &QueueHandle<Self>,
     ) {
+        use keyboard::*;
+        use xkb_keyboard::ElementState;
+        let keyboard_state = state.keyboard_state.as_mut().unwrap();
         match event {
-            wl_keyboard::Event::Key {
-                state: keystate,
-                serial,
-                key,
-                time,
-            } => {
+            wl_keyboard::Event::Keymap { format, fd, size } => match format {
+                WEnum::Value(KeymapFormat::XkbV1) => {
+                    let context = &mut keyboard_state.xkb_context;
+                    context.set_keymap_from_fd(fd, size as usize)
+                }
+                WEnum::Value(KeymapFormat::NoKeymap) => {
+                    log::warn!("non-xkb compatible keymap")
+                }
+                _ => unreachable!(),
+            },
+            wl_keyboard::Event::Leave { .. } => {
                 state.message.push((
                     state.surface_pos(),
-                    DispatchMessageInner::KeyBoard {
-                        state: keystate,
-                        modifier: state.modifier,
-                        serial,
-                        key,
-                        time,
-                    },
+                    DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
                 ));
+            }
+            wl_keyboard::Event::Key {
+                state: keystate,
+                key,
+                ..
+            } => {
+                let pressed_state = match keystate {
+                    WEnum::Value(KeyState::Pressed) => ElementState::Pressed,
+                    WEnum::Value(KeyState::Released) => ElementState::Released,
+                    _ => {
+                        return;
+                    }
+                };
+                let key = key + 8;
+                if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
+                    let event = key_context.process_key_event(key, pressed_state, false);
+                    let event = DispatchMessageInner::KeyboardInput {
+                        event,
+                        is_synthetic: false,
+                    };
+                    state.message.push((state.surface_pos(), event));
+                }
             }
             wl_keyboard::Event::Modifiers {
                 mods_depressed,
                 mods_locked,
+                mods_latched,
+                group,
                 ..
             } => {
-                state.modifier = KeyModifierType::from_bits(mods_depressed | mods_locked)
-                    .unwrap_or(KeyModifierType::empty());
+                let xkb_context = &mut keyboard_state.xkb_context;
+                let xkb_state = match xkb_context.state_mut() {
+                    Some(state) => state,
+                    None => return,
+                };
+                xkb_state.update_modifiers(mods_depressed, mods_latched, mods_locked, 0, 0, group);
+                let modifiers = xkb_state.modifiers();
+
+                state.message.push((
+                    state.surface_pos(),
+                    DispatchMessageInner::ModifiersChanged(modifiers.into()),
+                ))
             }
             _ => {}
         }

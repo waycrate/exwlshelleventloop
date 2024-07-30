@@ -2,7 +2,6 @@ use wayland_client::{
     globals::GlobalList,
     protocol::{
         wl_buffer::WlBuffer,
-        wl_keyboard::KeyState,
         wl_output::WlOutput,
         wl_pointer::{self, ButtonState, WlPointer},
         wl_shm::WlShm,
@@ -10,8 +9,11 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::{id::Id, key::KeyModifierType};
+use crate::id::Id;
 
+use crate::xkb_keyboard::KeyEvent;
+
+use crate::keyboard::ModifiersState;
 use super::WindowState;
 use std::{fmt::Debug, fs::File};
 
@@ -131,12 +133,21 @@ pub(crate) enum DispatchMessageInner {
         x: f64,
         y: f64,
     },
-    KeyBoard {
-        state: WEnum<KeyState>,
-        modifier: KeyModifierType,
-        serial: u32,
-        key: u32,
-        time: u32,
+
+    ModifiersChanged(ModifiersState),
+    KeyboardInput {
+        event: KeyEvent,
+
+        /// If `true`, the event was generated synthetically by winit
+        /// in one of the following circumstances:
+        ///
+        /// * Synthetic key press events are generated for all keys pressed when a window gains
+        ///   focus. Likewise, synthetic key release events are generated for all keys pressed when
+        ///   a window goes out of focus. ***Currently, this is only functional on X11 and
+        ///   Windows***
+        ///
+        /// Otherwise, this value is always `false`.
+        is_synthetic: bool,
     },
     RefreshSurface {
         width: u32,
@@ -200,13 +211,21 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
-    /// forward the event of wayland-keyboard
-    KeyBoard {
-        state: WEnum<KeyState>,
-        modifier: KeyModifierType,
-        serial: u32,
-        key: u32,
-        time: u32,
+
+    ModifiersChanged(ModifiersState),
+    KeyboardInput {
+        event: KeyEvent,
+
+        /// If `true`, the event was generated synthetically by winit
+        /// in one of the following circumstances:
+        ///
+        /// * Synthetic key press events are generated for all keys pressed when a window gains
+        ///   focus. Likewise, synthetic key release events are generated for all keys pressed when
+        ///   a window goes out of focus. ***Currently, this is only functional on X11 and
+        ///   Windows***
+        ///
+        /// Otherwise, this value is always `false`.
+        is_synthetic: bool,
     },
     /// this will request to do refresh the whole screen, because the layershell tell that a new
     /// configure happened
@@ -272,19 +291,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::TouchMotion { time, id, x, y } => {
                 DispatchMessage::TouchMotion { time, id, x, y }
             }
-            DispatchMessageInner::KeyBoard {
-                state,
-                modifier,
-                serial,
-                key,
-                time,
-            } => DispatchMessage::KeyBoard {
-                state,
-                modifier,
-                serial,
-                key,
-                time,
-            },
+
             DispatchMessageInner::RequestRefresh { width, height } => {
                 DispatchMessage::RequestRefresh { width, height }
             }
@@ -298,6 +305,16 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 horizontal,
                 vertical,
                 source,
+            },
+            DispatchMessageInner::ModifiersChanged(modifier) => {
+                DispatchMessage::ModifiersChanged(modifier)
+            }
+            DispatchMessageInner::KeyboardInput {
+                event,
+                is_synthetic,
+            } => DispatchMessage::KeyboardInput {
+                event,
+                is_synthetic,
             },
             DispatchMessageInner::PrefredScale(scale) => DispatchMessage::PrefredScale(scale),
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),

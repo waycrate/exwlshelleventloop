@@ -16,10 +16,7 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use sessionlockev::{
-    reexport::wayland_client::{KeyState, WEnum},
-    ReturnData, SessionLockEvent, WindowState,
-};
+use sessionlockev::{ReturnData, SessionLockEvent, WindowState};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
 
@@ -185,8 +182,6 @@ where
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
     let mut pointer_serial: u32 = 0;
-    let mut key_event: Option<IcedSessionLockEvent<A::Message>> = None;
-    let mut key_ping_count: u32 = 400;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
         use sessionlockev::DispatchMessage;
@@ -213,14 +208,6 @@ where
                     DispatchMessage::MouseEnter { serial, .. } => {
                         pointer_serial = *serial;
                     }
-                    DispatchMessage::KeyBoard { state, .. } => {
-                        if let WEnum::Value(KeyState::Pressed) = state {
-                            key_event = Some(message.into());
-                        } else {
-                            key_event = None;
-                            key_ping_count = 400;
-                        }
-                    }
                     _ => {}
                 }
 
@@ -228,39 +215,14 @@ where
                     .start_send(MultiWindowIcedSessionLockEvent(id, message.into()))
                     .expect("Cannot send");
             }
-            SessionLockEvent::NormalDispatch => match &key_event {
-                Some(keyevent) => {
-                    if let IcedSessionLockEvent::Window(windowevent) = keyevent {
-                        let event = IcedSessionLockEvent::Window(*windowevent);
-                        if key_ping_count > 70 && key_ping_count < 74 {
-                            event_sender
-                                .start_send(MultiWindowIcedSessionLockEvent(id, event))
-                                .expect("Cannot send");
-                            key_ping_count = 0;
-                        } else {
-                            event_sender
-                                .start_send(MultiWindowIcedSessionLockEvent(
-                                    id,
-                                    IcedSessionLockEvent::NormalUpdate,
-                                ))
-                                .expect("Cannot send");
-                        }
-                        if key_ping_count >= 74 {
-                            key_ping_count -= 1;
-                        } else {
-                            key_ping_count += 1;
-                        }
-                    }
-                }
-                None => {
-                    event_sender
-                        .start_send(MultiWindowIcedSessionLockEvent(
-                            id,
-                            IcedSessionLockEvent::NormalUpdate,
-                        ))
-                        .expect("Cannot send");
-                }
-            },
+            SessionLockEvent::NormalDispatch => {
+                event_sender
+                    .start_send(MultiWindowIcedSessionLockEvent(
+                        id,
+                        IcedSessionLockEvent::NormalUpdate,
+                    ))
+                    .expect("Cannot send");
+            }
             SessionLockEvent::UserEvent(event) => {
                 event_sender
                     .start_send(MultiWindowIcedSessionLockEvent(
@@ -500,7 +462,8 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 window.state.update(&event);
-                if let Some(event) = conversion::window_event(id, &event) {
+                if let Some(event) = conversion::window_event(id, &event, window.state.modifiers())
+                {
                     events.push((Some(id), event));
                 }
             }
