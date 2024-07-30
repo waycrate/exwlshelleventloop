@@ -28,8 +28,6 @@ use xkb::{
 
 use crate::keyboard::{Key, KeyLocation, PhysicalKey};
 
-
-
 static RESET_DEAD_KEYS: AtomicBool = AtomicBool::new(false);
 
 pub static XKBH: LazyLock<&'static XkbCommon> = LazyLock::new(xkbcommon_handle);
