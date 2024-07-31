@@ -2,7 +2,7 @@ use crate::reexport::{Anchor, Layer};
 use iced::window::Id as IcedId;
 use iced_core::mouse::Interaction;
 use iced_runtime::command::Action;
-use layershellev::{id::Id as LayerId, reexport::wayland_client::KeyState};
+use layershellev::id::Id as LayerId;
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub(crate) enum LayerShellActions {
@@ -21,7 +21,6 @@ pub enum LayershellCustomActions {
     VirtualKeyboardPressed {
         time: u32,
         key: u32,
-        keystate: KeyState,
     },
 }
 

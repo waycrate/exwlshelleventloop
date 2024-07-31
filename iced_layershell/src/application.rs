@@ -1,6 +1,6 @@
 mod state;
 
-use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc};
+use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
 use crate::{
     actions::{LayerShellActions, LayershellCustomActions},
@@ -22,7 +22,9 @@ use iced_style::application::StyleSheet;
 use iced_futures::{Executor, Runtime, Subscription};
 
 use layershellev::{
-    reexport::zwp_virtual_keyboard_v1, LayerEvent, ReturnData, WindowState, WindowWrapper,
+    calloop::timer::{TimeoutAction, Timer},
+    reexport::zwp_virtual_keyboard_v1,
+    LayerEvent, ReturnData, WindowState, WindowWrapper,
 };
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
@@ -190,7 +192,6 @@ where
 
     let mut pointer_serial: u32 = 0;
 
-    let mut virtuan_keyboard = None;
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
         use layershellev::DispatchMessage;
         let mut def_returndata = ReturnData::None;
@@ -200,7 +201,6 @@ where
                     def_returndata = ReturnData::RequestBind;
                 }
             }
-            // TODO: maybe use it later
             LayerEvent::BindProvide(globals, qh) => {
                 let virtual_keyboard_manager = globals
                     .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -218,7 +218,7 @@ where
                 let virtual_keyboard_in =
                     virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
                 virtual_keyboard_in.keymap((*keymap_format).into(), file.as_fd(), *keymap_size);
-                virtuan_keyboard = Some(virtual_keyboard_in);
+                ev.set_virtual_keyboard(virtual_keyboard_in);
             }
             LayerEvent::RequestMessages(message) => {
                 if let DispatchMessage::MouseEnter { serial, .. } = message {
@@ -243,7 +243,7 @@ where
         }
         let poll = instance.as_mut().poll(&mut context);
         match poll {
-            task::Poll::Pending => 'peddingBlock: {
+            task::Poll::Pending => {
                 if let Ok(Some(flow)) = control_receiver.try_next() {
                     for flow in flow {
                         match flow {
@@ -262,33 +262,42 @@ where
                                         LayershellCustomActions::VirtualKeyboardPressed {
                                             time,
                                             key,
-                                            keystate,
                                         } => {
-                                            virtuan_keyboard.as_ref().unwrap().key(
-                                                time,
-                                                key,
-                                                keystate.into(),
-                                            );
+                                            use layershellev::reexport::wayland_client::KeyState;
+                                            let ky = ev.get_virtual_keyboard().unwrap();
+                                            ky.key(time, key, KeyState::Pressed.into());
+
+                                            let eh = ev.get_loop_handler().unwrap();
+                                            eh.insert_source(
+                                                Timer::from_duration(Duration::from_micros(100)),
+                                                move |_, _, state| {
+                                                    let ky = state.get_virtual_keyboard().unwrap();
+
+                                                    ky.key(time, key, KeyState::Released.into());
+                                                    TimeoutAction::Drop
+                                                },
+                                            )
+                                            .ok();
                                         }
                                     }
                                 }
                             }
                             LayerShellActions::Mouse(mouse) => {
                                 let Some(pointer) = ev.get_pointer() else {
-                                    break 'peddingBlock ReturnData::None;
+                                    return ReturnData::None;
                                 };
 
-                                break 'peddingBlock ReturnData::RequestSetCursorShape((
+                                return ReturnData::RequestSetCursorShape((
                                     conversion::mouse_interaction(mouse),
                                     pointer.clone(),
                                     pointer_serial,
                                 ));
                             }
                             LayerShellActions::RedrawAll => {
-                                break 'peddingBlock ReturnData::RedrawAllRequest;
+                                return ReturnData::RedrawAllRequest;
                             }
                             LayerShellActions::RedrawWindow(index) => {
-                                break 'peddingBlock ReturnData::RedrawIndexRequest(index);
+                                return ReturnData::RedrawIndexRequest(index);
                             }
                             _ => {}
                         }

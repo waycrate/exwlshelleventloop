@@ -10,7 +10,7 @@ use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
 use iced_layershell::Application;
 
-use iced_layershell::reexport::wl_keyboard::{KeyState, KeymapFormat};
+use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use xkbcommon::xkb;
 
 pub fn get_keymap_as_file() -> (File, u32) {
@@ -117,12 +117,7 @@ impl Application for Counter {
                 Command::none()
             }
             Message::InputTest => Command::single(
-                LayershellCustomActions::VirtualKeyboardPressed {
-                    time: 100,
-                    key: 16,
-                    keystate: KeyState::Pressed,
-                }
-                .into(),
+                LayershellCustomActions::VirtualKeyboardPressed { time: 100, key: 16 }.into(),
             ),
             Message::Direction(direction) => match direction {
                 WindowDirection::Left => Command::batch(vec![
