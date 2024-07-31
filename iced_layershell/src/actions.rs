@@ -18,10 +18,7 @@ pub enum LayershellCustomActions {
     AnchorChange(Anchor),
     LayerChange(Layer),
     SizeChange((u32, u32)),
-    VirtualKeyboardPressed {
-        time: u32,
-        key: u32,
-    },
+    VirtualKeyboardPressed { time: u32, key: u32 },
 }
 
 #[derive(Debug, Clone, Copy)]
