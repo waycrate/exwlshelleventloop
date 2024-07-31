@@ -18,10 +18,7 @@ iced_style.workspace = true
 iced_core.workspace = true
 iced_futures.workspace = true
 iced_graphics.workspace = true
-tracing = "0.1.40"
-thiserror = "1.0.63"
+tracing.workspace = true
+thiserror.workspace = true
 layershellev.workspace = true
-futures = "0.3.30"
-
-memmap2 = "0.9.4"
-xkbcommon-dl = "0.4.2"
+futures.workspace = true

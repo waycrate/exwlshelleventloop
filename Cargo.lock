@@ -1365,10 +1365,8 @@ dependencies = [
  "iced_runtime",
  "iced_style",
  "layershellev",
- "memmap2 0.9.4",
  "thiserror",
  "tracing",
- "xkbcommon-dl",
 ]
 
 [[package]]

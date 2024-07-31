@@ -74,3 +74,6 @@ log = "0.4.22"
 xkbcommon-dl = "0.4.2"
 smol_str = "0.2.2"
 memmap2 = "0.9.4"
+
+tracing = "0.1.40"
+futures = "0.3.30"
