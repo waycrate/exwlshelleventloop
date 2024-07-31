@@ -2890,7 +2890,7 @@ dependencies = [
  "wayland-protocols 0.31.2",
  "wayland-protocols-wlr 0.2.0",
  "wayland-scanner",
- "xkbcommon",
+ "xkbcommon 0.7.0",
  "xkeysym",
 ]
 
@@ -3003,7 +3003,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "xkbcommon",
+ "xkbcommon 0.8.0",
 ]
 
 [[package]]
@@ -4256,6 +4256,17 @@ checksum = "13867d259930edc7091a6c41b4ce6eee464328c6ff9659b7e4c668ca20d4c91e"
 dependencies = [
  "libc",
  "memmap2 0.8.0",
+ "xkeysym",
+]
+
+[[package]]
+name = "xkbcommon"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d66ca9352cbd4eecbbc40871d8a11b4ac8107cfc528a6e14d7c19c69d0e1ac9"
+dependencies = [
+ "libc",
+ "memmap2 0.9.4",
  "xkeysym",
 ]
 
