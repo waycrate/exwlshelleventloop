@@ -73,7 +73,7 @@ pub fn window_event(
             }
         })),
         LayerShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
-            keyboard::Event::ModifiersChanged(keymap::modifiers(new_modifiers.clone())),
+            keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
         )),
         _ => None,
     }

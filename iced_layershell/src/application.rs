@@ -194,11 +194,8 @@ where
             // TODO: maybe use it later
             LayerEvent::BindProvide(_, _) => {}
             LayerEvent::RequestMessages(message) => {
-                match message {
-                    DispatchMessage::MouseEnter { serial, .. } => {
-                        pointer_serial = *serial;
-                    }
-                    _ => {}
+                if let DispatchMessage::MouseEnter { serial, .. } = message {
+                    pointer_serial = *serial;
                 }
 
                 event_sender
