@@ -52,7 +52,7 @@ sctk = { package = "smithay-client-toolkit", version = "0.18.1", features = [
 	"calloop",
 ] }
 
-calloop = "0.12.3"
+calloop = "0.13.0"
 
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 	"std",
