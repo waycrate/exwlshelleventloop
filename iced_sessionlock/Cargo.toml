@@ -19,6 +19,6 @@ iced_core.workspace = true
 iced_futures.workspace = true
 iced_graphics.workspace = true
 tracing = "0.1.40"
-thiserror = "1.0.56"
+thiserror = "1.0.63"
 sessionlockev.workspace = true
 futures = "0.3.30"

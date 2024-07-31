@@ -31,30 +31,30 @@ iced_layershell = { version = "0.2.7", path = "./iced_layershell" }
 iced_sessionlock = { version = "0.2.7", path = "./iced_sessionlock" }
 waycrate_xkbkeycode = { version = "0.2.7", path = "./waycrate_xkbkeycode" }
 
-tempfile = "3.8.1"
-thiserror = "1.0.50"
-wayland-client = { version = "0.31.1" }
+tempfile = "3.10.1"
+thiserror = "1.0.63"
+wayland-client = { version = "0.31.5" }
 
-wayland-protocols = { version = "0.31.0", default-features = false, features = [
+wayland-protocols = { version = "0.32.3", default-features = false, features = [
 	"unstable",
 	"staging",
 	"client",
 ] }
 
-wayland-cursor = "0.31.0"
+wayland-cursor = "0.31.5"
 
-wayland-protocols-wlr = { version = "0.2.0", default-features = false, features = [
+wayland-protocols-wlr = { version = "0.3.3", default-features = false, features = [
 	"client",
 ] }
 
-wayland-protocols-misc = { version = "0.2.0", features = ["client"] }
-wayland-backend = { version = "0.3.0", features = ["client_system"] }
+wayland-protocols-misc = { version = "0.3.3", features = ["client"] }
+wayland-backend = { version = "0.3.6", features = ["client_system"] }
 
 sctk = { package = "smithay-client-toolkit", version = "0.18.1", features = [
 	"calloop",
 ] }
 
-calloop = "0.12.3"
+calloop = "0.14.0"
 
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 	"std",
@@ -65,9 +65,9 @@ iced = "0.12"
 iced_runtime = { version = "0.12", features = ["multi-window"] }
 iced_style = "0.12"
 iced_core = "0.12"
-iced_renderer = "0.12.0"
+iced_renderer = "0.12.1"
 iced_futures = "0.12.0"
-iced_graphics = "0.12.0"
+iced_graphics = "0.12.1"
 bitflags = "2.6.0"
 log = "0.4.22"
 
