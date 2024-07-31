@@ -35,7 +35,7 @@ tempfile = "3.8.1"
 thiserror = "1.0.50"
 wayland-client = { version = "0.31.1" }
 
-wayland-protocols = { version = "0.31.0", default-features = false, features = [
+wayland-protocols = { version = "0.32.3", default-features = false, features = [
 	"unstable",
 	"staging",
 	"client",
