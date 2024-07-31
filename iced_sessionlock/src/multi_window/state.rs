@@ -96,7 +96,7 @@ where
                 self.mouse_position = Some(Point::new(*x as f32, *y as f32));
             }
             WindowEvent::ModifiersChanged(modifiers) => {
-                self.modifiers = modifiers.clone();
+                self.modifiers = *modifiers;
             }
             _ => {}
         }
