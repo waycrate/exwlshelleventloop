@@ -111,8 +111,11 @@
 //! }
 //! ```
 //!
+use sctk::reexports::calloop::LoopHandle;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
+
+pub use sctk::reexports::calloop;
 
 mod events;
 mod strtoshape;
@@ -459,6 +462,7 @@ pub struct WindowState<T: Debug> {
 
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
+    virtual_keyboard: Option<ZwpVirtualKeyboardV1>,
 
     // states
     namespace: String,
@@ -471,6 +475,7 @@ pub struct WindowState<T: Debug> {
 
     // settings
     use_display_handle: bool,
+    loop_handler: Option<LoopHandle<'static, Self>>,
 }
 
 impl<T: Debug> WindowState<T> {
@@ -657,6 +662,7 @@ impl<T: Debug> Default for WindowState<T> {
             xdg_output_manager: None,
             globals: None,
             fractional_scale_manager: None,
+            virtual_keyboard: None,
 
             seat: None,
             keyboard_state: None,
@@ -672,11 +678,27 @@ impl<T: Debug> Default for WindowState<T> {
             margin: None,
 
             use_display_handle: false,
+            loop_handler: None,
         }
     }
 }
 
 impl<T: Debug> WindowState<T> {
+    /// You can save the virtual_keyboard here
+    pub fn set_virtual_keyboard(&mut self, keyboard: ZwpVirtualKeyboardV1) {
+        self.virtual_keyboard = Some(keyboard);
+    }
+
+    /// get the saved virtual_keyboard
+    pub fn get_virtual_keyboard(&self) -> Option<&ZwpVirtualKeyboardV1> {
+        self.virtual_keyboard.as_ref()
+    }
+
+    /// with loop_handler you can do more thing
+    pub fn get_loop_handler(&self) -> Option<&LoopHandle<'static, Self>> {
+        self.loop_handler.as_ref()
+    }
+
     /// get the unit with the index returned by eventloop
     pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
@@ -1376,6 +1398,8 @@ impl<T: Debug + 'static> WindowState<T> {
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
             .expect("Failed to init wayland source");
+
+        self.loop_handler = Some(event_loop.handle());
 
         'out: loop {
             event_loop.dispatch(Duration::from_millis(1), &mut self)?;
