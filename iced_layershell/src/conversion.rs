@@ -91,8 +91,8 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::Grabbing => "grabbing".to_owned(),
         Interaction::Crosshair => "crosshair".to_owned(),
         Interaction::NotAllowed => "not_allowed".to_owned(),
-        Interaction::ResizingVertically => "ew_resize".to_owned(),
-        Interaction::ResizingHorizontally => "ns_resize".to_owned(),
+        Interaction::ResizingVertically => "ns_resize".to_owned(),
+        Interaction::ResizingHorizontally => "ew_resize".to_owned(),
     }
 }
 
