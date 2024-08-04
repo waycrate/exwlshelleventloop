@@ -145,7 +145,7 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let mut ev: WindowState<()> = sessionlockev::WindowState::new()
+    let ev: WindowState<()> = sessionlockev::WindowState::new()
         .with_use_display_handle(true)
         .build()
         .unwrap();
