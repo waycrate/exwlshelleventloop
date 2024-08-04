@@ -13,7 +13,7 @@
 //! const ESC_KEY: u32 = 1;
 //!
 //! fn main() {
-//!     let mut ev: WindowState<()> = WindowState::new();
+//!     let ev: WindowState<()> = WindowState::new();
 //!
 //!     let mut virtual_keyboard_manager = None;
 //!     ev.running(|event, _ev, _index| {

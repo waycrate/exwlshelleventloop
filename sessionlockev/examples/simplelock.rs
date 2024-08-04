@@ -6,7 +6,7 @@ use sessionlockev::reexport::*;
 use sessionlockev::*;
 
 fn main() {
-    let mut ev: WindowState<()> = WindowState::new().build().unwrap();
+    let ev: WindowState<()> = WindowState::new().build().unwrap();
 
     let mut virtual_keyboard_manager = None;
     ev.running(|event, _ev, _index| {
