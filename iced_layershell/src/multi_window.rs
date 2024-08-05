@@ -57,6 +57,8 @@ where
     /// The data needed to initialize your [`Application`].
     type Flags;
 
+    type WindowInfo;
+
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -75,6 +77,8 @@ where
     fn title(&self) -> String {
         self.namespace()
     }
+
+    fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo>;
 
     /// Returns the current [`Theme`] of the [`Application`].
     fn theme(&self) -> Self::Theme;

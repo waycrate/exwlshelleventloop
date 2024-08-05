@@ -218,6 +218,8 @@ pub trait MultiApplication: Sized {
     /// The data needed to initialize your [`Application`].
     type Flags;
 
+    type WindowInfo;
+
     type Theme: Default + StyleSheet;
 
     /// Initializes the [`Application`] with the flags provided to
@@ -238,6 +240,9 @@ pub trait MultiApplication: Sized {
     /// title of your window when necessary.
     fn namespace(&self) -> String;
 
+    fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo> {
+        None
+    }
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
@@ -356,6 +361,8 @@ where
 {
     type Flags = A::Flags;
 
+    type WindowInfo = A::WindowInfo;
+
     fn new(flags: Self::Flags) -> (Self, Command<A::Message>) {
         let (app, command) = A::new(flags);
 
@@ -380,5 +387,9 @@ where
 
     fn scale_factor(&self, window: iced::window::Id) -> f64 {
         self.0.scale_factor(window)
+    }
+
+    fn id_info(&self, id: iced_core::window::Id) -> Option<Self::WindowInfo> {
+        self.0.id_info(id)
     }
 }

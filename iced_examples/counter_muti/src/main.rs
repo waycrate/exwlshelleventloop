@@ -44,6 +44,7 @@ impl MultiApplication for Counter {
     type Flags = ();
     type Theme = Theme;
     type Executor = iced::executor::Default;
+    type WindowInfo = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
