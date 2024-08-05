@@ -273,7 +273,7 @@ where
         }
         let poll = instance.as_mut().poll(&mut context);
         match poll {
-            task::Poll::Pending => 'peddingBlock: {
+            task::Poll::Pending => {
                 if let Ok(Some(flow)) = control_receiver.try_next() {
                     for flow in flow {
                         match flow {
@@ -318,20 +318,20 @@ where
 
                             LayerShellActions::Mouse(mouse) => {
                                 let Some(pointer) = ev.get_pointer() else {
-                                    break 'peddingBlock ReturnData::None;
+                                    return ReturnData::None;
                                 };
 
-                                break 'peddingBlock ReturnData::RequestSetCursorShape((
+                                return ReturnData::RequestSetCursorShape((
                                     conversion::mouse_interaction(mouse),
                                     pointer.clone(),
                                     pointer_serial,
                                 ));
                             }
                             LayerShellActions::RedrawAll => {
-                                break 'peddingBlock ReturnData::RedrawAllRequest;
+                                return ReturnData::RedrawAllRequest;
                             }
                             LayerShellActions::RedrawWindow(index) => {
-                                break 'peddingBlock ReturnData::RedrawIndexRequest(index);
+                                return ReturnData::RedrawIndexRequest(index);
                             }
                             _ => {}
                         }
