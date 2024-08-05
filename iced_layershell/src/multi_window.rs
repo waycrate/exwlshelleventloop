@@ -892,12 +892,12 @@ pub(crate) fn run_command<A, C, E>(
                 if let Some(action) =
                     custom.downcast_ref::<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>>()
                 {
-                    let option_id = if let LayershellCustomActionsWithInfo::RemoveLayerShell(id) = action.1
-                    {
-                        window_manager.get_iced_id(id)
-                    } else {
-                        None
-                    };
+                    let option_id =
+                        if let LayershellCustomActionsWithInfo::RemoveLayerShell(id) = action.1 {
+                            window_manager.get_iced_id(id)
+                        } else {
+                            None
+                        };
                     if let Some(id) = window_manager.get_iced_id(action.0) {
                         customactions.push(LayershellCustomActionsWithIdInner(
                             id,

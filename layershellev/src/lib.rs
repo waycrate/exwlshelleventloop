@@ -765,7 +765,9 @@ impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_registry::WlRegistry
     }
 }
 
-impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_seat::WlSeat, ()> for WindowState<T, INFO> {
+impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_seat::WlSeat, ()>
+    for WindowState<T, INFO>
+{
     fn event(
         state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -1146,7 +1148,9 @@ impl<T: Debug, INFO: Clone> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for Windo
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T, INFO> {
+impl<T: Debug, INFO: Clone> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()>
+    for WindowState<T, INFO>
+{
     fn event(
         state: &mut Self,
         proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
@@ -1173,12 +1177,12 @@ impl<T: Debug, INFO: Clone> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                                  // it is not used
+                                                                                // it is not used
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlShm); // shm is used to create buffer pool
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlBuffer); // buffer show the picture
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
-                                                                          // ext-session-shell
+                                                                                        // ext-session-shell
 
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WpCursorShapeManagerV1);
 delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WpCursorShapeDeviceV1);
