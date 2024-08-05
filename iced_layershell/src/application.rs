@@ -3,7 +3,7 @@ mod state;
 use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
 use crate::{
-    actions::{LayerShellActions, LayershellCustomActions},
+    actions::{LayerShellActions, LayershellCustomActionsWithInfo},
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
@@ -147,7 +147,7 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let ev: WindowState<()> = layershellev::WindowState::new(&application.namespace())
+    let ev: WindowState<(), ()> = layershellev::WindowState::new(&application.namespace())
         .with_single(true)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
@@ -171,8 +171,8 @@ where
 
     let state = State::new(&application, &ev);
 
-    let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent<A::Message>>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayerShellActions>>();
+    let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent<A::Message, ()>>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayerShellActions<()>>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -250,16 +250,16 @@ where
                             LayerShellActions::CustomActions(actions) => {
                                 for action in actions {
                                     match action {
-                                        LayershellCustomActions::AnchorChange(anchor) => {
+                                        LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
                                             ev.main_window().set_anchor(anchor);
                                         }
-                                        LayershellCustomActions::LayerChange(layer) => {
+                                        LayershellCustomActionsWithInfo::LayerChange(layer) => {
                                             ev.main_window().set_layer(layer);
                                         }
-                                        LayershellCustomActions::SizeChange((width, height)) => {
+                                        LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
                                             ev.main_window().set_size((width, height));
                                         }
-                                        LayershellCustomActions::VirtualKeyboardPressed {
+                                        LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
                                             time,
                                             key,
                                         } => {
@@ -279,6 +279,7 @@ where
                                             )
                                             .ok();
                                         }
+                                        _ => {}
                                     }
                                 }
                             }
@@ -319,8 +320,8 @@ async fn run_instance<A, E, C>(
     mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
     mut proxy: IcedProxy<A::Message>,
     mut debug: Debug,
-    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<A::Message>>,
-    mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions>>,
+    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<A::Message, ()>>,
+    mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions<()>>>,
     mut state: State<A>,
     init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
@@ -558,7 +559,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    custom_actions: &mut Vec<LayerShellActions>,
+    custom_actions: &mut Vec<LayerShellActions<()>>,
 ) where
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
@@ -603,7 +604,7 @@ pub(crate) fn run_command<A, C, E>(
     renderer: &mut A::Renderer,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
-    custom_actions: &mut Vec<LayerShellActions>,
+    custom_actions: &mut Vec<LayerShellActions<()>>,
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
@@ -685,7 +686,7 @@ pub(crate) fn run_command<A, C, E>(
                 proxy.send(tagger(Ok(())));
             }
             command::Action::Custom(custom) => {
-                if let Some(action) = custom.downcast_ref::<LayershellCustomActions>() {
+                if let Some(action) = custom.downcast_ref::<LayershellCustomActionsWithInfo<()>>() {
                     customactions.push(*action);
                 }
             }

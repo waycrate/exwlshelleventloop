@@ -16,6 +16,7 @@ pub mod reexport {
     pub use layershellev::reexport::Anchor;
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
+    pub use layershellev::NewLayerShellSettings;
 }
 
 use settings::Settings;
@@ -243,6 +244,8 @@ pub trait MultiApplication: Sized {
     fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo> {
         None
     }
+
+    fn set_id_info(&mut self, _id: iced_core::window::Id, _info: Self::WindowInfo) {}
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
@@ -313,6 +316,7 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
+        <Self as MultiApplication>::WindowInfo: Clone,
     {
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_renderer::Settings {
@@ -391,5 +395,9 @@ where
 
     fn id_info(&self, id: iced_core::window::Id) -> Option<Self::WindowInfo> {
         self.0.id_info(id)
+    }
+
+    fn set_id_info(&mut self, id: iced_core::window::Id, info: Self::WindowInfo) {
+        self.0.set_id_info(id, info)
     }
 }

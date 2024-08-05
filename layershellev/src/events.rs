@@ -1,3 +1,7 @@
+use wayland_protocols_wlr::layer_shell::v1::client::{
+    zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::Anchor,
+};
+
 use wayland_client::{
     globals::GlobalList,
     protocol::{
@@ -9,7 +13,7 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::xkb_keyboard::KeyEvent;
+use crate::{id, xkb_keyboard::KeyEvent};
 
 use crate::keyboard::ModifiersState;
 
@@ -30,20 +34,29 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum LayerEvent<'a, T: Debug, Message> {
+pub enum LayerEvent<'a, T: Debug, Message, INFO: Clone> {
     InitRequest,
     XdgInfoChanged(XdgInfoChangedType),
-    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
+    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T, INFO>>),
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
-        &'a QueueHandle<WindowState<T>>,
+        &'a QueueHandle<WindowState<T, INFO>>,
         u32,
         u32,
     ),
-    RequestMessages(&'a DispatchMessage),
+    RequestMessages(&'a DispatchMessage<INFO>),
     NormalDispatch,
     UserEvent(Message),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NewLayerShellSettings {
+    pub size: Option<(u32, u32)>,
+    pub layer: Layer,
+    pub anchor: Anchor,
+    pub exclude_zone: Option<i32>,
+    pub margin: Option<(i32, i32, i32, i32)>,
 }
 
 /// the return data
@@ -60,13 +73,15 @@ pub enum LayerEvent<'a, T: Debug, Message> {
 ///
 /// None means nothing will happened, no request, and no return data
 #[derive(Debug, PartialEq, Eq)]
-pub enum ReturnData {
+pub enum ReturnData<INFO> {
     WlBuffer(WlBuffer),
     RequestBind,
     RequestExist,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
     RequestSetCursorShape((String, WlPointer, u32)),
+    NewLayerShell((NewLayerShellSettings, Option<INFO>)),
+    RemoveLayershell(id::Id),
     None,
 }
 
@@ -97,7 +112,7 @@ pub struct AxisScroll {
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
-pub(crate) enum DispatchMessageInner {
+pub(crate) enum DispatchMessageInner<INFO: Clone> {
     NewDisplay(WlOutput),
     MouseButton {
         state: WEnum<ButtonState>,
@@ -164,6 +179,8 @@ pub(crate) enum DispatchMessageInner {
     RequestRefresh {
         width: u32,
         height: u32,
+        is_created: bool,
+        info: Option<INFO>,
     },
     PrefredScale(u32),
     XdgInfoChanged(XdgInfoChangedType),
@@ -171,7 +188,7 @@ pub(crate) enum DispatchMessageInner {
 
 /// This tell the DispatchMessage by dispatch
 #[derive(Debug)]
-pub enum DispatchMessage {
+pub enum DispatchMessage<INFO: Clone> {
     /// forward the event of wayland-mouse
     MouseButton {
         state: WEnum<ButtonState>,
@@ -241,13 +258,15 @@ pub enum DispatchMessage {
     RequestRefresh {
         width: u32,
         height: u32,
+        is_created: bool,
+        info: Option<INFO>,
     },
     /// fractal scale handle
     PrefredScale(u32),
 }
 
-impl From<DispatchMessageInner> for DispatchMessage {
-    fn from(val: DispatchMessageInner) -> Self {
+impl<INFO: Clone> From<DispatchMessageInner<INFO>> for DispatchMessage<INFO> {
+    fn from(val: DispatchMessageInner<INFO>) -> Self {
         match val {
             DispatchMessageInner::NewDisplay(_) => unimplemented!(),
             DispatchMessageInner::MouseButton {
@@ -301,9 +320,17 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::TouchMotion { time, id, x, y } => {
                 DispatchMessage::TouchMotion { time, id, x, y }
             }
-            DispatchMessageInner::RequestRefresh { width, height } => {
-                DispatchMessage::RequestRefresh { width, height }
-            }
+            DispatchMessageInner::RequestRefresh {
+                width,
+                height,
+                is_created,
+                info,
+            } => DispatchMessage::RequestRefresh {
+                width,
+                height,
+                is_created,
+                info,
+            },
             DispatchMessageInner::Axis {
                 time,
                 horizontal,

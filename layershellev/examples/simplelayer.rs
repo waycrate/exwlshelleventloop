@@ -6,7 +6,7 @@ use layershellev::reexport::*;
 use layershellev::*;
 
 fn main() {
-    let ev: WindowState<()> = WindowState::new("Hello")
+    let ev: WindowState<(), ()> = WindowState::new("Hello")
         .with_single(false)
         .with_size((0, 400))
         .with_layer(Layer::Top)
@@ -55,7 +55,9 @@ fn main() {
                     (),
                 ))
             }
-            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh {
+                width, height, ..
+            }) => {
                 println!("{width}, {height}");
                 ReturnData::None
             }

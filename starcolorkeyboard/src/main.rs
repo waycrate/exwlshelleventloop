@@ -81,7 +81,7 @@ pub fn get_keymap_as_file() -> (File, u32) {
 }
 
 fn main() {
-    let ev: WindowState<PangoUi> = WindowState::new("precure")
+    let ev: WindowState<PangoUi, ()> = WindowState::new("precure")
         .with_single(false)
         .with_size((0, 300))
         .with_layer(Layer::Top)
@@ -139,7 +139,7 @@ fn main() {
                 (),
             ))
         }
-        LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+        LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
             let index = index.unwrap();
             let windowunit = ev.get_unit(index);
             let pangoui = windowunit.get_binding_mut().unwrap();

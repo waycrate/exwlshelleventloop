@@ -1,7 +1,9 @@
 use iced::widget::{button, column, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
-use iced_layershell::actions::{LayershellCustomActions, LayershellCustomActionsWithId};
+use iced_layershell::actions::{
+    LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithInfo,
+};
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::MultiApplication;
@@ -85,7 +87,7 @@ impl MultiApplication for Counter {
             Message::Direction(direction) => match direction {
                 WindowDirection::Left(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::AnchorChange(
                                 Anchor::Left | Anchor::Top | Anchor::Bottom,
@@ -94,7 +96,7 @@ impl MultiApplication for Counter {
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::SizeChange((400, 0)),
                         )
@@ -103,7 +105,7 @@ impl MultiApplication for Counter {
                 ]),
                 WindowDirection::Right(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::AnchorChange(
                                 Anchor::Right | Anchor::Top | Anchor::Bottom,
@@ -112,7 +114,7 @@ impl MultiApplication for Counter {
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::SizeChange((400, 0)),
                         )
@@ -121,7 +123,7 @@ impl MultiApplication for Counter {
                 ]),
                 WindowDirection::Bottom(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::AnchorChange(
                                 Anchor::Bottom | Anchor::Left | Anchor::Right,
@@ -130,25 +132,25 @@ impl MultiApplication for Counter {
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
-                            LayershellCustomActions::SizeChange((0, 400)),
+                            LayershellCustomActionsWithInfo::SizeChange((0, 400)),
                         )
                         .into(),
                     ),
                 ]),
                 WindowDirection::Top(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
-                            LayershellCustomActions::AnchorChange(
+                            LayershellCustomActionsWithInfo::AnchorChange(
                                 Anchor::Top | Anchor::Left | Anchor::Right,
                             ),
                         )
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::SizeChange((0, 400)),
                         )
@@ -160,7 +162,6 @@ impl MultiApplication for Counter {
     }
 
     fn view(&self, id: iced::window::Id) -> Element<Message> {
-        //println!("{:?}, {}", _id, self.value);
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
