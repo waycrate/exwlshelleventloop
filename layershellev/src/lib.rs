@@ -285,7 +285,7 @@ impl ZxdgOutputInfo {
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
 #[derive(Debug)]
-pub struct WindowStateUnit<T: Debug, F> {
+pub struct WindowStateUnit<T: Debug, INFO> {
     id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
@@ -296,10 +296,10 @@ pub struct WindowStateUnit<T: Debug, F> {
     fractional_scale: Option<WpFractionalScaleV1>,
     binding: Option<T>,
     becreated: bool,
-    info: Option<F>,
+    info: Option<INFO>,
 }
 
-impl<T: Debug, F> WindowStateUnit<T, F> {
+impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -311,7 +311,7 @@ impl<T: Debug, F> WindowStateUnit<T, F> {
         }
     }
 }
-impl<T: Debug, F> WindowStateUnit<T, F> {
+impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -333,7 +333,7 @@ impl<T: Debug, F> WindowStateUnit<T, F> {
     }
 }
 
-impl<T: Debug, F> rwh_06::HasWindowHandle for WindowStateUnit<T, F> {
+impl<T: Debug, INFO> rwh_06::HasWindowHandle for WindowStateUnit<T, INFO> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_window_handle_rwh_06()?;
 
@@ -343,7 +343,7 @@ impl<T: Debug, F> rwh_06::HasWindowHandle for WindowStateUnit<T, F> {
     }
 }
 
-impl<T: Debug, F> rwh_06::HasDisplayHandle for WindowStateUnit<T, F> {
+impl<T: Debug, INFO> rwh_06::HasDisplayHandle for WindowStateUnit<T, INFO> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 
