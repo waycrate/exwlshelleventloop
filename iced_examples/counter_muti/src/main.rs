@@ -7,6 +7,9 @@ use iced_layershell::actions::{
     LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithIdAndInfo,
     LayershellCustomActionsWithInfo,
 };
+use iced_runtime::command::Action;
+use iced_runtime::window::Action as WindowAction;
+
 use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::MultiApplication;
@@ -48,6 +51,7 @@ enum Message {
     DecrementPressed,
     NewWindowLeft,
     NewWindowRight,
+    Close(Id),
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
@@ -211,15 +215,16 @@ impl MultiApplication for Counter {
                 )
                 .into(),
             ),
+            Message::Close(id) => Command::single(Action::Window(WindowAction::Close(id))),
         }
     }
 
     fn view(&self, id: iced::window::Id) -> Element<Message> {
         if let Some(WindowInfo::Left) = self.id_info(id) {
-            return text("left").into();
+            return button("close left").on_press(Message::Close(id)).into();
         }
         if let Some(WindowInfo::Right) = self.id_info(id) {
-            return text("right").into();
+            return button("close right").on_press(Message::Close(id)).into();
         }
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),

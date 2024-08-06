@@ -856,8 +856,18 @@ pub(crate) fn run_command<A, C, E>(
                 *ui_caches = uis.drain().map(|(id, ui)| (id, ui.into_cache())).collect();
             }
             command::Action::Window(action) => match action {
-                WinowAction::Close(_) => {
-                    *should_exit = true;
+                WinowAction::Close(id) => {
+                    if id == iced::window::Id::MAIN {
+                        *should_exit = true;
+                        continue;
+                    }
+                    if let Some(layerid) = window_manager.get_layer_id(id) {
+                        customactions.push(LayershellCustomActionsWithIdInner(
+                            layerid,
+                            Some(layerid),
+                            LayershellCustomActionsWithInfo::RemoveLayerShell(id),
+                        ))
+                    }
                 }
                 WinowAction::Screenshot(id, tag) => {
                     let Some(window) = window_manager.get_mut(id) else {
@@ -895,11 +905,11 @@ pub(crate) fn run_command<A, C, E>(
                 {
                     let option_id =
                         if let LayershellCustomActionsWithInfo::RemoveLayerShell(id) = action.1 {
-                            window_manager.get_iced_id(id)
+                            window_manager.get_layer_id(id)
                         } else {
                             None
                         };
-                    if let Some(id) = window_manager.get_iced_id(action.0) {
+                    if let Some(id) = window_manager.get_layer_id(action.0) {
                         customactions.push(LayershellCustomActionsWithIdInner(
                             id,
                             option_id,
