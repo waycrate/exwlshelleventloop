@@ -94,8 +94,8 @@ impl<Message: 'static, INFO: Clone> From<(Option<Id>, IcedLayerEvent<Message, IN
     }
 }
 
-impl<Message: 'static, INFO: Clone> From<&DispatchMessage<INFO>> for IcedLayerEvent<Message, INFO> {
-    fn from(value: &DispatchMessage<INFO>) -> Self {
+impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Message, INFO> {
+    fn from(value: &DispatchMessage) -> Self {
         match value {
             DispatchMessage::RequestRefresh { width, height, .. } => {
                 IcedLayerEvent::RequestRefresh {

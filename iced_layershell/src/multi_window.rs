@@ -140,7 +140,7 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
-    <A as Application>::WindowInfo: Clone,
+    <A as Application>::WindowInfo: Clone + std::fmt::Debug,
 {
     use futures::task;
     use futures::Future;
@@ -164,18 +164,17 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let ev: WindowState<(), A::WindowInfo> =
-        layershellev::WindowState::new(&application.namespace())
-            .with_single(false)
-            .with_use_display_handle(true)
-            .with_option_size(settings.layer_settings.size)
-            .with_layer(settings.layer_settings.layer)
-            .with_anchor(settings.layer_settings.anchor)
-            .with_exclusize_zone(settings.layer_settings.exclusize_zone)
-            .with_margin(settings.layer_settings.margins)
-            .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-            .build()
-            .unwrap();
+    let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
+        .with_single(false)
+        .with_use_display_handle(true)
+        .with_option_size(settings.layer_settings.size)
+        .with_layer(settings.layer_settings.layer)
+        .with_anchor(settings.layer_settings.anchor)
+        .with_exclusize_zone(settings.layer_settings.exclusize_zone)
+        .with_margin(settings.layer_settings.margins)
+        .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .build()
+        .unwrap();
 
     let window = Arc::new(ev.gen_main_wrapper());
     let mut compositor = C::new(compositor_settings, window.clone())?;
@@ -246,17 +245,17 @@ where
                         width,
                         height,
                         is_created,
-                        info,
                     } => {
+                        let unit = ev.get_unit(index.unwrap());
                         event_sender
                             .start_send(MultiWindowIcedLayerEvent(
                                 id,
                                 IcedLayerEvent::RequestRefreshWithWrapper {
                                     width: *width,
                                     height: *height,
-                                    wrapper: ev.get_unit(index.unwrap()).gen_wrapper(),
+                                    wrapper: unit.gen_wrapper(),
                                     is_created: *is_created,
-                                    info: info.clone(),
+                                    info: unit.get_binding().cloned(),
                                 },
                             ))
                             .expect("Cannot send");

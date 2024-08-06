@@ -35,18 +35,18 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum LayerEvent<'a, T: Debug, Message, INFO: Clone> {
+pub enum LayerEvent<'a, T: Debug, Message> {
     InitRequest,
     XdgInfoChanged(XdgInfoChangedType),
-    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T, INFO>>),
+    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
-        &'a QueueHandle<WindowState<T, INFO>>,
+        &'a QueueHandle<WindowState<T>>,
         u32,
         u32,
     ),
-    RequestMessages(&'a DispatchMessage<INFO>),
+    RequestMessages(&'a DispatchMessage),
     NormalDispatch,
     UserEvent(Message),
 }
@@ -126,7 +126,7 @@ pub struct AxisScroll {
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
-pub(crate) enum DispatchMessageInner<INFO: Clone> {
+pub(crate) enum DispatchMessageInner {
     NewDisplay(WlOutput),
     MouseButton {
         state: WEnum<ButtonState>,
@@ -194,7 +194,6 @@ pub(crate) enum DispatchMessageInner<INFO: Clone> {
         width: u32,
         height: u32,
         is_created: bool,
-        info: Option<INFO>,
     },
     PrefredScale(u32),
     XdgInfoChanged(XdgInfoChangedType),
@@ -202,7 +201,7 @@ pub(crate) enum DispatchMessageInner<INFO: Clone> {
 
 /// This tell the DispatchMessage by dispatch
 #[derive(Debug)]
-pub enum DispatchMessage<INFO: Clone> {
+pub enum DispatchMessage {
     /// forward the event of wayland-mouse
     MouseButton {
         state: WEnum<ButtonState>,
@@ -273,14 +272,13 @@ pub enum DispatchMessage<INFO: Clone> {
         width: u32,
         height: u32,
         is_created: bool,
-        info: Option<INFO>,
     },
     /// fractal scale handle
     PrefredScale(u32),
 }
 
-impl<INFO: Clone> From<DispatchMessageInner<INFO>> for DispatchMessage<INFO> {
-    fn from(val: DispatchMessageInner<INFO>) -> Self {
+impl From<DispatchMessageInner> for DispatchMessage {
+    fn from(val: DispatchMessageInner) -> Self {
         match val {
             DispatchMessageInner::NewDisplay(_) => unimplemented!(),
             DispatchMessageInner::MouseButton {
@@ -338,12 +336,10 @@ impl<INFO: Clone> From<DispatchMessageInner<INFO>> for DispatchMessage<INFO> {
                 width,
                 height,
                 is_created,
-                info,
             } => DispatchMessage::RequestRefresh {
                 width,
                 height,
                 is_created,
-                info,
             },
             DispatchMessageInner::Axis {
                 time,

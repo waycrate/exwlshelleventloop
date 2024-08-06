@@ -6,7 +6,7 @@ use layershellev::reexport::*;
 use layershellev::*;
 
 fn main() {
-    let ev: WindowState<(), ()> = WindowState::new("Hello")
+    let ev: WindowState<()> = WindowState::new("Hello")
         .with_single(false)
         .with_size((0, 400))
         .with_layer(Layer::Top)
