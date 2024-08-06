@@ -1845,10 +1845,9 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                             };
                             self.units[index].layer_shell.destroy();
                             self.units[index].wl_surface.destroy();
-                            self.units[index]
+                            if let Some(buffer) = self.units[index]
                                 .buffer
-                                .as_ref()
-                                .map(|buffer| buffer.destroy());
+                                .as_ref() { buffer.destroy() }
                             self.units.remove(index);
                         }
                         _ => {}
