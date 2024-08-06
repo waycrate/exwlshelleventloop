@@ -1,5 +1,6 @@
 use wayland_protocols_wlr::layer_shell::v1::client::{
-    zwlr_layer_shell_v1::Layer, zwlr_layer_surface_v1::Anchor,
+    zwlr_layer_shell_v1::Layer,
+    zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity},
 };
 
 use wayland_client::{
@@ -55,10 +56,23 @@ pub struct NewLayerShellSettings {
     pub size: Option<(u32, u32)>,
     pub layer: Layer,
     pub anchor: Anchor,
-    pub exclude_zone: Option<i32>,
-    pub margin: Option<(i32, i32, i32, i32)>,
+    pub exclusize_zone: Option<i32>,
+    pub margins: Option<(i32, i32, i32, i32)>,
+    pub keyboard_interactivity: KeyboardInteractivity,
 }
 
+impl Default for NewLayerShellSettings {
+    fn default() -> Self {
+        NewLayerShellSettings {
+            anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            layer: Layer::Top,
+            exclusize_zone: None,
+            size: None,
+            margins: Some((0, 0, 0, 0)),
+            keyboard_interactivity: KeyboardInteractivity::OnDemand,
+        }
+    }
+}
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you

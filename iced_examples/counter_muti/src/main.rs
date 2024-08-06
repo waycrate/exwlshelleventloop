@@ -10,7 +10,7 @@ use iced_layershell::actions::{
 use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
 
-use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::MultiApplication;
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -189,10 +189,11 @@ impl MultiApplication for Counter {
                     LayershellCustomActionsWithInfo::NewLayerShell((
                         NewLayerShellSettings {
                             size: Some((100, 100)),
-                            exclude_zone: None,
+                            exclusize_zone: None,
                             anchor: Anchor::Left | Anchor::Bottom,
                             layer: Layer::Top,
-                            margin: None,
+                            margins: None,
+                            keyboard_interactivity: KeyboardInteractivity::None,
                         },
                         WindowInfo::Left,
                     )),
@@ -205,10 +206,11 @@ impl MultiApplication for Counter {
                     LayershellCustomActionsWithInfo::NewLayerShell((
                         NewLayerShellSettings {
                             size: Some((100, 100)),
-                            exclude_zone: None,
+                            exclusize_zone: None,
                             anchor: Anchor::Right | Anchor::Bottom,
                             layer: Layer::Top,
-                            margin: None,
+                            margins: None,
+                            keyboard_interactivity: KeyboardInteractivity::None,
                         },
                         WindowInfo::Right,
                     )),

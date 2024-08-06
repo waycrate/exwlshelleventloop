@@ -1767,8 +1767,9 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                                 size,
                                 layer,
                                 anchor,
-                                exclude_zone: exclusive_zone,
-                                margin,
+                                exclusize_zone: exclusive_zone,
+                                margins: margin,
+                                keyboard_interactivity
                             },
                             info,
                         )) => {
@@ -1791,7 +1792,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                                 (),
                             );
                             layer.set_anchor(anchor);
-                            layer.set_keyboard_interactivity(self.keyboard_interactivity);
+                            layer.set_keyboard_interactivity(keyboard_interactivity);
                             if let Some((init_w, init_h)) = size {
                                 layer.set_size(init_w, init_h);
                             }
