@@ -1819,7 +1819,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                                 zxdgoutput: None,
                                 fractional_scale,
                                 binding: None,
-                                becreated: false,
+                                becreated: true,
                                 info,
                             });
                         }

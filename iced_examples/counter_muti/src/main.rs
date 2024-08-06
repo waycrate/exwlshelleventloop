@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+
 use iced::widget::{button, column, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{
-    LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithInfo,
+    LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithIdAndInfo,
+    LayershellCustomActionsWithInfo,
 };
-use iced_layershell::reexport::Anchor;
+use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::MultiApplication;
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -22,6 +25,13 @@ pub fn main() -> Result<(), iced_layershell::Error> {
 struct Counter {
     value: i32,
     text: String,
+    ids: HashMap<iced::window::Id, WindowInfo>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum WindowInfo {
+    Left,
+    Right,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -36,6 +46,8 @@ enum WindowDirection {
 enum Message {
     IncrementPressed,
     DecrementPressed,
+    NewWindowLeft,
+    NewWindowRight,
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
@@ -46,16 +58,25 @@ impl MultiApplication for Counter {
     type Flags = ();
     type Theme = Theme;
     type Executor = iced::executor::Default;
-    type WindowInfo = ();
+    type WindowInfo = WindowInfo;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
             Self {
                 value: 0,
                 text: "eee".to_string(),
+                ids: HashMap::new(),
             },
             Command::none(),
         )
+    }
+
+    fn id_info(&self, id: iced::window::Id) -> Option<&Self::WindowInfo> {
+        self.ids.get(&id)
+    }
+
+    fn set_id_info(&mut self, id: iced::window::Id, info: Self::WindowInfo) {
+        self.ids.insert(id, info);
     }
 
     fn namespace(&self) -> String {
@@ -158,14 +179,54 @@ impl MultiApplication for Counter {
                     ),
                 ]),
             },
+            Message::NewWindowLeft => Command::single(
+                LayershellCustomActionsWithIdAndInfo::new(
+                    iced::window::Id::MAIN,
+                    LayershellCustomActionsWithInfo::NewLayerShell((
+                        NewLayerShellSettings {
+                            size: Some((100, 100)),
+                            exclude_zone: None,
+                            anchor: Anchor::Left | Anchor::Bottom,
+                            layer: Layer::Top,
+                            margin: None,
+                        },
+                        WindowInfo::Left,
+                    )),
+                )
+                .into(),
+            ),
+            Message::NewWindowRight => Command::single(
+                LayershellCustomActionsWithIdAndInfo::new(
+                    iced::window::Id::MAIN,
+                    LayershellCustomActionsWithInfo::NewLayerShell((
+                        NewLayerShellSettings {
+                            size: Some((100, 100)),
+                            exclude_zone: None,
+                            anchor: Anchor::Right | Anchor::Bottom,
+                            layer: Layer::Top,
+                            margin: None,
+                        },
+                        WindowInfo::Right,
+                    )),
+                )
+                .into(),
+            ),
         }
     }
 
     fn view(&self, id: iced::window::Id) -> Element<Message> {
+        if let Some(WindowInfo::Left) = self.id_info(id) {
+            return text("left").into();
+        }
+        if let Some(WindowInfo::Right) = self.id_info(id) {
+            return text("right").into();
+        }
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
-            button("Decrement").on_press(Message::DecrementPressed)
+            button("Decrement").on_press(Message::DecrementPressed),
+            button("newwindowLeft").on_press(Message::NewWindowLeft),
+            button("newwindowRight").on_press(Message::NewWindowRight)
         ]
         .padding(20)
         .align_items(Alignment::Center)

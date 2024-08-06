@@ -241,7 +241,7 @@ pub trait MultiApplication: Sized {
     /// title of your window when necessary.
     fn namespace(&self) -> String;
 
-    fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo> {
+    fn id_info(&self, _id: iced_core::window::Id) -> Option<&Self::WindowInfo> {
         None
     }
 
@@ -393,7 +393,7 @@ where
         self.0.scale_factor(window)
     }
 
-    fn id_info(&self, id: iced_core::window::Id) -> Option<Self::WindowInfo> {
+    fn id_info(&self, id: iced_core::window::Id) -> Option<&Self::WindowInfo> {
         self.0.id_info(id)
     }
 

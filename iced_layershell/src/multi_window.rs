@@ -78,7 +78,8 @@ where
         self.namespace()
     }
 
-    fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo>;
+    fn id_info(&self, _id: iced_core::window::Id) -> Option<&Self::WindowInfo>;
+
     fn set_id_info(&mut self, _id: iced_core::window::Id, info: Self::WindowInfo);
 
     /// Returns the current [`Theme`] of the [`Application`].
