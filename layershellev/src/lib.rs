@@ -537,7 +537,7 @@ impl<T> WindowState<T> {
     }
 }
 
-impl<DATA> WindowState<DATA> {
+impl<T> WindowState<T> {
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
