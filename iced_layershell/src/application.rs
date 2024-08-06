@@ -24,7 +24,7 @@ use iced_futures::{Executor, Runtime, Subscription};
 use layershellev::{
     calloop::timer::{TimeoutAction, Timer},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, ReturnData, WindowState, WindowWrapper,
+    LayerEvent, ReturnData, WindowWrapper,
 };
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
@@ -147,7 +147,7 @@ where
         runtime.enter(|| A::new(flags))
     };
 
-    let ev: WindowState<(), ()> = layershellev::WindowState::new(&application.namespace())
+    let ev = layershellev::WindowStateSimple::new(&application.namespace())
         .with_single(true)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)

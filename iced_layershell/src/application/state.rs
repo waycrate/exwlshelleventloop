@@ -23,7 +23,7 @@ impl<A: Application> State<A>
 where
     A::Theme: application::StyleSheet,
 {
-    pub fn new(application: &A, window: &layershellev::WindowState<(), ()>) -> Self {
+    pub fn new(application: &A, window: &layershellev::WindowStateSimple) -> Self {
         let scale_factor = application.scale_factor();
         let theme = application.theme();
         let appearance = theme.appearance(&application.style());

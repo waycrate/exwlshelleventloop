@@ -395,7 +395,7 @@ async fn run_instance<A, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
-    <A as Application>::WindowInfo: Clone,
+    A::WindowInfo: Clone,
 {
     use iced::window;
     use iced_core::Event;
@@ -772,7 +772,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
     A::Message: 'static,
-    <A as Application>::WindowInfo: Clone + 'static,
+    A::WindowInfo: Clone + 'static,
 {
     for message in messages.drain(..) {
         debug.log_message(&message);
@@ -818,7 +818,7 @@ pub(crate) fn run_command<A, C, E>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
     A::Message: 'static,
-    <A as Application>::WindowInfo: Clone + 'static,
+    A::WindowInfo: Clone + 'static,
 {
     use iced_core::widget::operation;
     use iced_runtime::command;

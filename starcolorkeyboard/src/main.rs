@@ -81,7 +81,7 @@ pub fn get_keymap_as_file() -> (File, u32) {
 }
 
 fn main() {
-    let ev: WindowState<PangoUi, ()> = WindowState::new("precure")
+    let ev: WindowStateWithData<PangoUi> = WindowState::new("precure")
         .with_single(false)
         .with_size((0, 300))
         .with_layer(Layer::Top)

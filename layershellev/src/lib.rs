@@ -300,7 +300,7 @@ pub struct WindowStateUnit<T: Debug, INFO> {
     info: Option<INFO>,
 }
 
-impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
+impl<DATA: Debug, INFO> WindowStateUnit<DATA, INFO> {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -312,7 +312,7 @@ impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
         }
     }
 }
-impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
+impl<DATA: Debug, INFO> WindowStateUnit<DATA, INFO> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -334,7 +334,7 @@ impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
     }
 }
 
-impl<T: Debug, INFO> rwh_06::HasWindowHandle for WindowStateUnit<T, INFO> {
+impl<DATA: Debug, INFO> rwh_06::HasWindowHandle for WindowStateUnit<DATA, INFO> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_window_handle_rwh_06()?;
 
@@ -344,7 +344,7 @@ impl<T: Debug, INFO> rwh_06::HasWindowHandle for WindowStateUnit<T, INFO> {
     }
 }
 
-impl<T: Debug, INFO> rwh_06::HasDisplayHandle for WindowStateUnit<T, INFO> {
+impl<DATA: Debug, INFO> rwh_06::HasDisplayHandle for WindowStateUnit<DATA, INFO> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 
@@ -444,15 +444,15 @@ impl<T: Debug, INFO> WindowStateUnit<T, INFO> {
 
 /// main state, store the main information
 #[derive(Debug)]
-pub struct WindowState<T: Debug, INFO: Clone> {
+pub struct WindowState<DATA: Debug, INFO: Clone> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
-    units: Vec<WindowStateUnit<T, INFO>>,
+    units: Vec<WindowStateUnit<DATA, INFO>>,
     message: Vec<(Option<usize>, DispatchMessageInner<INFO>)>,
 
     connection: Option<Connection>,
-    event_queue: Option<EventQueue<WindowState<T, INFO>>>,
+    event_queue: Option<EventQueue<WindowState<DATA, INFO>>>,
     wl_compositor: Option<WlCompositor>,
     xdg_output_manager: Option<ZxdgOutputManagerV1>,
     shm: Option<WlShm>,
@@ -482,18 +482,27 @@ pub struct WindowState<T: Debug, INFO: Clone> {
     loop_handler: Option<LoopHandle<'static, Self>>,
 }
 
-impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
+/// WindowState only bind with data
+pub type WindowStateWithData<T> = WindowState<T, ()>;
+
+/// WindowState only binded with Info
+pub type WindowStateWithInfo<INFO> = WindowState<(), INFO>;
+
+/// Simple WindowState, without any data binding or info
+pub type WindowStateSimple = WindowState<(), ()>;
+
+impl<DATA: Debug, INFO: Clone> WindowState<DATA, INFO> {
     // return the first window
     // I will use it in iced
-    pub fn main_window(&self) -> &WindowStateUnit<T, INFO> {
+    pub fn main_window(&self) -> &WindowStateUnit<DATA, INFO> {
         &self.units[0]
     }
 
-    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T, INFO>> {
+    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<DATA, INFO>> {
         self.units.iter().find(|w| w.id() == id)
     }
     // return all windows
-    pub fn windows(&self) -> &Vec<WindowStateUnit<T, INFO>> {
+    pub fn windows(&self) -> &Vec<WindowStateUnit<DATA, INFO>> {
         &self.units
     }
 }
@@ -511,7 +520,7 @@ impl WindowWrapper {
     }
 }
 
-impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> WindowState<DATA, INFO> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -532,7 +541,10 @@ impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
         self.touch.as_ref()
     }
 }
-impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
+
+impl<DATA: Debug, INFO: Clone> WindowState<DATA, INFO> {
+    /// gen the wrapper to the main window
+    /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
         self.main_window().gen_wrapper()
     }
@@ -579,7 +591,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
     }
 }
 
-impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> WindowState<DATA, INFO> {
     /// create a WindowState, you need to pass a namespace in
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
@@ -649,7 +661,7 @@ impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
     }
 }
 
-impl<T: Debug, INFO: Clone> Default for WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> Default for WindowState<DATA, INFO> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
@@ -687,7 +699,7 @@ impl<T: Debug, INFO: Clone> Default for WindowState<T, INFO> {
     }
 }
 
-impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> WindowState<DATA, INFO> {
     /// You can save the virtual_keyboard here
     pub fn set_virtual_keyboard(&mut self, keyboard: ZwpVirtualKeyboardV1) {
         self.virtual_keyboard = Some(keyboard);
@@ -704,17 +716,17 @@ impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
     }
 
     /// get the unit with the index returned by eventloop
-    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T, INFO> {
+    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<DATA, INFO> {
         &mut self.units[index]
     }
 
     /// it return the iter of units. you can do loop with it
-    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T, INFO>> {
+    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<DATA, INFO>> {
         self.units.iter()
     }
 
     /// it return the mut iter of units. you can do loop with it
-    pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T, INFO>> {
+    pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<DATA, INFO>> {
         self.units.iter_mut()
     }
 
@@ -731,8 +743,8 @@ impl<T: Debug, INFO: Clone> WindowState<T, INFO> {
     }
 }
 
-impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_registry::WlRegistry, ()>
-    for WindowState<T, INFO>
+impl<DATA: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_registry::WlRegistry, ()>
+    for WindowState<DATA, INFO>
 {
     fn event(
         state: &mut Self,
@@ -766,8 +778,8 @@ impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_registry::WlRegistry
     }
 }
 
-impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_seat::WlSeat, ()>
-    for WindowState<T, INFO>
+impl<DATA: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_seat::WlSeat, ()>
+    for WindowState<DATA, INFO>
 {
     fn event(
         state: &mut Self,
@@ -795,7 +807,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> Dispatch<wl_seat::WlSeat, ()>
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<DATA, INFO> {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -871,7 +883,7 @@ impl<T: Debug, INFO: Clone> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowStat
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<wl_touch::WlTouch, ()> for WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> Dispatch<wl_touch::WlTouch, ()> for WindowState<DATA, INFO> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -909,7 +921,7 @@ impl<T: Debug, INFO: Clone> Dispatch<wl_touch::WlTouch, ()> for WindowState<T, I
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> Dispatch<wl_pointer::WlPointer, ()> for WindowState<DATA, INFO> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -1075,8 +1087,8 @@ impl<T: Debug, INFO: Clone> Dispatch<wl_pointer::WlPointer, ()> for WindowState<
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()>
-    for WindowState<T, INFO>
+impl<DATA: Debug, INFO: Clone> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()>
+    for WindowState<DATA, INFO>
 {
     fn event(
         state: &mut Self,
@@ -1111,7 +1123,9 @@ impl<T: Debug, INFO: Clone> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, 
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T, INFO> {
+impl<DATA: Debug, INFO: Clone> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()>
+    for WindowState<DATA, INFO>
+{
     fn event(
         state: &mut Self,
         proxy: &zxdg_output_v1::ZxdgOutputV1,
@@ -1149,8 +1163,8 @@ impl<T: Debug, INFO: Clone> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for Windo
     }
 }
 
-impl<T: Debug, INFO: Clone> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()>
-    for WindowState<T, INFO>
+impl<DATA: Debug, INFO: Clone> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()>
+    for WindowState<DATA, INFO>
 {
     fn event(
         state: &mut Self,
@@ -1175,26 +1189,26 @@ impl<T: Debug, INFO: Clone> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1
     }
 }
 
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                                                // it is not used
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WlBuffer); // buffer show the picture
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
-                                                                                        // ext-session-shell
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WlOutput); // output is need to place layer_shell, although here
+                                                                                      // it is not used
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
+                                                                                              // ext-session-shell
 
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WpCursorShapeManagerV1);
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore ZwpVirtualKeyboardManagerV1);
 
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore ZxdgOutputManagerV1);
-delegate_noop!(@<T: Debug, INFO: Clone> WindowState<T, INFO>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore ZxdgOutputManagerV1);
+delegate_noop!(@<DATA: Debug, INFO: Clone> WindowState<DATA, INFO>: ignore WpFractionalScaleManagerV1);
 
-impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
+impl<DATA: Debug + 'static, INFO: 'static + Clone> WindowState<DATA, INFO> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
@@ -1205,7 +1219,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                                                                            // BaseState after
                                                                            // this anymore
 
-        let mut event_queue = connection.new_event_queue::<WindowState<T, INFO>>();
+        let mut event_queue = connection.new_event_queue::<WindowState<DATA, INFO>>();
         let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
@@ -1382,8 +1396,8 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
     ) -> Result<(), LayerEventError>
     where
         F: FnMut(
-            LayerEvent<T, Message, INFO>,
-            &mut WindowState<T, INFO>,
+            LayerEvent<DATA, Message, INFO>,
+            &mut WindowState<DATA, INFO>,
             Option<usize>,
         ) -> ReturnData<INFO>,
     {
@@ -1404,8 +1418,8 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
     pub fn running<F>(self, event_handler: F) -> Result<(), LayerEventError>
     where
         F: FnMut(
-            LayerEvent<T, (), INFO>,
-            &mut WindowState<T, INFO>,
+            LayerEvent<DATA, (), INFO>,
+            &mut WindowState<DATA, INFO>,
             Option<usize>,
         ) -> ReturnData<INFO>,
     {
@@ -1419,8 +1433,8 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
     ) -> Result<(), LayerEventError>
     where
         F: FnMut(
-            LayerEvent<T, Message, INFO>,
-            &mut WindowState<T, INFO>,
+            LayerEvent<DATA, Message, INFO>,
+            &mut WindowState<DATA, INFO>,
             Option<usize>,
         ) -> ReturnData<INFO>,
     {
