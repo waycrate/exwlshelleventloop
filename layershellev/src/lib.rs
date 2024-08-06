@@ -297,7 +297,7 @@ pub struct WindowStateUnit<T> {
     becreated: bool,
 }
 
-impl<DATA> WindowStateUnit<DATA> {
+impl<T> WindowStateUnit<T> {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -309,7 +309,7 @@ impl<DATA> WindowStateUnit<DATA> {
         }
     }
 }
-impl<DATA> WindowStateUnit<DATA> {
+impl<T> WindowStateUnit<T> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -331,7 +331,7 @@ impl<DATA> WindowStateUnit<DATA> {
     }
 }
 
-impl<DATA> rwh_06::HasWindowHandle for WindowStateUnit<DATA> {
+impl<T> rwh_06::HasWindowHandle for WindowStateUnit<T> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_window_handle_rwh_06()?;
 
@@ -341,7 +341,7 @@ impl<DATA> rwh_06::HasWindowHandle for WindowStateUnit<DATA> {
     }
 }
 
-impl<DATA> rwh_06::HasDisplayHandle for WindowStateUnit<DATA> {
+impl<T> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 
@@ -445,15 +445,15 @@ impl<T> WindowStateUnit<T> {
 
 /// main state, store the main information
 #[derive(Debug)]
-pub struct WindowState<DATA> {
+pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
-    units: Vec<WindowStateUnit<DATA>>,
+    units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<usize>, DispatchMessageInner)>,
 
     connection: Option<Connection>,
-    event_queue: Option<EventQueue<WindowState<DATA>>>,
+    event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
     xdg_output_manager: Option<ZxdgOutputManagerV1>,
     shm: Option<WlShm>,
@@ -486,18 +486,18 @@ pub struct WindowState<DATA> {
 /// Simple WindowState, without any data binding or info
 pub type WindowStateSimple = WindowState<()>;
 
-impl<DATA> WindowState<DATA> {
+impl<T> WindowState<T> {
     // return the first window
     // I will use it in iced
-    pub fn main_window(&self) -> &WindowStateUnit<DATA> {
+    pub fn main_window(&self) -> &WindowStateUnit<T> {
         &self.units[0]
     }
 
-    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<DATA>> {
+    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
         self.units.iter().find(|w| w.id() == id)
     }
     // return all windows
-    pub fn windows(&self) -> &Vec<WindowStateUnit<DATA>> {
+    pub fn windows(&self) -> &Vec<WindowStateUnit<T>> {
         &self.units
     }
 }
@@ -515,7 +515,7 @@ impl WindowWrapper {
     }
 }
 
-impl<DATA> WindowState<DATA> {
+impl<T> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -586,7 +586,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
     }
 }
 
-impl<DATA> WindowState<DATA> {
+impl<T> WindowState<T> {
     /// create a WindowState, you need to pass a namespace in
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
@@ -656,7 +656,7 @@ impl<DATA> WindowState<DATA> {
     }
 }
 
-impl<DATA> Default for WindowState<DATA> {
+impl<T> Default for WindowState<T> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
@@ -694,7 +694,7 @@ impl<DATA> Default for WindowState<DATA> {
     }
 }
 
-impl<DATA> WindowState<DATA> {
+impl<T> WindowState<T> {
     /// You can save the virtual_keyboard here
     pub fn set_virtual_keyboard(&mut self, keyboard: ZwpVirtualKeyboardV1) {
         self.virtual_keyboard = Some(keyboard);
@@ -711,17 +711,17 @@ impl<DATA> WindowState<DATA> {
     }
 
     /// get the unit with the index returned by eventloop
-    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<DATA> {
+    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
     }
 
     /// it return the iter of units. you can do loop with it
-    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<DATA>> {
+    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
     }
 
     /// it return the mut iter of units. you can do loop with it
-    pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<DATA>> {
+    pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T>> {
         self.units.iter_mut()
     }
 
@@ -738,7 +738,7 @@ impl<DATA> WindowState<DATA> {
     }
 }
 
-impl<DATA: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<DATA> {
+impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -771,7 +771,7 @@ impl<DATA: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<DATA> 
     }
 }
 
-impl<DATA: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<DATA> {
+impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -798,7 +798,7 @@ impl<DATA: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<DATA> {
+impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -874,7 +874,7 @@ impl<DATA> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA> Dispatch<wl_touch::WlTouch, ()> for WindowState<DATA> {
+impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -912,7 +912,7 @@ impl<DATA> Dispatch<wl_touch::WlTouch, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA> Dispatch<wl_pointer::WlPointer, ()> for WindowState<DATA> {
+impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -1078,7 +1078,7 @@ impl<DATA> Dispatch<wl_pointer::WlPointer, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<DATA> {
+impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -1112,7 +1112,7 @@ impl<DATA> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowSta
     }
 }
 
-impl<DATA> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<DATA> {
+impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &zxdg_output_v1::ZxdgOutputV1,
@@ -1150,7 +1150,7 @@ impl<DATA> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<DATA> {
+impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
@@ -1174,26 +1174,26 @@ impl<DATA> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowS
     }
 }
 
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                            // it is not used
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WlBuffer); // buffer show the picture
-delegate_noop!(@<DATA> WindowState<DATA>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
-                                                                    // ext-session-shell
+delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<T> WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
+                                                      // it is not used
+delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<T> WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<T> WindowState<T>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
+                                                              // ext-session-shell
 
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WpCursorShapeManagerV1);
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(@<DATA> WindowState<DATA>: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(@<DATA> WindowState<DATA>: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
-delegate_noop!(@<DATA> WindowState<DATA>: ignore ZxdgOutputManagerV1);
-delegate_noop!(@<DATA> WindowState<DATA>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 
-impl<DATA: 'static> WindowState<DATA> {
+impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
@@ -1204,7 +1204,7 @@ impl<DATA: 'static> WindowState<DATA> {
                                                                            // BaseState after
                                                                            // this anymore
 
-        let mut event_queue = connection.new_event_queue::<WindowState<DATA>>();
+        let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
@@ -1378,11 +1378,7 @@ impl<DATA: 'static> WindowState<DATA> {
         event_handler: F,
     ) -> Result<(), LayerEventError>
     where
-        F: FnMut(
-            LayerEvent<DATA, Message>,
-            &mut WindowState<DATA>,
-            Option<usize>,
-        ) -> ReturnData<DATA>,
+        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData<T>,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
@@ -1400,7 +1396,7 @@ impl<DATA: 'static> WindowState<DATA> {
     ///
     pub fn running<F>(self, event_handler: F) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent<DATA, ()>, &mut WindowState<DATA>, Option<usize>) -> ReturnData<DATA>,
+        F: FnMut(LayerEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData<T>,
     {
         self.running_with_proxy_option(None, event_handler)
     }
@@ -1411,11 +1407,7 @@ impl<DATA: 'static> WindowState<DATA> {
         mut event_handler: F,
     ) -> Result<(), LayerEventError>
     where
-        F: FnMut(
-            LayerEvent<DATA, Message>,
-            &mut WindowState<DATA>,
-            Option<usize>,
-        ) -> ReturnData<DATA>,
+        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData<T>,
     {
         let globals = self.globals.take().unwrap();
         let event_queue = self.event_queue.take().unwrap();
@@ -1608,7 +1600,7 @@ impl<DATA: 'static> WindowState<DATA> {
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                                 if let Some(ref cursor_manager) = cursor_manager {
                                     let Some(shape) = str_to_shape(&shape_name) else {
-                                        eprintln!("Not supported shape");
+                                        log::error!("Not supported shape");
                                         continue;
                                     };
                                     let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1618,7 +1610,7 @@ impl<DATA: 'static> WindowState<DATA> {
                                     let Some(cursor_buffer) =
                                         get_cursor_buffer(&shape_name, &connection, &shm)
                                     else {
-                                        eprintln!("Cannot find cursor {shape_name}");
+                                        log::error!("Cannot find cursor {shape_name}");
                                         continue;
                                     };
                                     let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1647,7 +1639,7 @@ impl<DATA: 'static> WindowState<DATA> {
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                         if let Some(ref cursor_manager) = cursor_manager {
                             let Some(shape) = str_to_shape(&shape_name) else {
-                                eprintln!("Not supported shape");
+                                log::error!("Not supported shape");
                                 continue;
                             };
                             let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1657,7 +1649,7 @@ impl<DATA: 'static> WindowState<DATA> {
                             let Some(cursor_buffer) =
                                 get_cursor_buffer(&shape_name, &connection, &shm)
                             else {
-                                eprintln!("Cannot find cursor {shape_name}");
+                                log::error!("Cannot find cursor {shape_name}");
                                 continue;
                             };
                             let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1723,7 +1715,7 @@ impl<DATA: 'static> WindowState<DATA> {
                         ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                             if let Some(ref cursor_manager) = cursor_manager {
                                 let Some(shape) = str_to_shape(&shape_name) else {
-                                    eprintln!("Not supported shape");
+                                    log::error!("Not supported shape");
                                     continue;
                                 };
                                 let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1733,7 +1725,7 @@ impl<DATA: 'static> WindowState<DATA> {
                                 let Some(cursor_buffer) =
                                     get_cursor_buffer(&shape_name, &connection, &shm)
                                 else {
-                                    eprintln!("Cannot find cursor {shape_name}");
+                                    log::error!("Cannot find cursor {shape_name}");
                                     continue;
                                 };
                                 let cursor_surface = wmcompositer.create_surface(&qh, ());

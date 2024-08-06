@@ -1154,7 +1154,7 @@ impl<T: 'static> WindowState<T> {
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                                 if let Some(ref cursor_manager) = cursor_manager {
                                     let Some(shape) = str_to_shape(&shape_name) else {
-                                        eprintln!("Not supported shape");
+                                        log::error!("Not supported shape");
                                         continue;
                                     };
                                     let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1164,7 +1164,7 @@ impl<T: 'static> WindowState<T> {
                                     let Some(cursor_buffer) =
                                         get_cursor_buffer(&shape_name, &connection, &shm)
                                     else {
-                                        eprintln!("Cannot find cursor {shape_name}");
+                                        log::error!("Cannot find cursor {shape_name}");
                                         continue;
                                     };
                                     let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1195,7 +1195,7 @@ impl<T: 'static> WindowState<T> {
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                         if let Some(ref cursor_manager) = cursor_manager {
                             let Some(shape) = str_to_shape(&shape_name) else {
-                                eprintln!("Not supported shape");
+                                log::error!("Not supported shape");
                                 continue;
                             };
                             let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1205,7 +1205,7 @@ impl<T: 'static> WindowState<T> {
                             let Some(cursor_buffer) =
                                 get_cursor_buffer(&shape_name, &connection, &shm)
                             else {
-                                eprintln!("Cannot find cursor {shape_name}");
+                                log::error!("Cannot find cursor {shape_name}");
                                 continue;
                             };
                             let cursor_surface = wmcompositer.create_surface(&qh, ());
