@@ -19,8 +19,12 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     AnchorChange(Anchor),
     LayerChange(Layer),
     SizeChange((u32, u32)),
-    VirtualKeyboardPressed { time: u32, key: u32 },
+    VirtualKeyboardPressed {
+        time: u32,
+        key: u32,
+    },
     NewLayerShell((NewLayerShellSettings, INFO)),
+    /// is same with WindowAction::Close(id)
     RemoveLayerShell(IcedId),
 }
 
