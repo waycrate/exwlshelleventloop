@@ -456,7 +456,9 @@ async fn run_instance<A, E, C>(
                     info,
                 },
             ) => {
+                let mut is_new_window = false;
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
+                    is_new_window = true;
                     let id = window::Id::unique();
 
                     let window = window_manager.insert(
@@ -556,15 +558,17 @@ async fn run_instance<A, E, C>(
                     window.state.cursor(),
                 );
                 debug.draw_finished();
-                compositor
-                    .present(
-                        &mut window.renderer,
-                        &mut window.surface,
-                        window.state.viewport(),
-                        window.state.background_color(),
-                        &debug.overlay(),
-                    )
-                    .ok();
+                if !is_new_window {
+                    compositor
+                        .present(
+                            &mut window.renderer,
+                            &mut window.surface,
+                            window.state.viewport(),
+                            window.state.background_color(),
+                            &debug.overlay(),
+                        )
+                        .ok();
+                }
 
                 debug.render_finished();
 
