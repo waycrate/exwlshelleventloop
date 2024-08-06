@@ -31,7 +31,7 @@ struct Counter {
     ids: HashMap<iced::window::Id, WindowInfo>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowInfo {
     Left,
     Right,
@@ -55,6 +55,17 @@ enum Message {
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
+}
+
+impl Counter {
+    fn window_id(&self, info: &WindowInfo) -> Option<&iced::window::Id> {
+        for (k, v) in self.ids.iter() {
+            if info == v {
+                return Some(k);
+            }
+        }
+        None
+    }
 }
 
 impl MultiApplication for Counter {
@@ -83,6 +94,10 @@ impl MultiApplication for Counter {
         self.ids.insert(id, info);
     }
 
+    fn remove_id(&mut self, id: iced::window::Id) {
+        self.ids.remove(&id);
+    }
+
     fn namespace(&self) -> String {
         String::from("Counter - Iced")
     }
@@ -92,9 +107,20 @@ impl MultiApplication for Counter {
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
+        use iced::keyboard;
+        use iced::keyboard::key::Named;
+        use iced::Event;
         match message {
             Message::IcedEvent(event) => {
-                println!("hello {event:?}");
+                if let Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(Named::Escape),
+                    ..
+                }) = event
+                {
+                    if let Some(id) = self.window_id(&WindowInfo::Left) {
+                        return Command::single(Action::Window(WindowAction::Close(*id)));
+                    }
+                }
                 Command::none()
             }
             Message::IncrementPressed => {
@@ -193,7 +219,7 @@ impl MultiApplication for Counter {
                             anchor: Anchor::Left | Anchor::Bottom,
                             layer: Layer::Top,
                             margins: None,
-                            keyboard_interactivity: KeyboardInteractivity::None,
+                            keyboard_interactivity: KeyboardInteractivity::Exclusive,
                         },
                         WindowInfo::Left,
                     )),

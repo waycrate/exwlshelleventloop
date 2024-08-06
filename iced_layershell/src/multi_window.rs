@@ -81,6 +81,7 @@ where
     fn id_info(&self, _id: iced_core::window::Id) -> Option<&Self::WindowInfo>;
 
     fn set_id_info(&mut self, _id: iced_core::window::Id, info: Self::WindowInfo);
+    fn remove_id(&mut self, _id: iced_core::window::Id);
 
     /// Returns the current [`Theme`] of the [`Application`].
     fn theme(&self) -> Self::Theme;
@@ -339,7 +340,8 @@ where
                                                 Some(info),
                                             ));
                                         }
-                                        LayershellCustomActionsWithInfo::RemoveLayerShell(_) => {
+                                        LayershellCustomActionsWithInfo::RemoveLayerShell(id) => {
+                                            event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
                                             return ReturnData::RemoveLayershell(option_id.unwrap())
                                         }
                                     }
@@ -375,7 +377,6 @@ where
     Ok(())
 }
 
-#[allow(unused)]
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
     mut application: A,
@@ -397,7 +398,6 @@ async fn run_instance<A, E, C>(
     <A as Application>::WindowInfo: Clone,
 {
     use iced::window;
-    use iced_core::mouse;
     use iced_core::Event;
     let main_window = window_manager
         .get_mut(window::Id::MAIN)
@@ -457,7 +457,6 @@ async fn run_instance<A, E, C>(
                     info,
                 },
             ) => {
-                let layerid = wrapper.id();
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     let id = window::Id::unique();
 
@@ -498,6 +497,7 @@ async fn run_instance<A, E, C>(
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
                     window.state.update_view_port(width, height);
+                    #[allow(unused)]
                     let renderer = &window.renderer;
                     let _ = user_interfaces.insert(
                         id,
@@ -570,7 +570,7 @@ async fn run_instance<A, E, C>(
                 debug.render_finished();
 
                 if is_created {
-                    let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                    let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
                         ManuallyDrop::into_inner(user_interfaces)
                             .drain()
                             .map(|(id, ui)| (id, ui.into_cache()))
@@ -663,7 +663,7 @@ async fn run_instance<A, E, C>(
                         &mut cached_interfaces,
                     );
 
-                    for (id, window) in window_manager.iter_mut() {
+                    for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
                     }
 
@@ -679,6 +679,20 @@ async fn run_instance<A, E, C>(
                         break;
                     }
                 }
+            }
+            MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
+                let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                    ManuallyDrop::into_inner(user_interfaces)
+                        .drain()
+                        .map(|(id, ui)| (id, ui.into_cache()))
+                        .collect();
+                application.remove_id(id);
+                user_interfaces = ManuallyDrop::new(build_user_interfaces(
+                    &application,
+                    &mut debug,
+                    &mut window_manager,
+                    cached_interfaces,
+                ));
             }
             _ => {}
         }

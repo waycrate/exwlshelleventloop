@@ -76,6 +76,7 @@ pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     Window(WindowEvent),
     NormalUpdate,
     UserEvent(Message),
+    WindowRemoved(iced_core::window::Id),
 }
 
 #[allow(unused)]

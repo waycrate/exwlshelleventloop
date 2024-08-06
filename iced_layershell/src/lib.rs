@@ -246,6 +246,7 @@ pub trait MultiApplication: Sized {
     }
 
     fn set_id_info(&mut self, _id: iced_core::window::Id, _info: Self::WindowInfo) {}
+    fn remove_id(&mut self, _id: iced_core::window::Id) {}
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
@@ -399,5 +400,8 @@ where
 
     fn set_id_info(&mut self, id: iced_core::window::Id, info: Self::WindowInfo) {
         self.0.set_id_info(id, info)
+    }
+    fn remove_id(&mut self, id: iced_core::window::Id) {
+        self.0.remove_id(id)
     }
 }
