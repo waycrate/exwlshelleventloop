@@ -929,6 +929,42 @@ pub(crate) fn run_command<A, C, E>(
                             action.1.clone(),
                         ));
                     }
+                } else if let Some(action) =
+                    custom.downcast_ref::<LayershellCustomActionsWithIdAndInfo<()>>()
+                {
+                    // NOTE: try to unwrap again, if with type LayershellCustomActionsWithInfo<()>,
+                    let option_id =
+                        if let LayershellCustomActionsWithInfo::RemoveLayerShell(id) = action.1 {
+                            window_manager.get_layer_id(id)
+                        } else {
+                            None
+                        };
+                    let turnaction: LayershellCustomActionsWithInfo<A::WindowInfo> = match action.1
+                    {
+                        LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                            LayershellCustomActionsWithInfo::AnchorChange(anchor)
+                        }
+                        LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                            LayershellCustomActionsWithInfo::LayerChange(layer)
+                        }
+                        LayershellCustomActionsWithInfo::SizeChange(size) => {
+                            LayershellCustomActionsWithInfo::SizeChange(size)
+                        }
+                        LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
+                            LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key }
+                        }
+                        LayershellCustomActionsWithInfo::RemoveLayerShell(id) => {
+                            LayershellCustomActionsWithInfo::RemoveLayerShell(id)
+                        }
+                        _ => {
+                            continue;
+                        }
+                    };
+                    if let Some(id) = window_manager.get_layer_id(action.0) {
+                        customactions.push(LayershellCustomActionsWithIdInner(
+                            id, option_id, turnaction,
+                        ));
+                    }
                 }
             }
             _ => {}
