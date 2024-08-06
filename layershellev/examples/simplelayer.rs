@@ -55,7 +55,9 @@ fn main() {
                     (),
                 ))
             }
-            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh {
+                width, height, ..
+            }) => {
                 println!("{width}, {height}");
                 ReturnData::None
             }

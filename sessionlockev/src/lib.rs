@@ -110,8 +110,6 @@ pub mod id;
 
 use strtoshape::str_to_shape;
 
-use std::fmt::Debug;
-
 use events::{AxisScroll, DispatchMessageInner};
 
 pub use events::{DispatchMessage, ReturnData, SessionLockEvent};
@@ -289,7 +287,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
 }
 
 #[derive(Debug)]
-pub struct WindowStateUnit<T: Debug> {
+pub struct WindowStateUnit<T> {
     id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
@@ -300,7 +298,7 @@ pub struct WindowStateUnit<T: Debug> {
     binding: Option<T>,
 }
 
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -313,7 +311,7 @@ impl<T: Debug> WindowStateUnit<T> {
     }
 }
 
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -342,7 +340,7 @@ impl<T: Debug> WindowStateUnit<T> {
 ///
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
         &self.wl_surface
@@ -371,7 +369,7 @@ impl<T: Debug> WindowStateUnit<T> {
 }
 
 #[derive(Debug)]
-pub struct WindowState<T: Debug> {
+pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     units: Vec<WindowStateUnit<T>>,
@@ -396,7 +394,7 @@ pub struct WindowState<T: Debug> {
     use_display_handle: bool,
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -418,7 +416,7 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
         self.main_window().gen_wrapper()
     }
@@ -437,14 +435,14 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     /// create a new WindowState
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl<T: Debug> Default for WindowState<T> {
+impl<T> Default for WindowState<T> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
@@ -471,7 +469,7 @@ impl<T: Debug> Default for WindowState<T> {
     }
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     /// get the unit with the index returned by eventloop
     pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
@@ -504,7 +502,7 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
-impl<T: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
+impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -537,7 +535,7 @@ impl<T: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T
     }
 }
 
-impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
+impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -564,7 +562,7 @@ impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
+impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -640,7 +638,7 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
+impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -678,7 +676,7 @@ impl<T: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
+impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -839,9 +837,7 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()>
-    for WindowState<T>
-{
+impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         surface: &ext_session_lock_surface_v1::ExtSessionLockSurfaceV1,
@@ -875,7 +871,7 @@ impl<T: Debug> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()
     }
 }
 
-impl<T: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
+impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
@@ -899,28 +895,28 @@ impl<T: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for Win
     }
 }
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                            // it is not used
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlBuffer); // buffer show the picture
-                                                            //
+delegate_noop!(@<T>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<T>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(@<T>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
+                                                     // it is not used
+delegate_noop!(@<T>WindowState<T>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<T>WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<T>WindowState<T>: ignore WlBuffer); // buffer show the picture
+                                                     //
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ExtSessionLockV1); // buffer show the picture
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
+delegate_noop!(@<T>WindowState<T>: ignore ExtSessionLockV1); // buffer show the picture
+delegate_noop!(@<T>WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeManagerV1);
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<T>WindowState<T>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<T>WindowState<T>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 // fractional_scale_manager
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<T>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
-impl<T: Debug + 'static> WindowState<T> {
+impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, SessonLockEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
@@ -1158,7 +1154,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                                 if let Some(ref cursor_manager) = cursor_manager {
                                     let Some(shape) = str_to_shape(&shape_name) else {
-                                        eprintln!("Not supported shape");
+                                        log::error!("Not supported shape");
                                         continue;
                                     };
                                     let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1168,7 +1164,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                     let Some(cursor_buffer) =
                                         get_cursor_buffer(&shape_name, &connection, &shm)
                                     else {
-                                        eprintln!("Cannot find cursor {shape_name}");
+                                        log::error!("Cannot find cursor {shape_name}");
                                         continue;
                                     };
                                     let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1199,7 +1195,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                         if let Some(ref cursor_manager) = cursor_manager {
                             let Some(shape) = str_to_shape(&shape_name) else {
-                                eprintln!("Not supported shape");
+                                log::error!("Not supported shape");
                                 continue;
                             };
                             let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1209,7 +1205,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             let Some(cursor_buffer) =
                                 get_cursor_buffer(&shape_name, &connection, &shm)
                             else {
-                                eprintln!("Cannot find cursor {shape_name}");
+                                log::error!("Cannot find cursor {shape_name}");
                                 continue;
                             };
                             let cursor_surface = wmcompositer.create_surface(&qh, ());

@@ -60,7 +60,7 @@
 //!                     (),
 //!                 ))
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+//!             LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
 //!                 println!("{width}, {height}");
 //!                 ReturnData::None
 //!             }
@@ -111,6 +111,7 @@
 //! }
 //! ```
 //!
+pub use events::NewLayerShellSettings;
 use sctk::reexports::calloop::LoopHandle;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
@@ -119,8 +120,6 @@ pub use sctk::reexports::calloop;
 
 mod events;
 mod strtoshape;
-
-use std::fmt::Debug;
 
 use events::DispatchMessageInner;
 
@@ -284,7 +283,7 @@ impl ZxdgOutputInfo {
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
 #[derive(Debug)]
-pub struct WindowStateUnit<T: Debug> {
+pub struct WindowStateUnit<T> {
     id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
@@ -293,10 +292,12 @@ pub struct WindowStateUnit<T: Debug> {
     layer_shell: ZwlrLayerSurfaceV1,
     zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
+    wl_output: Option<WlOutput>,
     binding: Option<T>,
+    becreated: bool,
 }
 
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -308,7 +309,7 @@ impl<T: Debug> WindowStateUnit<T> {
         }
     }
 }
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -330,7 +331,7 @@ impl<T: Debug> WindowStateUnit<T> {
     }
 }
 
-impl<T: Debug> rwh_06::HasWindowHandle for WindowStateUnit<T> {
+impl<T> rwh_06::HasWindowHandle for WindowStateUnit<T> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_window_handle_rwh_06()?;
 
@@ -340,7 +341,7 @@ impl<T: Debug> rwh_06::HasWindowHandle for WindowStateUnit<T> {
     }
 }
 
-impl<T: Debug> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
+impl<T> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 
@@ -351,7 +352,7 @@ impl<T: Debug> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
 }
 
 // if is only one window, use it will be easy
-impl<T: Debug> rwh_06::HasWindowHandle for WindowState<T> {
+impl<T> rwh_06::HasWindowHandle for WindowState<T> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.main_window().raw_window_handle_rwh_06()?;
 
@@ -362,7 +363,7 @@ impl<T: Debug> rwh_06::HasWindowHandle for WindowState<T> {
 }
 
 // if is only one window, use it will be easy
-impl<T: Debug> rwh_06::HasDisplayHandle for WindowState<T> {
+impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.main_window().raw_display_handle_rwh_06()?;
 
@@ -371,7 +372,7 @@ impl<T: Debug> rwh_06::HasDisplayHandle for WindowState<T> {
         Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
     }
 }
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
         &self.wl_surface
@@ -424,6 +425,10 @@ impl<T: Debug> WindowStateUnit<T> {
         self.binding.as_mut()
     }
 
+    pub fn get_binding(&self) -> Option<&T> {
+        self.binding.as_ref()
+    }
+
     /// get the size of the surface
     pub fn get_size(&self) -> (u32, u32) {
         self.size
@@ -440,7 +445,7 @@ impl<T: Debug> WindowStateUnit<T> {
 
 /// main state, store the main information
 #[derive(Debug)]
-pub struct WindowState<T: Debug> {
+pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
@@ -478,7 +483,10 @@ pub struct WindowState<T: Debug> {
     loop_handler: Option<LoopHandle<'static, Self>>,
 }
 
-impl<T: Debug> WindowState<T> {
+/// Simple WindowState, without any data binding or info
+pub type WindowStateSimple = WindowState<()>;
+
+impl<T> WindowState<T> {
     // return the first window
     // I will use it in iced
     pub fn main_window(&self) -> &WindowStateUnit<T> {
@@ -507,7 +515,7 @@ impl WindowWrapper {
     }
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -528,7 +536,10 @@ impl<T: Debug> WindowState<T> {
         self.touch.as_ref()
     }
 }
-impl<T: Debug> WindowState<T> {
+
+impl<T> WindowState<T> {
+    /// gen the wrapper to the main window
+    /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
         self.main_window().gen_wrapper()
     }
@@ -575,7 +586,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
     }
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     /// create a WindowState, you need to pass a namespace in
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
@@ -645,7 +656,7 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
-impl<T: Debug> Default for WindowState<T> {
+impl<T> Default for WindowState<T> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
@@ -683,7 +694,7 @@ impl<T: Debug> Default for WindowState<T> {
     }
 }
 
-impl<T: Debug> WindowState<T> {
+impl<T> WindowState<T> {
     /// You can save the virtual_keyboard here
     pub fn set_virtual_keyboard(&mut self, keyboard: ZwpVirtualKeyboardV1) {
         self.virtual_keyboard = Some(keyboard);
@@ -727,7 +738,7 @@ impl<T: Debug> WindowState<T> {
     }
 }
 
-impl<T: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
+impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -760,7 +771,7 @@ impl<T: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T
     }
 }
 
-impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
+impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -787,7 +798,7 @@ impl<T: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
+impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -863,7 +874,7 @@ impl<T: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
+impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -901,7 +912,7 @@ impl<T: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
+impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -1067,7 +1078,7 @@ impl<T: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
+impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -1101,7 +1112,7 @@ impl<T: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Windo
     }
 }
 
-impl<T: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
+impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &zxdg_output_v1::ZxdgOutputV1,
@@ -1139,7 +1150,7 @@ impl<T: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
     }
 }
 
-impl<T: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
+impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
         proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
@@ -1163,26 +1174,26 @@ impl<T: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for Win
     }
 }
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                            // it is not used
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WlBuffer); // buffer show the picture
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
-                                                                    // ext-session-shell
+delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<T> WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
+                                                      // it is not used
+delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<T> WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<T> WindowState<T>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
+                                                              // ext-session-shell
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeManagerV1);
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
-delegate_noop!(@<T: Debug>WindowState<T>: ignore ZxdgOutputManagerV1);
-delegate_noop!(@<T: Debug>WindowState<T>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 
-impl<T: Debug + 'static> WindowState<T> {
+impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
@@ -1278,17 +1289,19 @@ impl<T: Debug + 'static> WindowState<T> {
                 zxdgoutput: None,
                 fractional_scale,
                 binding: None,
+                becreated: false,
+                wl_output: None,
             });
         } else {
             let displays = self.outputs.clone();
-            for (_, display) in displays.iter() {
+            for (_, output_display) in displays.iter() {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                     .unwrap();
                 let layer = layer_shell.get_layer_surface(
                     &wl_surface,
-                    Some(display),
+                    Some(output_display),
                     self.layer,
                     self.namespace.clone(),
                     &qh,
@@ -1310,7 +1323,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
                 wl_surface.commit();
 
-                let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
+                let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
                 let mut fractional_scale = None;
                 if let Some(ref fractional_scale_manager) = fractional_scale_manager {
                     fractional_scale =
@@ -1331,6 +1344,8 @@ impl<T: Debug + 'static> WindowState<T> {
                     zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                     fractional_scale,
                     binding: None,
+                    becreated: false,
+                    wl_output: Some(output_display.clone()),
                 });
             }
             self.message.clear();
@@ -1363,7 +1378,7 @@ impl<T: Debug + 'static> WindowState<T> {
         event_handler: F,
     ) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData<T>,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
@@ -1381,7 +1396,7 @@ impl<T: Debug + 'static> WindowState<T> {
     ///
     pub fn running<F>(self, event_handler: F) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+        F: FnMut(LayerEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData<T>,
     {
         self.running_with_proxy_option(None, event_handler)
     }
@@ -1392,7 +1407,7 @@ impl<T: Debug + 'static> WindowState<T> {
         mut event_handler: F,
     ) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData<T>,
     {
         let globals = self.globals.take().unwrap();
         let event_queue = self.event_queue.take().unwrap();
@@ -1458,6 +1473,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                 LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                     width: *width,
                                     height: *height,
+                                    is_created: self.units[index].becreated,
                                 }),
                                 &mut self,
                                 Some(index),
@@ -1474,7 +1490,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             *index_info,
                         );
                     }
-                    (_, DispatchMessageInner::NewDisplay(display)) => {
+                    (_, DispatchMessageInner::NewDisplay(output_display)) => {
                         if self.is_single {
                             continue;
                         }
@@ -1484,7 +1500,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             .unwrap();
                         let layer = layer_shell.get_layer_surface(
                             &wl_surface,
-                            Some(display),
+                            Some(output_display),
                             self.layer,
                             self.namespace.clone(),
                             &qh,
@@ -1506,7 +1522,7 @@ impl<T: Debug + 'static> WindowState<T> {
 
                         wl_surface.commit();
 
-                        let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
+                        let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
                         let mut fractional_scale = None;
                         if let Some(ref fractional_scale_manager) = fractional_scale_manager {
                             fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
@@ -1530,6 +1546,8 @@ impl<T: Debug + 'static> WindowState<T> {
                             zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                             fractional_scale,
                             binding: None,
+                            becreated: false,
+                            wl_output: Some(output_display.clone()),
                         });
                     }
                     _ => {
@@ -1548,10 +1566,11 @@ impl<T: Debug + 'static> WindowState<T> {
                                             &DispatchMessage::RequestRefresh {
                                                 width: unit.size.0,
                                                 height: unit.size.1,
+                                                is_created: unit.becreated,
                                             },
                                         ),
                                         &mut self,
-                                        None,
+                                        Some(index),
                                     );
                                 }
                             }
@@ -1567,6 +1586,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                             &DispatchMessage::RequestRefresh {
                                                 width: unit.size.0,
                                                 height: unit.size.1,
+                                                is_created: unit.becreated,
                                             },
                                         ),
                                         &mut self,
@@ -1580,7 +1600,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                                 if let Some(ref cursor_manager) = cursor_manager {
                                     let Some(shape) = str_to_shape(&shape_name) else {
-                                        eprintln!("Not supported shape");
+                                        log::error!("Not supported shape");
                                         continue;
                                     };
                                     let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1590,7 +1610,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                     let Some(cursor_buffer) =
                                         get_cursor_buffer(&shape_name, &connection, &shm)
                                     else {
-                                        eprintln!("Cannot find cursor {shape_name}");
+                                        log::error!("Cannot find cursor {shape_name}");
                                         continue;
                                     };
                                     let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1619,7 +1639,7 @@ impl<T: Debug + 'static> WindowState<T> {
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                         if let Some(ref cursor_manager) = cursor_manager {
                             let Some(shape) = str_to_shape(&shape_name) else {
-                                eprintln!("Not supported shape");
+                                log::error!("Not supported shape");
                                 continue;
                             };
                             let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1629,7 +1649,7 @@ impl<T: Debug + 'static> WindowState<T> {
                             let Some(cursor_buffer) =
                                 get_cursor_buffer(&shape_name, &connection, &shm)
                             else {
-                                eprintln!("Cannot find cursor {shape_name}");
+                                log::error!("Cannot find cursor {shape_name}");
                                 continue;
                             };
                             let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1656,10 +1676,15 @@ impl<T: Debug + 'static> WindowState<T> {
                         ReturnData::RedrawAllRequest => {
                             for index in 0..self.units.len() {
                                 let unit = &self.units[index];
+                                // TODO: just fix it like this
+                                if unit.size.0 == 0 || unit.size.1 == 0 {
+                                    continue;
+                                }
                                 replace_data.push(event_handler(
                                     LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                         width: unit.size.0,
                                         height: unit.size.1,
+                                        is_created: unit.becreated,
                                     }),
                                     &mut self,
                                     Some(index),
@@ -1677,6 +1702,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                     LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                         width: unit.size.0,
                                         height: unit.size.1,
+                                        is_created: unit.becreated,
                                     }),
                                     &mut self,
                                     Some(*index),
@@ -1689,7 +1715,7 @@ impl<T: Debug + 'static> WindowState<T> {
                         ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
                             if let Some(ref cursor_manager) = cursor_manager {
                                 let Some(shape) = str_to_shape(&shape_name) else {
-                                    eprintln!("Not supported shape");
+                                    log::error!("Not supported shape");
                                     continue;
                                 };
                                 let device = cursor_manager.get_pointer(&pointer, &qh, ());
@@ -1699,7 +1725,7 @@ impl<T: Debug + 'static> WindowState<T> {
                                 let Some(cursor_buffer) =
                                     get_cursor_buffer(&shape_name, &connection, &shm)
                                 else {
-                                    eprintln!("Cannot find cursor {shape_name}");
+                                    log::error!("Cannot find cursor {shape_name}");
                                     continue;
                                 };
                                 let cursor_surface = wmcompositer.create_surface(&qh, ());
@@ -1715,10 +1741,98 @@ impl<T: Debug + 'static> WindowState<T> {
                                 cursor_surface.commit();
                             }
                         }
+                        ReturnData::NewLayerShell((
+                            NewLayerShellSettings {
+                                size,
+                                layer,
+                                anchor,
+                                exclusize_zone: exclusive_zone,
+                                margins: margin,
+                                keyboard_interactivity,
+                            },
+                            info,
+                        )) => {
+                            if self.is_single {
+                                continue;
+                            }
+                            let pos = self.surface_pos();
+
+                            let output = pos.and_then(|p| self.units[p].wl_output.as_ref());
+                            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                            let layer_shell = globals
+                                .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
+                                .unwrap();
+                            let layer = layer_shell.get_layer_surface(
+                                &wl_surface,
+                                output,
+                                layer,
+                                self.namespace.clone(),
+                                &qh,
+                                (),
+                            );
+                            layer.set_anchor(anchor);
+                            layer.set_keyboard_interactivity(keyboard_interactivity);
+                            if let Some((init_w, init_h)) = size {
+                                layer.set_size(init_w, init_h);
+                            }
+
+                            if let Some(zone) = exclusive_zone {
+                                layer.set_exclusive_zone(zone);
+                            }
+
+                            if let Some((top, right, bottom, left)) = margin {
+                                layer.set_margin(top, right, bottom, left);
+                            }
+
+                            wl_surface.commit();
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                            // and if you need to reconfigure it, you need to commit the wl_surface again
+                            // so because this is just an example, so we just commit it once
+                            // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+
+                            self.units.push(WindowStateUnit {
+                                id: id::Id::unique(),
+                                display: connection.display(),
+                                wl_surface,
+                                size: (0, 0),
+                                buffer: None,
+                                layer_shell: layer,
+                                zxdgoutput: None,
+                                fractional_scale,
+                                becreated: true,
+                                wl_output: output.cloned(),
+                                binding: info,
+                            });
+                        }
+                        ReturnData::RemoveLayershell(id) => {
+                            let Some(index) = self
+                                .units
+                                .iter()
+                                .position(|unit| unit.id == id && unit.becreated)
+                            else {
+                                continue;
+                            };
+                            self.units[index].layer_shell.destroy();
+                            self.units[index].wl_surface.destroy();
+                            if let Some(buffer) = self.units[index].buffer.as_ref() {
+                                buffer.destroy()
+                            }
+                            self.units.remove(index);
+                        }
                         _ => {}
                     }
                 }
-                replace_data.retain(|x| *x != ReturnData::None);
+                replace_data.retain(|x| !matches!(x, ReturnData::None));
                 if replace_data.is_empty() {
                     break;
                 }

@@ -1,8 +1,16 @@
+use std::collections::HashMap;
+
 use iced::widget::{button, column, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
-use iced_layershell::actions::{LayershellCustomActions, LayershellCustomActionsWithId};
-use iced_layershell::reexport::Anchor;
+use iced_layershell::actions::{
+    LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithIdAndInfo,
+    LayershellCustomActionsWithInfo,
+};
+use iced_runtime::command::Action;
+use iced_runtime::window::Action as WindowAction;
+
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::MultiApplication;
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -20,6 +28,13 @@ pub fn main() -> Result<(), iced_layershell::Error> {
 struct Counter {
     value: i32,
     text: String,
+    ids: HashMap<iced::window::Id, WindowInfo>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WindowInfo {
+    Left,
+    Right,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -34,9 +49,23 @@ enum WindowDirection {
 enum Message {
     IncrementPressed,
     DecrementPressed,
+    NewWindowLeft,
+    NewWindowRight,
+    Close(Id),
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
+}
+
+impl Counter {
+    fn window_id(&self, info: &WindowInfo) -> Option<&iced::window::Id> {
+        for (k, v) in self.ids.iter() {
+            if info == v {
+                return Some(k);
+            }
+        }
+        None
+    }
 }
 
 impl MultiApplication for Counter {
@@ -44,15 +73,29 @@ impl MultiApplication for Counter {
     type Flags = ();
     type Theme = Theme;
     type Executor = iced::executor::Default;
+    type WindowInfo = WindowInfo;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
             Self {
                 value: 0,
                 text: "eee".to_string(),
+                ids: HashMap::new(),
             },
             Command::none(),
         )
+    }
+
+    fn id_info(&self, id: iced::window::Id) -> Option<&Self::WindowInfo> {
+        self.ids.get(&id)
+    }
+
+    fn set_id_info(&mut self, id: iced::window::Id, info: Self::WindowInfo) {
+        self.ids.insert(id, info);
+    }
+
+    fn remove_id(&mut self, id: iced::window::Id) {
+        self.ids.remove(&id);
     }
 
     fn namespace(&self) -> String {
@@ -64,9 +107,20 @@ impl MultiApplication for Counter {
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
+        use iced::keyboard;
+        use iced::keyboard::key::Named;
+        use iced::Event;
         match message {
             Message::IcedEvent(event) => {
-                println!("hello {event:?}");
+                if let Event::Keyboard(keyboard::Event::KeyPressed {
+                    key: keyboard::Key::Named(Named::Escape),
+                    ..
+                }) = event
+                {
+                    if let Some(id) = self.window_id(&WindowInfo::Left) {
+                        return Command::single(Action::Window(WindowAction::Close(*id)));
+                    }
+                }
                 Command::none()
             }
             Message::IncrementPressed => {
@@ -84,7 +138,7 @@ impl MultiApplication for Counter {
             Message::Direction(direction) => match direction {
                 WindowDirection::Left(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::AnchorChange(
                                 Anchor::Left | Anchor::Top | Anchor::Bottom,
@@ -93,7 +147,7 @@ impl MultiApplication for Counter {
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::SizeChange((400, 0)),
                         )
@@ -102,7 +156,7 @@ impl MultiApplication for Counter {
                 ]),
                 WindowDirection::Right(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::AnchorChange(
                                 Anchor::Right | Anchor::Top | Anchor::Bottom,
@@ -111,7 +165,7 @@ impl MultiApplication for Counter {
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::SizeChange((400, 0)),
                         )
@@ -120,7 +174,7 @@ impl MultiApplication for Counter {
                 ]),
                 WindowDirection::Bottom(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::AnchorChange(
                                 Anchor::Bottom | Anchor::Left | Anchor::Right,
@@ -129,25 +183,25 @@ impl MultiApplication for Counter {
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
-                            LayershellCustomActions::SizeChange((0, 400)),
+                            LayershellCustomActionsWithInfo::SizeChange((0, 400)),
                         )
                         .into(),
                     ),
                 ]),
                 WindowDirection::Top(id) => Command::batch(vec![
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
-                            LayershellCustomActions::AnchorChange(
+                            LayershellCustomActionsWithInfo::AnchorChange(
                                 Anchor::Top | Anchor::Left | Anchor::Right,
                             ),
                         )
                         .into(),
                     ),
                     Command::single(
-                        LayershellCustomActionsWithId(
+                        LayershellCustomActionsWithId::new(
                             id,
                             LayershellCustomActions::SizeChange((0, 400)),
                         )
@@ -155,15 +209,57 @@ impl MultiApplication for Counter {
                     ),
                 ]),
             },
+            Message::NewWindowLeft => Command::single(
+                LayershellCustomActionsWithIdAndInfo::new(
+                    iced::window::Id::MAIN,
+                    LayershellCustomActionsWithInfo::NewLayerShell((
+                        NewLayerShellSettings {
+                            size: Some((100, 100)),
+                            exclusize_zone: None,
+                            anchor: Anchor::Left | Anchor::Bottom,
+                            layer: Layer::Top,
+                            margins: None,
+                            keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        },
+                        WindowInfo::Left,
+                    )),
+                )
+                .into(),
+            ),
+            Message::NewWindowRight => Command::single(
+                LayershellCustomActionsWithIdAndInfo::new(
+                    iced::window::Id::MAIN,
+                    LayershellCustomActionsWithInfo::NewLayerShell((
+                        NewLayerShellSettings {
+                            size: Some((100, 100)),
+                            exclusize_zone: None,
+                            anchor: Anchor::Right | Anchor::Bottom,
+                            layer: Layer::Top,
+                            margins: None,
+                            keyboard_interactivity: KeyboardInteractivity::None,
+                        },
+                        WindowInfo::Right,
+                    )),
+                )
+                .into(),
+            ),
+            Message::Close(id) => Command::single(Action::Window(WindowAction::Close(id))),
         }
     }
 
     fn view(&self, id: iced::window::Id) -> Element<Message> {
-        //println!("{:?}, {}", _id, self.value);
+        if let Some(WindowInfo::Left) = self.id_info(id) {
+            return button("close left").on_press(Message::Close(id)).into();
+        }
+        if let Some(WindowInfo::Right) = self.id_info(id) {
+            return button("close right").on_press(Message::Close(id)).into();
+        }
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             text(self.value).size(50),
-            button("Decrement").on_press(Message::DecrementPressed)
+            button("Decrement").on_press(Message::DecrementPressed),
+            button("newwindowLeft").on_press(Message::NewWindowLeft),
+            button("newwindowRight").on_press(Message::NewWindowRight)
         ]
         .padding(20)
         .align_items(Alignment::Center)

@@ -1,3 +1,8 @@
+use wayland_protocols_wlr::layer_shell::v1::client::{
+    zwlr_layer_shell_v1::Layer,
+    zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity},
+};
+
 use wayland_client::{
     globals::GlobalList,
     protocol::{
@@ -9,7 +14,7 @@ use wayland_client::{
     QueueHandle, WEnum,
 };
 
-use crate::xkb_keyboard::KeyEvent;
+use crate::{id, xkb_keyboard::KeyEvent};
 
 use crate::keyboard::ModifiersState;
 
@@ -30,7 +35,7 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum LayerEvent<'a, T: Debug, Message> {
+pub enum LayerEvent<'a, T, Message> {
     InitRequest,
     XdgInfoChanged(XdgInfoChangedType),
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
@@ -46,6 +51,28 @@ pub enum LayerEvent<'a, T: Debug, Message> {
     UserEvent(Message),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NewLayerShellSettings {
+    pub size: Option<(u32, u32)>,
+    pub layer: Layer,
+    pub anchor: Anchor,
+    pub exclusize_zone: Option<i32>,
+    pub margins: Option<(i32, i32, i32, i32)>,
+    pub keyboard_interactivity: KeyboardInteractivity,
+}
+
+impl Default for NewLayerShellSettings {
+    fn default() -> Self {
+        NewLayerShellSettings {
+            anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            layer: Layer::Top,
+            exclusize_zone: None,
+            size: None,
+            margins: Some((0, 0, 0, 0)),
+            keyboard_interactivity: KeyboardInteractivity::OnDemand,
+        }
+    }
+}
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
@@ -60,13 +87,15 @@ pub enum LayerEvent<'a, T: Debug, Message> {
 ///
 /// None means nothing will happened, no request, and no return data
 #[derive(Debug, PartialEq, Eq)]
-pub enum ReturnData {
+pub enum ReturnData<INFO> {
     WlBuffer(WlBuffer),
     RequestBind,
     RequestExist,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
     RequestSetCursorShape((String, WlPointer, u32)),
+    NewLayerShell((NewLayerShellSettings, Option<INFO>)),
+    RemoveLayershell(id::Id),
     None,
 }
 
@@ -164,6 +193,7 @@ pub(crate) enum DispatchMessageInner {
     RequestRefresh {
         width: u32,
         height: u32,
+        is_created: bool,
     },
     PrefredScale(u32),
     XdgInfoChanged(XdgInfoChangedType),
@@ -241,6 +271,7 @@ pub enum DispatchMessage {
     RequestRefresh {
         width: u32,
         height: u32,
+        is_created: bool,
     },
     /// fractal scale handle
     PrefredScale(u32),
@@ -301,9 +332,15 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::TouchMotion { time, id, x, y } => {
                 DispatchMessage::TouchMotion { time, id, x, y }
             }
-            DispatchMessageInner::RequestRefresh { width, height } => {
-                DispatchMessage::RequestRefresh { width, height }
-            }
+            DispatchMessageInner::RequestRefresh {
+                width,
+                height,
+                is_created,
+            } => DispatchMessage::RequestRefresh {
+                width,
+                height,
+                is_created,
+            },
             DispatchMessageInner::Axis {
                 time,
                 horizontal,

@@ -102,7 +102,7 @@ where
         Some((id, self.get_mut(id)?))
     }
 
-    pub fn get_iced_id(&self, id: IcedId) -> Option<LayerId> {
+    pub fn get_layer_id(&self, id: IcedId) -> Option<LayerId> {
         self.back_aliases.get(&id).copied()
     }
 

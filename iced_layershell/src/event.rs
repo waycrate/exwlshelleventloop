@@ -61,11 +61,13 @@ pub enum WindowEvent {
 }
 
 #[derive(Debug)]
-pub enum IcedLayerEvent<Message: 'static> {
+pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     RequestRefreshWithWrapper {
         width: u32,
         height: u32,
         wrapper: WindowWrapper,
+        is_created: bool,
+        info: Option<INFO>,
     },
     RequestRefresh {
         width: u32,
@@ -74,27 +76,33 @@ pub enum IcedLayerEvent<Message: 'static> {
     Window(WindowEvent),
     NormalUpdate,
     UserEvent(Message),
+    WindowRemoved(iced_core::window::Id),
 }
 
 #[allow(unused)]
 #[derive(Debug)]
-pub struct MultiWindowIcedLayerEvent<Message: 'static>(pub Option<Id>, pub IcedLayerEvent<Message>);
+pub struct MultiWindowIcedLayerEvent<Message: 'static, INFO: Clone>(
+    pub Option<Id>,
+    pub IcedLayerEvent<Message, INFO>,
+);
 
-impl<Message: 'static> From<(Option<Id>, IcedLayerEvent<Message>)>
-    for MultiWindowIcedLayerEvent<Message>
+impl<Message: 'static, INFO: Clone> From<(Option<Id>, IcedLayerEvent<Message, INFO>)>
+    for MultiWindowIcedLayerEvent<Message, INFO>
 {
-    fn from((id, message): (Option<Id>, IcedLayerEvent<Message>)) -> Self {
+    fn from((id, message): (Option<Id>, IcedLayerEvent<Message, INFO>)) -> Self {
         MultiWindowIcedLayerEvent(id, message)
     }
 }
 
-impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
+impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Message, INFO> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { width, height } => IcedLayerEvent::RequestRefresh {
-                width: *width,
-                height: *height,
-            },
+            DispatchMessage::RequestRefresh { width, height, .. } => {
+                IcedLayerEvent::RequestRefresh {
+                    width: *width,
+                    height: *height,
+                }
+            }
             DispatchMessage::MouseEnter {
                 surface_x: x,
                 surface_y: y,
