@@ -268,7 +268,6 @@ where
     Ok(())
 }
 
-#[allow(unused)]
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
     mut application: A,
@@ -287,7 +286,6 @@ async fn run_instance<A, E, C>(
     A::Theme: StyleSheet,
 {
     use iced::window;
-    use iced_core::mouse;
     use iced_core::Event;
     let main_window = window_manager
         .get_mut(window::Id::MAIN)
@@ -345,7 +343,6 @@ async fn run_instance<A, E, C>(
                     wrapper,
                 },
             ) => {
-                let layerid = wrapper.id();
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     let id = window::Id::unique();
 
@@ -386,6 +383,7 @@ async fn run_instance<A, E, C>(
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
                     window.state.update_view_port(width, height);
+                    #[allow(unused)]
                     let renderer = &window.renderer;
                     let _ = user_interfaces.insert(
                         id,
@@ -536,7 +534,7 @@ async fn run_instance<A, E, C>(
                         &mut cached_interfaces,
                     );
 
-                    for (id, window) in window_manager.iter_mut() {
+                    for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
                     }
 
