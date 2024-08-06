@@ -1769,7 +1769,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                                 anchor,
                                 exclusize_zone: exclusive_zone,
                                 margins: margin,
-                                keyboard_interactivity
+                                keyboard_interactivity,
                             },
                             info,
                         )) => {
