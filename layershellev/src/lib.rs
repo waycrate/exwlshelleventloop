@@ -1831,6 +1831,12 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                             else {
                                 continue;
                             };
+                            self.units[index].layer_shell.destroy();
+                            self.units[index].wl_surface.destroy();
+                            self.units[index]
+                                .buffer
+                                .as_ref()
+                                .map(|buffer| buffer.destroy());
                             self.units.remove(index);
                         }
                         _ => {}
