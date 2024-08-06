@@ -121,8 +121,6 @@ pub use sctk::reexports::calloop;
 mod events;
 mod strtoshape;
 
-use std::fmt::Debug;
-
 use events::DispatchMessageInner;
 
 pub mod id;
@@ -285,7 +283,7 @@ impl ZxdgOutputInfo {
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
 #[derive(Debug)]
-pub struct WindowStateUnit<T: Debug> {
+pub struct WindowStateUnit<T> {
     id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
@@ -299,7 +297,7 @@ pub struct WindowStateUnit<T: Debug> {
     becreated: bool,
 }
 
-impl<DATA: Debug> WindowStateUnit<DATA> {
+impl<DATA> WindowStateUnit<DATA> {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -311,7 +309,7 @@ impl<DATA: Debug> WindowStateUnit<DATA> {
         }
     }
 }
-impl<DATA: Debug> WindowStateUnit<DATA> {
+impl<DATA> WindowStateUnit<DATA> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -333,7 +331,7 @@ impl<DATA: Debug> WindowStateUnit<DATA> {
     }
 }
 
-impl<DATA: Debug> rwh_06::HasWindowHandle for WindowStateUnit<DATA> {
+impl<DATA> rwh_06::HasWindowHandle for WindowStateUnit<DATA> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_window_handle_rwh_06()?;
 
@@ -343,7 +341,7 @@ impl<DATA: Debug> rwh_06::HasWindowHandle for WindowStateUnit<DATA> {
     }
 }
 
-impl<DATA: Debug> rwh_06::HasDisplayHandle for WindowStateUnit<DATA> {
+impl<DATA> rwh_06::HasDisplayHandle for WindowStateUnit<DATA> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 
@@ -354,7 +352,7 @@ impl<DATA: Debug> rwh_06::HasDisplayHandle for WindowStateUnit<DATA> {
 }
 
 // if is only one window, use it will be easy
-impl<T: Debug> rwh_06::HasWindowHandle for WindowState<T> {
+impl<T> rwh_06::HasWindowHandle for WindowState<T> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.main_window().raw_window_handle_rwh_06()?;
 
@@ -365,7 +363,7 @@ impl<T: Debug> rwh_06::HasWindowHandle for WindowState<T> {
 }
 
 // if is only one window, use it will be easy
-impl<T: Debug> rwh_06::HasDisplayHandle for WindowState<T> {
+impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.main_window().raw_display_handle_rwh_06()?;
 
@@ -374,7 +372,7 @@ impl<T: Debug> rwh_06::HasDisplayHandle for WindowState<T> {
         Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
     }
 }
-impl<T: Debug> WindowStateUnit<T> {
+impl<T> WindowStateUnit<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
         &self.wl_surface
@@ -447,7 +445,7 @@ impl<T: Debug> WindowStateUnit<T> {
 
 /// main state, store the main information
 #[derive(Debug)]
-pub struct WindowState<DATA: Debug> {
+pub struct WindowState<DATA> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
@@ -488,7 +486,7 @@ pub struct WindowState<DATA: Debug> {
 /// Simple WindowState, without any data binding or info
 pub type WindowStateSimple = WindowState<()>;
 
-impl<DATA: Debug> WindowState<DATA> {
+impl<DATA> WindowState<DATA> {
     // return the first window
     // I will use it in iced
     pub fn main_window(&self) -> &WindowStateUnit<DATA> {
@@ -517,7 +515,7 @@ impl WindowWrapper {
     }
 }
 
-impl<DATA: Debug> WindowState<DATA> {
+impl<DATA> WindowState<DATA> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -539,7 +537,7 @@ impl<DATA: Debug> WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug> WindowState<DATA> {
+impl<DATA> WindowState<DATA> {
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
@@ -588,7 +586,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
     }
 }
 
-impl<DATA: Debug> WindowState<DATA> {
+impl<DATA> WindowState<DATA> {
     /// create a WindowState, you need to pass a namespace in
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
@@ -658,7 +656,7 @@ impl<DATA: Debug> WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug> Default for WindowState<DATA> {
+impl<DATA> Default for WindowState<DATA> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
@@ -696,7 +694,7 @@ impl<DATA: Debug> Default for WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug> WindowState<DATA> {
+impl<DATA> WindowState<DATA> {
     /// You can save the virtual_keyboard here
     pub fn set_virtual_keyboard(&mut self, keyboard: ZwpVirtualKeyboardV1) {
         self.virtual_keyboard = Some(keyboard);
@@ -740,7 +738,7 @@ impl<DATA: Debug> WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<DATA> {
+impl<DATA: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -773,7 +771,7 @@ impl<DATA: Debug + 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowStat
     }
 }
 
-impl<DATA: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<DATA> {
+impl<DATA: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         seat: &wl_seat::WlSeat,
@@ -800,7 +798,7 @@ impl<DATA: Debug + 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<DATA> 
     }
 }
 
-impl<DATA: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<DATA> {
+impl<DATA> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -876,7 +874,7 @@ impl<DATA: Debug> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<DATA> {
+impl<DATA> Dispatch<wl_touch::WlTouch, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -914,7 +912,7 @@ impl<DATA: Debug> Dispatch<wl_touch::WlTouch, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<DATA> {
+impl<DATA> Dispatch<wl_pointer::WlPointer, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -1080,7 +1078,7 @@ impl<DATA: Debug> Dispatch<wl_pointer::WlPointer, ()> for WindowState<DATA> {
     }
 }
 
-impl<DATA: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<DATA> {
+impl<DATA> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -1114,7 +1112,7 @@ impl<DATA: Debug> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for Wi
     }
 }
 
-impl<DATA: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<DATA> {
+impl<DATA> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         proxy: &zxdg_output_v1::ZxdgOutputV1,
@@ -1152,7 +1150,7 @@ impl<DATA: Debug> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<DAT
     }
 }
 
-impl<DATA: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<DATA> {
+impl<DATA> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<DATA> {
     fn event(
         state: &mut Self,
         proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
@@ -1176,26 +1174,26 @@ impl<DATA: Debug> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for 
     }
 }
 
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WlSurface); // surface is the base needed to show buffer
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                                   // it is not used
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WlBuffer); // buffer show the picture
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
-                                                                           // ext-session-shell
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WlSurface); // surface is the base needed to show buffer
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WlOutput); // output is need to place layer_shell, although here
+                                                            // it is not used
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<DATA> WindowState<DATA>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
+                                                                    // ext-session-shell
 
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WpCursorShapeManagerV1);
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<DATA> WindowState<DATA>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<DATA> WindowState<DATA>: ignore ZwpVirtualKeyboardManagerV1);
 
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore ZxdgOutputManagerV1);
-delegate_noop!(@<DATA: Debug> WindowState<DATA>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<DATA> WindowState<DATA>: ignore ZxdgOutputManagerV1);
+delegate_noop!(@<DATA> WindowState<DATA>: ignore WpFractionalScaleManagerV1);
 
-impl<DATA: Debug + 'static> WindowState<DATA> {
+impl<DATA: 'static> WindowState<DATA> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the

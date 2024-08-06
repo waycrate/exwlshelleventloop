@@ -317,7 +317,7 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
-        <Self as MultiApplication>::WindowInfo: Clone + std::fmt::Debug,
+        <Self as MultiApplication>::WindowInfo: Clone,
     {
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_renderer::Settings {

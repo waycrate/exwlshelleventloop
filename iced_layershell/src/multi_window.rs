@@ -140,7 +140,7 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: StyleSheet,
-    <A as Application>::WindowInfo: Clone + std::fmt::Debug,
+    <A as Application>::WindowInfo: Clone,
 {
     use futures::task;
     use futures::Future;

@@ -29,7 +29,7 @@ use std::{fmt::Debug, fs::File};
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
 #[derive(Debug)]
-pub enum SessionLockEvent<'a, T: Debug, Message> {
+pub enum SessionLockEvent<'a, T, Message> {
     InitRequest,
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     RequestBuffer(
