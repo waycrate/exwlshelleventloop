@@ -294,6 +294,7 @@ pub struct WindowStateUnit<T: Debug, INFO> {
     layer_shell: ZwlrLayerSurfaceV1,
     zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
+    wl_output: Option<WlOutput>,
     binding: Option<T>,
     becreated: bool,
     info: Option<INFO>,
@@ -1291,17 +1292,18 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                 binding: None,
                 becreated: false,
                 info: None,
+                wl_output: None,
             });
         } else {
             let displays = self.outputs.clone();
-            for (_, display) in displays.iter() {
+            for (_, output_display) in displays.iter() {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                     .unwrap();
                 let layer = layer_shell.get_layer_surface(
                     &wl_surface,
-                    Some(display),
+                    Some(output_display),
                     self.layer,
                     self.namespace.clone(),
                     &qh,
@@ -1323,7 +1325,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
 
                 wl_surface.commit();
 
-                let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
+                let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
                 let mut fractional_scale = None;
                 if let Some(ref fractional_scale_manager) = fractional_scale_manager {
                     fractional_scale =
@@ -1346,6 +1348,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                     binding: None,
                     becreated: false,
                     info: None,
+                    wl_output: Some(output_display.clone()),
                 });
             }
             self.message.clear();
@@ -1503,7 +1506,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                             *index_info,
                         );
                     }
-                    (_, DispatchMessageInner::NewDisplay(display)) => {
+                    (_, DispatchMessageInner::NewDisplay(output_display)) => {
                         if self.is_single {
                             continue;
                         }
@@ -1513,7 +1516,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                             .unwrap();
                         let layer = layer_shell.get_layer_surface(
                             &wl_surface,
-                            Some(display),
+                            Some(output_display),
                             self.layer,
                             self.namespace.clone(),
                             &qh,
@@ -1535,7 +1538,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
 
                         wl_surface.commit();
 
-                        let zxdgoutput = xdg_output_manager.get_xdg_output(display, &qh, ());
+                        let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
                         let mut fractional_scale = None;
                         if let Some(ref fractional_scale_manager) = fractional_scale_manager {
                             fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
@@ -1561,6 +1564,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                             binding: None,
                             becreated: false,
                             info: None,
+                            wl_output: Some(output_display.clone()),
                         });
                     }
                     _ => {
@@ -1691,6 +1695,10 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                         ReturnData::RedrawAllRequest => {
                             for index in 0..self.units.len() {
                                 let unit = &self.units[index];
+                                // TODO: just fix it like this
+                                if unit.size.0 == 0 || unit.size.1 == 0 {
+                                    continue;
+                                }
                                 replace_data.push(event_handler(
                                     LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                         width: unit.size.0,
@@ -1767,13 +1775,16 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                             if self.is_single {
                                 continue;
                             }
+                            let pos = self.surface_pos();
+
+                            let output = pos.and_then(|p| self.units[p].wl_output.as_ref());
                             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                             let layer_shell = globals
                                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                                 .unwrap();
                             let layer = layer_shell.get_layer_surface(
                                 &wl_surface,
-                                None,
+                                output,
                                 layer,
                                 self.namespace.clone(),
                                 &qh,
@@ -1821,6 +1832,7 @@ impl<T: Debug + 'static, INFO: 'static + Clone> WindowState<T, INFO> {
                                 binding: None,
                                 becreated: true,
                                 info,
+                                wl_output: output.cloned(),
                             });
                         }
                         ReturnData::RemoveLayershell(id) => {
