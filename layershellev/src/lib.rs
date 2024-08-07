@@ -150,7 +150,6 @@ use wayland_client::{
 };
 
 use sctk::reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource};
-use wayland_protocols::xdg::shell::client::xdg_surface;
 
 use std::time::Duration;
 
@@ -163,7 +162,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
     xdg_positioner::XdgPositioner,
-    xdg_surface::XdgSurface,
+    xdg_surface::{self, XdgSurface},
     xdg_wm_base::XdgWmBase,
 };
 

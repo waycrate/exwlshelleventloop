@@ -373,7 +373,11 @@ where
                                 let Some(id) = ev.current_surface_id() else {
                                     continue;
                                 };
-                                let popup_settings = NewPopUpSettings {size, position,id};
+                                let popup_settings = NewPopUpSettings {
+                                    size,
+                                    position,
+                                    id
+                                };
                                 return ReturnData::NewPopUp((
                                     popup_settings,
                                     Some(info),
