@@ -442,7 +442,6 @@ async fn run_instance<A, E, C>(
         &mut ui_caches,
     );
 
-    // TODO: run_command
     runtime.track(application.subscription().into_recipes());
     while let Some(event) = event_receiver.next().await {
         match event {
