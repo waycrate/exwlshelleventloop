@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use iced::widget::{button, column, row, text_input};
+use iced::theme::Container;
+use iced::widget::{button, column, container, row, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{
@@ -58,6 +59,16 @@ enum Message {
     IcedEvent(Event),
 }
 
+#[derive(Default)]
+struct BlackMenu;
+
+impl container::StyleSheet for BlackMenu {
+    type Style = iced::Theme;
+    fn appearance(&self, _style: &Self::Style) -> container::Appearance {
+        container::Appearance::default().with_background(iced::Color::new(0., 0.5, 0.7, 0.6))
+    }
+}
+
 impl Counter {
     fn window_id(&self, info: &WindowInfo) -> Option<&iced::window::Id> {
         for (k, v) in self.ids.iter() {
@@ -80,7 +91,7 @@ impl MultiApplication for Counter {
         (
             Self {
                 value: 0,
-                text: "eee".to_string(),
+                text: "type something".to_string(),
                 ids: HashMap::new(),
             },
             Command::none(),
@@ -273,7 +284,13 @@ impl MultiApplication for Counter {
             return button("close right").on_press(Message::Close(id)).into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
-            return button("close PopUp").on_press(Message::Close(id)).into();
+            return container(button("close PopUp").on_press(Message::Close(id)))
+                .center_x()
+                .center_y()
+                .style(Container::Custom(Box::new(BlackMenu)))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into();
         }
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
