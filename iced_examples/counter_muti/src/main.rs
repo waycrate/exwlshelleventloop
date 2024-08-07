@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use iced::theme::Container;
-use iced::widget::{button, column, container, row, text_input};
+use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{
@@ -295,6 +295,7 @@ impl MultiApplication for Counter {
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             button("Decrement").on_press(Message::DecrementPressed),
+            text(self.value).size(50),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
             button("newwindowRight").on_press(Message::NewWindowRight),
         ]
