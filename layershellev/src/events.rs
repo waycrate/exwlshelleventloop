@@ -61,7 +61,7 @@ pub struct NewLayerShellSettings {
     pub keyboard_interactivity: KeyboardInteractivity,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NewPopUpSettings {
     pub size: (u32, u32),
     pub position: (i32, i32),

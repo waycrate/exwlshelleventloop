@@ -112,7 +112,7 @@
 //! ```
 //!
 pub use events::NewLayerShellSettings;
-use events::NewPopUpSettings;
+pub use events::NewPopUpSettings;
 use sctk::reexports::calloop::LoopHandle;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
@@ -163,6 +163,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
     xdg_positioner::XdgPositioner,
+    xdg_surface::XdgSurface,
     xdg_wm_base::XdgWmBase,
 };
 
@@ -294,7 +295,7 @@ impl ZxdgOutputInfo {
 #[derive(Debug)]
 enum Shell {
     LayerShell(ZwlrLayerSurfaceV1),
-    PopUp(XdgPopup),
+    PopUp((XdgPopup, XdgSurface)),
 }
 
 impl PartialEq<ZwlrLayerSurfaceV1> for Shell {
@@ -309,7 +310,7 @@ impl PartialEq<ZwlrLayerSurfaceV1> for Shell {
 impl PartialEq<XdgPopup> for Shell {
     fn eq(&self, other: &XdgPopup) -> bool {
         match self {
-            Self::PopUp(popup) => popup == other,
+            Self::PopUp((popup, _)) => popup == other,
             _ => false,
         }
     }
@@ -318,7 +319,10 @@ impl PartialEq<XdgPopup> for Shell {
 impl Shell {
     fn destroy(&self) {
         match self {
-            Self::PopUp(popup) => popup.destroy(),
+            Self::PopUp((popup, xdg_surface)) => {
+                popup.destroy();
+                xdg_surface.destroy();
+            }
             Self::LayerShell(shell) => shell.destroy(),
         }
     }
@@ -1944,19 +1948,17 @@ impl<T: 'static> WindowState<T> {
                             else {
                                 continue;
                             };
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
                             let positioner = wmbase.create_positioner(&qh, ());
                             positioner.set_size(width as i32, height as i32);
                             positioner.set_anchor_rect(x, y, width as i32, height as i32);
-                            let wl_xdg_surface =
-                                wmbase.get_xdg_surface(&self.units[index].wl_surface, &qh, ());
+                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
                             let popup = wl_xdg_surface.get_popup(None, &positioner, &qh, ());
 
                             let Shell::LayerShell(shell) = &self.units[index].shell else {
                                 unreachable!()
                             };
                             shell.get_popup(&popup);
-
-                            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
 
                             let mut fractional_scale = None;
                             if let Some(ref fractional_scale_manager) = fractional_scale_manager {
@@ -1967,15 +1969,15 @@ impl<T: 'static> WindowState<T> {
                                         (),
                                     ));
                             }
-                            self.units[index].wl_surface.commit();
                             wl_surface.commit();
+
                             self.units.push(WindowStateUnit {
                                 id: id::Id::unique(),
                                 display: connection.display(),
                                 wl_surface,
-                                size: (0, 0),
+                                size: (width, height),
                                 buffer: None,
-                                shell: Shell::PopUp(popup),
+                                shell: Shell::PopUp((popup, wl_xdg_surface)),
                                 zxdgoutput: None,
                                 fractional_scale,
                                 becreated: true,
@@ -1991,8 +1993,10 @@ impl<T: 'static> WindowState<T> {
                             else {
                                 continue;
                             };
+
                             self.units[index].shell.destroy();
                             self.units[index].wl_surface.destroy();
+
                             if let Some(buffer) = self.units[index].buffer.as_ref() {
                                 buffer.destroy()
                             }

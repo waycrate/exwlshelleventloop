@@ -14,6 +14,12 @@ pub(crate) enum LayerShellActions<INFO: Clone> {
     RedrawWindow(LayerId),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct NewMenuSettings {
+    pub size: (u32, u32),
+    pub position: (i32, i32),
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     AnchorChange(Anchor),
@@ -24,6 +30,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
         key: u32,
     },
     NewLayerShell((NewLayerShellSettings, INFO)),
+    NewMenu((NewMenuSettings, INFO)),
     /// is same with WindowAction::Close(id)
     RemoveLayerShell(IcedId),
 }

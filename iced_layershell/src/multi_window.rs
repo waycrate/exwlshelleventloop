@@ -1,6 +1,8 @@
 mod state;
 use crate::{
-    actions::{LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithIdInner},
+    actions::{
+        LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithIdInner, NewMenuSettings,
+    },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
 };
@@ -26,7 +28,7 @@ use iced_futures::{Executor, Runtime, Subscription};
 use layershellev::{
     calloop::timer::{TimeoutAction, Timer},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, ReturnData, WindowState,
+    LayerEvent, NewPopUpSettings, ReturnData, WindowState,
 };
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
@@ -342,6 +344,17 @@ where
                                         LayershellCustomActionsWithInfo::RemoveLayerShell(id) => {
                                             event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
                                             return ReturnData::RemoveLayershell(option_id.unwrap())
+                                        }
+                                        LayershellCustomActionsWithInfo::NewMenu((menusettings, info)) => {
+                                            let NewMenuSettings { size, position } = menusettings;
+                                            let Some(id) = ev.current_surface_id() else {
+                                                continue;
+                                            };
+                                            let popup_settings = NewPopUpSettings {size, position,id};
+                                            return ReturnData::NewPopUp((
+                                                popup_settings,
+                                                Some(info),
+                                            ))
                                         }
                                     }
                                 }

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use iced::widget::{button, column, row, text, text_input};
+use iced::widget::{button, column, row, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{
     LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithIdAndInfo,
-    LayershellCustomActionsWithInfo,
+    LayershellCustomActionsWithInfo, NewMenuSettings,
 };
 use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
@@ -35,6 +35,7 @@ struct Counter {
 enum WindowInfo {
     Left,
     Right,
+    PopUp,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -51,6 +52,7 @@ enum Message {
     DecrementPressed,
     NewWindowLeft,
     NewWindowRight,
+    NewPopup,
     Close(Id),
     TextInput(String),
     Direction(WindowDirection),
@@ -243,6 +245,19 @@ impl MultiApplication for Counter {
                 )
                 .into(),
             ),
+            Message::NewPopup => Command::single(
+                LayershellCustomActionsWithIdAndInfo::new(
+                    iced::window::Id::MAIN,
+                    LayershellCustomActionsWithInfo::NewMenu((
+                        NewMenuSettings {
+                            size: (100, 100),
+                            position: (0, -100),
+                        },
+                        WindowInfo::PopUp,
+                    )),
+                )
+                .into(),
+            ),
             Message::Close(id) => Command::single(Action::Window(WindowAction::Close(id))),
         }
     }
@@ -254,12 +269,15 @@ impl MultiApplication for Counter {
         if let Some(WindowInfo::Right) = self.id_info(id) {
             return button("close right").on_press(Message::Close(id)).into();
         }
+        if let Some(WindowInfo::PopUp) = self.id_info(id) {
+            return button("close PopUp").on_press(Message::Close(id)).into();
+        }
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
-            text(self.value).size(50),
             button("Decrement").on_press(Message::DecrementPressed),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
-            button("newwindowRight").on_press(Message::NewWindowRight)
+            button("newwindowRight").on_press(Message::NewWindowRight),
+            button("popup").on_press(Message::NewPopup)
         ]
         .padding(20)
         .align_items(Alignment::Center)
