@@ -31,7 +31,7 @@ iced_layershell = { version = "0.4.0-dev", path = "./iced_layershell" }
 iced_sessionlock = { version = "0.4.0-dev", path = "./iced_sessionlock" }
 waycrate_xkbkeycode = { version = "0.4.0-dev", path = "./waycrate_xkbkeycode" }
 
-tempfile = "3.10.1"
+tempfile = "3.12.0"
 thiserror = "1.0.63"
 wayland-client = { version = "0.31.5" }
 
