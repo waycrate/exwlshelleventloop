@@ -112,6 +112,7 @@
 //! ```
 //!
 pub use events::NewLayerShellSettings;
+use events::NewPopUpSettings;
 use sctk::reexports::calloop::LoopHandle;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
@@ -149,6 +150,7 @@ use wayland_client::{
 };
 
 use sctk::reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource};
+use wayland_protocols::xdg::shell::client::xdg_surface;
 
 use std::time::Duration;
 
@@ -156,6 +158,12 @@ use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
+};
+
+use wayland_protocols::xdg::shell::client::{
+    xdg_popup::{self, XdgPopup},
+    xdg_positioner::XdgPositioner,
+    xdg_wm_base::XdgWmBase,
 };
 
 use wayland_protocols::{
@@ -282,6 +290,44 @@ impl ZxdgOutputInfo {
 ///
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
+
+#[derive(Debug)]
+enum Shell {
+    LayerShell(ZwlrLayerSurfaceV1),
+    PopUp(XdgPopup),
+}
+
+impl PartialEq<ZwlrLayerSurfaceV1> for Shell {
+    fn eq(&self, other: &ZwlrLayerSurfaceV1) -> bool {
+        match self {
+            Self::LayerShell(shell) => shell == other,
+            _ => false,
+        }
+    }
+}
+
+impl PartialEq<XdgPopup> for Shell {
+    fn eq(&self, other: &XdgPopup) -> bool {
+        match self {
+            Self::PopUp(popup) => popup == other,
+            _ => false,
+        }
+    }
+}
+
+impl Shell {
+    fn destroy(&self) {
+        match self {
+            Self::PopUp(popup) => popup.destroy(),
+            Self::LayerShell(shell) => shell.destroy(),
+        }
+    }
+
+    fn is_popup(&self) -> bool {
+        matches!(self, Self::PopUp(_))
+    }
+}
+
 #[derive(Debug)]
 pub struct WindowStateUnit<T> {
     id: id::Id,
@@ -289,12 +335,18 @@ pub struct WindowStateUnit<T> {
     wl_surface: WlSurface,
     size: (u32, u32),
     buffer: Option<WlBuffer>,
-    layer_shell: ZwlrLayerSurfaceV1,
+    shell: Shell,
     zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
     wl_output: Option<WlOutput>,
     binding: Option<T>,
     becreated: bool,
+}
+
+impl<T> WindowStateUnit<T> {
+    fn is_popup(&self) -> bool {
+        self.shell.is_popup()
+    }
 }
 
 impl<T> WindowStateUnit<T> {
@@ -385,31 +437,41 @@ impl<T> WindowStateUnit<T> {
 
     /// set the anchor of the current unit. please take the simple.rs as reference
     pub fn set_anchor(&self, anchor: Anchor) {
-        self.layer_shell.set_anchor(anchor);
-        self.wl_surface.commit();
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_anchor(anchor);
+            self.wl_surface.commit();
+        }
     }
 
     /// you can reset the margin which bind to the surface
     pub fn set_margin(&self, (top, right, bottom, left): (i32, i32, i32, i32)) {
-        self.layer_shell.set_margin(top, right, bottom, left);
-        self.wl_surface.commit();
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_margin(top, right, bottom, left);
+            self.wl_surface.commit();
+        }
     }
 
     pub fn set_layer(&self, layer: Layer) {
-        self.layer_shell.set_layer(layer);
-        self.wl_surface.commit();
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_layer(layer);
+            self.wl_surface.commit();
+        }
     }
 
     /// set the layer size of current unit
     pub fn set_size(&self, (width, height): (u32, u32)) {
-        self.layer_shell.set_size(width, height);
-        self.wl_surface.commit();
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_size(width, height);
+            self.wl_surface.commit();
+        }
     }
 
     /// set current exclusive_zone
     pub fn set_exclusive_zone(&self, zone: i32) {
-        self.layer_shell.set_exclusive_zone(zone);
-        self.wl_surface.commit();
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_exclusive_zone(zone);
+            self.wl_surface.commit();
+        }
     }
 
     /// you can use this function to set a binding data. the message passed back contain
@@ -456,6 +518,7 @@ pub struct WindowState<T> {
     event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
     xdg_output_manager: Option<ZxdgOutputManagerV1>,
+    wmbase: Option<XdgWmBase>,
     shm: Option<WlShm>,
     cursor_manager: Option<WpCursorShapeManagerV1>,
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
@@ -669,6 +732,7 @@ impl<T> Default for WindowState<T> {
             event_queue: None,
             wl_compositor: None,
             shm: None,
+            wmbase: None,
             cursor_manager: None,
             xdg_output_manager: None,
             globals: None,
@@ -729,6 +793,13 @@ impl<T> WindowState<T> {
         self.units
             .iter()
             .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
+    }
+
+    pub fn current_surface_id(&self) -> Option<id::Id> {
+        self.units
+            .iter()
+            .find(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
+            .map(|unit| unit.id())
     }
 
     fn get_pos_from_surface(&self, surface: &WlSurface) -> Option<usize> {
@@ -1078,6 +1149,20 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     }
 }
 
+impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
+    fn event(
+        _state: &mut Self,
+        surface: &xdg_surface::XdgSurface,
+        event: <xdg_surface::XdgSurface as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        if let xdg_surface::Event::Configure { serial } = event {
+            surface.ack_configure(serial);
+        }
+    }
+}
 impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -1095,10 +1180,7 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
         {
             surface.ack_configure(serial);
 
-            let Some(unit_index) = state
-                .units
-                .iter()
-                .position(|unit| unit.layer_shell == *surface)
+            let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
             else {
                 return;
             };
@@ -1107,6 +1189,33 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
             state.message.push((
                 Some(unit_index),
                 DispatchMessageInner::RefreshSurface { width, height },
+            ));
+        }
+    }
+}
+
+impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        surface: &xdg_popup::XdgPopup,
+        event: <xdg_popup::XdgPopup as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        if let xdg_popup::Event::Configure { width, height, .. } = event {
+            let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
+            else {
+                return;
+            };
+            state.units[unit_index].size = (width as u32, height as u32);
+
+            state.message.push((
+                Some(unit_index),
+                DispatchMessageInner::RefreshSurface {
+                    width: width as u32,
+                    height: height as u32,
+                },
             ));
         }
     }
@@ -1192,6 +1301,8 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
+delegate_noop!(@<T> WindowState<T>: ignore XdgWmBase);
 
 impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, LayerEventError> {
@@ -1216,6 +1327,9 @@ impl<T: 'static> WindowState<T> {
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         self.shm = Some(shm);
         self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
+
+        let wmbase = globals.bind::<XdgWmBase, _, _>(&qh, 2..=2, ())?;
+        self.wmbase = Some(wmbase);
 
         let cursor_manager = globals
             .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())
@@ -1285,7 +1399,7 @@ impl<T: 'static> WindowState<T> {
                 wl_surface,
                 size: (0, 0),
                 buffer: None,
-                layer_shell: layer,
+                shell: Shell::LayerShell(layer),
                 zxdgoutput: None,
                 fractional_scale,
                 binding: None,
@@ -1340,7 +1454,7 @@ impl<T: 'static> WindowState<T> {
                     wl_surface,
                     size: (0, 0),
                     buffer: None,
-                    layer_shell: layer,
+                    shell: Shell::LayerShell(layer),
                     zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                     fractional_scale,
                     binding: None,
@@ -1419,6 +1533,7 @@ impl<T: 'static> WindowState<T> {
         let xdg_output_manager = self.xdg_output_manager.take().unwrap();
         let connection = self.connection.take().unwrap();
         let mut init_event = None;
+        let wmbase = self.wmbase.take().unwrap();
 
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
@@ -1542,7 +1657,7 @@ impl<T: 'static> WindowState<T> {
                             wl_surface,
                             size: (0, 0),
                             buffer: None,
-                            layer_shell: layer,
+                            shell: Shell::LayerShell(layer),
                             zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                             fractional_scale,
                             binding: None,
@@ -1806,11 +1921,65 @@ impl<T: 'static> WindowState<T> {
                                 wl_surface,
                                 size: (0, 0),
                                 buffer: None,
-                                layer_shell: layer,
+                                shell: Shell::LayerShell(layer),
                                 zxdgoutput: None,
                                 fractional_scale,
                                 becreated: true,
                                 wl_output: output.cloned(),
+                                binding: info,
+                            });
+                        }
+                        ReturnData::NewPopUp((
+                            NewPopUpSettings {
+                                size: (width, height),
+                                position: (x, y),
+                                id,
+                            },
+                            info,
+                        )) => {
+                            let Some(index) = self
+                                .units
+                                .iter()
+                                .position(|unit| !unit.is_popup() && unit.id == id)
+                            else {
+                                continue;
+                            };
+                            let positioner = wmbase.create_positioner(&qh, ());
+                            positioner.set_size(width as i32, height as i32);
+                            positioner.set_anchor_rect(x, y, width as i32, height as i32);
+                            let wl_xdg_surface =
+                                wmbase.get_xdg_surface(&self.units[index].wl_surface, &qh, ());
+                            let popup = wl_xdg_surface.get_popup(None, &positioner, &qh, ());
+
+                            let Shell::LayerShell(shell) = &self.units[index].shell else {
+                                unreachable!()
+                            };
+                            shell.get_popup(&popup);
+
+                            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            self.units[index].wl_surface.commit();
+                            wl_surface.commit();
+                            self.units.push(WindowStateUnit {
+                                id: id::Id::unique(),
+                                display: connection.display(),
+                                wl_surface,
+                                size: (0, 0),
+                                buffer: None,
+                                shell: Shell::PopUp(popup),
+                                zxdgoutput: None,
+                                fractional_scale,
+                                becreated: true,
+                                wl_output: None,
                                 binding: info,
                             });
                         }
@@ -1822,7 +1991,7 @@ impl<T: 'static> WindowState<T> {
                             else {
                                 continue;
                             };
-                            self.units[index].layer_shell.destroy();
+                            self.units[index].shell.destroy();
                             self.units[index].wl_surface.destroy();
                             if let Some(buffer) = self.units[index].buffer.as_ref() {
                                 buffer.destroy()

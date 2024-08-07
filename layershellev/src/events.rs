@@ -61,6 +61,13 @@ pub struct NewLayerShellSettings {
     pub keyboard_interactivity: KeyboardInteractivity,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct NewPopUpSettings {
+    pub size: (u32, u32),
+    pub position: (i32, i32),
+    pub id: id::Id,
+}
+
 impl Default for NewLayerShellSettings {
     fn default() -> Self {
         NewLayerShellSettings {
@@ -95,6 +102,7 @@ pub enum ReturnData<INFO> {
     RedrawIndexRequest(Id),
     RequestSetCursorShape((String, WlPointer, u32)),
     NewLayerShell((NewLayerShellSettings, Option<INFO>)),
+    NewPopUp((NewPopUpSettings, Option<INFO>)),
     RemoveLayershell(id::Id),
     None,
 }
