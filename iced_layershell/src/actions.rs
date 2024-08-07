@@ -12,12 +12,25 @@ pub(crate) enum LayerShellActions<INFO: Clone> {
     CustomActionsWithId(Vec<LayershellCustomActionsWithIdInner<INFO>>),
     RedrawAll,
     RedrawWindow(LayerId),
+    NewMenu((IcedNewPopupSettings, INFO)),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct IcedNewPopupSettings {
+    pub size: (u32, u32),
+    pub position: (i32, i32),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MenuDirection {
+    Up,
+    Down,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NewMenuSettings {
     pub size: (u32, u32),
-    pub position: (i32, i32),
+    pub direction: MenuDirection,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -30,6 +43,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
         key: u32,
     },
     NewLayerShell((NewLayerShellSettings, INFO)),
+    NewPopUp((IcedNewPopupSettings, INFO)),
     NewMenu((NewMenuSettings, INFO)),
     /// is same with WindowAction::Close(id)
     RemoveLayerShell(IcedId),

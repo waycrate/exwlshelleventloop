@@ -81,6 +81,10 @@ where
         &self.theme
     }
 
+    pub fn mouse_position(&self) -> Option<&Point> {
+        self.mouse_position.as_ref()
+    }
+
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
             .map(IcedMouse::Cursor::Available)

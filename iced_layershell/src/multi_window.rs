@@ -1,7 +1,8 @@
 mod state;
 use crate::{
     actions::{
-        LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithIdInner, NewMenuSettings,
+        IcedNewPopupSettings, LayershellCustomActionsWithIdAndInfo,
+        LayershellCustomActionsWithIdInner, MenuDirection, NewMenuSettings,
     },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -215,7 +216,7 @@ where
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
         use layershellev::DispatchMessage;
         let mut def_returndata = ReturnData::None;
-        let id = index.map(|index| ev.get_unit(index).id());
+        let sended_id = index.map(|index| ev.get_unit(index).id());
         match event {
             LayerEvent::InitRequest => {
                 if settings.virtual_keyboard_support.is_some() {
@@ -251,7 +252,7 @@ where
                         let unit = ev.get_unit(index.unwrap());
                         event_sender
                             .start_send(MultiWindowIcedLayerEvent(
-                                id,
+                                sended_id,
                                 IcedLayerEvent::RequestRefreshWithWrapper {
                                     width: *width,
                                     height: *height,
@@ -270,21 +271,21 @@ where
                 }
 
                 event_sender
-                    .start_send(MultiWindowIcedLayerEvent(id, message.into()))
+                    .start_send(MultiWindowIcedLayerEvent(sended_id, message.into()))
                     .expect("Cannot send");
             }
 
             LayerEvent::UserEvent(event) => {
                 event_sender
                     .start_send(MultiWindowIcedLayerEvent(
-                        id,
+                        sended_id,
                         IcedLayerEvent::UserEvent(event),
                     ))
                     .ok();
             }
             LayerEvent::NormalDispatch => {
                 event_sender
-                    .start_send(MultiWindowIcedLayerEvent(id, IcedLayerEvent::NormalUpdate))
+                    .start_send(MultiWindowIcedLayerEvent(sended_id, IcedLayerEvent::NormalUpdate))
                     .expect("Cannot send");
             }
             _ => {}
@@ -345,8 +346,8 @@ where
                                             event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
                                             return ReturnData::RemoveLayershell(option_id.unwrap())
                                         }
-                                        LayershellCustomActionsWithInfo::NewMenu((menusettings, info)) => {
-                                            let NewMenuSettings { size, position } = menusettings;
+                                        LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
+                                            let IcedNewPopupSettings { size, position } = menusettings;
                                             let Some(id) = ev.current_surface_id() else {
                                                 continue;
                                             };
@@ -356,10 +357,28 @@ where
                                                 Some(info),
                                             ))
                                         }
+                                        LayershellCustomActionsWithInfo::NewMenu((menusetting, info)) => {
+                                            let Some(id) = ev.current_surface_id() else {
+                                                continue;
+                                            };
+                                            event_sender
+                                                .start_send(MultiWindowIcedLayerEvent(Some(id), IcedLayerEvent::NewMenu((menusetting, info))))
+                                                .expect("Cannot send");
+                                        }
                                     }
                                 }
                             }
-
+                            LayerShellActions::NewMenu((menusettings, info)) => {
+                                let IcedNewPopupSettings { size, position } = menusettings;
+                                let Some(id) = ev.current_surface_id() else {
+                                    continue;
+                                };
+                                let popup_settings = NewPopUpSettings {size, position,id};
+                                return ReturnData::NewPopUp((
+                                    popup_settings,
+                                    Some(info),
+                                ))
+                            }
                             LayerShellActions::Mouse(mouse) => {
                                 let Some(pointer) = ev.get_pointer() else {
                                     return ReturnData::None;
@@ -708,6 +727,36 @@ async fn run_instance<A, E, C>(
                     &mut window_manager,
                     cached_interfaces,
                 ));
+            }
+            MultiWindowIcedLayerEvent(
+                Some(id),
+                IcedLayerEvent::NewMenu((
+                    NewMenuSettings {
+                        size: (width, height),
+                        direction,
+                    },
+                    info,
+                )),
+            ) => {
+                let Some((_, window)) = window_manager.get_alias(id) else {
+                    continue;
+                };
+
+                let Some(point) = window.state.mouse_position() else {
+                    continue;
+                };
+
+                let (x, mut y) = (point.x as i32, point.y as i32);
+                if let MenuDirection::Up = direction {
+                    y -= height as i32;
+                }
+                custom_actions.push(LayerShellActions::NewMenu((
+                    IcedNewPopupSettings {
+                        size: (width, height),
+                        position: (x, y),
+                    },
+                    info,
+                )));
             }
             _ => {}
         }

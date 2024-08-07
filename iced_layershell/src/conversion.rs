@@ -28,8 +28,8 @@ pub fn window_event(
         }
         LayerShellEvent::CursorEnter { .. } => Some(IcedEvent::Mouse(mouse::Event::CursorEntered)),
         LayerShellEvent::MouseInput(state) => Some(IcedEvent::Mouse(match state {
-            IcedButtonState::Pressed => mouse::Event::ButtonPressed(mouse::Button::Left),
-            IcedButtonState::Released => mouse::Event::ButtonReleased(mouse::Button::Left),
+            IcedButtonState::Pressed(btn) => mouse::Event::ButtonPressed(*btn),
+            IcedButtonState::Released(btn) => mouse::Event::ButtonReleased(*btn),
         })),
         LayerShellEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
             delta: mouse::ScrollDelta::Lines { x: *x, y: *y },

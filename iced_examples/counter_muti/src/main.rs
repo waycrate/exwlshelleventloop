@@ -5,7 +5,7 @@ use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{
     LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithIdAndInfo,
-    LayershellCustomActionsWithInfo, NewMenuSettings,
+    LayershellCustomActionsWithInfo, MenuDirection, NewMenuSettings,
 };
 use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
@@ -52,7 +52,6 @@ enum Message {
     DecrementPressed,
     NewWindowLeft,
     NewWindowRight,
-    NewPopup,
     Close(Id),
     TextInput(String),
     Direction(WindowDirection),
@@ -114,14 +113,31 @@ impl MultiApplication for Counter {
         use iced::Event;
         match message {
             Message::IcedEvent(event) => {
-                if let Event::Keyboard(keyboard::Event::KeyPressed {
-                    key: keyboard::Key::Named(Named::Escape),
-                    ..
-                }) = event
-                {
-                    if let Some(id) = self.window_id(&WindowInfo::Left) {
-                        return Command::single(Action::Window(WindowAction::Close(*id)));
+                match event {
+                    Event::Keyboard(keyboard::Event::KeyPressed {
+                        key: keyboard::Key::Named(Named::Escape),
+                        ..
+                    }) => {
+                        if let Some(id) = self.window_id(&WindowInfo::Left) {
+                            return Command::single(Action::Window(WindowAction::Close(*id)));
+                        }
                     }
+                    Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
+                        return Command::single(
+                            LayershellCustomActionsWithIdAndInfo::new(
+                                iced::window::Id::MAIN,
+                                LayershellCustomActionsWithInfo::NewMenu((
+                                    NewMenuSettings {
+                                        size: (100, 100),
+                                        direction: MenuDirection::Up,
+                                    },
+                                    WindowInfo::PopUp,
+                                )),
+                            )
+                            .into(),
+                        );
+                    }
+                    _ => {}
                 }
                 Command::none()
             }
@@ -245,19 +261,6 @@ impl MultiApplication for Counter {
                 )
                 .into(),
             ),
-            Message::NewPopup => Command::single(
-                LayershellCustomActionsWithIdAndInfo::new(
-                    iced::window::Id::MAIN,
-                    LayershellCustomActionsWithInfo::NewMenu((
-                        NewMenuSettings {
-                            size: (100, 100),
-                            position: (0, -100),
-                        },
-                        WindowInfo::PopUp,
-                    )),
-                )
-                .into(),
-            ),
             Message::Close(id) => Command::single(Action::Window(WindowAction::Close(id))),
         }
     }
@@ -277,7 +280,6 @@ impl MultiApplication for Counter {
             button("Decrement").on_press(Message::DecrementPressed),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
             button("newwindowRight").on_press(Message::NewWindowRight),
-            button("popup").on_press(Message::NewPopup)
         ]
         .padding(20)
         .align_items(Alignment::Center)
