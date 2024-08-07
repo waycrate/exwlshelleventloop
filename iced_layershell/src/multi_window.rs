@@ -1,8 +1,8 @@
 mod state;
 use crate::{
     actions::{
-        IcedNewPopupSettings, LayershellCustomActionsWithIdAndInfo,
-        LayershellCustomActionsWithIdInner, MenuDirection, NewMenuSettings,
+        IcedNewMenuSettings, IcedNewPopupSettings, LayershellCustomActionsWithIdAndInfo,
+        LayershellCustomActionsWithIdInner, MenuDirection,
     },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -735,7 +735,7 @@ async fn run_instance<A, E, C>(
             MultiWindowIcedLayerEvent(
                 Some(id),
                 IcedLayerEvent::NewMenu((
-                    NewMenuSettings {
+                    IcedNewMenuSettings {
                         size: (width, height),
                         direction,
                     },

@@ -4,8 +4,8 @@ use iced::widget::{button, column, row, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Command, Element, Event, Length, Theme};
 use iced_layershell::actions::{
-    LayershellCustomActions, LayershellCustomActionsWithId, LayershellCustomActionsWithIdAndInfo,
-    LayershellCustomActionsWithInfo, MenuDirection, NewMenuSettings,
+    IcedNewMenuSettings, LayershellCustomActions, LayershellCustomActionsWithId,
+    LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo, MenuDirection,
 };
 use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
@@ -127,7 +127,7 @@ impl MultiApplication for Counter {
                             LayershellCustomActionsWithIdAndInfo::new(
                                 iced::window::Id::MAIN,
                                 LayershellCustomActionsWithInfo::NewMenu((
-                                    NewMenuSettings {
+                                    IcedNewMenuSettings {
                                         size: (100, 100),
                                         direction: MenuDirection::Up,
                                     },

@@ -7,7 +7,7 @@ use layershellev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
 
-use crate::actions::NewMenuSettings;
+use crate::actions::IcedNewMenuSettings;
 
 fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
     match code {
@@ -87,7 +87,7 @@ pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     NormalUpdate,
     UserEvent(Message),
     WindowRemoved(iced_core::window::Id),
-    NewMenu((NewMenuSettings, INFO)),
+    NewMenu((IcedNewMenuSettings, INFO)),
 }
 
 #[allow(unused)]
