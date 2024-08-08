@@ -5,9 +5,9 @@ edition.workspace = true
 version.workspace = true
 license.workspace = true
 repository.workspace = true
-description.workspace = true
 keywords.workspace = true
-readme.workspace = true
+readme = "README.md"
+description = "something about xkbcommon, used in iced-layershell"
 
 [dependencies]
 xkbcommon-dl.workspace = true

@@ -2,6 +2,15 @@
 
 Layershelleventloop, take lot reference from winit, amin to make a easy way to create layershell window.
 
+## Feature:
+
+- support to open new layershell and support popup window.
+- support ext-virtual-keyboard
+
+With crate, you can use iced to build your kde-shell, notification application, and etc.
+
+## Example
+
 you can take `./examples/simplelayer.rs` for example
 
 ```rust

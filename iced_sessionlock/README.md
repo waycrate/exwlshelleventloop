@@ -4,6 +4,8 @@
 
 iced-layershell provides binding for iced and sessionlock.
 
+Session lock is the wayland protocol for lock. This protocol is supported in river, sway and etc. We use it make a beautiful lock program in [twenty](https://github.com/waycrate/twenty). You can also use it to build your sessionlock. This will become very easy to use our crate with pam crate.
+
 The smallest example is like
 
 ```rust
