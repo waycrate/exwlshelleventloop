@@ -103,7 +103,7 @@ pub enum ReturnData<INFO> {
     RequestSetCursorShape((String, WlPointer, u32)),
     NewLayerShell((NewLayerShellSettings, Option<INFO>)),
     NewPopUp((NewPopUpSettings, Option<INFO>)),
-    RemoveLayershell(id::Id),
+    RemoveShell(id::Id),
     None,
 }
 

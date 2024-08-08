@@ -47,7 +47,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     NewPopUp((IcedNewPopupSettings, INFO)),
     NewMenu((IcedNewMenuSettings, INFO)),
     /// is same with WindowAction::Close(id)
-    RemoveLayerShell(IcedId),
+    RemoveWindow(IcedId),
 }
 
 pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;

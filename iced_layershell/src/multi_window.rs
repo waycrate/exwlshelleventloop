@@ -342,9 +342,9 @@ where
                                                 Some(info),
                                             ));
                                         }
-                                        LayershellCustomActionsWithInfo::RemoveLayerShell(id) => {
+                                        LayershellCustomActionsWithInfo::RemoveWindow(id) => {
                                             event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
-                                            return ReturnData::RemoveLayershell(option_id.unwrap())
+                                            return ReturnData::RemoveShell(option_id.unwrap())
                                         }
                                         LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
                                             let IcedNewPopupSettings { size, position } = menusettings;
@@ -947,7 +947,7 @@ pub(crate) fn run_command<A, C, E>(
                         customactions.push(LayershellCustomActionsWithIdInner(
                             layerid,
                             Some(layerid),
-                            LayershellCustomActionsWithInfo::RemoveLayerShell(id),
+                            LayershellCustomActionsWithInfo::RemoveWindow(id),
                         ))
                     }
                 }
@@ -986,7 +986,7 @@ pub(crate) fn run_command<A, C, E>(
                     custom.downcast_ref::<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>>()
                 {
                     let option_id =
-                        if let LayershellCustomActionsWithInfo::RemoveLayerShell(id) = action.1 {
+                        if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1 {
                             window_manager.get_layer_id(id)
                         } else {
                             None
@@ -1003,7 +1003,7 @@ pub(crate) fn run_command<A, C, E>(
                 {
                     // NOTE: try to unwrap again, if with type LayershellCustomActionsWithInfo<()>,
                     let option_id =
-                        if let LayershellCustomActionsWithInfo::RemoveLayerShell(id) = action.1 {
+                        if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1 {
                             window_manager.get_layer_id(id)
                         } else {
                             None
@@ -1022,8 +1022,8 @@ pub(crate) fn run_command<A, C, E>(
                         LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
                             LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key }
                         }
-                        LayershellCustomActionsWithInfo::RemoveLayerShell(id) => {
-                            LayershellCustomActionsWithInfo::RemoveLayerShell(id)
+                        LayershellCustomActionsWithInfo::RemoveWindow(id) => {
+                            LayershellCustomActionsWithInfo::RemoveWindow(id)
                         }
                         _ => {
                             continue;

@@ -1331,7 +1331,7 @@ impl<T: 'static> WindowState<T> {
         self.shm = Some(shm);
         self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
 
-        let wmbase = globals.bind::<XdgWmBase, _, _>(&qh, 2..=2, ())?;
+        let wmbase = globals.bind::<XdgWmBase, _, _>(&qh, 2..=6, ())?;
         self.wmbase = Some(wmbase);
 
         let cursor_manager = globals
@@ -1984,7 +1984,7 @@ impl<T: 'static> WindowState<T> {
                                 binding: info,
                             });
                         }
-                        ReturnData::RemoveLayershell(id) => {
+                        ReturnData::RemoveShell(id) => {
                             let Some(index) = self
                                 .units
                                 .iter()
