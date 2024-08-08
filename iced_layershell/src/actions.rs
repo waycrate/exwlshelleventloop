@@ -4,6 +4,7 @@ use iced_core::mouse::Interaction;
 use iced_runtime::command::Action;
 use layershellev::id::Id as LayerId;
 use layershellev::NewLayerShellSettings;
+
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub(crate) enum LayerShellActions<INFO: Clone> {
@@ -11,7 +12,26 @@ pub(crate) enum LayerShellActions<INFO: Clone> {
     CustomActions(Vec<LayershellCustomActionsWithInfo<INFO>>),
     CustomActionsWithId(Vec<LayershellCustomActionsWithIdInner<INFO>>),
     RedrawAll,
-    RedrawWindow(LayerId),
+    RedrawWindow(LayerId), // maybe one day it is useful, but now useless
+    NewMenu((IcedNewPopupSettings, INFO)),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct IcedNewPopupSettings {
+    pub size: (u32, u32),
+    pub position: (i32, i32),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MenuDirection {
+    Up,
+    Down,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct IcedNewMenuSettings {
+    pub size: (u32, u32),
+    pub direction: MenuDirection,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -24,8 +44,10 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
         key: u32,
     },
     NewLayerShell((NewLayerShellSettings, INFO)),
+    NewPopUp((IcedNewPopupSettings, INFO)),
+    NewMenu((IcedNewMenuSettings, INFO)),
     /// is same with WindowAction::Close(id)
-    RemoveLayerShell(IcedId),
+    RemoveWindow(IcedId),
 }
 
 pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;

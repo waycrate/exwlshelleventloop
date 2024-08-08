@@ -1,3 +1,4 @@
+use iced::mouse;
 use layershellev::id::Id;
 use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
@@ -5,10 +6,19 @@ use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 use layershellev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
+
+use crate::actions::IcedNewMenuSettings;
+
+fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
+    match code {
+        273 => mouse::Button::Right,
+        _ => mouse::Button::Left,
+    }
+}
 #[derive(Debug, Clone, Copy)]
 pub enum IcedButtonState {
-    Pressed,
-    Released,
+    Pressed(mouse::Button),
+    Released(mouse::Button),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -77,6 +87,7 @@ pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     NormalUpdate,
     UserEvent(Message),
     WindowRemoved(iced_core::window::Id),
+    NewMenu((IcedNewMenuSettings, INFO)),
 }
 
 #[allow(unused)]
@@ -117,15 +128,18 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                 IcedLayerEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y })
             }
             DispatchMessage::MouseLeave => IcedLayerEvent::Window(WindowEvent::CursorLeft),
-            DispatchMessage::MouseButton { state, .. } => match state {
-                WEnum::Value(ButtonState::Pressed) => {
-                    IcedLayerEvent::Window(WindowEvent::MouseInput(IcedButtonState::Pressed))
+            DispatchMessage::MouseButton { state, button, .. } => {
+                let btn = from_u32_to_icedmouse(*button);
+                match state {
+                    WEnum::Value(ButtonState::Pressed) => IcedLayerEvent::Window(
+                        WindowEvent::MouseInput(IcedButtonState::Pressed(btn)),
+                    ),
+                    WEnum::Value(ButtonState::Released) => IcedLayerEvent::Window(
+                        WindowEvent::MouseInput(IcedButtonState::Released(btn)),
+                    ),
+                    _ => unreachable!(),
                 }
-                WEnum::Value(ButtonState::Released) => {
-                    IcedLayerEvent::Window(WindowEvent::MouseInput(IcedButtonState::Released))
-                }
-                _ => unreachable!(),
-            },
+            }
             DispatchMessage::PrefredScale(scale) => {
                 IcedLayerEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
