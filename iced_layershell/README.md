@@ -4,6 +4,15 @@
 
 iced-layershell provides binding for iced and layershell.
 
+## Feature:
+
+- support to open new layershell and support popup window.
+- support ext-virtual-keyboard
+
+With this crate, you can use iced to build your kde-shell, notification application, and etc.
+
+## Example
+
 The smallest example is like
 
 ```rust

@@ -37,7 +37,7 @@ iced binding for layershell
 
 ![example](./misc/iced_layershell_example.png)
 
-With crate, you can use iced to build your kde-shell, notification application, and etc.
+With this crate, you can use iced to build your kde-shell, notification application, and etc.
 
 ### iced-sessionlock
 [![Crates.io](https://img.shields.io/crates/v/iced-sessionlock.svg)](https://crates.io/crates/iced-sessionlock)
