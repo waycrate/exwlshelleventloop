@@ -548,6 +548,7 @@ pub struct WindowState<T> {
     use_display_handle: bool,
     loop_handler: Option<LoopHandle<'static, Self>>,
 
+    last_unit_index: usize,
     last_wloutput: Option<WlOutput>,
 }
 
@@ -761,6 +762,7 @@ impl<T> Default for WindowState<T> {
             loop_handler: None,
 
             last_wloutput: None,
+            last_unit_index: 0,
         }
     }
 }
@@ -1132,8 +1134,13 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_y,
             } => {
                 state.current_surface = Some(surface.clone());
+                let surface_pos = state.surface_pos();
+                if let Some(index) = surface_pos {
+                    state.last_unit_index = index;
+                }
+
                 state.message.push((
-                    state.surface_pos(),
+                    surface_pos,
                     DispatchMessageInner::MouseEnter {
                         pointer: pointer.clone(),
                         serial,
@@ -1893,12 +1900,9 @@ impl<T: 'static> WindowState<T> {
                             let mut output = pos.and_then(|p| self.units[p].wl_output.as_ref());
 
                             if self.last_wloutput.is_none() {
-                                if output.is_none() {
-                                    if !self.outputs.is_empty() {
-                                        self.last_wloutput = Some(self.outputs[0].1.clone());
-                                    }
-                                } else {
-                                    self.last_wloutput = output.cloned();
+                                if self.outputs.len() > self.last_unit_index {
+                                    self.last_wloutput =
+                                        Some(self.outputs[self.last_unit_index].1.clone());
                                 }
                             }
 
