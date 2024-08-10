@@ -725,12 +725,14 @@ async fn run_instance<A, E, C>(
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
-                let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
                     ManuallyDrop::into_inner(user_interfaces)
                         .drain()
                         .map(|(id, ui)| (id, ui.into_cache()))
                         .collect();
                 application.remove_id(id);
+                window_manager.remove(id);
+                cached_interfaces.remove(&id);
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
                     &mut debug,

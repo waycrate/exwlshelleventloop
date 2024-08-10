@@ -57,6 +57,19 @@ where
         }
     }
 
+    pub fn remove(&mut self, id: IcedId) {
+        let remove_alias = self
+            .aliases
+            .iter()
+            .find(|(_, oriid)| **oriid == id)
+            .map(|(layid, _)| layid.clone());
+        if let Some(oriid) = remove_alias {
+            self.aliases.remove(&oriid);
+        }
+        self.back_aliases.remove(&id);
+        self.entries.remove(&id);
+    }
+
     pub fn insert(
         &mut self,
         id: IcedId,
