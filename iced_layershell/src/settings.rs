@@ -77,9 +77,9 @@ where
 pub struct LayerShellSettings {
     pub anchor: Anchor,
     pub layer: Layer,
-    pub exclusize_zone: i32,
+    pub exclusive_zone: i32,
     pub size: Option<(u32, u32)>,
-    pub margins: (i32, i32, i32, i32),
+    pub margin: (i32, i32, i32, i32),
     pub keyboard_interactivity: KeyboardInteractivity,
 }
 
@@ -88,9 +88,9 @@ impl Default for LayerShellSettings {
         LayerShellSettings {
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             layer: Layer::Top,
-            exclusize_zone: -1,
+            exclusive_zone: -1,
             size: None,
-            margins: (0, 0, 0, 0),
+            margin: (0, 0, 0, 0),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
         }
     }

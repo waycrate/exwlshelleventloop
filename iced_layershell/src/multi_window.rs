@@ -173,8 +173,8 @@ where
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
         .with_anchor(settings.layer_settings.anchor)
-        .with_exclusize_zone(settings.layer_settings.exclusize_zone)
-        .with_margin(settings.layer_settings.margins)
+        .with_exclusize_zone(settings.layer_settings.exclusive_zone)
+        .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .build()
         .unwrap();
