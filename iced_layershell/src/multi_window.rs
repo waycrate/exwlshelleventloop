@@ -81,7 +81,7 @@ where
         self.namespace()
     }
 
-    fn id_info(&self, _id: iced_core::window::Id) -> Option<&Self::WindowInfo>;
+    fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo>;
 
     fn set_id_info(&mut self, _id: iced_core::window::Id, info: Self::WindowInfo);
     fn remove_id(&mut self, _id: iced_core::window::Id);
@@ -364,6 +364,9 @@ where
                                             event_sender
                                                 .start_send(MultiWindowIcedLayerEvent(Some(id), IcedLayerEvent::NewMenu((menusetting, info))))
                                                 .expect("Cannot send");
+                                        }
+                                        LayershellCustomActionsWithInfo::FogetLastOutput => {
+                                            return ReturnData::FogetLastOutput
                                         }
                                     }
                                 }

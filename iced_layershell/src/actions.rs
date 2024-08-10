@@ -48,6 +48,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     NewMenu((IcedNewMenuSettings, INFO)),
     /// is same with WindowAction::Close(id)
     RemoveWindow(IcedId),
+    FogetLastOutput,
 }
 
 pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;

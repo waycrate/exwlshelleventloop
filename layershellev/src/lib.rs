@@ -547,6 +547,8 @@ pub struct WindowState<T> {
     // settings
     use_display_handle: bool,
     loop_handler: Option<LoopHandle<'static, Self>>,
+
+    last_wloutput: Option<WlOutput>,
 }
 
 /// Simple WindowState, without any data binding or info
@@ -757,6 +759,8 @@ impl<T> Default for WindowState<T> {
 
             use_display_handle: false,
             loop_handler: None,
+
+            last_wloutput: None,
         }
     }
 }
@@ -836,6 +840,13 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                 }
             }
             wl_registry::Event::GlobalRemove { name } => {
+                if state
+                    .last_wloutput
+                    .as_ref()
+                    .is_some_and(|output| !output.is_alive())
+                {
+                    state.last_wloutput.take();
+                }
                 state.outputs.retain(|x| x.0 != name);
                 state.units.retain(|unit| unit.wl_surface.is_alive());
             }
@@ -1859,6 +1870,9 @@ impl<T: 'static> WindowState<T> {
                                 cursor_surface.commit();
                             }
                         }
+                        ReturnData::FogetLastOutput => {
+                            self.last_wloutput.take();
+                        }
                         ReturnData::NewLayerShell((
                             NewLayerShellSettings {
                                 size,
@@ -1867,6 +1881,7 @@ impl<T: 'static> WindowState<T> {
                                 exclusize_zone: exclusive_zone,
                                 margins: margin,
                                 keyboard_interactivity,
+                                use_last_output,
                             },
                             info,
                         )) => {
@@ -1875,7 +1890,16 @@ impl<T: 'static> WindowState<T> {
                             }
                             let pos = self.surface_pos();
 
-                            let output = pos.and_then(|p| self.units[p].wl_output.as_ref());
+                            let mut output = pos.and_then(|p| self.units[p].wl_output.as_ref());
+
+                            if self.last_wloutput.is_none() {
+                                self.last_wloutput = output.cloned();
+                            }
+
+                            if use_last_output {
+                                output = self.last_wloutput.as_ref();
+                            }
+
                             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                             let layer_shell = globals
                                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
