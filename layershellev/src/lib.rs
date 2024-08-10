@@ -1893,7 +1893,13 @@ impl<T: 'static> WindowState<T> {
                             let mut output = pos.and_then(|p| self.units[p].wl_output.as_ref());
 
                             if self.last_wloutput.is_none() {
-                                self.last_wloutput = output.cloned();
+                                if output.is_none() {
+                                    if !self.outputs.is_empty() {
+                                        self.last_wloutput = Some(self.outputs[0].1.clone());
+                                    }
+                                } else {
+                                    self.last_wloutput = output.cloned();
+                                }
                             }
 
                             if use_last_output {
