@@ -552,6 +552,30 @@ pub struct WindowState<T> {
     last_wloutput: Option<WlOutput>,
 }
 
+impl<T> WindowState<T> {
+    pub fn remove_shell(&mut self, id: id::Id) {
+        let Some(index) = self
+            .units
+            .iter()
+            .position(|unit| unit.id == id && unit.becreated)
+        else {
+            return;
+        };
+
+        self.units[index].shell.destroy();
+        self.units[index].wl_surface.destroy();
+
+        if let Some(buffer) = self.units[index].buffer.as_ref() {
+            buffer.destroy()
+        }
+        self.units.remove(index);
+    }
+
+    pub fn forget_last_output(&mut self) {
+        self.last_wloutput.take();
+    }
+}
+
 /// Simple WindowState, without any data binding or info
 pub type WindowStateSimple = WindowState<()>;
 
@@ -1877,9 +1901,6 @@ impl<T: 'static> WindowState<T> {
                                 cursor_surface.commit();
                             }
                         }
-                        ReturnData::ForgetLastOutput => {
-                            self.last_wloutput.take();
-                        }
                         ReturnData::NewLayerShell((
                             NewLayerShellSettings {
                                 size,
@@ -2017,23 +2038,6 @@ impl<T: 'static> WindowState<T> {
                                 wl_output: None,
                                 binding: info,
                             });
-                        }
-                        ReturnData::RemoveShell(id) => {
-                            let Some(index) = self
-                                .units
-                                .iter()
-                                .position(|unit| unit.id == id && unit.becreated)
-                            else {
-                                continue;
-                            };
-
-                            self.units[index].shell.destroy();
-                            self.units[index].wl_surface.destroy();
-
-                            if let Some(buffer) = self.units[index].buffer.as_ref() {
-                                buffer.destroy()
-                            }
-                            self.units.remove(index);
                         }
                         _ => {}
                     }

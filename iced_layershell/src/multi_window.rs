@@ -347,7 +347,7 @@ where
                                         }
                                         LayershellCustomActionsWithInfo::RemoveWindow(id) => {
                                             event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
-                                            return ReturnData::RemoveShell(option_id.unwrap())
+                                            ev.remove_shell(option_id.unwrap());
                                         }
                                         LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
                                             let IcedNewPopupSettings { size, position } = menusettings;
@@ -369,7 +369,7 @@ where
                                                 .expect("Cannot send");
                                         }
                                         LayershellCustomActionsWithInfo::ForgetLastOutput => {
-                                            return ReturnData::ForgetLastOutput
+                                            ev.forget_last_output();
                                         }
                                     }
                                 }
