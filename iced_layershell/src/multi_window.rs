@@ -369,7 +369,7 @@ where
                                                 .expect("Cannot send");
                                         }
                                         LayershellCustomActionsWithInfo::ForgetLastOutput => {
-                                            return ReturnData::ForgetLastOutput
+                                            ev.foget_last_output();
                                         }
                                     }
                                 }
