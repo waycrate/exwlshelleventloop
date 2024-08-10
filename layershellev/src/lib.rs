@@ -571,7 +571,7 @@ impl<T> WindowState<T> {
         self.units.remove(index);
     }
 
-    pub fn foget_last_output(&mut self) {
+    pub fn forget_last_output(&mut self) {
         self.last_wloutput.take();
     }
 }
