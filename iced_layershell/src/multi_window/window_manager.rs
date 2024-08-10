@@ -62,7 +62,7 @@ where
             .aliases
             .iter()
             .find(|(_, oriid)| **oriid == id)
-            .map(|(layid, _)| layid.clone());
+            .map(|(layid, _)| *layid);
         if let Some(oriid) = remove_alias {
             self.aliases.remove(&oriid);
         }
