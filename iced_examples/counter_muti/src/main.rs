@@ -98,8 +98,8 @@ impl MultiApplication for Counter {
         )
     }
 
-    fn id_info(&self, id: iced::window::Id) -> Option<&Self::WindowInfo> {
-        self.ids.get(&id)
+    fn id_info(&self, id: iced::window::Id) -> Option<Self::WindowInfo> {
+        self.ids.get(&id).cloned()
     }
 
     fn set_id_info(&mut self, id: iced::window::Id, info: Self::WindowInfo) {
@@ -249,6 +249,7 @@ impl MultiApplication for Counter {
                             layer: Layer::Top,
                             margins: None,
                             keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                            use_last_output: false,
                         },
                         WindowInfo::Left,
                     )),
@@ -266,6 +267,7 @@ impl MultiApplication for Counter {
                             layer: Layer::Top,
                             margins: None,
                             keyboard_interactivity: KeyboardInteractivity::None,
+                            use_last_output: false,
                         },
                         WindowInfo::Right,
                     )),

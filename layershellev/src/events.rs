@@ -59,6 +59,7 @@ pub struct NewLayerShellSettings {
     pub exclusize_zone: Option<i32>,
     pub margins: Option<(i32, i32, i32, i32)>,
     pub keyboard_interactivity: KeyboardInteractivity,
+    pub use_last_output: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -77,6 +78,7 @@ impl Default for NewLayerShellSettings {
             size: None,
             margins: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
+            use_last_output: false,
         }
     }
 }
@@ -104,6 +106,7 @@ pub enum ReturnData<INFO> {
     NewLayerShell((NewLayerShellSettings, Option<INFO>)),
     NewPopUp((NewPopUpSettings, Option<INFO>)),
     RemoveShell(id::Id),
+    ForgetLastOutput,
     None,
 }
 
