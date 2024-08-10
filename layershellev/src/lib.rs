@@ -552,6 +552,26 @@ pub struct WindowState<T> {
     last_wloutput: Option<WlOutput>,
 }
 
+impl<T> WindowState<T> {
+    pub fn remove_shell(&mut self, id: id::Id) {
+        let Some(index) = self
+            .units
+            .iter()
+            .position(|unit| unit.id == id && unit.becreated)
+        else {
+            return;
+        };
+
+        self.units[index].shell.destroy();
+        self.units[index].wl_surface.destroy();
+
+        if let Some(buffer) = self.units[index].buffer.as_ref() {
+            buffer.destroy()
+        }
+        self.units.remove(index);
+    }
+}
+
 /// Simple WindowState, without any data binding or info
 pub type WindowStateSimple = WindowState<()>;
 
