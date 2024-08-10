@@ -1936,7 +1936,9 @@ impl<T: 'static> WindowState<T> {
 
                             let mut output = pos.and_then(|p| self.units[p].wl_output.as_ref());
 
-                            if self.last_wloutput.is_none() && self.outputs.len() > self.last_unit_index {
+                            if self.last_wloutput.is_none()
+                                && self.outputs.len() > self.last_unit_index
+                            {
                                 self.last_wloutput =
                                     Some(self.outputs[self.last_unit_index].1.clone());
                             }
