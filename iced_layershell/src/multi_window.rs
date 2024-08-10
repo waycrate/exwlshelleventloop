@@ -249,7 +249,9 @@ where
                         height,
                         is_created,
                     } => {
-                        let unit = ev.get_unit(index.unwrap());
+                        let Some(unit) = ev.get_unit_with_id(sended_id.unwrap()) else {
+                            break 'outside;
+                        };
                         event_sender
                             .start_send(MultiWindowIcedLayerEvent(
                                 sended_id,

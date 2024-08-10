@@ -822,6 +822,10 @@ impl<T> WindowState<T> {
         &mut self.units[index]
     }
 
+    pub fn get_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
+        self.units.iter_mut().find(|unit| unit.id == id)
+    }
+
     /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
