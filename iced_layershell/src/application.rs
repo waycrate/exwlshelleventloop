@@ -256,6 +256,10 @@ where
                                         LayershellCustomActionsWithInfo::LayerChange(layer) => {
                                             ev.main_window().set_layer(layer);
                                         }
+                                        LayershellCustomActionsWithInfo::MarginChange(margin) => {
+
+                                            ev.main_window().set_margin(margin);
+                                        }
                                         LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
                                             ev.main_window().set_size((width, height));
                                         }

@@ -310,6 +310,9 @@ where
                                         LayershellCustomActionsWithInfo::LayerChange(layer) => {
                                             window.set_layer(layer);
                                         }
+                                        LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                                            window.set_margin(margin);
+                                        }
                                         LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
                                             window.set_size((width, height));
                                         }
