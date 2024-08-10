@@ -56,8 +56,8 @@ pub struct NewLayerShellSettings {
     pub size: Option<(u32, u32)>,
     pub layer: Layer,
     pub anchor: Anchor,
-    pub exclusize_zone: Option<i32>,
-    pub margins: Option<(i32, i32, i32, i32)>,
+    pub exclusive_zone: Option<i32>,
+    pub margin: Option<(i32, i32, i32, i32)>,
     pub keyboard_interactivity: KeyboardInteractivity,
     pub use_last_output: bool,
 }
@@ -74,9 +74,9 @@ impl Default for NewLayerShellSettings {
         NewLayerShellSettings {
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             layer: Layer::Top,
-            exclusize_zone: None,
+            exclusive_zone: None,
             size: None,
-            margins: Some((0, 0, 0, 0)),
+            margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             use_last_output: false,
         }

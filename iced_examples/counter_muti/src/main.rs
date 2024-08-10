@@ -244,10 +244,10 @@ impl MultiApplication for Counter {
                     LayershellCustomActionsWithInfo::NewLayerShell((
                         NewLayerShellSettings {
                             size: Some((100, 100)),
-                            exclusize_zone: None,
+                            exclusive_zone: None,
                             anchor: Anchor::Left | Anchor::Bottom,
                             layer: Layer::Top,
-                            margins: None,
+                            margin: None,
                             keyboard_interactivity: KeyboardInteractivity::Exclusive,
                             use_last_output: false,
                         },
@@ -262,10 +262,10 @@ impl MultiApplication for Counter {
                     LayershellCustomActionsWithInfo::NewLayerShell((
                         NewLayerShellSettings {
                             size: Some((100, 100)),
-                            exclusize_zone: None,
+                            exclusive_zone: None,
                             anchor: Anchor::Right | Anchor::Bottom,
                             layer: Layer::Top,
-                            margins: None,
+                            margin: None,
                             keyboard_interactivity: KeyboardInteractivity::None,
                             use_last_output: false,
                         },
