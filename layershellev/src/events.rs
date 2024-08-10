@@ -106,7 +106,7 @@ pub enum ReturnData<INFO> {
     NewLayerShell((NewLayerShellSettings, Option<INFO>)),
     NewPopUp((NewPopUpSettings, Option<INFO>)),
     RemoveShell(id::Id),
-    FogetLastOutput,
+    ForgetLastOutput,
     None,
 }
 

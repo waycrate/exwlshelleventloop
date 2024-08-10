@@ -365,8 +365,8 @@ where
                                                 .start_send(MultiWindowIcedLayerEvent(Some(id), IcedLayerEvent::NewMenu((menusetting, info))))
                                                 .expect("Cannot send");
                                         }
-                                        LayershellCustomActionsWithInfo::FogetLastOutput => {
-                                            return ReturnData::FogetLastOutput
+                                        LayershellCustomActionsWithInfo::ForgetLastOutput => {
+                                            return ReturnData::ForgetLastOutput
                                         }
                                     }
                                 }

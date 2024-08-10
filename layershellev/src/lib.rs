@@ -1870,7 +1870,7 @@ impl<T: 'static> WindowState<T> {
                                 cursor_surface.commit();
                             }
                         }
-                        ReturnData::FogetLastOutput => {
+                        ReturnData::ForgetLastOutput => {
                             self.last_wloutput.take();
                         }
                         ReturnData::NewLayerShell((
