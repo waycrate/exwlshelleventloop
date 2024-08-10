@@ -353,9 +353,12 @@ impl<T> WindowStateUnit<T> {
 }
 
 impl<T> WindowStateUnit<T> {
+    /// get the WindowState id
     pub fn id(&self) -> id::Id {
         self.id
     }
+
+    /// gen the WindowState [WindowWrapper]
     pub fn gen_wrapper(&self) -> WindowWrapper {
         WindowWrapper {
             id: self.id,
@@ -490,6 +493,7 @@ impl<T> WindowStateUnit<T> {
         self.binding.as_mut()
     }
 
+    /// get the binding data
     pub fn get_binding(&self) -> Option<&T> {
         self.binding.as_ref()
     }
@@ -553,6 +557,7 @@ pub struct WindowState<T> {
 }
 
 impl<T> WindowState<T> {
+    /// remove a shell, destroy the surface
     pub fn remove_shell(&mut self, id: id::Id) {
         let Some(index) = self
             .units
@@ -571,6 +576,8 @@ impl<T> WindowState<T> {
         self.units.remove(index);
     }
 
+    /// forget the remembered last output, next time it will get the new activated output to set the
+    /// layershell
     pub fn forget_last_output(&mut self) {
         self.last_wloutput.take();
     }
@@ -586,6 +593,7 @@ impl<T> WindowState<T> {
         &self.units[0]
     }
 
+    /// use iced id to find WindowStateUnit
     pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
         self.units.iter().find(|w| w.id() == id)
     }
@@ -732,6 +740,7 @@ impl<T> WindowState<T> {
         self
     }
 
+    /// set the window size, optional
     pub fn with_option_size(mut self, size: Option<(u32, u32)>) -> Self {
         self.size = size;
         self
@@ -743,6 +752,7 @@ impl<T> WindowState<T> {
         self
     }
 
+    /// set layershellev to use display_handle
     pub fn with_use_display_handle(mut self, use_display_handle: bool) -> Self {
         self.use_display_handle = use_display_handle;
         self
@@ -828,6 +838,7 @@ impl<T> WindowState<T> {
             .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
     }
 
+    /// get the current focused surface id
     pub fn current_surface_id(&self) -> Option<id::Id> {
         self.units
             .iter()
@@ -1350,6 +1361,7 @@ delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 delegate_noop!(@<T> WindowState<T>: ignore XdgWmBase);
 
 impl<T: 'static> WindowState<T> {
+    /// build a new WindowState
     pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
