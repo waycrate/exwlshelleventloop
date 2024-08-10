@@ -613,7 +613,7 @@ async fn run_instance<A, E, C>(
 
                 debug.render_finished();
 
-                if is_created {
+                if is_created && is_new_window {
                     let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
                         ManuallyDrop::into_inner(user_interfaces)
                             .drain()
