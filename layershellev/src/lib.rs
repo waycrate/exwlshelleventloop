@@ -1666,6 +1666,11 @@ impl<T: 'static> WindowState<T> {
                                 Some(index),
                             );
                         }
+
+                        // NOTE: after event_handler, the index will change
+                        if index >= self.units.len() {
+                            continue;
+                        }
                         let surface = &self.units[index].wl_surface;
 
                         surface.commit();
@@ -1864,6 +1869,11 @@ impl<T: 'static> WindowState<T> {
                     match data {
                         ReturnData::RedrawAllRequest => {
                             for index in 0..self.units.len() {
+                                // NOTE: after event_handler, the index will change
+                                // FIXME: a argly fix
+                                if index >= self.units.len() {
+                                    continue;
+                                }
                                 let unit = &self.units[index];
                                 // TODO: just fix it like this
                                 if unit.size.0 == 0 || unit.size.1 == 0 {
