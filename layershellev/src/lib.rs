@@ -1637,6 +1637,10 @@ impl<T: 'static> WindowState<T> {
                 match msg {
                     (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
                         let index = *unit_index;
+                        // FIX : when the surface is deleted, but it is requested refresh again
+                        if index >= self.units.len() {
+                            continue;
+                        }
                         // NOTE: is is use_display_handle, just send request_refresh
                         // I will use it in iced
                         if self.units[index].buffer.is_none() && !self.use_display_handle {
