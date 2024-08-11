@@ -1744,6 +1744,11 @@ impl<T: 'static> WindowState<T> {
                     }
                     _ => {
                         let (index_message, msg) = msg;
+
+                        // TODO: fix it after 0.5
+                        if index_message.is_some_and(|index| index > self.units.len()) {
+                            continue;
+                        }
                         let msg: DispatchMessage = msg.clone().into();
                         match event_handler(
                             LayerEvent::RequestMessages(&msg),
