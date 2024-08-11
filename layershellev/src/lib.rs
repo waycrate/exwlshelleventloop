@@ -830,7 +830,7 @@ impl<T> WindowState<T> {
     }
 
     pub fn get_unit_option(&mut self, index: usize) -> Option<&mut WindowStateUnit<T>> {
-        if index > self.units.len() {
+        if index >= self.units.len() {
             None
         } else {
             Some(&mut self.units[index])
