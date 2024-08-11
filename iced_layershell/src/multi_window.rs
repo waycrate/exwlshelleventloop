@@ -342,10 +342,10 @@ where
                                             settings,
                                             info,
                                         )) => {
-                                            return ReturnData::NewLayerShell((
+                                            ev.append_return_data(ReturnData::NewLayerShell((
                                                 settings,
                                                 Some(info),
-                                            ));
+                                            )));
                                         }
                                         LayershellCustomActionsWithInfo::RemoveWindow(id) => {
                                             event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
@@ -357,10 +357,10 @@ where
                                                 continue;
                                             };
                                             let popup_settings = NewPopUpSettings {size, position,id};
-                                            return ReturnData::NewPopUp((
+                                            ev.append_return_data(ReturnData::NewPopUp((
                                                 popup_settings,
                                                 Some(info),
-                                            ))
+                                            )));
                                         }
                                         LayershellCustomActionsWithInfo::NewMenu((menusetting, info)) => {
                                             let Some(id) = ev.current_surface_id() else {
@@ -386,10 +386,10 @@ where
                                     position,
                                     id
                                 };
-                                return ReturnData::NewPopUp((
+                                ev.append_return_data(ReturnData::NewPopUp((
                                     popup_settings,
                                     Some(info),
-                                ))
+                                )))
                             }
                             LayerShellActions::Mouse(mouse) => {
                                 let Some(pointer) = ev.get_pointer() else {
