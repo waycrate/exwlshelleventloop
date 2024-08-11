@@ -1864,10 +1864,6 @@ impl<T: 'static> WindowState<T> {
                     match data {
                         ReturnData::RedrawAllRequest => {
                             for index in 0..self.units.len() {
-                                // FIX : when the surface is deleted, but it is requested refresh again
-                                if index >= self.units.len() {
-                                    continue;
-                                }
                                 let unit = &self.units[index];
                                 // TODO: just fix it like this
                                 if unit.size.0 == 0 || unit.size.1 == 0 {
