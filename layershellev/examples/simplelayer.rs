@@ -38,7 +38,7 @@ fn main() {
             }
             LayerEvent::XdgInfoChanged(_) => {
                 let index = index.unwrap();
-                let unit = ev.get_unit(index);
+                let unit = ev.get_unit_with_id(index).unwrap();
                 println!("{:?}", unit.get_xdgoutput_info());
                 ReturnData::None
             }

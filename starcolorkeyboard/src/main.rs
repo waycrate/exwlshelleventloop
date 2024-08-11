@@ -126,7 +126,7 @@ fn main() {
             let mut pangoui = pangoui::PangoUi::default();
             pangoui.set_size((init_w as i32, init_h as i32));
             pangoui.init_draw(current_keytype, file);
-            let windowunit = ev.get_unit(index);
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
             windowunit.set_binding(pangoui);
             let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
             ReturnData::WlBuffer(pool.create_buffer(
@@ -141,7 +141,7 @@ fn main() {
         }
         LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
             let index = index.unwrap();
-            let windowunit = ev.get_unit(index);
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
             let pangoui = windowunit.get_binding_mut().unwrap();
             pangoui.set_size((*width as i32, *height as i32));
             pangoui.repaint(current_keytype);
@@ -150,7 +150,7 @@ fn main() {
         }
         LayerEvent::RequestMessages(DispatchMessage::MouseButton { state, .. }) => {
             let index = index.unwrap();
-            let windowunit = ev.get_unit(index);
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
             let pangoui = windowunit.get_binding_mut().unwrap();
             match pangoui.get_key(button_pos) {
                 Some(otherkeys::CLOSE_KEYBOARD) => {
@@ -206,7 +206,7 @@ fn main() {
                 touch_id = *id;
             }
             let index = index.unwrap();
-            let windowunit = ev.get_unit(index);
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
             let pangoui = windowunit.get_binding_mut().unwrap();
             let Some(touch_getkey) = pangoui.get_key((*x, *y)) else {
                 return ReturnData::None;

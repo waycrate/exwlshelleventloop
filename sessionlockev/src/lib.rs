@@ -373,7 +373,7 @@ pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     units: Vec<WindowStateUnit<T>>,
-    message: Vec<(Option<usize>, DispatchMessageInner)>,
+    message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
     connection: Option<Connection>,
     event_queue: Option<EventQueue<WindowState<T>>>,
@@ -471,10 +471,14 @@ impl<T> Default for WindowState<T> {
 
 impl<T> WindowState<T> {
     /// get the unit with the index returned by eventloop
+    #[deprecated]
     pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
         &mut self.units[index]
     }
 
+    fn get_id_list(&self) -> Vec<id::Id> {
+        self.units.iter().map(|unit| unit.id).collect()
+    }
     /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
@@ -484,17 +488,26 @@ impl<T> WindowState<T> {
     pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T>> {
         self.units.iter_mut()
     }
-
-    fn surface_pos(&self) -> Option<usize> {
-        self.units
-            .iter()
-            .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
+    pub fn get_mut_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
+        self.units.iter_mut().find(|unit| unit.id == id)
     }
 
-    fn get_pos_from_surface(&self, surface: &WlSurface) -> Option<usize> {
+    pub fn get_unit_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
+        self.units.iter().find(|unit| unit.id == id)
+    }
+
+    fn surface_id(&self) -> Option<id::Id> {
         self.units
             .iter()
-            .position(|unit| &unit.wl_surface == surface)
+            .find(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
+            .map(|unit| unit.id())
+    }
+
+    fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
+        self.units
+            .iter()
+            .find(|unit| &unit.wl_surface == surface)
+            .map(|unit| unit.id())
     }
     pub fn with_use_display_handle(mut self, use_display_handle: bool) -> Self {
         self.use_display_handle = use_display_handle;
@@ -587,7 +600,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
             },
             wl_keyboard::Event::Leave { .. } => {
                 state.message.push((
-                    state.surface_pos(),
+                    state.surface_id(),
                     DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
                 ));
             }
@@ -610,7 +623,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         event,
                         is_synthetic: false,
                     };
-                    state.message.push((state.surface_pos(), event));
+                    state.message.push((state.surface_id(), event));
                 }
             }
             wl_keyboard::Event::Modifiers {
@@ -629,7 +642,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 let modifiers = xkb_state.modifiers();
 
                 state.message.push((
-                    state.surface_pos(),
+                    state.surface_id(),
                     DispatchMessageInner::ModifiersChanged(modifiers.into()),
                 ))
             }
@@ -656,7 +669,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 x,
                 y,
             } => state.message.push((
-                state.get_pos_from_surface(&surface),
+                state.get_id_from_surface(&surface),
                 DispatchMessageInner::TouchDown {
                     serial,
                     time,
@@ -700,7 +713,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     };
 
                     state.message.push((
-                        state.surface_pos(),
+                        state.surface_id(),
                         DispatchMessageInner::Axis {
                             time,
                             horizontal,
@@ -724,7 +737,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     }
 
                     state.message.push((
-                        state.surface_pos(),
+                        state.surface_id(),
                         DispatchMessageInner::Axis {
                             time,
                             horizontal,
@@ -740,7 +753,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             },
             wl_pointer::Event::AxisSource { axis_source } => match axis_source {
                 WEnum::Value(source) => state.message.push((
-                    state.surface_pos(),
+                    state.surface_id(),
                     DispatchMessageInner::Axis {
                         horizontal: AxisScroll::default(),
                         vertical: AxisScroll::default(),
@@ -768,7 +781,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     };
 
                     state.message.push((
-                        state.surface_pos(),
+                        state.surface_id(),
                         DispatchMessageInner::Axis {
                             time: 0,
                             horizontal,
@@ -790,7 +803,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 time,
             } => {
                 state.message.push((
-                    state.surface_pos(),
+                    state.surface_id(),
                     DispatchMessageInner::MouseButton {
                         state: btnstate,
                         serial,
@@ -807,7 +820,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             } => {
                 state.current_surface = Some(surface.clone());
                 state.message.push((
-                    state.surface_pos(),
+                    state.surface_id(),
                     DispatchMessageInner::MouseEnter {
                         pointer: pointer.clone(),
                         serial,
@@ -822,7 +835,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_y,
             } => {
                 state.message.push((
-                    state.surface_pos(),
+                    state.surface_id(),
                     DispatchMessageInner::MouseMotion {
                         time,
                         surface_x,
@@ -864,7 +877,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
             state.units[unit_index].size = (width, height);
 
             state.message.push((
-                Some(unit_index),
+                Some(state.units[unit_index].id),
                 DispatchMessageInner::RefreshSurface { width, height },
             ));
         }
@@ -881,16 +894,21 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
         _qhandle: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            let Some(index) = state.units.iter().position(|info| {
-                info.fractional_scale
-                    .as_ref()
-                    .is_some_and(|fractional_scale| fractional_scale == proxy)
-            }) else {
+            let Some(id) = state
+                .units
+                .iter()
+                .find(|info| {
+                    info.fractional_scale
+                        .as_ref()
+                        .is_some_and(|fractional_scale| fractional_scale == proxy)
+                })
+                .map(|unit| unit.id)
+            else {
                 return;
             };
             state
                 .message
-                .push((Some(index), DispatchMessageInner::PrefredScale(scale)));
+                .push((Some(id), DispatchMessageInner::PrefredScale(scale)));
         }
     }
 }
@@ -1006,7 +1024,7 @@ impl<T: 'static> WindowState<T> {
         event_handler: F,
     ) -> Result<(), SessonLockEventError>
     where
-        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
@@ -1017,7 +1035,7 @@ impl<T: 'static> WindowState<T> {
     /// it will return [None].
     pub fn running<F>(self, event_handler: F) -> Result<(), SessonLockEventError>
     where
-        F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+        F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
     {
         self.running_with_proxy_option(None, event_handler)
     }
@@ -1028,7 +1046,7 @@ impl<T: 'static> WindowState<T> {
         mut event_handler: F,
     ) -> Result<(), SessonLockEventError>
     where
-        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<usize>) -> ReturnData,
+        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
     {
         let globals = self.globals.take().unwrap();
         let event_queue = self.event_queue.take().unwrap();
@@ -1076,7 +1094,11 @@ impl<T: 'static> WindowState<T> {
             for msg in messages.iter() {
                 match msg {
                     (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
-                        let index = *unit_index;
+                        let index = self
+                            .units
+                            .iter()
+                            .position(|unit| unit.id == *unit_index)
+                            .unwrap();
                         if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_handler(
@@ -1084,7 +1106,7 @@ impl<T: 'static> WindowState<T> {
                                     &mut file, &shm, &qh, *width, *height,
                                 ),
                                 &mut self,
-                                Some(index),
+                                Some(*unit_index),
                             ) else {
                                 panic!("You cannot return this one");
                             };
@@ -1100,12 +1122,12 @@ impl<T: 'static> WindowState<T> {
                                     },
                                 ),
                                 &mut self,
-                                Some(index),
+                                Some(*unit_index),
                             );
                         }
-                        let surface = &self.units[index].wl_surface;
-
-                        surface.commit();
+                        if let Some(unit) = self.get_unit_with_id(*unit_index) {
+                            unit.wl_surface.commit();
+                        }
                     }
                     (_, DispatchMessageInner::NewDisplay(display)) => {
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -1234,27 +1256,24 @@ impl<T: 'static> WindowState<T> {
                 for data in return_data {
                     match data {
                         ReturnData::RedrawAllRequest => {
-                            for index in 0..self.units.len() {
-                                let unit = &self.units[index];
-                                replace_data.push(event_handler(
-                                    SessionLockEvent::RequestMessages(
-                                        &DispatchMessage::RequestRefresh {
-                                            width: unit.size.0,
-                                            height: unit.size.1,
-                                        },
-                                    ),
-                                    &mut self,
-                                    Some(index),
-                                ));
+                            let idlist = self.get_id_list();
+                            for id in idlist {
+                                if let Some(unit) = self.get_unit_with_id(id) {
+                                    replace_data.push(event_handler(
+                                        SessionLockEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: unit.size.0,
+                                                height: unit.size.1,
+                                            },
+                                        ),
+                                        &mut self,
+                                        Some(id),
+                                    ));
+                                }
                             }
                         }
                         ReturnData::RedrawIndexRequest(id) => {
-                            if let Some((index, unit)) = &self
-                                .units
-                                .iter()
-                                .enumerate()
-                                .find(|(_, unit)| unit.id == id)
-                            {
+                            if let Some(unit) = self.get_unit_with_id(id) {
                                 replace_data.push(event_handler(
                                     SessionLockEvent::RequestMessages(
                                         &DispatchMessage::RequestRefresh {
@@ -1263,7 +1282,7 @@ impl<T: 'static> WindowState<T> {
                                         },
                                     ),
                                     &mut self,
-                                    Some(*index),
+                                    Some(id),
                                 ));
                             }
                         }

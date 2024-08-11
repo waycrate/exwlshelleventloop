@@ -217,7 +217,7 @@ where
         use layershellev::DispatchMessage;
         let mut def_returndata = ReturnData::None;
         let sended_id = index
-            .and_then(|index| ev.get_unit_option(index))
+            .and_then(|index| ev.get_unit_with_id(index))
             .map(|unit|unit.id());
         match event {
             LayerEvent::InitRequest => {
@@ -251,7 +251,7 @@ where
                         height,
                         is_created,
                     } => {
-                        let Some(unit) = ev.get_unit_with_id(sended_id.unwrap()) else {
+                        let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
                             break 'outside;
                         };
                         event_sender

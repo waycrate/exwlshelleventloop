@@ -183,9 +183,8 @@ where
 
     let mut pointer_serial: u32 = 0;
 
-    let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
+    let _ = ev.running_with_proxy(message_receiver, move |event, ev, id| {
         use sessionlockev::DispatchMessage;
-        let id = index.map(|index| ev.get_unit(index).id());
         match event {
             SessionLockEvent::InitRequest => {}
             // TODO: maybe use it later
@@ -199,7 +198,10 @@ where
                                 IcedSessionLockEvent::RequestRefreshWithWrapper {
                                     width: *width,
                                     height: *height,
-                                    wrapper: ev.get_unit(index.unwrap()).gen_wrapper(),
+                                    wrapper: ev
+                                        .get_unit_with_id(id.unwrap())
+                                        .unwrap()
+                                        .gen_wrapper(),
                                 },
                             ))
                             .expect("Cannot send");
