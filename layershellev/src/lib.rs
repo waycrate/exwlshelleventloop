@@ -554,9 +554,14 @@ pub struct WindowState<T> {
 
     last_unit_index: usize,
     last_wloutput: Option<WlOutput>,
+
+    return_data: Vec<ReturnData<T>>,
 }
 
 impl<T> WindowState<T> {
+    pub fn append_return_data(&mut self, data: ReturnData<T>) {
+        self.return_data.push(data);
+    }
     /// remove a shell, destroy the surface
     pub fn remove_shell(&mut self, id: id::Id) {
         let Some(index) = self
@@ -797,6 +802,8 @@ impl<T> Default for WindowState<T> {
 
             last_wloutput: None,
             last_unit_index: 0,
+
+            return_data: Vec::new(),
         }
     }
 }
@@ -1846,6 +1853,8 @@ impl<T: 'static> WindowState<T> {
             }
             let mut return_data = vec![event_handler(LayerEvent::NormalDispatch, &mut self, None)];
             loop {
+                return_data.append(&mut self.return_data);
+                self.return_data.clear();
                 let mut replace_data = Vec::new();
                 for data in return_data {
                     match data {
