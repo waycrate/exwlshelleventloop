@@ -1788,6 +1788,9 @@ impl<T: 'static> WindowState<T> {
                                 let idlist = self.get_id_list();
                                 for id in idlist {
                                     if let Some(unit) = self.get_unit_with_id(id) {
+                                        if unit.size.0 == 0 || unit.size.1 == 0 {
+                                            continue;
+                                        }
                                         event_handler(
                                             LayerEvent::RequestMessages(
                                                 &DispatchMessage::RequestRefresh {
@@ -1902,6 +1905,9 @@ impl<T: 'static> WindowState<T> {
                             let idlist = self.get_id_list();
                             for id in idlist {
                                 if let Some(unit) = self.get_unit_with_id(id) {
+                                    if unit.size.0 == 0 || unit.size.1 == 0 {
+                                        continue;
+                                    }
                                     event_handler(
                                         LayerEvent::RequestMessages(
                                             &DispatchMessage::RequestRefresh {
