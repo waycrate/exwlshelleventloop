@@ -1675,11 +1675,10 @@ impl<T: 'static> WindowState<T> {
             for msg in messages.iter() {
                 match msg {
                     (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
-                        let index = self
-                            .units
-                            .iter()
-                            .position(|unit| unit.id == *unit_index)
-                            .unwrap();
+                        let Some(index) = self.units.iter().position(|unit| unit.id == *unit_index)
+                        else {
+                            continue;
+                        };
                         if self.units[index].buffer.is_none() && !self.use_display_handle {
                             let mut file = tempfile::tempfile()?;
                             let ReturnData::WlBuffer(buffer) = event_handler(
