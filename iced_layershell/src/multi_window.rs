@@ -216,7 +216,9 @@ where
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
         use layershellev::DispatchMessage;
         let mut def_returndata = ReturnData::None;
-        let sended_id = index.map(|index| ev.get_unit(index).id());
+        let sended_id = index
+            .and_then(|index| ev.get_unit_option(index))
+            .map(|unit|unit.id());
         match event {
             LayerEvent::InitRequest => {
                 if settings.virtual_keyboard_support.is_some() {

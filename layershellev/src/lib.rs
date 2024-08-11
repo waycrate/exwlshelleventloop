@@ -829,6 +829,14 @@ impl<T> WindowState<T> {
         &mut self.units[index]
     }
 
+    pub fn get_unit_option(&mut self, index: usize) -> Option<&mut WindowStateUnit<T>> {
+        if index > self.units.len() {
+            None
+        } else {
+            Some(&mut self.units[index])
+        }
+    }
+
     pub fn get_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
         self.units.iter_mut().find(|unit| unit.id == id)
     }
