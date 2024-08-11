@@ -292,17 +292,17 @@ where
                                     return ReturnData::None;
                                 };
 
-                                return ReturnData::RequestSetCursorShape((
+                                ev.append_return_data(ReturnData::RequestSetCursorShape((
                                     conversion::mouse_interaction(mouse),
                                     pointer.clone(),
                                     pointer_serial,
-                                ));
+                                )));
                             }
                             LayerShellActions::RedrawAll => {
-                                return ReturnData::RedrawAllRequest;
+                                ev.append_return_data(ReturnData::RedrawAllRequest);
                             }
                             LayerShellActions::RedrawWindow(index) => {
-                                return ReturnData::RedrawIndexRequest(index);
+                                ev.append_return_data(ReturnData::RedrawIndexRequest(index));
                             }
                             _ => {}
                         }

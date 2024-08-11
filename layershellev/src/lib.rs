@@ -1894,7 +1894,7 @@ impl<T: 'static> WindowState<T> {
             let mut return_data = vec![event_handler(LayerEvent::NormalDispatch, &mut self, None)];
             loop {
                 return_data.append(&mut self.return_data);
-                self.return_data.clear();
+
                 let mut replace_data = Vec::new();
                 for data in return_data {
                     match data {
