@@ -556,6 +556,8 @@ pub struct WindowState<T> {
     last_wloutput: Option<WlOutput>,
 
     return_data: Vec<ReturnData<T>>,
+    last_touch_location: (f64, f64),
+    last_touch_id: i32,
 }
 
 impl<T> WindowState<T> {
@@ -804,6 +806,8 @@ impl<T> Default for WindowState<T> {
             last_unit_index: 0,
 
             return_data: Vec::new(),
+            last_touch_location: (0., 0.),
+            last_touch_id: 0,
         }
     }
 }
@@ -1048,22 +1052,45 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 id,
                 x,
                 y,
-            } => state.message.push((
-                state.get_id_from_surface(&surface),
-                DispatchMessageInner::TouchDown {
-                    serial,
-                    time,
-                    id,
-                    x,
-                    y,
-                },
-            )),
-            wl_touch::Event::Up { serial, time, id } => state
-                .message
-                .push((None, DispatchMessageInner::TouchUp { serial, time, id })),
-            wl_touch::Event::Motion { time, id, x, y } => state
-                .message
-                .push((None, DispatchMessageInner::TouchMotion { time, id, x, y })),
+            } => {
+                state.last_touch_location = (x, y);
+                state.message.push((
+                    state.get_id_from_surface(&surface),
+                    DispatchMessageInner::TouchDown {
+                        serial,
+                        time,
+                        id,
+                        x,
+                        y,
+                    },
+                ))
+            }
+            wl_touch::Event::Cancel => {
+                let (x, y) = state.last_touch_location;
+                let id = state.last_touch_id;
+                state
+                    .message
+                    .push((None, DispatchMessageInner::TouchCancel { id, x, y }))
+            }
+            wl_touch::Event::Up { serial, time, id } => {
+                let (x, y) = state.last_touch_location;
+                state.message.push((
+                    None,
+                    DispatchMessageInner::TouchUp {
+                        serial,
+                        time,
+                        id,
+                        x,
+                        y,
+                    },
+                ));
+            }
+            wl_touch::Event::Motion { time, id, x, y } => {
+                state.last_touch_location = (x, y);
+                state
+                    .message
+                    .push((None, DispatchMessageInner::TouchMotion { time, id, x, y }));
+            }
             _ => {}
         }
     }

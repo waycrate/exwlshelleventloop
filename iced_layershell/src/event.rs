@@ -68,6 +68,26 @@ pub enum WindowEvent {
         x: f32,
         y: f32,
     },
+    TouchDown {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchUp {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchMotion {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchCancel {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
 }
 
 #[derive(Debug)]
@@ -123,10 +143,7 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                 surface_x: x,
                 surface_y: y,
                 ..
-            }
-            | DispatchMessage::TouchMotion { x, y, .. } => {
-                IcedLayerEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y })
-            }
+            } => IcedLayerEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y }),
             DispatchMessage::MouseLeave => IcedLayerEvent::Window(WindowEvent::CursorLeft),
             DispatchMessage::MouseButton { state, button, .. } => {
                 let btn = from_u32_to_icedmouse(*button);
@@ -140,6 +157,35 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                     _ => unreachable!(),
                 }
             }
+            DispatchMessage::TouchUp { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchUp {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchDown { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchDown {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchMotion { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchMotion {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchCancel { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchCancel {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+
             DispatchMessage::PrefredScale(scale) => {
                 IcedLayerEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
@@ -174,7 +220,6 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                     y: -vertical.absolute as f32,
                 })
             }
-            _ => Self::NormalUpdate,
         }
     }
 }

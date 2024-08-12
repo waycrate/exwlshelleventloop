@@ -2,6 +2,7 @@ mod keymap;
 
 use crate::event::IcedButtonState;
 use crate::event::WindowEvent as LayerShellEvent;
+use iced::touch;
 use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
 use keymap::key;
@@ -72,6 +73,42 @@ pub fn window_event(
                 },
             }
         })),
+        LayerShellEvent::TouchDown { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerPressed {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
+        LayerShellEvent::TouchUp { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerLifted {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
+        LayerShellEvent::TouchMotion { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerMoved {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
+        LayerShellEvent::TouchCancel { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerLost {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
         LayerShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
             keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
         )),

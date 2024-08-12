@@ -2,6 +2,7 @@ mod keymap;
 
 use crate::event::IcedButtonState;
 use crate::event::WindowEvent as SessionLockEvent;
+use iced::touch;
 use iced_core::SmolStr;
 use keymap::key;
 use sessionlockev::keyboard::KeyLocation;
@@ -42,7 +43,42 @@ pub fn window_event(
                 delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
             }))
         }
-
+        SessionLockEvent::TouchDown { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerPressed {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
+        SessionLockEvent::TouchUp { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerLifted {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
+        SessionLockEvent::TouchMotion { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerMoved {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
+        SessionLockEvent::TouchCancel { id, x, y } => {
+            Some(IcedEvent::Touch(touch::Event::FingerLost {
+                id: touch::Finger(*id as u64),
+                position: iced::Point {
+                    x: *x as f32,
+                    y: *y as f32,
+                },
+            }))
+        }
         SessionLockEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
             let logical_key = event.key_without_modifiers();
             let text = event
@@ -75,6 +111,9 @@ pub fn window_event(
                 },
             }
         })),
+        SessionLockEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
+            keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
+        )),
         _ => None,
     }
 }

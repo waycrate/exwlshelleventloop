@@ -58,6 +58,26 @@ pub enum WindowEvent {
         x: f32,
         y: f32,
     },
+    TouchDown {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchUp {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchMotion {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchCancel {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
 }
 
 #[derive(Debug)]
@@ -109,10 +129,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                 surface_x: x,
                 surface_y: y,
                 ..
-            }
-            | DispatchMessage::TouchMotion { x, y, .. } => {
-                IcedSessionLockEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y })
-            }
+            } => IcedSessionLockEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y }),
             DispatchMessage::MouseLeave => IcedSessionLockEvent::Window(WindowEvent::CursorLeft),
             DispatchMessage::MouseButton { state, .. } => match state {
                 WEnum::Value(ButtonState::Pressed) => {
@@ -123,6 +140,34 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                 }
                 _ => unreachable!(),
             },
+            DispatchMessage::TouchUp { id, x, y, .. } => {
+                IcedSessionLockEvent::Window(WindowEvent::TouchUp {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchDown { id, x, y, .. } => {
+                IcedSessionLockEvent::Window(WindowEvent::TouchDown {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchMotion { id, x, y, .. } => {
+                IcedSessionLockEvent::Window(WindowEvent::TouchMotion {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchCancel { id, x, y, .. } => {
+                IcedSessionLockEvent::Window(WindowEvent::TouchCancel {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
             DispatchMessage::PrefredScale(scale) => {
                 IcedSessionLockEvent::Window(WindowEvent::ScaleChanged(*scale))
             }
@@ -156,7 +201,6 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                     y: -vertical.absolute as f32,
                 })
             }
-            _ => Self::NormalUpdate,
         }
     }
 }

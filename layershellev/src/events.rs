@@ -172,9 +172,16 @@ pub(crate) enum DispatchMessageInner {
         serial: u32,
         time: u32,
         id: i32,
+        x: f64,
+        y: f64,
     },
     TouchMotion {
         time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
+    },
+    TouchCancel {
         id: i32,
         x: f64,
         y: f64,
@@ -251,6 +258,8 @@ pub enum DispatchMessage {
         serial: u32,
         time: u32,
         id: i32,
+        x: f64,
+        y: f64,
     },
     /// forward the event of wayland-touch
     TouchMotion {
@@ -259,7 +268,11 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
-
+    TouchCancel {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
     ModifiersChanged(ModifiersState),
     KeyboardInput {
         event: KeyEvent,
@@ -335,11 +348,24 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 x,
                 y,
             },
-            DispatchMessageInner::TouchUp { serial, time, id } => {
-                DispatchMessage::TouchUp { serial, time, id }
-            }
+            DispatchMessageInner::TouchUp {
+                serial,
+                time,
+                id,
+                x,
+                y,
+            } => DispatchMessage::TouchUp {
+                serial,
+                time,
+                id,
+                x,
+                y,
+            },
             DispatchMessageInner::TouchMotion { time, id, x, y } => {
                 DispatchMessage::TouchMotion { time, id, x, y }
+            }
+            DispatchMessageInner::TouchCancel { id, x, y } => {
+                DispatchMessage::TouchCancel { id, x, y }
             }
             DispatchMessageInner::RequestRefresh {
                 width,
