@@ -147,6 +147,10 @@ impl Context {
     pub fn state_mut(&mut self) -> Option<&mut XkbState> {
         self.state.as_mut()
     }
+
+    pub fn keymap_mut(&mut self) -> Option<&mut XkbKeymap> {
+        self.keymap.as_mut()
+    }
     /// Key builder context with the user provided xkb state.
     pub fn key_context(&mut self) -> Option<KeyContext<'_>> {
         let state = self.state.as_mut()?;
@@ -207,6 +211,10 @@ impl XkbKeymap {
                 0
             }
         }
+    }
+    /// Check whether the given key repeats.
+    pub fn key_repeats(&mut self, keycode: xkb_keycode_t) -> bool {
+        unsafe { (XKBH.xkb_keymap_key_repeats)(self.keymap.as_ptr(), keycode) == 1 }
     }
 }
 

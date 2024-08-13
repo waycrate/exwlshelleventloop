@@ -113,7 +113,6 @@
 //!
 pub use events::NewLayerShellSettings;
 pub use events::NewPopUpSettings;
-use sctk::reexports::calloop::LoopHandle;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
@@ -129,6 +128,8 @@ pub mod id;
 pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use strtoshape::str_to_shape;
+use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
+
 use wayland_client::{
     delegate_noop,
     globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
@@ -148,10 +149,6 @@ use wayland_client::{
     },
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
-
-use sctk::reexports::{calloop::EventLoop, calloop_wayland_source::WaylandSource};
-
-use std::time::Duration;
 
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -187,7 +184,15 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
-use sctk::reexports::calloop::Error as CallLoopError;
+use std::time::Duration;
+
+use sctk::reexports::{
+    calloop::{
+        timer::{TimeoutAction, Timer},
+        Error as CallLoopError, EventLoop, LoopHandle,
+    },
+    calloop_wayland_source::WaylandSource,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LayerEventError {
@@ -948,7 +953,7 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
 impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
-        _proxy: &wl_keyboard::WlKeyboard,
+        _wl_keyboard: &wl_keyboard::WlKeyboard,
         event: <wl_keyboard::WlKeyboard as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
@@ -956,6 +961,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     ) {
         use keyboard::*;
         use xkb_keyboard::ElementState;
+        let surface_id = state.surface_id();
         let keyboard_state = state.keyboard_state.as_mut().unwrap();
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
@@ -970,7 +976,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
             },
             wl_keyboard::Event::Leave { .. } => {
                 state.message.push((
-                    state.surface_id(),
+                    surface_id,
                     DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
                 ));
             }
@@ -993,7 +999,74 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         event,
                         is_synthetic: false,
                     };
-                    state.message.push((state.surface_id(), event));
+                    state.message.push((surface_id, event));
+                }
+
+                match pressed_state {
+                    ElementState::Pressed => {
+                        let delay = match keyboard_state.repeat_info {
+                            RepeatInfo::Repeat { delay, .. } => delay,
+                            RepeatInfo::Disable => return,
+                        };
+                        if !keyboard_state
+                            .xkb_context
+                            .keymap_mut()
+                            .unwrap()
+                            .key_repeats(key)
+                        {
+                            return;
+                        }
+
+                        keyboard_state.current_repeat = Some(key);
+                        let timer = Timer::from_duration(delay);
+
+                        if let Some(looph) = state.loop_handler.as_ref() {
+                            looph
+                                .insert_source(timer, move |_, _, state| {
+                                    let keyboard_state = match state.keyboard_state.as_mut() {
+                                        Some(keyboard_state) => keyboard_state,
+                                        None => return TimeoutAction::Drop,
+                                    };
+                                    let repeat_keycode = match keyboard_state.current_repeat {
+                                        Some(repeat_keycode) => repeat_keycode,
+                                        None => return TimeoutAction::Drop,
+                                    };
+                                    if let Some(mut key_context) =
+                                        keyboard_state.xkb_context.key_context()
+                                    {
+                                        let event = key_context.process_key_event(
+                                            repeat_keycode,
+                                            pressed_state,
+                                            false,
+                                        );
+                                        let event = DispatchMessageInner::KeyboardInput {
+                                            event,
+                                            is_synthetic: false,
+                                        };
+                                        state.message.push((surface_id, event));
+                                    }
+                                    match keyboard_state.repeat_info {
+                                        RepeatInfo::Repeat { gap, .. } => {
+                                            TimeoutAction::ToDuration(gap)
+                                        }
+                                        RepeatInfo::Disable => TimeoutAction::Drop,
+                                    }
+                                })
+                                .ok();
+                        }
+                    }
+                    ElementState::Released => {
+                        if keyboard_state.repeat_info != RepeatInfo::Disable
+                            && keyboard_state
+                                .xkb_context
+                                .keymap_mut()
+                                .unwrap()
+                                .key_repeats(key)
+                            && Some(key) == keyboard_state.current_repeat
+                        {
+                            keyboard_state.current_repeat = None;
+                        }
+                    }
                 }
             }
             wl_keyboard::Event::Modifiers {
@@ -1015,6 +1088,17 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                     state.surface_id(),
                     DispatchMessageInner::ModifiersChanged(modifiers.into()),
                 ))
+            }
+            wl_keyboard::Event::RepeatInfo { rate, delay } => {
+                keyboard_state.repeat_info = if rate == 0 {
+                    // Stop the repeat once we get a disable event.
+                    keyboard_state.current_repeat = None;
+                    RepeatInfo::Disable
+                } else {
+                    let gap = Duration::from_micros(1_000_000 / rate as u64);
+                    let delay = Duration::from_millis(delay as u64);
+                    RepeatInfo::Repeat { gap, delay }
+                };
             }
             _ => {}
         }
