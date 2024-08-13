@@ -475,7 +475,6 @@ impl<T> Default for WindowState<T> {
 }
 
 impl<T> WindowState<T> {
-
     fn get_id_list(&self) -> Vec<id::Id> {
         self.units.iter().map(|unit| unit.id).collect()
     }

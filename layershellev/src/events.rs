@@ -285,18 +285,9 @@ pub enum DispatchMessage {
         y: f64,
     },
     /// forward the event of wayland-touch
-    TouchMotion {
-        time: u32,
-        id: i32,
-        x: f64,
-        y: f64,
-    },
+    TouchMotion { time: u32, id: i32, x: f64, y: f64 },
     /// TouchEvent is cancelled
-    TouchCancel {
-        id: i32,
-        x: f64,
-        y: f64,
-    },
+    TouchCancel { id: i32, x: f64, y: f64 },
     /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
     /// Keyboard Event about input.
