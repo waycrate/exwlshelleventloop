@@ -569,9 +569,9 @@ pub struct KeyEvent {
     /// This has two use cases:
     /// - Allows querying whether the current input is a Dead key.
     /// - Allows handling key-bindings on platforms which don't
-    ///   support [`key_without_modifiers`].
+    ///   support `key_without_modifiers`.
     ///
-    /// If you use this field (or [`key_without_modifiers`] for that matter) for keyboard
+    /// If you use this field (or `key_without_modifiers` for that matter) for keyboard
     /// shortcuts, **it is important that you provide users with a way to configure your
     /// application's shortcuts so you don't render your application unusable for users with an
     /// incompatible keyboard layout.**
@@ -580,7 +580,6 @@ pub struct KeyEvent {
     /// - **Web:** Dead keys might be reported as the real key instead
     ///   of `Dead` depending on the browser/OS.
     ///
-    /// [`key_without_modifiers`]: crate::platform::modifier_supplement::KeyEventExtModifierSupplement::key_without_modifiers
     pub logical_key: Key,
 
     /// Contains the text produced by this keypress.

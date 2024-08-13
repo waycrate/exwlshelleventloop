@@ -37,7 +37,7 @@ pub trait Application: Sized {
     /// The [default executor] can be a good starting point!
     ///
     /// [`Executor`]: Self::Executor
-    /// [default executor]: crate::executor::Default
+    /// [default executor]: iced::executor::Default
     type Executor: iced::Executor;
 
     /// The type of __messages__ your [`Application`] will produce.
@@ -210,7 +210,7 @@ pub trait MultiApplication: Sized {
     /// The [default executor] can be a good starting point!
     ///
     /// [`Executor`]: Self::Executor
-    /// [default executor]: crate::executor::Default
+    /// [default executor]: iced::executor::Default
     type Executor: iced::Executor;
 
     /// The type of __messages__ your [`Application`] will produce.

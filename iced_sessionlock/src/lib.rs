@@ -23,18 +23,18 @@ pub trait MultiApplication: Sized {
     /// The [default executor] can be a good starting point!
     ///
     /// [`Executor`]: Self::Executor
-    /// [default executor]: crate::executor::Default
+    /// [default executor]: iced::executor::Default
     type Executor: iced::Executor;
 
-    /// The type of __messages__ your [`Application`] will produce.
+    /// The type of __messages__ your [`MultiApplication`] will produce.
     type Message: std::fmt::Debug + Send;
 
-    /// The data needed to initialize your [`Application`].
+    /// The data needed to initialize your [`MultiApplication`].
     type Flags;
 
     type Theme: Default + StyleSheet;
 
-    /// Initializes the [`Application`] with the flags provided to
+    /// Initializes the [`MultiApplication`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
     /// Here is where you should return the initial state of your app.
@@ -46,13 +46,13 @@ pub trait MultiApplication: Sized {
     /// [`run`]: Self::run
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
 
-    /// Returns the current title of the `window` of the [`Application`].
+    /// Returns the current title of the `window` of the [`MultiApplication`].
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your window when necessary.
     fn namespace(&self) -> String;
 
-    /// Handles a __message__ and updates the state of the [`Application`].
+    /// Handles a __message__ and updates the state of the [`MultiApplication`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
     /// produced by either user interactions or commands, will be handled by
@@ -61,7 +61,7 @@ pub trait MultiApplication: Sized {
     /// Any [`Command`] returned will be executed immediately in the background.
     fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
 
-    /// Returns the widgets to display in the `window` of the [`Application`].
+    /// Returns the widgets to display in the `window` of the [`MultiApplication`].
     ///
     /// These widgets can produce __messages__ based on user interaction.
     fn view(
@@ -69,7 +69,7 @@ pub trait MultiApplication: Sized {
         window: iced::window::Id,
     ) -> Element<'_, Self::Message, Self::Theme, iced::Renderer>;
 
-    /// Returns the current [`Theme`] of the `window` of the [`Application`].
+    /// Returns the current [`Theme`] of the `window` of the [`MultiApplication`].
     ///
     /// [`Theme`]: Self::Theme
     #[allow(unused_variables)]
@@ -96,7 +96,7 @@ pub trait MultiApplication: Sized {
         Subscription::none()
     }
 
-    /// Returns the scale factor of the `window` of the [`Application`].
+    /// Returns the scale factor of the `window` of the [`MultiApplication`].
     ///
     /// It can be used to dynamically control the size of the UI at runtime
     /// (i.e. zooming).
@@ -110,10 +110,10 @@ pub trait MultiApplication: Sized {
         1.0
     }
 
-    /// Runs the multi-window [`Application`].
+    /// Runs the multi-window [`MultiApplication`].
     ///
     /// On native platforms, this method will take control of the current thread
-    /// until the [`Application`] exits.
+    /// until the [`MultiApplication`] exits.
     ///
     /// On the web platform, this method __will NOT return__ unless there is an
     /// [`Error`] during startup.

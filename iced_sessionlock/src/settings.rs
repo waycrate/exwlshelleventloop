@@ -10,9 +10,9 @@ pub struct Settings<Flags> {
     /// communicate with it through the windowing system.
     pub id: Option<String>,
 
-    /// The data needed to initialize an [`Application`].
+    /// The data needed to initialize an [`MultiApplication`].
     ///
-    /// [`Application`]: crate::Application
+    /// [`MultiApplication`]: crate::MultiApplication
     pub flags: Flags,
 
     /// The fonts to load on boot.
@@ -20,7 +20,7 @@ pub struct Settings<Flags> {
 
     /// The default [`Font`] to be used.
     ///
-    /// By default, it uses [`Family::SansSerif`](crate::font::Family::SansSerif).
+    /// By default, it uses [`Family::SansSerif`](iced::font::Family::SansSerif).
     pub default_font: Font,
 
     /// The text size that will be used by default.
@@ -32,11 +32,10 @@ pub struct Settings<Flags> {
     /// primitives.
     ///
     /// Enabling it can produce a smoother result in some widgets, like the
-    /// [`Canvas`], at a performance cost.
+    /// `Canvas`, at a performance cost.
     ///
     /// By default, it is disabled.
     ///
-    /// [`Canvas`]: crate::widget::Canvas
     pub antialiasing: bool,
 }
 

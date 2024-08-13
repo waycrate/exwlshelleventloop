@@ -475,11 +475,6 @@ impl<T> Default for WindowState<T> {
 }
 
 impl<T> WindowState<T> {
-    /// get the unit with the index returned by eventloop
-    #[deprecated]
-    pub fn get_unit(&mut self, index: usize) -> &mut WindowStateUnit<T> {
-        &mut self.units[index]
-    }
 
     fn get_id_list(&self) -> Vec<id::Id> {
         self.units.iter().map(|unit| unit.id).collect()
@@ -493,10 +488,13 @@ impl<T> WindowState<T> {
     pub fn get_unit_iter_mut(&mut self) -> impl Iterator<Item = &mut WindowStateUnit<T>> {
         self.units.iter_mut()
     }
+
+    /// use [id::Id] to get the mut [WindowStateUnit]
     pub fn get_mut_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
         self.units.iter_mut().find(|unit| unit.id == id)
     }
 
+    /// use [id::Id] to get the immutable [WindowStateUnit]
     pub fn get_unit_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
         self.units.iter().find(|unit| unit.id == id)
     }
@@ -514,6 +512,8 @@ impl<T> WindowState<T> {
             .find(|unit| &unit.wl_surface == surface)
             .map(|unit| unit.id())
     }
+
+    /// use display_handle to render surface, not to create buffer yourself
     pub fn with_use_display_handle(mut self, use_display_handle: bool) -> Self {
         self.use_display_handle = use_display_handle;
         self
@@ -1037,12 +1037,7 @@ impl<T: 'static> WindowState<T> {
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
     /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
-    /// it will return [None].
-    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
-    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
     ///
     /// Different with running, it receiver a receiver
@@ -1059,7 +1054,7 @@ impl<T: 'static> WindowState<T> {
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
     /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit] if the even is not spical on one surface,
+    /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
     pub fn running<F>(self, event_handler: F) -> Result<(), SessonLockEventError>
     where

@@ -9,32 +9,32 @@ use crate::settings::Settings;
 use crate::Application;
 
 pub trait LayerShellSandbox {
-    /// The type of __messages__ your [`Sandbox`] will produce.
+    /// The type of __messages__ your [`LayerShellSandbox`] will produce.
     type Message: std::fmt::Debug + Send;
 
-    /// Initializes the [`Sandbox`].
+    /// Initializes the [`LayerShellSandbox`].
     ///
     /// Here is where you should return the initial state of your app.
     fn new() -> Self;
 
-    /// Returns the current title of the [`Sandbox`].
+    /// Returns the current namespace of the [`LayerShellSandbox`].
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your application when necessary.
     fn namespace(&self) -> String;
 
-    /// Handles a __message__ and updates the state of the [`Sandbox`].
+    /// Handles a __message__ and updates the state of the [`LayerShellSandbox`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
     /// produced by user interactions, will be handled by this method.
     fn update(&mut self, message: Self::Message);
 
-    /// Returns the widgets to display in the [`Sandbox`].
+    /// Returns the widgets to display in the [`LayerShellSandbox`].
     ///
     /// These widgets can produce __messages__ based on user interaction.
     fn view(&self) -> Element<'_, Self::Message>;
 
-    /// Returns the current [`Theme`] of the [`Sandbox`].
+    /// Returns the current [`Theme`] of the [`LayerShellSandbox`].
     ///
     /// If you want to use your own custom theme type, you will have to use an
     /// [`Application`].
@@ -51,7 +51,7 @@ pub trait LayerShellSandbox {
         theme::Application::default()
     }
 
-    /// Returns the scale factor of the [`Sandbox`].
+    /// Returns the scale factor of the [`LayerShellSandbox`].
     ///
     /// It can be used to dynamically control the size of the UI at runtime
     /// (i.e. zooming).
@@ -64,7 +64,7 @@ pub trait LayerShellSandbox {
         1.0
     }
 
-    /// Runs the [`Sandbox`].
+    /// Runs the [`LayerShellSandbox`].
     ///
     /// On native platforms, this method will take control of the current thread
     /// and __will NOT return__.

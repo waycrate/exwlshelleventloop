@@ -1589,7 +1589,7 @@ impl Key {
 /// information.
 ///
 /// [`location`]: ../event/struct.KeyEvent.html#structfield.location
-/// [`KeyEvent`]: crate::event::KeyEvent
+/// [`KeyEvent`]: crate::xkb_keyboard::KeyEvent
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeyLocation {
     /// The key is in its "normal" location on the keyboard.

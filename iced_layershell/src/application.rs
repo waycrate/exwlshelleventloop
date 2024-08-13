@@ -68,10 +68,10 @@ where
         self.namespace()
     }
 
-    /// Returns the current [`Theme`] of the [`Application`].
+    /// Returns the current `Theme` of the [`Application`].
     fn theme(&self) -> Self::Theme;
 
-    /// Returns the [`Style`] variation of the [`Theme`].
+    /// Returns the `Style` variation of the `Theme`.
     fn style(&self) -> <Self::Theme as StyleSheet>::Style {
         Default::default()
     }

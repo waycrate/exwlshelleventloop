@@ -72,6 +72,7 @@ where
     /// load state from a file, perform an initial HTTP request, etc.
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
 
+    /// The name space of the layershell
     fn namespace(&self) -> String;
     /// Returns the current title of the [`Application`].
     ///
@@ -81,15 +82,21 @@ where
         self.namespace()
     }
 
+    /// get the binded [Application::WindowInfo]
     fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo>;
 
+    /// be used by [`run`], set the [Application::WindowInfo] for [iced_core::window::Id]. do not
+    /// use it in your program, just realize it.
     fn set_id_info(&mut self, _id: iced_core::window::Id, info: Self::WindowInfo);
+
+    /// be used by [`run`], the id will be removed after the window is disappeared. do not use it
+    /// in your program, just realize it.
     fn remove_id(&mut self, _id: iced_core::window::Id);
 
-    /// Returns the current [`Theme`] of the [`Application`].
+    /// Returns the current `Theme` of the [`Application`].
     fn theme(&self) -> Self::Theme;
 
-    /// Returns the [`Style`] variation of the [`Theme`].
+    /// Returns the `Style` variation of the `Theme`.
     fn style(&self) -> <Self::Theme as StyleSheet>::Style {
         Default::default()
     }

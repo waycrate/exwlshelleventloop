@@ -36,9 +36,18 @@ use std::{fmt::Debug, fs::File};
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
 pub enum LayerEvent<'a, T, Message> {
+    /// the first event when start a new gui, program. you can return [ReturnData::None] or
+    /// [ReturnData::RequestBind], then it will continue to the next request.
+    /// Here only the above two [ReturnData] are acceptable.
     InitRequest,
+    /// if the info of the XdgOutput is changed, it will send the event
     XdgInfoChanged(XdgInfoChangedType),
+    /// After you return [ReturnData::RequestBind] in the [LayerEvent::InitRequest] stage, next
+    /// event is [LayerEvent::BindProvide], you can use the GlobalList and QueueHandle to create
+    /// new wayland objects.
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
+    /// create a new buffer after request. if you use display_handle, you do not need to care about
+    /// it.
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
@@ -46,26 +55,38 @@ pub enum LayerEvent<'a, T, Message> {
         u32,
         u32,
     ),
+    /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
     RequestMessages(&'a DispatchMessage),
+    /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.
     NormalDispatch,
+    /// It return the event you passed with message_receiver, and return it back.
     UserEvent(Message),
 }
 
+/// layershell settings to create a new layershell surface
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewLayerShellSettings {
+    /// the size of the layershell, optional.
     pub size: Option<(u32, u32)>,
     pub layer: Layer,
     pub anchor: Anchor,
     pub exclusive_zone: Option<i32>,
     pub margin: Option<(i32, i32, i32, i32)>,
     pub keyboard_interactivity: KeyboardInteractivity,
+    /// follow the last output of the activated surface, used to create some thing like mako, who
+    /// will show on the same window, only when the notifications is cleared, it will change the
+    /// wl_output.
     pub use_last_output: bool,
 }
 
+/// be used to create a new popup
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NewPopUpSettings {
+    /// the size of the popup
     pub size: (u32, u32),
+    /// the position of the popup, relative to the he layersurface
     pub position: (i32, i32),
+    /// It means where the popup is, on which surface. It is the id of that layershell
     pub id: id::Id,
 }
 
@@ -225,6 +246,7 @@ pub enum DispatchMessage {
         button: u32,
         time: u32,
     },
+    /// Mouse leave the surface
     MouseLeave,
     /// forward the event of wayland-mouse
     MouseEnter {
@@ -239,6 +261,7 @@ pub enum DispatchMessage {
         surface_x: f64,
         surface_y: f64,
     },
+    /// About the scroll
     Axis {
         time: u32,
         horizontal: AxisScroll,
@@ -268,12 +291,15 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
+    /// TouchEvent is cancelled
     TouchCancel {
         id: i32,
         x: f64,
         y: f64,
     },
+    /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
+    /// Keyboard Event about input.
     KeyboardInput {
         event: KeyEvent,
 

@@ -30,8 +30,16 @@ use std::{fmt::Debug, fs::File};
 /// event.
 #[derive(Debug)]
 pub enum SessionLockEvent<'a, T, Message> {
+    /// the first event when start a new gui, program. you can return [ReturnData::None] or
+    /// [ReturnData::RequestBind], then it will continue to the next request.
+    /// Here only the above two [ReturnData] are acceptable.
     InitRequest,
+    /// After you return [ReturnData::RequestBind] in the [SessionLockEvent::InitRequest] stage, next
+    /// event is [SessionLockEvent::BindProvide], you can use the GlobalList and QueueHandle to create
+    /// new wayland objects.
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
+    /// create a new buffer after request. if you use display_handle, you do not need to care about
+    /// it.
     RequestBuffer(
         &'a mut File,
         &'a WlShm,
@@ -39,8 +47,11 @@ pub enum SessionLockEvent<'a, T, Message> {
         u32,
         u32,
     ),
+    /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
     RequestMessages(&'a DispatchMessage),
+    /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.
     NormalDispatch,
+    /// It return the event you passed with message_receiver, and return it back.
     UserEvent(Message),
 }
 
@@ -190,6 +201,7 @@ pub enum DispatchMessage {
         surface_x: f64,
         surface_y: f64,
     },
+    /// About the scroll
     Axis {
         time: u32,
         horizontal: AxisScroll,
@@ -219,13 +231,15 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
+    /// TouchEvent is cancelled
     TouchCancel {
         id: i32,
         x: f64,
         y: f64,
     },
-
+    /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
+    /// Keyboard Event about input.
     KeyboardInput {
         event: KeyEvent,
 
@@ -246,6 +260,7 @@ pub enum DispatchMessage {
         width: u32,
         height: u32,
     },
+    /// fractal scale handle
     PrefredScale(u32),
 }
 

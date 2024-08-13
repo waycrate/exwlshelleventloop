@@ -65,10 +65,10 @@ where
         self.namespace()
     }
 
-    /// Returns the current [`Theme`] of the [`Application`].
+    /// Returns the current [`Program::Theme`] of the [`Application`].
     fn theme(&self) -> Self::Theme;
 
-    /// Returns the [`Style`] variation of the [`Theme`].
+    /// Returns the [`StyleSheet::Style`] variation of the [`Program::Theme`].
     fn style(&self) -> <Self::Theme as StyleSheet>::Style {
         Default::default()
     }
@@ -77,7 +77,7 @@ where
     /// application.
     ///
     /// The messages produced by the `Subscription` will be handled by
-    /// [`update`](#tymethod.update).
+    /// `update`(#tymethod.update).
     ///
     /// A `Subscription` will be kept alive as long as you keep returning it!
     ///
