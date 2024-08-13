@@ -975,6 +975,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 _ => unreachable!(),
             },
             wl_keyboard::Event::Leave { .. } => {
+                keyboard_state.current_repeat = None;
                 state.message.push((
                     surface_id,
                     DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
@@ -1031,6 +1032,10 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                                         Some(repeat_keycode) => repeat_keycode,
                                         None => return TimeoutAction::Drop,
                                     };
+                                    // NOTE: not the same key
+                                    if repeat_keycode != key {
+                                        return TimeoutAction::Drop;
+                                    }
                                     if let Some(mut key_context) =
                                         keyboard_state.xkb_context.key_context()
                                     {
@@ -1293,6 +1298,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 state
                     .message
                     .push((state.surface_id(), DispatchMessageInner::MouseLeave));
+                if let Some(keyboard_state) = state.keyboard_state.as_mut() {
+                    keyboard_state.current_repeat = None;
+                }
             }
             wl_pointer::Event::Enter {
                 serial,
