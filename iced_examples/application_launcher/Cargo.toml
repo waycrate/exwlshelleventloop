@@ -1,5 +1,5 @@
 [package]
-name = "ulauncher"
+name = "application-launcher"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true

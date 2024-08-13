@@ -98,6 +98,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "application-launcher"
+version = "0.5.0"
+dependencies = [
+ "gio",
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+ "regex",
+ "tracing",
+ "xdg",
+]
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -565,7 +578,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -574,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "iced",
  "iced_runtime",
@@ -583,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -592,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "counter_virtual_keyboard"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -1365,7 +1378,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "futures",
  "iced",
@@ -1407,7 +1420,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "futures",
  "iced",
@@ -1658,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "bitflags 2.6.0",
  "log",
@@ -2725,7 +2738,7 @@ dependencies = [
 
 [[package]]
 name = "sessionlockev"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "bitflags 2.6.0",
  "log",
@@ -3241,19 +3254,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5be21190ff5d38e8b4a2d3b6a3ae57f612cc39c96e83cedeaf7abc338a8bac4a"
 
 [[package]]
-name = "ulauncher"
-version = "0.5.0-dev"
-dependencies = [
- "gio",
- "iced",
- "iced_layershell",
- "iced_runtime",
- "regex",
- "tracing",
- "xdg",
-]
-
-[[package]]
 name = "unicode-bidi"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3491,7 +3491,7 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.5.0-dev"
+version = "0.5.0"
 dependencies = [
  "bitflags 2.6.0",
  "log",
