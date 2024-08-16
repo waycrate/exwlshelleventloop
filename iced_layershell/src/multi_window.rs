@@ -357,8 +357,8 @@ where
                                             )));
                                         }
                                         LayershellCustomActionsWithInfo::RemoveWindow(id) => {
-                                            event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
                                             ev.remove_shell(option_id.unwrap());
+                                            event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
                                         }
                                         LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
                                             let IcedNewPopupSettings { size, position } = menusettings;
