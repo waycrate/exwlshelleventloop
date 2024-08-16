@@ -261,8 +261,10 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
 }
 
 /// this struct store the xdg_output information
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ZxdgOutputInfo {
+    name: String,
+    description: String,
     zxdgoutput: ZxdgOutputV1,
     logical_size: (i32, i32),
     position: (i32, i32),
@@ -272,6 +274,8 @@ impl ZxdgOutputInfo {
     fn new(zxdgoutput: ZxdgOutputV1) -> Self {
         Self {
             zxdgoutput,
+            name: "".to_owned(),
+            description: "".to_owned(),
             logical_size: (0, 0),
             position: (0, 0),
         }
@@ -563,6 +567,9 @@ pub struct WindowState<T> {
     return_data: Vec<ReturnData<T>>,
     last_touch_location: (f64, f64),
     last_touch_id: i32,
+
+    binded_output_name: Option<String>,
+    xdg_info_cache: Vec<(wl_output::WlOutput, ZxdgOutputInfo)>,
 }
 
 impl<T> WindowState<T> {
@@ -709,6 +716,14 @@ impl<T> WindowState<T> {
         }
     }
 
+    /// suggest to bind to specific output
+    /// if there is no such output , it will bind the output which now is focused,
+    /// same with when binded_output_name is None
+    pub fn with_xdg_output_name(mut self, binded_output_name: Option<String>) -> Self {
+        self.binded_output_name = binded_output_name;
+        self
+    }
+
     /// if the shell is a single one, only display on one screen,
     /// fi true, the layer will binding to current screen
     pub fn with_single(mut self, single: bool) -> Self {
@@ -813,6 +828,10 @@ impl<T> Default for WindowState<T> {
             return_data: Vec::new(),
             last_touch_location: (0., 0.),
             last_touch_id: 0,
+            // NOTE: if is some, means it is to be binded, but not now it
+            // is not binded
+            binded_output_name: None,
+            xdg_info_cache: Vec::new(),
         }
     }
 }
@@ -1436,6 +1455,31 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
+        if state.binded_output_name.is_some() {
+            let Some((_, xdg_info)) = state
+                .xdg_info_cache
+                .iter_mut()
+                .find(|(_, info)| info.zxdgoutput == *proxy)
+            else {
+                return;
+            };
+            match event {
+                zxdg_output_v1::Event::LogicalSize { width, height } => {
+                    xdg_info.logical_size = (width, height);
+                }
+                zxdg_output_v1::Event::LogicalPosition { x, y } => {
+                    xdg_info.position = (x, y);
+                }
+                zxdg_output_v1::Event::Name { name } => {
+                    xdg_info.name = name;
+                }
+                zxdg_output_v1::Event::Description { description } => {
+                    xdg_info.description = description;
+                }
+                _ => {}
+            };
+            return;
+        }
         let Some(index) = state.units.iter().position(|info| {
             info.zxdgoutput
                 .as_ref()
@@ -1453,6 +1497,14 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
             zxdg_output_v1::Event::LogicalPosition { x, y } => {
                 xdg_info.position = (x, y);
                 XdgInfoChangedType::Position
+            }
+            zxdg_output_v1::Event::Name { name } => {
+                xdg_info.name = name;
+                XdgInfoChangedType::Name
+            }
+            zxdg_output_v1::Event::Description { description } => {
+                xdg_info.description = description;
+                XdgInfoChangedType::Description
             }
             _ => {
                 return;
@@ -1568,13 +1620,38 @@ impl<T: 'static> WindowState<T> {
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
         if self.is_single {
+            let mut output = None;
+
+            if let Some(name) = self.binded_output_name.clone() {
+                for (_, output_display) in &self.outputs {
+                    let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
+                    self.xdg_info_cache
+                        .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
+                }
+                event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
+                if let Some(cache) = self
+                    .xdg_info_cache
+                    .iter()
+                    .find(|(_, info)| info.name == *name)
+                    .cloned()
+                {
+                    output = Some(cache.clone());
+                }
+                // clear binded_output_name, it is not used anymore
+                self.binded_output_name.take();
+            }
+
+            self.xdg_info_cache.clear();
+            let binded_output = output.as_ref().map(|(output, _)| output);
+            let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo);
+
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
             let layer_shell = globals
                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                 .unwrap();
             let layer = layer_shell.get_layer_surface(
                 &wl_surface,
-                None,
+                binded_output,
                 self.layer,
                 self.namespace.clone(),
                 &qh,
@@ -1612,7 +1689,7 @@ impl<T: 'static> WindowState<T> {
                 size: (0, 0),
                 buffer: None,
                 shell: Shell::LayerShell(layer),
-                zxdgoutput: None,
+                zxdgoutput: binded_xdginfo.cloned(),
                 fractional_scale,
                 binding: None,
                 becreated: false,

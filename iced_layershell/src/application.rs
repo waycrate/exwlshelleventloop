@@ -156,6 +156,7 @@ where
         .with_exclusize_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .with_xdg_output_name(settings.layer_settings.binded_output_name)
         .build()
         .unwrap();
 

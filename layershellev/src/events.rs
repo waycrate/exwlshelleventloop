@@ -134,6 +134,8 @@ pub enum ReturnData<INFO> {
 pub enum XdgInfoChangedType {
     Position,
     Size,
+    Name,
+    Description,
 }
 
 /// Describes a scroll along one axis

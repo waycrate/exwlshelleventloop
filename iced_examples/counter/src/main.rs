@@ -6,11 +6,19 @@ use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
+    let args: Vec<String> = std::env::args().collect();
+
+    let mut binded_output_name = None;
+    if args.len() >= 2 {
+        binded_output_name = Some(args[1].to_string())
+    }
+
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            binded_output_name,
             ..Default::default()
         },
         ..Default::default()

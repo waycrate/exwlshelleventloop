@@ -80,6 +80,7 @@ pub struct LayerShellSettings {
     pub size: Option<(u32, u32)>,
     pub margin: (i32, i32, i32, i32),
     pub keyboard_interactivity: KeyboardInteractivity,
+    pub binded_output_name: Option<String>,
 }
 
 impl Default for LayerShellSettings {
@@ -91,6 +92,7 @@ impl Default for LayerShellSettings {
             size: None,
             margin: (0, 0, 0, 0),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
+            binded_output_name: None,
         }
     }
 }
