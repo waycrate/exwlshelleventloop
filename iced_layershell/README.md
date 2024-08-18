@@ -27,7 +27,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
-            exclusize_zone: 400,
+            exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             ..Default::default()
         },
@@ -183,4 +183,3 @@ impl Application for Counter {
 ```
 
 For more example, please take a look at [exwlshelleventloop](https://github.com/waycrate/exwlshelleventloop)
-
