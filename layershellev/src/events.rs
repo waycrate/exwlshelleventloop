@@ -7,6 +7,7 @@ use wayland_client::{
     globals::GlobalList,
     protocol::{
         wl_buffer::WlBuffer,
+        wl_compositor::WlCompositor,
         wl_output::WlOutput,
         wl_pointer::{self, ButtonState, WlPointer},
         wl_shm::WlShm,
@@ -46,6 +47,10 @@ pub enum LayerEvent<'a, T, Message> {
     /// event is [LayerEvent::BindProvide], you can use the GlobalList and QueueHandle to create
     /// new wayland objects.
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
+    /// After you return [ReturnData::RequestCompositor] in the init stage, next
+    /// event is [LayerEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
+    /// create new wayland objects.
+    CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
     /// create a new buffer after request. if you use display_handle, you do not need to care about
     /// it.
     RequestBuffer(
@@ -108,7 +113,7 @@ impl Default for NewLayerShellSettings {
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
 /// can bind virtual-keyboard. you can take startcolorkeyboard as reference, or the simple.rs. Also,
 /// it should can bind with text-input, but I am not fully understand about this, maybe someone
-/// famillar with it can do
+/// familiar with it can do
 ///
 /// When send RequestExist, it will tell the event to finish.
 ///
@@ -121,6 +126,7 @@ pub enum ReturnData<INFO> {
     WlBuffer(WlBuffer),
     RequestBind,
     RequestExist,
+    RequestCompositor,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
     RequestSetCursorShape((String, WlPointer, u32)),
