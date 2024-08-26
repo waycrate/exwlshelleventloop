@@ -20,7 +20,6 @@ fn main() -> Result<(), iced_layershell::Error> {
             ..Default::default()
         }
     ).unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(1));
     Ok(())
 }
 
