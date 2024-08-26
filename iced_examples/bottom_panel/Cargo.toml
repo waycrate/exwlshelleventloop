@@ -1,0 +1,28 @@
+[package]
+name = "bottom_panel"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+iced = { version = "0.12", features = [
+    "tokio",
+    "debug",
+    "image",
+    "advanced",
+    "image",
+    "svg",
+] }
+iced_runtime.workspace = true
+iced_layershell.workspace = true
+gio = "0.20.0"
+regex = "1.10.5"
+xdg = "2.5.2"
+tracing = "0.1.40"
