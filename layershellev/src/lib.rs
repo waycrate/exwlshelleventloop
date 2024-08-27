@@ -82,7 +82,7 @@
 //!             }
 //!             LayerEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
 //!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-//!                    ReturnData::RequestExist
+//!                    ReturnData::RequestExit
 //!                } else {
 //!                    ReturnData::None
 //!                }
