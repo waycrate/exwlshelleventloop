@@ -130,6 +130,7 @@ pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoCha
 use strtoshape::str_to_shape;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
+use wayland_client::protocol::wl_compositor;
 use wayland_client::{
     delegate_noop,
     globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
@@ -528,6 +529,7 @@ pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
+    is_background: bool,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
@@ -540,6 +542,9 @@ pub struct WindowState<T> {
     cursor_manager: Option<WpCursorShapeManagerV1>,
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     globals: Option<GlobalList>,
+
+    // background
+    background_surface: Option<WlSurface>,
 
     // base managers
     seat: Option<WlSeat>,
@@ -732,6 +737,11 @@ impl<T> WindowState<T> {
         self
     }
 
+    pub fn with_background(mut self, background: bool) -> Self {
+        self.is_background = background;
+        self
+    }
+
     /// keyboard_interacivity, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_keyboard_interacivity(
         mut self,
@@ -793,8 +803,11 @@ impl<T> Default for WindowState<T> {
             outputs: Vec::new(),
             current_surface: None,
             is_single: true,
+            is_background: false,
             units: Vec::new(),
             message: Vec::new(),
+
+            background_surface: None,
 
             connection: None,
             event_queue: None,
@@ -1621,7 +1634,9 @@ impl<T: 'static> WindowState<T> {
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
-        if self.is_single {
+        if self.is_background {
+            self.background_surface = Some(wmcompositer.create_surface(&qh, ()));
+        } else if self.is_single {
             let mut output = None;
 
             if let Some(name) = self.binded_output_name.clone() {
