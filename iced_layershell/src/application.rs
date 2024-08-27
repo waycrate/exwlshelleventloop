@@ -158,7 +158,7 @@ where
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .with_xdg_output_name(settings.layer_settings.binded_output_name)
         .build()
-        .unwrap();
+        .expect("Cannot create layershell");
 
     let window = Arc::new(ev.gen_main_wrapper());
     let compositor = C::new(compositor_settings, window.clone())?;

@@ -186,7 +186,7 @@ where
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .build()
-        .unwrap();
+        .expect("Cannot create layershell");
 
     let window = Arc::new(ev.gen_main_wrapper());
     let compositor = C::new(compositor_settings, window.clone())?;
@@ -698,6 +698,7 @@ async fn run_instance<A, E, C>(
                     if !window_events.is_empty() {
                         has_window_event = true;
                     }
+
                     let (ui_state, statuses) = user_interfaces
                         .get_mut(&id)
                         .expect("Get user interface")
