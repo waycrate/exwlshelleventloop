@@ -154,7 +154,6 @@ where
 {
     use futures::task;
     use futures::Future;
-    use iced::window;
 
     let mut debug = Debug::new();
     debug.startup_started();
@@ -187,16 +186,9 @@ where
         .unwrap();
 
     let window = Arc::new(ev.gen_main_wrapper());
-    let mut compositor = C::new(compositor_settings, window.clone())?;
+    let compositor = C::new(compositor_settings, window.clone())?;
 
-    let mut window_manager = WindowManager::new();
-    let _ = window_manager.insert(
-        window::Id::MAIN,
-        ev.main_window().get_size(),
-        window,
-        &application,
-        &mut compositor,
-    );
+    let window_manager = WindowManager::new();
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<MultiWindowIcedLayerEvent<A::Message, A::WindowInfo>>();
@@ -451,10 +443,6 @@ async fn run_instance<A, E, C>(
 {
     use iced::window;
     use iced_core::Event;
-    let main_window = window_manager
-        .get_mut(window::Id::MAIN)
-        .expect("Get main window");
-    let main_window_size = main_window.state.logical_size();
     let mut clipboard = LayerShellClipboard;
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
@@ -462,21 +450,10 @@ async fn run_instance<A, E, C>(
         &application,
         &mut debug,
         &mut window_manager,
-        HashMap::from_iter([(window::Id::MAIN, user_interface::Cache::default())]),
+        HashMap::new(),
     ));
 
-    let mut events = {
-        vec![(
-            Some(window::Id::MAIN),
-            Event::Window(
-                window::Id::MAIN,
-                window::Event::Opened {
-                    position: None,
-                    size: main_window_size,
-                },
-            ),
-        )]
-    };
+    let mut events = Vec::new();
     let mut custom_actions = Vec::new();
 
     let mut should_exit = false;
