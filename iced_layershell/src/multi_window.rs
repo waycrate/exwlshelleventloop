@@ -62,6 +62,8 @@ where
 
     type WindowInfo;
 
+    const BACKGROUND_MODE: bool = false;
+
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///

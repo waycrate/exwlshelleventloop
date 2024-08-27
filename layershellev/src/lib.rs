@@ -130,7 +130,6 @@ pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoCha
 use strtoshape::str_to_shape;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
-use wayland_client::protocol::wl_compositor;
 use wayland_client::{
     delegate_noop,
     globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
@@ -545,6 +544,7 @@ pub struct WindowState<T> {
 
     // background
     background_surface: Option<WlSurface>,
+    display: Option<WlDisplay>,
 
     // base managers
     seat: Option<WlSeat>,
@@ -667,6 +667,13 @@ impl<T> WindowState<T> {
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
+        if self.is_background {
+            return WindowWrapper {
+                id: id::Id::MAIN,
+                display: self.display.as_ref().unwrap().clone(),
+                wl_surface: self.background_surface.as_ref().unwrap().clone(),
+            };
+        }
         self.main_window().gen_wrapper()
     }
 }
@@ -808,6 +815,7 @@ impl<T> Default for WindowState<T> {
             message: Vec::new(),
 
             background_surface: None,
+            display: None,
 
             connection: None,
             event_queue: None,
@@ -1594,6 +1602,7 @@ impl<T: 'static> WindowState<T> {
                                                                            // BaseState after
                                                                            // this anymore
 
+        self.display = Some(connection.display());
         let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
