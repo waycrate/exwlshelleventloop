@@ -17,8 +17,7 @@ fn main() -> Result<(), iced_layershell::Error> {
             ..Default::default()
         },
         ..Default::default()
-    })?;
-    Ok(())
+    })
 }
 
 struct Panel {
