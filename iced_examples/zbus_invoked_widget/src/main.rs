@@ -62,14 +62,22 @@ impl MultiApplication for Counter {
         String::from("Counter - Iced")
     }
     fn view(&self, id: iced::window::Id) -> Element<Message> {
-        container(column![
-            container(button(text("hello")).on_press(Message::CloseWindow(id)))
+        container(
+            column![
+                container(button(text("hello")).on_press(Message::CloseWindow(id)))
+                    .width(Length::Fill)
+                    .center_x(),
+                container(
+                    text_input("hello", &self.text)
+                        .on_input(Message::TextInput)
+                        .padding(10)
+                        .width(300.)
+                )
                 .width(Length::Fill)
                 .center_x(),
-            text_input("hello", &self.text)
-                .on_input(Message::TextInput)
-                .padding(10),
-        ])
+            ]
+            .padding(10.),
+        )
         .center_x()
         .center_y()
         .width(Length::Fill)
