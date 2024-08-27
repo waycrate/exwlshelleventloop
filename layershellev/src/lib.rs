@@ -140,6 +140,7 @@ use wayland_client::{
         wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
+        wl_region::WlRegion,
         wl_registry,
         wl_seat::{self, WlSeat},
         wl_shm::WlShm,
@@ -1553,6 +1554,7 @@ delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place
 delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buffer pool
 delegate_noop!(@<T> WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(@<T> WindowState<T>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<T> WindowState<T>: ignore WlRegion); // region is used to modify input region
 delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
                                                               // ext-session-shell
 
@@ -1820,6 +1822,13 @@ impl<T: 'static> WindowState<T> {
                 Some(ReturnData::RequestBind) => {
                     init_event = Some(event_handler(
                         LayerEvent::BindProvide(&globals, &qh),
+                        &mut self,
+                        None,
+                    ));
+                }
+                Some(ReturnData::RequestCompositor) => {
+                    init_event = Some(event_handler(
+                        LayerEvent::CompositorProvide(&wmcompositer, &qh),
                         &mut self,
                         None,
                     ));
