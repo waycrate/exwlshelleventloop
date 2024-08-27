@@ -245,68 +245,71 @@ where
         let poll = instance.as_mut().poll(&mut context);
         match poll {
             task::Poll::Pending => {
-                if let Ok(Some(flow)) = control_receiver.try_next() {
-                    for flow in flow {
-                        match flow {
-                            LayerShellActions::CustomActions(actions) => {
-                                for action in actions {
-                                    match action {
-                                        LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
-                                            ev.main_window().set_anchor(anchor);
-                                        }
-                                        LayershellCustomActionsWithInfo::LayerChange(layer) => {
-                                            ev.main_window().set_layer(layer);
-                                        }
-                                        LayershellCustomActionsWithInfo::MarginChange(margin) => {
-
-                                            ev.main_window().set_margin(margin);
-                                        }
-                                        LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
-                                            ev.main_window().set_size((width, height));
-                                        }
-                                        LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
-                                            time,
-                                            key,
-                                        } => {
-                                            use layershellev::reexport::wayland_client::KeyState;
-                                            let ky = ev.get_virtual_keyboard().unwrap();
-                                            ky.key(time, key, KeyState::Pressed.into());
-
-                                            let eh = ev.get_loop_handler().unwrap();
-                                            eh.insert_source(
-                                                Timer::from_duration(Duration::from_micros(100)),
-                                                move |_, _, state| {
-                                                    let ky = state.get_virtual_keyboard().unwrap();
-
-                                                    ky.key(time, key, KeyState::Released.into());
-                                                    TimeoutAction::Drop
-                                                },
-                                            )
-                                            .ok();
-                                        }
-                                        _ => {}
+                let Ok(Some(flow)) = control_receiver.try_next() else {
+                    return def_returndata;
+                };
+                for flow in flow {
+                    match flow {
+                        LayerShellActions::CustomActions(actions) => {
+                            for action in actions {
+                                match action {
+                                    LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                                        ev.main_window().set_anchor(anchor);
                                     }
+                                    LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                                        ev.main_window().set_layer(layer);
+                                    }
+                                    LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                                        ev.main_window().set_margin(margin);
+                                    }
+                                    LayershellCustomActionsWithInfo::SizeChange((
+                                        width,
+                                        height,
+                                    )) => {
+                                        ev.main_window().set_size((width, height));
+                                    }
+                                    LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
+                                        time,
+                                        key,
+                                    } => {
+                                        use layershellev::reexport::wayland_client::KeyState;
+                                        let ky = ev.get_virtual_keyboard().unwrap();
+                                        ky.key(time, key, KeyState::Pressed.into());
+
+                                        let eh = ev.get_loop_handler().unwrap();
+                                        eh.insert_source(
+                                            Timer::from_duration(Duration::from_micros(100)),
+                                            move |_, _, state| {
+                                                let ky = state.get_virtual_keyboard().unwrap();
+
+                                                ky.key(time, key, KeyState::Released.into());
+                                                TimeoutAction::Drop
+                                            },
+                                        )
+                                        .ok();
+                                    }
+                                    _ => {}
                                 }
                             }
-                            LayerShellActions::Mouse(mouse) => {
-                                let Some(pointer) = ev.get_pointer() else {
-                                    return ReturnData::None;
-                                };
-
-                                ev.append_return_data(ReturnData::RequestSetCursorShape((
-                                    conversion::mouse_interaction(mouse),
-                                    pointer.clone(),
-                                    pointer_serial,
-                                )));
-                            }
-                            LayerShellActions::RedrawAll => {
-                                ev.append_return_data(ReturnData::RedrawAllRequest);
-                            }
-                            LayerShellActions::RedrawWindow(index) => {
-                                ev.append_return_data(ReturnData::RedrawIndexRequest(index));
-                            }
-                            _ => {}
                         }
+                        LayerShellActions::Mouse(mouse) => {
+                            let Some(pointer) = ev.get_pointer() else {
+                                return ReturnData::None;
+                            };
+
+                            ev.append_return_data(ReturnData::RequestSetCursorShape((
+                                conversion::mouse_interaction(mouse),
+                                pointer.clone(),
+                                pointer_serial,
+                            )));
+                        }
+                        LayerShellActions::RedrawAll => {
+                            ev.append_return_data(ReturnData::RedrawAllRequest);
+                        }
+                        LayerShellActions::RedrawWindow(index) => {
+                            ev.append_return_data(ReturnData::RedrawIndexRequest(index));
+                        }
+                        _ => {}
                     }
                 }
                 def_returndata
