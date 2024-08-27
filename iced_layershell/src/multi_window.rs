@@ -62,7 +62,7 @@ where
 
     type WindowInfo;
 
-    const BACKGROUND_MODE: bool = false;
+    const BACKGROUND_MODE: bool;
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -177,6 +177,7 @@ where
 
     let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
         .with_single(false)
+        .with_background(A::BACKGROUND_MODE)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)

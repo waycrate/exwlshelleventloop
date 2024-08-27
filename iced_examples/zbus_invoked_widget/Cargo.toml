@@ -1,0 +1,28 @@
+[package]
+name = "zbus_invoked_widget"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[dependencies]
+iced = { version = "0.12", features = [
+	"tokio",
+	"debug",
+	"image",
+	"advanced",
+	"image",
+	"svg",
+] }
+iced_runtime.workspace = true
+iced_layershell.workspace = true
+
+zbus = { version = "4.4.0", default-features = false, features = ["tokio"] }
+futures-util = "0.3.30"
+tokio = "1.39.3"
+futures = "0.3.30"
+

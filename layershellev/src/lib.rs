@@ -1918,7 +1918,7 @@ impl<T: 'static> WindowState<T> {
                         );
                     }
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if self.is_single {
+                        if self.is_single || self.is_background {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
