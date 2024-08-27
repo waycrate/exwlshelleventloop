@@ -35,7 +35,7 @@ fn main() {
                 );
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::RequestCompositor
-            },
+            }
             LayerEvent::CompositorProvide(compositor, qh) => {
                 // NOTE: you can set input region to limit area which gets input events
                 // surface outside region becomes transparent for input events
@@ -90,7 +90,7 @@ fn main() {
             }
             LayerEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-                    ReturnData::RequestExist
+                    ReturnData::RequestExit
                 } else {
                     ReturnData::None
                 }

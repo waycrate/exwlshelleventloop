@@ -1998,7 +1998,7 @@ impl<T: 'static> WindowState<T> {
                                     );
                                 }
                             }
-                            ReturnData::RequestExist => {
+                            ReturnData::RequestExit => {
                                 break 'out;
                             }
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
@@ -2037,7 +2037,7 @@ impl<T: 'static> WindowState<T> {
             }
             if let Some(event) = message_receiver.as_ref().and_then(|rv| rv.try_recv().ok()) {
                 match event_handler(LayerEvent::UserEvent(event), &mut self, None) {
-                    ReturnData::RequestExist => {
+                    ReturnData::RequestExit => {
                         break 'out;
                     }
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
@@ -2113,7 +2113,7 @@ impl<T: 'static> WindowState<T> {
                                 ));
                             }
                         }
-                        ReturnData::RequestExist => {
+                        ReturnData::RequestExit => {
                             break 'out;
                         }
                         ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {

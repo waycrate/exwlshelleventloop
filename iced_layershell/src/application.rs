@@ -311,7 +311,7 @@ where
                 }
                 def_returndata
             }
-            task::Poll::Ready(_) => ReturnData::RequestExist,
+            task::Poll::Ready(_) => ReturnData::RequestExit,
         }
     });
     Ok(())

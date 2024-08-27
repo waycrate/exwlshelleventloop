@@ -115,7 +115,7 @@ impl Default for NewLayerShellSettings {
 /// it should can bind with text-input, but I am not fully understand about this, maybe someone
 /// familiar with it can do
 ///
-/// When send RequestExist, it will tell the event to finish.
+/// When send RequestExit, it will tell the event to finish.
 ///
 /// When send RequestSetCursorShape, you can set current pointer shape. please take
 /// [cursor-shape](https://wayland.app/protocols/cursor-shape-v1#wp_cursor_shape_device_v1:enum:shape) as reference.
@@ -125,7 +125,7 @@ impl Default for NewLayerShellSettings {
 pub enum ReturnData<INFO> {
     WlBuffer(WlBuffer),
     RequestBind,
-    RequestExist,
+    RequestExit,
     RequestCompositor,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
