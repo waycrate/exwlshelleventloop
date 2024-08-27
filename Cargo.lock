@@ -4707,11 +4707,9 @@ name = "zbus_invoked_widget"
 version = "0.5.1"
 dependencies = [
  "futures",
- "futures-util",
  "iced",
  "iced_layershell",
  "iced_runtime",
- "tokio",
  "zbus",
 ]
 
