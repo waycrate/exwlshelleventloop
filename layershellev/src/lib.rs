@@ -528,6 +528,7 @@ pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
+    is_background: bool,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
@@ -540,6 +541,10 @@ pub struct WindowState<T> {
     cursor_manager: Option<WpCursorShapeManagerV1>,
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     globals: Option<GlobalList>,
+
+    // background
+    background_surface: Option<WlSurface>,
+    display: Option<WlDisplay>,
 
     // base managers
     seat: Option<WlSeat>,
@@ -662,6 +667,13 @@ impl<T> WindowState<T> {
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
+        if self.is_background {
+            return WindowWrapper {
+                id: id::Id::MAIN,
+                display: self.display.as_ref().unwrap().clone(),
+                wl_surface: self.background_surface.as_ref().unwrap().clone(),
+            };
+        }
         self.main_window().gen_wrapper()
     }
 }
@@ -732,6 +744,11 @@ impl<T> WindowState<T> {
         self
     }
 
+    pub fn with_background(mut self, background: bool) -> Self {
+        self.is_background = background;
+        self
+    }
+
     /// keyboard_interacivity, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_keyboard_interacivity(
         mut self,
@@ -793,8 +810,12 @@ impl<T> Default for WindowState<T> {
             outputs: Vec::new(),
             current_surface: None,
             is_single: true,
+            is_background: false,
             units: Vec::new(),
             message: Vec::new(),
+
+            background_surface: None,
+            display: None,
 
             connection: None,
             event_queue: None,
@@ -1581,6 +1602,7 @@ impl<T: 'static> WindowState<T> {
                                                                            // BaseState after
                                                                            // this anymore
 
+        self.display = Some(connection.display());
         let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
@@ -1621,7 +1643,9 @@ impl<T: 'static> WindowState<T> {
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
-        if self.is_single {
+        if self.is_background {
+            self.background_surface = Some(wmcompositer.create_surface(&qh, ()));
+        } else if self.is_single {
             let mut output = None;
 
             if let Some(name) = self.binded_output_name.clone() {
@@ -1894,7 +1918,7 @@ impl<T: 'static> WindowState<T> {
                         );
                     }
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if self.is_single {
+                        if self.is_single || self.is_background {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
