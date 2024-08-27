@@ -678,6 +678,7 @@ async fn run_instance<A, E, C>(
                 debug.event_processing_started();
 
                 let mut uis_stale = false;
+                let mut has_window_event = false;
                 for (id, window) in window_manager.iter_mut() {
                     let mut window_events = vec![];
 
@@ -692,6 +693,10 @@ async fn run_instance<A, E, C>(
 
                     if window_events.is_empty() && messages.is_empty() {
                         continue;
+                    }
+
+                    if !window_events.is_empty() {
+                        has_window_event = true;
                     }
                     let (ui_state, statuses) = user_interfaces
                         .get_mut(&id)
@@ -714,6 +719,14 @@ async fn run_instance<A, E, C>(
                         runtime.broadcast(event, status);
                     }
                 }
+
+                // HACK: this logic is just from iced, but seems if there is no main window,
+                // any window will not get Outdated state.
+                // So here just check if there is window_events
+                if A::BACKGROUND_MODE && has_window_event {
+                    custom_actions.push(LayerShellActions::RedrawAll);
+                }
+
                 // TODO mw application update returns which window IDs to update
                 if !messages.is_empty() || uis_stale {
                     let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
@@ -740,7 +753,9 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
-                    custom_actions.push(LayerShellActions::RedrawAll);
+                    if !A::BACKGROUND_MODE {
+                        custom_actions.push(LayerShellActions::RedrawAll);
+                    }
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,

@@ -1,7 +1,7 @@
 use futures::future::pending;
-use iced::widget::{button, text};
+use iced::widget::{button, column, container, text, text_input};
 use iced::window::Id;
-use iced::{Command, Element, Theme};
+use iced::{Command, Element, Length, Theme};
 use iced_layershell::actions::{
     LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo,
 };
@@ -20,6 +20,7 @@ type LalaShellAction = LayershellCustomActionsWithInfo<()>;
 
 struct Counter {
     window_shown: bool,
+    text: String,
 }
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings::default())
@@ -27,6 +28,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
 #[derive(Debug, Clone)]
 enum Message {
     NewWindow,
+    TextInput(String),
     CloseWindow(Id),
 }
 impl MultiApplication for Counter {
@@ -50,6 +52,7 @@ impl MultiApplication for Counter {
         (
             Self {
                 window_shown: false,
+                text: "type something".to_string(),
             },
             Command::none(),
         )
@@ -59,9 +62,19 @@ impl MultiApplication for Counter {
         String::from("Counter - Iced")
     }
     fn view(&self, id: iced::window::Id) -> Element<Message> {
-        button(text("hello"))
-            .on_press(Message::CloseWindow(id))
-            .into()
+        container(column![
+            container(button(text("hello")).on_press(Message::CloseWindow(id)))
+                .width(Length::Fill)
+                .center_x(),
+            text_input("hello", &self.text)
+                .on_input(Message::TextInput)
+                .padding(10),
+        ])
+        .center_x()
+        .center_y()
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
     }
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         iced::subscription::channel(std::any::TypeId::of::<()>(), 100, |sender| async move {
@@ -96,7 +109,7 @@ impl MultiApplication for Counter {
                                 anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
                                 layer: Layer::Top,
                                 margin: Some((100, 100, 100, 100)),
-                                keyboard_interactivity: KeyboardInteractivity::None,
+                                keyboard_interactivity: KeyboardInteractivity::OnDemand,
                                 use_last_output: false,
                             },
                             (),
@@ -104,6 +117,10 @@ impl MultiApplication for Counter {
                     )
                     .into(),
                 )
+            }
+            Message::TextInput(text) => {
+                self.text = text;
+                Command::none()
             }
         }
     }
