@@ -8,7 +8,7 @@ use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
 
 fn main() -> Result<(), iced_layershell::Error> {
-    let _ = Panel::run(Settings {
+    Panel::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((600, 50)),
             anchor: Anchor::Bottom,
@@ -17,7 +17,7 @@ fn main() -> Result<(), iced_layershell::Error> {
             ..Default::default()
         },
         ..Default::default()
-    });
+    })?;
     Ok(())
 }
 
