@@ -148,7 +148,7 @@ where
     let ev: WindowState<()> = sessionlockev::WindowState::new()
         .with_use_display_handle(true)
         .build()
-        .unwrap();
+        .expect("Seems sessionlock is not supported");
 
     let window = Arc::new(ev.gen_main_wrapper());
     let mut compositor = C::new(compositor_settings, window.clone())?;

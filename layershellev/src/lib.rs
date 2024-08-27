@@ -82,7 +82,7 @@
 //!             }
 //!             LayerEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
 //!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-//!                    ReturnData::RequestExist
+//!                    ReturnData::RequestExit
 //!                } else {
 //!                    ReturnData::None
 //!                }
@@ -140,6 +140,7 @@ use wayland_client::{
         wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
+        wl_region::WlRegion,
         wl_registry,
         wl_seat::{self, WlSeat},
         wl_shm::WlShm,
@@ -527,6 +528,7 @@ pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
     is_single: bool,
+    is_background: bool,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
@@ -539,6 +541,10 @@ pub struct WindowState<T> {
     cursor_manager: Option<WpCursorShapeManagerV1>,
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     globals: Option<GlobalList>,
+
+    // background
+    background_surface: Option<WlSurface>,
+    display: Option<WlDisplay>,
 
     // base managers
     seat: Option<WlSeat>,
@@ -661,6 +667,13 @@ impl<T> WindowState<T> {
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
+        if self.is_background {
+            return WindowWrapper {
+                id: id::Id::MAIN,
+                display: self.display.as_ref().unwrap().clone(),
+                wl_surface: self.background_surface.as_ref().unwrap().clone(),
+            };
+        }
         self.main_window().gen_wrapper()
     }
 }
@@ -731,6 +744,11 @@ impl<T> WindowState<T> {
         self
     }
 
+    pub fn with_background(mut self, background: bool) -> Self {
+        self.is_background = background;
+        self
+    }
+
     /// keyboard_interacivity, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
     pub fn with_keyboard_interacivity(
         mut self,
@@ -792,8 +810,12 @@ impl<T> Default for WindowState<T> {
             outputs: Vec::new(),
             current_surface: None,
             is_single: true,
+            is_background: false,
             units: Vec::new(),
             message: Vec::new(),
+
+            background_surface: None,
+            display: None,
 
             connection: None,
             event_queue: None,
@@ -1553,6 +1575,7 @@ delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place
 delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buffer pool
 delegate_noop!(@<T> WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(@<T> WindowState<T>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<T> WindowState<T>: ignore WlRegion); // region is used to modify input region
 delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
                                                               // ext-session-shell
 
@@ -1579,6 +1602,7 @@ impl<T: 'static> WindowState<T> {
                                                                            // BaseState after
                                                                            // this anymore
 
+        self.display = Some(connection.display());
         let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
@@ -1619,7 +1643,9 @@ impl<T: 'static> WindowState<T> {
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
-        if self.is_single {
+        if self.is_background {
+            self.background_surface = Some(wmcompositer.create_surface(&qh, ()));
+        } else if self.is_single {
             let mut output = None;
 
             if let Some(name) = self.binded_output_name.clone() {
@@ -1824,6 +1850,13 @@ impl<T: 'static> WindowState<T> {
                         None,
                     ));
                 }
+                Some(ReturnData::RequestCompositor) => {
+                    init_event = Some(event_handler(
+                        LayerEvent::CompositorProvide(&wmcompositer, &qh),
+                        &mut self,
+                        None,
+                    ));
+                }
                 _ => panic!("Not provide server here"),
             }
         }
@@ -1885,7 +1918,7 @@ impl<T: 'static> WindowState<T> {
                         );
                     }
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if self.is_single {
+                        if self.is_single || self.is_background {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -1989,7 +2022,7 @@ impl<T: 'static> WindowState<T> {
                                     );
                                 }
                             }
-                            ReturnData::RequestExist => {
+                            ReturnData::RequestExit => {
                                 break 'out;
                             }
                             ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
@@ -2028,7 +2061,7 @@ impl<T: 'static> WindowState<T> {
             }
             if let Some(event) = message_receiver.as_ref().and_then(|rv| rv.try_recv().ok()) {
                 match event_handler(LayerEvent::UserEvent(event), &mut self, None) {
-                    ReturnData::RequestExist => {
+                    ReturnData::RequestExit => {
                         break 'out;
                     }
                     ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {
@@ -2104,7 +2137,7 @@ impl<T: 'static> WindowState<T> {
                                 ));
                             }
                         }
-                        ReturnData::RequestExist => {
+                        ReturnData::RequestExit => {
                             break 'out;
                         }
                         ReturnData::RequestSetCursorShape((shape_name, pointer, serial)) => {

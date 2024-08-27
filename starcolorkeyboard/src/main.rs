@@ -157,7 +157,7 @@ fn main() {
                     if let WEnum::Value(ButtonState::Pressed) = *state {
                         return ReturnData::None;
                     }
-                    ReturnData::RequestExist
+                    ReturnData::RequestExit
                 }
                 Some(otherkeys::MIN_KEYBOARD) => {
                     if let WEnum::Value(ButtonState::Pressed) = *state {
@@ -213,7 +213,7 @@ fn main() {
             };
             touch_key = touch_getkey;
             match touch_getkey {
-                otherkeys::CLOSE_KEYBOARD => ReturnData::RequestExist,
+                otherkeys::CLOSE_KEYBOARD => ReturnData::RequestExit,
                 otherkeys::MIN_KEYBOARD => {
                     if is_min {
                         windowunit.set_size((0, EXCLUDE_ZONE_TOP as u32));

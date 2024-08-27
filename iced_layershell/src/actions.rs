@@ -71,7 +71,7 @@ pub type LayershellCustomActionsWithId = LayershellCustomActionsWithIdAndInfo<()
 // first one means
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct LayershellCustomActionsWithIdInner<INFO: Clone>(
-    pub LayerId,                               // come from
+    pub Option<LayerId>,                       // come from
     pub Option<LayerId>,                       // target if has one
     pub LayershellCustomActionsWithInfo<INFO>, // actions
 );

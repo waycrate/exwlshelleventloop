@@ -62,6 +62,8 @@ where
 
     type WindowInfo;
 
+    const BACKGROUND_MODE: bool;
+
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -154,7 +156,6 @@ where
 {
     use futures::task;
     use futures::Future;
-    use iced::window;
 
     let mut debug = Debug::new();
     debug.startup_started();
@@ -176,6 +177,7 @@ where
 
     let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
         .with_single(false)
+        .with_background(A::BACKGROUND_MODE)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
@@ -184,19 +186,12 @@ where
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .build()
-        .unwrap();
+        .expect("Cannot create layershell");
 
     let window = Arc::new(ev.gen_main_wrapper());
-    let mut compositor = C::new(compositor_settings, window.clone())?;
+    let compositor = C::new(compositor_settings, window.clone())?;
 
-    let mut window_manager = WindowManager::new();
-    let _ = window_manager.insert(
-        window::Id::MAIN,
-        ev.main_window().get_size(),
-        window,
-        &application,
-        &mut compositor,
-    );
+    let window_manager = WindowManager::new();
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<MultiWindowIcedLayerEvent<A::Message, A::WindowInfo>>();
@@ -225,7 +220,7 @@ where
         let mut def_returndata = ReturnData::None;
         let sended_id = index
             .and_then(|index| ev.get_unit_with_id(index))
-            .map(|unit|unit.id());
+            .map(|unit| unit.id());
         match event {
             LayerEvent::InitRequest => {
                 if settings.virtual_keyboard_support.is_some() {
@@ -296,7 +291,10 @@ where
             }
             LayerEvent::NormalDispatch => {
                 event_sender
-                    .start_send(MultiWindowIcedLayerEvent(sended_id, IcedLayerEvent::NormalUpdate))
+                    .start_send(MultiWindowIcedLayerEvent(
+                        sended_id,
+                        IcedLayerEvent::NormalUpdate,
+                    ))
                     .expect("Cannot send");
             }
             _ => {}
@@ -304,126 +302,161 @@ where
         let poll = instance.as_mut().poll(&mut context);
         match poll {
             task::Poll::Pending => {
-                if let Ok(Some(flow)) = control_receiver.try_next() {
-                    for flow in flow {
-                        match flow {
-                            LayerShellActions::CustomActionsWithId(actions) => {
-                                for LayershellCustomActionsWithIdInner(id, option_id, action) in
-                                    actions
-                                {
-                                    let Some(window) = ev.get_window_with_id(id) else {
-                                        continue;
-                                    };
-                                    match action {
-                                        LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
-                                            window.set_anchor(anchor);
-                                        }
-                                        LayershellCustomActionsWithInfo::LayerChange(layer) => {
-                                            window.set_layer(layer);
-                                        }
-                                        LayershellCustomActionsWithInfo::MarginChange(margin) => {
-                                            window.set_margin(margin);
-                                        }
-                                        LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
-                                            window.set_size((width, height));
-                                        }
-                                        LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
-                                            time,
-                                            key,
-                                        } => {
-                                            use layershellev::reexport::wayland_client::KeyState;
-                                            let ky = ev.get_virtual_keyboard().unwrap();
-                                            ky.key(time, key, KeyState::Pressed.into());
+                let Ok(Some(flow)) = control_receiver.try_next() else {
+                    return def_returndata;
+                };
+                for flow in flow {
+                    match flow {
+                        LayerShellActions::CustomActionsWithId(actions) => {
+                            for LayershellCustomActionsWithIdInner(id, option_id, action) in actions
+                            {
+                                match action {
+                                    LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                                        let Some(id) = id else {
+                                            continue;
+                                        };
+                                        let Some(window) = ev.get_window_with_id(id) else {
+                                            continue;
+                                        };
+                                        window.set_anchor(anchor);
+                                    }
+                                    LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                                        let Some(id) = id else {
+                                            continue;
+                                        };
+                                        let Some(window) = ev.get_window_with_id(id) else {
+                                            continue;
+                                        };
+                                        window.set_layer(layer);
+                                    }
+                                    LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                                        let Some(id) = id else {
+                                            continue;
+                                        };
+                                        let Some(window) = ev.get_window_with_id(id) else {
+                                            continue;
+                                        };
+                                        window.set_margin(margin);
+                                    }
+                                    LayershellCustomActionsWithInfo::SizeChange((
+                                        width,
+                                        height,
+                                    )) => {
+                                        let Some(id) = id else {
+                                            continue;
+                                        };
+                                        let Some(window) = ev.get_window_with_id(id) else {
+                                            continue;
+                                        };
+                                        window.set_size((width, height));
+                                    }
+                                    LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
+                                        time,
+                                        key,
+                                    } => {
+                                        use layershellev::reexport::wayland_client::KeyState;
+                                        let ky = ev.get_virtual_keyboard().unwrap();
+                                        ky.key(time, key, KeyState::Pressed.into());
 
-                                            let eh = ev.get_loop_handler().unwrap();
-                                            eh.insert_source(
-                                                Timer::from_duration(Duration::from_micros(100)),
-                                                move |_, _, state| {
-                                                    let ky = state.get_virtual_keyboard().unwrap();
+                                        let eh = ev.get_loop_handler().unwrap();
+                                        eh.insert_source(
+                                            Timer::from_duration(Duration::from_micros(100)),
+                                            move |_, _, state| {
+                                                let ky = state.get_virtual_keyboard().unwrap();
 
-                                                    ky.key(time, key, KeyState::Released.into());
-                                                    TimeoutAction::Drop
-                                                },
-                                            )
-                                            .ok();
-                                        }
-                                        LayershellCustomActionsWithInfo::NewLayerShell((
+                                                ky.key(time, key, KeyState::Released.into());
+                                                TimeoutAction::Drop
+                                            },
+                                        )
+                                        .ok();
+                                    }
+                                    LayershellCustomActionsWithInfo::NewLayerShell((
+                                        settings,
+                                        info,
+                                    )) => {
+                                        ev.append_return_data(ReturnData::NewLayerShell((
                                             settings,
-                                            info,
-                                        )) => {
-                                            ev.append_return_data(ReturnData::NewLayerShell((
-                                                settings,
-                                                Some(info),
-                                            )));
-                                        }
-                                        LayershellCustomActionsWithInfo::RemoveWindow(id) => {
-                                            ev.remove_shell(option_id.unwrap());
-                                            event_sender.start_send(MultiWindowIcedLayerEvent(None, IcedLayerEvent::WindowRemoved(id))).ok();
-                                        }
-                                        LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
-                                            let IcedNewPopupSettings { size, position } = menusettings;
-                                            let Some(id) = ev.current_surface_id() else {
-                                                continue;
-                                            };
-                                            let popup_settings = NewPopUpSettings {size, position,id};
-                                            ev.append_return_data(ReturnData::NewPopUp((
-                                                popup_settings,
-                                                Some(info),
-                                            )));
-                                        }
-                                        LayershellCustomActionsWithInfo::NewMenu((menusetting, info)) => {
-                                            let Some(id) = ev.current_surface_id() else {
-                                                continue;
-                                            };
-                                            event_sender
-                                                .start_send(MultiWindowIcedLayerEvent(Some(id), IcedLayerEvent::NewMenu((menusetting, info))))
-                                                .expect("Cannot send");
-                                        }
-                                        LayershellCustomActionsWithInfo::ForgetLastOutput => {
-                                            ev.forget_last_output();
-                                        }
+                                            Some(info),
+                                        )));
+                                    }
+                                    LayershellCustomActionsWithInfo::RemoveWindow(id) => {
+                                        ev.remove_shell(option_id.unwrap());
+                                        event_sender
+                                            .start_send(MultiWindowIcedLayerEvent(
+                                                None,
+                                                IcedLayerEvent::WindowRemoved(id),
+                                            ))
+                                            .ok();
+                                    }
+                                    LayershellCustomActionsWithInfo::NewPopUp((
+                                        menusettings,
+                                        info,
+                                    )) => {
+                                        let IcedNewPopupSettings { size, position } = menusettings;
+                                        let Some(id) = ev.current_surface_id() else {
+                                            continue;
+                                        };
+                                        let popup_settings =
+                                            NewPopUpSettings { size, position, id };
+                                        ev.append_return_data(ReturnData::NewPopUp((
+                                            popup_settings,
+                                            Some(info),
+                                        )));
+                                    }
+                                    LayershellCustomActionsWithInfo::NewMenu((
+                                        menusetting,
+                                        info,
+                                    )) => {
+                                        let Some(id) = ev.current_surface_id() else {
+                                            continue;
+                                        };
+                                        event_sender
+                                            .start_send(MultiWindowIcedLayerEvent(
+                                                Some(id),
+                                                IcedLayerEvent::NewMenu((menusetting, info)),
+                                            ))
+                                            .expect("Cannot send");
+                                    }
+                                    LayershellCustomActionsWithInfo::ForgetLastOutput => {
+                                        ev.forget_last_output();
                                     }
                                 }
                             }
-                            LayerShellActions::NewMenu((menusettings, info)) => {
-                                let IcedNewPopupSettings { size, position } = menusettings;
-                                let Some(id) = ev.current_surface_id() else {
-                                    continue;
-                                };
-                                let popup_settings = NewPopUpSettings {
-                                    size,
-                                    position,
-                                    id
-                                };
-                                ev.append_return_data(ReturnData::NewPopUp((
-                                    popup_settings,
-                                    Some(info),
-                                )))
-                            }
-                            LayerShellActions::Mouse(mouse) => {
-                                let Some(pointer) = ev.get_pointer() else {
-                                    return ReturnData::None;
-                                };
-
-                                ev.append_return_data(ReturnData::RequestSetCursorShape((
-                                    conversion::mouse_interaction(mouse),
-                                    pointer.clone(),
-                                    pointer_serial,
-                                )));
-                            }
-                            LayerShellActions::RedrawAll => {
-                                ev.append_return_data(ReturnData::RedrawAllRequest);
-                            }
-                            LayerShellActions::RedrawWindow(index) => {
-                                ev.append_return_data(ReturnData::RedrawIndexRequest(index));
-                            }
-                            _ => {}
                         }
+                        LayerShellActions::NewMenu((menusettings, info)) => {
+                            let IcedNewPopupSettings { size, position } = menusettings;
+                            let Some(id) = ev.current_surface_id() else {
+                                continue;
+                            };
+                            let popup_settings = NewPopUpSettings { size, position, id };
+                            ev.append_return_data(ReturnData::NewPopUp((
+                                popup_settings,
+                                Some(info),
+                            )))
+                        }
+                        LayerShellActions::Mouse(mouse) => {
+                            let Some(pointer) = ev.get_pointer() else {
+                                return ReturnData::None;
+                            };
+
+                            ev.append_return_data(ReturnData::RequestSetCursorShape((
+                                conversion::mouse_interaction(mouse),
+                                pointer.clone(),
+                                pointer_serial,
+                            )));
+                        }
+                        LayerShellActions::RedrawAll => {
+                            ev.append_return_data(ReturnData::RedrawAllRequest);
+                        }
+                        LayerShellActions::RedrawWindow(index) => {
+                            ev.append_return_data(ReturnData::RedrawIndexRequest(index));
+                        }
+                        _ => {}
                     }
                 }
                 def_returndata
             }
-            task::Poll::Ready(_) => ReturnData::RequestExist,
+            task::Poll::Ready(_) => ReturnData::RequestExit,
         }
     });
     Ok(())
@@ -451,10 +484,6 @@ async fn run_instance<A, E, C>(
 {
     use iced::window;
     use iced_core::Event;
-    let main_window = window_manager
-        .get_mut(window::Id::MAIN)
-        .expect("Get main window");
-    let main_window_size = main_window.state.logical_size();
     let mut clipboard = LayerShellClipboard;
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
@@ -462,21 +491,10 @@ async fn run_instance<A, E, C>(
         &application,
         &mut debug,
         &mut window_manager,
-        HashMap::from_iter([(window::Id::MAIN, user_interface::Cache::default())]),
+        HashMap::new(),
     ));
 
-    let mut events = {
-        vec![(
-            Some(window::Id::MAIN),
-            Event::Window(
-                window::Id::MAIN,
-                window::Event::Opened {
-                    position: None,
-                    size: main_window_size,
-                },
-            ),
-        )]
-    };
+    let mut events = Vec::new();
     let mut custom_actions = Vec::new();
 
     let mut should_exit = false;
@@ -660,6 +678,7 @@ async fn run_instance<A, E, C>(
                 debug.event_processing_started();
 
                 let mut uis_stale = false;
+                let mut has_window_event = false;
                 for (id, window) in window_manager.iter_mut() {
                     let mut window_events = vec![];
 
@@ -675,6 +694,11 @@ async fn run_instance<A, E, C>(
                     if window_events.is_empty() && messages.is_empty() {
                         continue;
                     }
+
+                    if !window_events.is_empty() {
+                        has_window_event = true;
+                    }
+
                     let (ui_state, statuses) = user_interfaces
                         .get_mut(&id)
                         .expect("Get user interface")
@@ -696,6 +720,14 @@ async fn run_instance<A, E, C>(
                         runtime.broadcast(event, status);
                     }
                 }
+
+                // HACK: this logic is just from iced, but seems if there is no main window,
+                // any window will not get Outdated state.
+                // So here just check if there is window_events
+                if A::BACKGROUND_MODE && has_window_event {
+                    custom_actions.push(LayerShellActions::RedrawAll);
+                }
+
                 // TODO mw application update returns which window IDs to update
                 if !messages.is_empty() || uis_stale {
                     let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
@@ -722,7 +754,9 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
-                    custom_actions.push(LayerShellActions::RedrawAll);
+                    if !A::BACKGROUND_MODE {
+                        custom_actions.push(LayerShellActions::RedrawAll);
+                    }
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
@@ -964,7 +998,7 @@ pub(crate) fn run_command<A, C, E>(
                     }
                     if let Some(layerid) = window_manager.get_layer_id(id) {
                         customactions.push(LayershellCustomActionsWithIdInner(
-                            layerid,
+                            Some(layerid),
                             Some(layerid),
                             LayershellCustomActionsWithInfo::RemoveWindow(id),
                         ))
@@ -1010,13 +1044,11 @@ pub(crate) fn run_command<A, C, E>(
                         } else {
                             None
                         };
-                    if let Some(id) = window_manager.get_layer_id(action.0) {
-                        customactions.push(LayershellCustomActionsWithIdInner(
-                            id,
-                            option_id,
-                            action.1.clone(),
-                        ));
-                    }
+                    customactions.push(LayershellCustomActionsWithIdInner(
+                        window_manager.get_layer_id(action.0),
+                        option_id,
+                        action.1.clone(),
+                    ));
                 } else if let Some(action) =
                     custom.downcast_ref::<LayershellCustomActionsWithIdAndInfo<()>>()
                 {
@@ -1048,11 +1080,11 @@ pub(crate) fn run_command<A, C, E>(
                             continue;
                         }
                     };
-                    if let Some(id) = window_manager.get_layer_id(action.0) {
-                        customactions.push(LayershellCustomActionsWithIdInner(
-                            id, option_id, turnaction,
-                        ));
-                    }
+                    customactions.push(LayershellCustomActionsWithIdInner(
+                        window_manager.get_layer_id(action.0),
+                        option_id,
+                        turnaction,
+                    ));
                 }
             }
             _ => {}
