@@ -8,23 +8,22 @@ use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
 
 fn main() -> Result<(), iced_layershell::Error> {
-    Panel::run(
-        Settings {
-            layer_settings: LayerShellSettings {
-                size: Some((600, 50)),
-                anchor: Anchor::Bottom,
-                layer: Layer::Overlay,
-                margin: (0, 0, 10, 0),
-                ..Default::default()
-            },
+    Panel::run(Settings {
+        layer_settings: LayerShellSettings {
+            size: Some((600, 50)),
+            anchor: Anchor::Bottom,
+            layer: Layer::Overlay,
+            margin: (0, 0, 10, 0),
             ..Default::default()
-        }
-    ).unwrap();
+        },
+        ..Default::default()
+    })
+    .unwrap();
     Ok(())
 }
 
 struct Panel {
-    apps: Vec<App>
+    apps: Vec<App>,
 }
 
 #[derive(Debug, Clone)]
@@ -39,12 +38,7 @@ impl Application for Panel {
     type Flags = ();
 
     fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        (
-            Self {
-                apps: all_apps(),
-            },
-            Command::none(),
-        )
+        (Self { apps: all_apps() }, Command::none())
     }
     fn namespace(&self) -> String {
         String::from("bottom panel")
