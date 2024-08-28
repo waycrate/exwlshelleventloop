@@ -2196,7 +2196,7 @@ impl<T: 'static> WindowState<T> {
                                 margin,
                                 keyboard_interactivity,
                                 use_last_output,
-                                is_transparent
+                                is_transparent,
                             },
                             info,
                         )) => {

@@ -119,7 +119,7 @@ impl MultiApplication for Counter {
                                 margin: Some((100, 100, 100, 100)),
                                 keyboard_interactivity: KeyboardInteractivity::OnDemand,
                                 use_last_output: false,
-                                is_transparent: false
+                                is_transparent: false,
                             },
                             (),
                         )),

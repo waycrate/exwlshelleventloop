@@ -813,7 +813,7 @@ async fn run_instance<A, E, C>(
                     IcedNewMenuSettings {
                         size: (width, height),
                         direction,
-                        is_transparent
+                        is_transparent,
                     },
                     info,
                 )),
@@ -834,7 +834,7 @@ async fn run_instance<A, E, C>(
                     IcedNewPopupSettings {
                         size: (width, height),
                         position: (x, y),
-                        is_transparent
+                        is_transparent,
                     },
                     info,
                 )));
