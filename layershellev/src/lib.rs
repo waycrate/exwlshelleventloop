@@ -529,6 +529,7 @@ pub struct WindowState<T> {
     current_surface: Option<WlSurface>,
     is_single: bool,
     is_background: bool,
+    is_transparent: bool,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
@@ -744,6 +745,11 @@ impl<T> WindowState<T> {
         self
     }
 
+    pub fn with_transparent(mut self, transparent: bool) -> Self {
+        self.is_transparent = transparent;
+        self
+    }
+
     pub fn with_background(mut self, background: bool) -> Self {
         self.is_background = background;
         self
@@ -811,6 +817,7 @@ impl<T> Default for WindowState<T> {
             current_surface: None,
             is_single: true,
             is_background: false,
+            is_transparent: false,
             units: Vec::new(),
             message: Vec::new(),
 
@@ -1672,6 +1679,11 @@ impl<T: 'static> WindowState<T> {
             let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo);
 
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+
+            if self.is_transparent {
+                wl_surface.set_opaque_region(None);
+            }
+
             let layer_shell = globals
                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                 .unwrap();
@@ -1725,6 +1737,9 @@ impl<T: 'static> WindowState<T> {
             let displays = self.outputs.clone();
             for (_, output_display) in displays.iter() {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                if self.is_transparent {
+                    wl_surface.set_opaque_region(None);
+                }
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                     .unwrap();
@@ -1922,6 +1937,9 @@ impl<T: 'static> WindowState<T> {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                        if self.is_transparent {
+                            wl_surface.set_opaque_region(None);
+                        }
                         let layer_shell = globals
                             .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                             .unwrap();
@@ -2178,6 +2196,7 @@ impl<T: 'static> WindowState<T> {
                                 margin,
                                 keyboard_interactivity,
                                 use_last_output,
+                                is_transparent
                             },
                             info,
                         )) => {
@@ -2200,6 +2219,9 @@ impl<T: 'static> WindowState<T> {
                             }
 
                             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                            if is_transparent {
+                                wl_surface.set_opaque_region(None);
+                            }
                             let layer_shell = globals
                                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
                                 .unwrap();
@@ -2260,6 +2282,7 @@ impl<T: 'static> WindowState<T> {
                                 size: (width, height),
                                 position: (x, y),
                                 id,
+                                is_transparent,
                             },
                             info,
                         )) => {
@@ -2271,6 +2294,9 @@ impl<T: 'static> WindowState<T> {
                                 continue;
                             };
                             let wl_surface = wmcompositer.create_surface(&qh, ());
+                            if is_transparent {
+                                wl_surface.set_opaque_region(None);
+                            }
                             let positioner = wmbase.create_positioner(&qh, ());
                             positioner.set_size(width as i32, height as i32);
                             positioner.set_anchor_rect(x, y, width as i32, height as i32);

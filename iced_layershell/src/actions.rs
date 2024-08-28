@@ -20,6 +20,7 @@ pub(crate) enum LayerShellActions<INFO: Clone> {
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
     pub position: (i32, i32),
+    pub is_transparent: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -32,6 +33,7 @@ pub enum MenuDirection {
 pub struct IcedNewMenuSettings {
     pub size: (u32, u32),
     pub direction: MenuDirection,
+    pub is_transparent: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

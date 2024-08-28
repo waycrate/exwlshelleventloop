@@ -19,6 +19,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             binded_output_name,
+            is_transparent: true,
             ..Default::default()
         },
         ..Default::default()
@@ -128,6 +129,13 @@ impl Application for Counter {
                 ]),
             },
         }
+    }
+
+    fn style(&self) -> iced::theme::Application {
+        iced::theme::Application::custom(|_theme: &Theme| iced::application::Appearance {
+            background_color: iced::Color::TRANSPARENT,
+            text_color: iced::Color::WHITE,
+        })
     }
 
     fn view(&self) -> Element<Message> {

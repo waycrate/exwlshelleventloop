@@ -185,6 +185,7 @@ where
         .with_exclusize_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .with_transparent(settings.layer_settings.is_transparent)
         .build()
         .expect("Cannot create layershell");
 
@@ -393,12 +394,20 @@ where
                                         menusettings,
                                         info,
                                     )) => {
-                                        let IcedNewPopupSettings { size, position } = menusettings;
+                                        let IcedNewPopupSettings {
+                                            size,
+                                            position,
+                                            is_transparent,
+                                        } = menusettings;
                                         let Some(id) = ev.current_surface_id() else {
                                             continue;
                                         };
-                                        let popup_settings =
-                                            NewPopUpSettings { size, position, id };
+                                        let popup_settings = NewPopUpSettings {
+                                            size,
+                                            position,
+                                            id,
+                                            is_transparent,
+                                        };
                                         ev.append_return_data(ReturnData::NewPopUp((
                                             popup_settings,
                                             Some(info),
@@ -425,11 +434,20 @@ where
                             }
                         }
                         LayerShellActions::NewMenu((menusettings, info)) => {
-                            let IcedNewPopupSettings { size, position } = menusettings;
+                            let IcedNewPopupSettings {
+                                size,
+                                position,
+                                is_transparent,
+                            } = menusettings;
                             let Some(id) = ev.current_surface_id() else {
                                 continue;
                             };
-                            let popup_settings = NewPopUpSettings { size, position, id };
+                            let popup_settings = NewPopUpSettings {
+                                size,
+                                position,
+                                id,
+                                is_transparent,
+                            };
                             ev.append_return_data(ReturnData::NewPopUp((
                                 popup_settings,
                                 Some(info),
@@ -795,6 +813,7 @@ async fn run_instance<A, E, C>(
                     IcedNewMenuSettings {
                         size: (width, height),
                         direction,
+                        is_transparent
                     },
                     info,
                 )),
@@ -815,6 +834,7 @@ async fn run_instance<A, E, C>(
                     IcedNewPopupSettings {
                         size: (width, height),
                         position: (x, y),
+                        is_transparent
                     },
                     info,
                 )));

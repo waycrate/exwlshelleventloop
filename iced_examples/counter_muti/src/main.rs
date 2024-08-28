@@ -141,6 +141,7 @@ impl MultiApplication for Counter {
                                     IcedNewMenuSettings {
                                         size: (100, 100),
                                         direction: MenuDirection::Up,
+                                        is_transparent: false,
                                     },
                                     WindowInfo::PopUp,
                                 )),
@@ -250,6 +251,7 @@ impl MultiApplication for Counter {
                             margin: None,
                             keyboard_interactivity: KeyboardInteractivity::Exclusive,
                             use_last_output: false,
+                            is_transparent: false,
                         },
                         WindowInfo::Left,
                     )),
@@ -268,6 +270,7 @@ impl MultiApplication for Counter {
                             margin: None,
                             keyboard_interactivity: KeyboardInteractivity::None,
                             use_last_output: false,
+                            is_transparent: false,
                         },
                         WindowInfo::Right,
                     )),

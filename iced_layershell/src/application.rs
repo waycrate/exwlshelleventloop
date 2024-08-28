@@ -157,6 +157,7 @@ where
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .with_xdg_output_name(settings.layer_settings.binded_output_name)
+        .with_transparent(settings.layer_settings.is_transparent)
         .build()
         .expect("Cannot create layershell");
 

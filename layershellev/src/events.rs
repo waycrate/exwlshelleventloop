@@ -82,6 +82,7 @@ pub struct NewLayerShellSettings {
     /// will show on the same window, only when the notifications is cleared, it will change the
     /// wl_output.
     pub use_last_output: bool,
+    pub is_transparent: bool,
 }
 
 /// be used to create a new popup
@@ -93,6 +94,8 @@ pub struct NewPopUpSettings {
     pub position: (i32, i32),
     /// It means where the popup is, on which surface. It is the id of that layershell
     pub id: id::Id,
+
+    pub is_transparent: bool,
 }
 
 impl Default for NewLayerShellSettings {
@@ -105,6 +108,7 @@ impl Default for NewLayerShellSettings {
             margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             use_last_output: false,
+            is_transparent: false,
         }
     }
 }
