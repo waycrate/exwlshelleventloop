@@ -1654,8 +1654,10 @@ dependencies = [
  "iced_runtime",
  "iced_style",
  "layershellev",
+ "log",
  "thiserror",
  "tracing",
+ "window_clipboard",
 ]
 
 [[package]]
@@ -1695,9 +1697,11 @@ dependencies = [
  "iced_renderer",
  "iced_runtime",
  "iced_style",
+ "log",
  "sessionlockev",
  "thiserror",
  "tracing",
+ "window_clipboard",
 ]
 
 [[package]]

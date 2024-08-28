@@ -21,4 +21,6 @@ iced_graphics.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 layershellev.workspace = true
+window_clipboard.workspace = true
+log.workspace = true
 futures.workspace = true

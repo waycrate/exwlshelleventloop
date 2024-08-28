@@ -68,6 +68,8 @@ iced_core = "0.12"
 iced_renderer = "0.12.1"
 iced_futures = "0.12.0"
 iced_graphics = "0.12.1"
+window_clipboard = "0.4.1"
+
 bitflags = "2.6.0"
 log = "0.4.22"
 

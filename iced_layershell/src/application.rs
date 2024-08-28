@@ -348,7 +348,7 @@ async fn run_instance<A, E, C>(
 
     let mut should_exit = false;
 
-    let mut clipboard = LayerShellClipboard;
+    let mut clipboard = LayerShellClipboard::connect(&window);
 
     let mut mouse_interaction = mouse::Interaction::default();
     let mut messages = Vec::new();
@@ -364,6 +364,7 @@ async fn run_instance<A, E, C>(
         &mut renderer,
         init_command,
         &mut runtime,
+        &mut clipboard,
         &mut custom_actions,
         &mut should_exit,
         &mut proxy,
@@ -500,6 +501,7 @@ async fn run_instance<A, E, C>(
                         &mut state,
                         &mut renderer,
                         &mut runtime,
+                        &mut clipboard,
                         &mut should_exit,
                         &mut proxy,
                         &mut debug,
@@ -563,6 +565,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     state: &mut State<A>,
     renderer: &mut A::Renderer,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    clipboard: &mut LayerShellClipboard,
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
@@ -589,6 +592,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             renderer,
             command,
             runtime,
+            clipboard,
             custom_actions,
             should_exit,
             proxy,
@@ -612,6 +616,7 @@ pub(crate) fn run_command<A, C, E>(
     renderer: &mut A::Renderer,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellActions<()>>,
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
@@ -624,6 +629,7 @@ pub(crate) fn run_command<A, C, E>(
     A::Message: 'static,
 {
     use iced_core::widget::operation;
+    use iced_runtime::clipboard;
     use iced_runtime::command;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
@@ -636,9 +642,16 @@ pub(crate) fn run_command<A, C, E>(
             command::Action::Stream(stream) => {
                 runtime.run(stream);
             }
-            command::Action::Clipboard(_action) => {
-                // TODO:
-            }
+            command::Action::Clipboard(action) => match action {
+                clipboard::Action::Read(tag, kind) => {
+                    let message = tag(clipboard.read(kind));
+
+                    proxy.send(message);
+                }
+                clipboard::Action::Write(contents, kind) => {
+                    clipboard.write(kind, contents);
+                }
+            },
             command::Action::Widget(action) => {
                 let mut current_cache = std::mem::take(cache);
                 let mut current_operation = Some(action);

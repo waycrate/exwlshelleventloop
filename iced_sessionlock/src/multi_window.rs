@@ -3,7 +3,7 @@ use crate::{actions::UnLockAction, multi_window::window_manager::WindowManager};
 use std::{collections::HashMap, f64, mem::ManuallyDrop, sync::Arc};
 
 use crate::{
-    actions::SessionShellActions, clipboard::LayerShellClipboard, conversion, error::Error,
+    actions::SessionShellActions, clipboard::SessionLockClipboard, conversion, error::Error,
 };
 
 use iced_graphics::Compositor;
@@ -16,7 +16,7 @@ use iced_style::application::StyleSheet;
 
 use iced_futures::{Executor, Runtime, Subscription};
 
-use sessionlockev::{ReturnData, SessionLockEvent, WindowState};
+use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
 
@@ -157,7 +157,7 @@ where
     let _ = window_manager.insert(
         window::Id::MAIN,
         ev.main_window().get_size(),
-        window,
+        window.clone(),
         &application,
         &mut compositor,
     );
@@ -176,6 +176,7 @@ where
         control_sender,
         //state,
         window_manager,
+        window,
         init_command,
     ));
 
@@ -280,6 +281,7 @@ async fn run_instance<A, E, C>(
     mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedSessionLockEvent<A::Message>>,
     mut control_sender: mpsc::UnboundedSender<Vec<SessionShellActions>>,
     mut window_manager: WindowManager<A, C>,
+    window: Arc<WindowWrapper>,
     init_command: Command<A::Message>,
 ) where
     A: Application + 'static,
@@ -293,7 +295,7 @@ async fn run_instance<A, E, C>(
         .get_mut(window::Id::MAIN)
         .expect("Get main window");
     let main_window_size = main_window.state.logical_size();
-    let mut clipboard = LayerShellClipboard;
+    let mut clipboard = SessionLockClipboard::connect(&window);
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
@@ -325,6 +327,7 @@ async fn run_instance<A, E, C>(
         &mut compositor,
         init_command,
         &mut runtime,
+        &mut clipboard,
         &mut custom_actions,
         &mut should_exit,
         &mut proxy,
@@ -527,6 +530,7 @@ async fn run_instance<A, E, C>(
                         &mut application,
                         &mut compositor,
                         &mut runtime,
+                        &mut clipboard,
                         &mut should_exit,
                         &mut proxy,
                         &mut debug,
@@ -620,6 +624,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     application: &mut A,
     compositor: &mut C,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    clipboard: &mut SessionLockClipboard,
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
@@ -644,6 +649,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             compositor,
             command,
             runtime,
+            clipboard,
             custom_actions,
             should_exit,
             proxy,
@@ -664,6 +670,7 @@ pub(crate) fn run_command<A, C, E>(
     compositor: &mut C,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    clipboard: &mut SessionLockClipboard,
     custom_actions: &mut [SessionShellActions],
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
@@ -678,6 +685,7 @@ pub(crate) fn run_command<A, C, E>(
     A::Message: 'static,
 {
     use iced_core::widget::operation;
+    use iced_runtime::clipboard;
     use iced_runtime::command;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
@@ -690,9 +698,16 @@ pub(crate) fn run_command<A, C, E>(
             command::Action::Stream(stream) => {
                 runtime.run(stream);
             }
-            command::Action::Clipboard(_action) => {
-                // TODO:
-            }
+            command::Action::Clipboard(action) => match action {
+                clipboard::Action::Read(tag, kind) => {
+                    let message = tag(clipboard.read(kind));
+
+                    proxy.send(message);
+                }
+                clipboard::Action::Write(contents, kind) => {
+                    clipboard.write(kind, contents);
+                }
+            },
             command::Action::Widget(action) => {
                 let mut current_operation = Some(action);
 

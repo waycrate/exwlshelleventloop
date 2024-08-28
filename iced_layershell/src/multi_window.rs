@@ -29,7 +29,7 @@ use iced_futures::{Executor, Runtime, Subscription};
 use layershellev::{
     calloop::timer::{TimeoutAction, Timer},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, NewPopUpSettings, ReturnData, WindowState,
+    LayerEvent, NewPopUpSettings, ReturnData, WindowState, WindowWrapper,
 };
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
@@ -208,6 +208,7 @@ where
         control_sender,
         //state,
         window_manager,
+        window,
         init_command,
     ));
 
@@ -474,6 +475,7 @@ async fn run_instance<A, E, C>(
     >,
     mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions<A::WindowInfo>>>,
     mut window_manager: WindowManager<A, C>,
+    window: Arc<WindowWrapper>,
     init_command: Command<A::Message>,
 ) where
     A: Application + 'static,
@@ -484,7 +486,7 @@ async fn run_instance<A, E, C>(
 {
     use iced::window;
     use iced_core::Event;
-    let mut clipboard = LayerShellClipboard;
+    let mut clipboard = LayerShellClipboard::connect(&window);
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
@@ -505,6 +507,7 @@ async fn run_instance<A, E, C>(
         &mut compositor,
         init_command,
         &mut runtime,
+        &mut clipboard,
         &mut custom_actions,
         &mut should_exit,
         &mut proxy,
@@ -741,6 +744,7 @@ async fn run_instance<A, E, C>(
                         &mut application,
                         &mut compositor,
                         &mut runtime,
+                        &mut clipboard,
                         &mut should_exit,
                         &mut proxy,
                         &mut debug,
@@ -882,6 +886,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     application: &mut A,
     compositor: &mut C,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    clipboard: &mut LayerShellClipboard,
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
@@ -907,6 +912,7 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             compositor,
             command,
             runtime,
+            clipboard,
             custom_actions,
             should_exit,
             proxy,
@@ -927,6 +933,7 @@ pub(crate) fn run_command<A, C, E>(
     compositor: &mut C,
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellActions<A::WindowInfo>>,
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
@@ -942,6 +949,7 @@ pub(crate) fn run_command<A, C, E>(
     A::WindowInfo: Clone + 'static,
 {
     use iced_core::widget::operation;
+    use iced_runtime::clipboard;
     use iced_runtime::command;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
@@ -954,9 +962,17 @@ pub(crate) fn run_command<A, C, E>(
             command::Action::Stream(stream) => {
                 runtime.run(stream);
             }
-            command::Action::Clipboard(_action) => {
-                // TODO:
-            }
+
+            command::Action::Clipboard(action) => match action {
+                clipboard::Action::Read(tag, kind) => {
+                    let message = tag(clipboard.read(kind));
+
+                    proxy.send(message);
+                }
+                clipboard::Action::Write(contents, kind) => {
+                    clipboard.write(kind, contents);
+                }
+            },
             command::Action::Widget(action) => {
                 let mut current_operation = Some(action);
 
