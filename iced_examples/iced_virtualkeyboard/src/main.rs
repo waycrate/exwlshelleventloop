@@ -35,7 +35,12 @@ impl Application for KeyboardView {
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
-        canvas(self).height(Length::Fill).width(Length::Fill).into()
+        canvas(KeyBoard {
+            draw_cache: &self.draw_cache,
+        })
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .into()
     }
 
     fn namespace(&self) -> String {
@@ -55,8 +60,12 @@ fn main() -> Result<(), iced_layershell::Error> {
     })
 }
 
+struct KeyBoard<'a> {
+    draw_cache: &'a Cache,
+}
+
 // Implement cavnas for Keyboard view
-impl canvas::Program<Message> for KeyboardView {
+impl<'a> canvas::Program<Message> for KeyBoard<'a> {
     type State = ();
 
     fn draw(
@@ -91,7 +100,7 @@ impl canvas::Program<Message> for KeyboardView {
 
             let mut key_y: f32 = keyboard_top_pad + 5.0;
 
-            let rows = vec![
+            let rows = [
                 vec![
                     "~", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "⌫", "Num",
                     "/", "*",
@@ -143,6 +152,7 @@ impl canvas::Program<Message> for KeyboardView {
                         content: label.to_string(),
                         position: Point::new(key_x + key_width / 3.5, key_y + key_height / 3.0),
                         color: letter_color,
+                        shaping: iced::widget::text::Shaping::Advanced,
                         ..Text::default()
                     });
 
