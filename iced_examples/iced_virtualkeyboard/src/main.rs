@@ -117,7 +117,7 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
                     "⇧", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "⇧", "1", "2", "3",
                 ],
                 vec![
-                    "Ctrl", "Alt", "Cmd", "Space", "AltGr", "Ctrl", "", "←", "↑", "→", "0", ".",
+                    "Ctrl", "Alt", "Cmd", "Space", "AltGr", "Ctrl", "←", "↑", "→", "0", ".",
                 ],
             ];
 
@@ -132,7 +132,7 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
                         (2, 12) => (1.6, simple_key_height),  // Enter
                         (3, 0) => (2.3, simple_key_height),   // Left Shift
                         (3, 11) => (2.35, simple_key_height), // Right Shift
-                        (4, 3) => (6.9, simple_key_height),   // Space
+                        (4, 3) => (8.0, simple_key_height),   // Space
                         (4, 0) => (1.0, simple_key_height),   // Left Ctrl
                         (4, 1) => (1.0, simple_key_height),   // Left Alt
                         (4, 4) => (1.0, simple_key_height),   // Alt
@@ -166,6 +166,7 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
                         frame.fill(&down_arrow, key_fill_color);
                         frame.fill_text(Text {
                             content: "↓".to_string(),
+                            shaping: iced::widget::text::Shaping::Advanced,
                             position: Point::new(
                                 down_arrow_pos.x + key_width / 3.5,
                                 down_arrow_pos.y + half_key_height / 3.0,
