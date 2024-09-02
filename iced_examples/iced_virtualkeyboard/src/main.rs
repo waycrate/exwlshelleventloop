@@ -56,7 +56,7 @@ struct KeyboardView {
 }
 #[derive(Debug, Clone)]
 enum Message {
-    InputTest,
+    InputKeyPressed(u32),
 }
 
 impl Application for KeyboardView {
@@ -76,8 +76,8 @@ impl Application for KeyboardView {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::InputTest => Command::single(
-                LayershellCustomActions::VirtualKeyboardPressed { time: 100, key: 16 }.into(),
+            Message::InputKeyPressed(key) => Command::single(
+                LayershellCustomActions::VirtualKeyboardPressed { time: 100, key }.into(),
             ),
         }
     }
@@ -277,20 +277,21 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
             match mouse_event {
                 iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) => {
                     if let Some(click_position) = cursor.position_in(bounds) {
-                        if let Some(q_key_coords) = self.key_coords.borrow().get("Q") {
-                            let q_key_position = q_key_coords.position;
-                            // println!("{:?}", q_key_position);
-                            let q_key_size = q_key_coords.size;
+                        for (label, key_coords) in self.key_coords.borrow().iter() {
+                            // Determine the position of the click
+                            let key_position = key_coords.position;
+                            let key_size = key_coords.size;
 
-                            // Check the position
-                            if click_position.x >= q_key_position.x
-                                && click_position.x <= q_key_position.x + q_key_size.width
-                                && click_position.y >= q_key_position.y
-                                && click_position.y <= q_key_position.y + q_key_size.height
+                            if click_position.x >= key_position.x
+                                && click_position.x <= key_position.x + key_size.width
+                                && click_position.y >= key_position.y
+                                && click_position.y <= key_position.y + key_size.height
                             {
                                 // Clear the cache
                                 self.draw_cache.clear();
-                                return (Status::Captured, Some(Message::InputTest));
+                                if let Some(key_code) = get_key_code(label) {
+                                    return (Status::Captured, Some(Message::InputKeyPressed(key_code)));
+                                }
                             }
                         }
                     }
@@ -300,5 +301,63 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
         }
 
         (Status::Ignored, None)
+    }
+}
+
+// Map keys
+fn get_key_code(label: &str) -> Option<u32> {
+    match label {
+        "Q" => Some(16),
+        "W" => Some(17),
+        "E" => Some(18),
+        "R" => Some(19),
+        "T" => Some(20),
+        "Y" => Some(21),
+        "U" => Some(22),
+        "I" => Some(23),
+        "O" => Some(24),
+        "P" => Some(25),
+        "A" => Some(30),
+        "S" => Some(31),
+        "D" => Some(32),
+        "F" => Some(33),
+        "G" => Some(34),
+        "H" => Some(35),
+        "J" => Some(36),
+        "K" => Some(37),
+        "L" => Some(38),
+        "Z" => Some(44),
+        "X" => Some(45),
+        "C" => Some(46),
+        "V" => Some(47),
+        "B" => Some(48),
+        "N" => Some(49),
+        "M" => Some(50),
+        "1" => Some(2),
+        "2" => Some(3),
+        "3" => Some(4),
+        "4" => Some(5),
+        "5" => Some(6),
+        "6" => Some(7),
+        "7" => Some(8),
+        "8" => Some(9),
+        "9" => Some(10),
+        "0" => Some(11),
+        "~" => Some(41),
+        "-" => Some(12),
+        "=" => Some(13),
+        "⌫" => Some(14),
+        "Tab" => Some(15),
+        "Space" => Some(57),
+        "[" => Some(26),
+        "]" => Some(27),
+        "\\" => Some(43),
+        "CAPS" => Some(58),
+        ";" => Some(39),
+        "\"" => Some(40),
+        "Enter" => Some(28),
+        "," => Some(51),
+        "." => Some(52),
+        _ => None,
     }
 }
