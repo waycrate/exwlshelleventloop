@@ -1,18 +1,63 @@
-use iced::mouse::Cursor;
+use iced::event::Status;
+use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
-use iced::widget::canvas::{Cache, Geometry, Path, Text};
+use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_layershell::reexport::Anchor;
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_layershell::actions::LayershellCustomActions;
+use iced_layershell::reexport::wl_keyboard::KeymapFormat;
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
+use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
 use iced_layershell::Application;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
+use xkbcommon::xkb;
+
+pub fn get_keymap_as_file() -> (File, u32) {
+    let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+
+    let keymap = xkb::Keymap::new_from_names(
+        &context,
+        "",
+        "",
+        "us", // if no , it is norwegian
+        "",
+        None,
+        xkb::KEYMAP_COMPILE_NO_FLAGS,
+    )
+    .expect("xkbcommon keymap panicked!");
+    let xkb_state = xkb::State::new(&keymap);
+    let keymap = xkb_state
+        .get_keymap()
+        .get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1);
+    let keymap = CString::new(keymap).expect("Keymap should not contain interior nul bytes");
+    let keymap = keymap.as_bytes_with_nul();
+    let dir = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let mut file = tempfile::tempfile_in(dir).expect("File could not be created!");
+    file.write_all(keymap).unwrap();
+    file.flush().unwrap();
+    (file, keymap.len() as u32)
+}
+
+struct KeyCoords {
+    position: Point,
+    size: Size,
+}
 #[derive(Default)]
 
 struct KeyboardView {
     draw_cache: Cache,
 }
-#[derive(Debug, Clone, Copy)]
-enum Message {}
+#[derive(Debug, Clone)]
+enum Message {
+    InputTest,
+}
 
 impl Application for KeyboardView {
     type Executor = iced::executor::Default;
@@ -29,18 +74,19 @@ impl Application for KeyboardView {
         )
     }
 
-    fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
-        // TODO
-        Command::none()
+    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+        match message {
+            Message::InputTest => Command::single(
+                LayershellCustomActions::VirtualKeyboardPressed { time: 100, key: 16 }.into(),
+            ),
+        }
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
-        canvas(KeyBoard {
-            draw_cache: &self.draw_cache,
-        })
-        .height(Length::Fill)
-        .width(Length::Fill)
-        .into()
+        canvas(KeyBoard::new(&self.draw_cache))
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .into()
     }
 
     fn namespace(&self) -> String {
@@ -49,22 +95,40 @@ impl Application for KeyboardView {
 }
 
 fn main() -> Result<(), iced_layershell::Error> {
+    let (file, keymap_size) = get_keymap_as_file();
+
     KeyboardView::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((1200, 400)),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            keyboard_interactivity: KeyboardInteractivity::None,
             ..Default::default()
         },
+        virtual_keyboard_support: Some(VirtualKeyboardSettings {
+            file,
+            keymap_size,
+            keymap_format: KeymapFormat::XkbV1,
+        }),
         ..Default::default()
     })
 }
 
 struct KeyBoard<'a> {
     draw_cache: &'a Cache,
+    key_coords: RefCell<HashMap<String, KeyCoords>>, // For interior mutability
 }
 
-// Implement cavnas for Keyboard view
+impl<'a> KeyBoard<'a> {
+    fn new(draw_cache: &'a Cache) -> Self {
+        Self {
+            draw_cache,
+            key_coords: RefCell::new(HashMap::new()),
+        }
+    }
+}
+
+// Implement canvas for Keyboard view
 impl<'a> canvas::Program<Message> for KeyBoard<'a> {
     type State = ();
 
@@ -78,6 +142,7 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
     ) -> Vec<Geometry> {
         let letter_color = Color::BLACK;
         let key_fill_color = Color::from_rgb8(0xD1, 0xD1, 0xD1);
+        let mut key_coords = self.key_coords.borrow_mut();
 
         let keyboard = self.draw_cache.draw(renderer, bounds.size(), |frame| {
             let keyboard_width = frame.width();
@@ -112,7 +177,7 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
                 vec![
                     "CAPS", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "\"", "Enter", "4",
                     "5", "6",
-                ], // Row 3
+                ],
                 vec![
                     "⇧", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "⇧", "1", "2", "3",
                 ],
@@ -156,6 +221,15 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
                         ..Text::default()
                     });
 
+                    // println!("{}, {}", key_x + key_width/ 3.5, key_y + key_height / 3.0);
+
+                    key_coords.insert(
+                        label.to_string(),
+                        KeyCoords {
+                            position: key_pos,
+                            size: Size::new(key_width, key_height),
+                        },
+                    );
                     key_x += key_width + 5.0;
 
                     if row_index == 4 && key_index == 7 {
@@ -181,5 +255,50 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
             }
         });
         vec![keyboard]
+    }
+
+    fn mouse_interaction(
+        &self,
+        _state: &Self::State,
+        _bounds: Rectangle,
+        _cursor: Cursor,
+    ) -> Interaction {
+        Interaction::Pointer
+    }
+
+    fn update(
+        &self,
+        _state: &mut Self::State,
+        event: canvas::Event,
+        bounds: Rectangle,
+        cursor: Cursor,
+    ) -> (Status, Option<Message>) {
+        if let Event::Mouse(mouse_event) = event {
+            match mouse_event {
+                iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) => {
+                    if let Some(click_position) = cursor.position_in(bounds) {
+                        if let Some(q_key_coords) = self.key_coords.borrow().get("Q") {
+                            let q_key_position = q_key_coords.position;
+                            // println!("{:?}", q_key_position);
+                            let q_key_size = q_key_coords.size;
+
+                            // Check the position
+                            if click_position.x >= q_key_position.x
+                                && click_position.x <= q_key_position.x + q_key_size.width
+                                && click_position.y >= q_key_position.y
+                                && click_position.y <= q_key_position.y + q_key_size.height
+                            {
+                                // Clear the cache
+                                self.draw_cache.clear();
+                                return (Status::Captured, Some(Message::InputTest));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        (Status::Ignored, None)
     }
 }
