@@ -17,6 +17,14 @@ use std::path::PathBuf;
 use xkbcommon::xkb;
 
 use std::sync::LazyLock;
+const SIMPLE_KEY_WIDTH_DIVISOR: f32 = 19.0;
+const BACKSPACE_WIDTH_RATIO: f32 = 1.57;
+const TAB_WIDTH_RATIO: f32 = 1.55;
+const CAPSLOCK_WIDTH_RATIO: f32 = 2.0;
+const ENTER_WIDTH_RATIO: f32 = 1.6;
+const LEFT_SHIFT_WIDTH_RATIO: f32 = 2.3;
+const RIGHT_SHIFT_WIDTH_RATIO: f32 = 2.35;
+const SPACE_WIDTH_RATIO: f32 = 8.0;
 
 static ROWS: LazyLock<[Vec<&str>; 5]> = LazyLock::new(|| {
     [
@@ -139,7 +147,7 @@ fn update_keyboard(
     keyboard_width: f32,
     frame_height: f32,
 ) {
-    let simple_key_width = keyboard_width / 19.0;
+    let simple_key_width = keyboard_width / SIMPLE_KEY_WIDTH_DIVISOR;
     let simple_key_height = simple_key_width;
     let half_key_height = simple_key_height / 2.0; // For up and down arrow
     let keyboard_height = simple_key_height * 5.0;
@@ -151,21 +159,15 @@ fn update_keyboard(
 
         for (key_index, &label) in row.iter().enumerate() {
             let (width_ratio, key_height) = match (row_index, key_index) {
-                (0, 13) => (1.57, simple_key_height), // Backspace
-                (1, 0) => (1.55, simple_key_height),  // Tab
-                (2, 0) => (2.0, simple_key_height),   // CapsLock
-                (2, 12) => (1.6, simple_key_height),  // Enter
-                (3, 0) => (2.3, simple_key_height),   // Left Shift
-                (3, 11) => (2.35, simple_key_height), // Right Shift
-                (4, 3) => (8.0, simple_key_height),   // Space
-                (4, 0) => (1.0, simple_key_height),   // Left Ctrl
-                (4, 1) => (1.0, simple_key_height),   // Left Alt
-                (4, 4) => (1.0, simple_key_height),   // Alt
-                (4, 5) => (1.0, simple_key_height),   // Right Ctrl
-                (4, 6) => (1.0, simple_key_height),   // Left Arrow
-                (4, 7) => (1.0, half_key_height),     // Up Arrow
-                (4, 8) => (1.0, simple_key_height),   // Right Arrow
-                _ => (1.0, simple_key_height),        // Default width ratio
+                (0, 13) => (BACKSPACE_WIDTH_RATIO, simple_key_height),
+                (1, 0) => (TAB_WIDTH_RATIO, simple_key_height),
+                (2, 0) => (CAPSLOCK_WIDTH_RATIO, simple_key_height),
+                (2, 12) => (ENTER_WIDTH_RATIO, simple_key_height),
+                (3, 0) => (LEFT_SHIFT_WIDTH_RATIO, simple_key_height),
+                (3, 11) => (RIGHT_SHIFT_WIDTH_RATIO, simple_key_height),
+                (4, 3) => (SPACE_WIDTH_RATIO, simple_key_height),
+                (4, 7) => (1.0, half_key_height),
+                _ => (1.0, simple_key_height),
             };
 
             let key_width = simple_key_width * width_ratio;
@@ -226,21 +228,15 @@ impl canvas::Program<Message> for KeyboardView {
 
                 for (key_index, &label) in row.iter().enumerate() {
                     let (width_ratio, key_height) = match (row_index, key_index) {
-                        (0, 13) => (1.57, simple_key_height), // Backspace
-                        (1, 0) => (1.55, simple_key_height),  // Tab
-                        (2, 0) => (2.0, simple_key_height),   // CapsLock
-                        (2, 12) => (1.6, simple_key_height),  // Enter
-                        (3, 0) => (2.3, simple_key_height),   // Left Shift
-                        (3, 11) => (2.35, simple_key_height), // Right Shift
-                        (4, 3) => (8.0, simple_key_height),   // Space
-                        (4, 0) => (1.0, simple_key_height),   // Left Ctrl
-                        (4, 1) => (1.0, simple_key_height),   // Left Alt
-                        (4, 4) => (1.0, simple_key_height),   // Alt
-                        (4, 5) => (1.0, simple_key_height),   // Right Ctrl
-                        (4, 6) => (1.0, simple_key_height),   // Left Arrow
-                        (4, 7) => (1.0, half_key_height),     // Up Arrow
-                        (4, 8) => (1.0, simple_key_height),   // Right Arrow
-                        _ => (1.0, simple_key_height),        // Default width ratio
+                        (0, 13) => (BACKSPACE_WIDTH_RATIO, simple_key_height),
+                        (1, 0) => (TAB_WIDTH_RATIO, simple_key_height),
+                        (2, 0) => (CAPSLOCK_WIDTH_RATIO, simple_key_height),
+                        (2, 12) => (ENTER_WIDTH_RATIO, simple_key_height),
+                        (3, 0) => (LEFT_SHIFT_WIDTH_RATIO, simple_key_height),
+                        (3, 11) => (RIGHT_SHIFT_WIDTH_RATIO, simple_key_height),
+                        (4, 3) => (SPACE_WIDTH_RATIO, simple_key_height),
+                        (4, 7) => (1.0, half_key_height), // Up Arrow
+                        _ => (1.0, simple_key_height),
                     };
 
                     let key_width = simple_key_width * width_ratio;
