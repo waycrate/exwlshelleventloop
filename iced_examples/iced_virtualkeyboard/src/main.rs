@@ -136,7 +136,7 @@ fn main() -> Result<(), iced_layershell::Error> {
 type KeyboardState = RefCell<HashMap<String, KeyCoords>>;
 
 // Implement canvas for Keyboard view
-impl<'a> canvas::Program<Message> for KeyboardView {
+impl canvas::Program<Message> for KeyboardView {
     type State = KeyboardState;
 
     fn draw(
