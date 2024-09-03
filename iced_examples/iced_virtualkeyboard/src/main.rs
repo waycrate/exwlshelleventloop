@@ -139,7 +139,7 @@ fn update_keyboard(
     keyboard_width: f32,
     frame_height: f32,
 ) {
-    let simple_key_width = keyboard_width / 20.0;
+    let simple_key_width = keyboard_width / 19.0;
     let simple_key_height = simple_key_width;
     let half_key_height = simple_key_height / 2.0; // For up and down arrow
     let keyboard_height = simple_key_height * 5.0;
@@ -202,7 +202,7 @@ impl canvas::Program<Message> for KeyboardView {
 
         let keyboard = self.draw_cache.draw(renderer, bounds.size(), |frame| {
             let keyboard_width = frame.width();
-            let simple_key_width = keyboard_width / 20.0;
+            let simple_key_width = keyboard_width / 19.0;
             let simple_key_height = simple_key_width;
             let half_key_height = simple_key_height / 2.0; // For up and down arrow
             let keyboard_height = simple_key_height * 5.0;
