@@ -17,6 +17,28 @@ use std::io::Write;
 use std::path::PathBuf;
 use xkbcommon::xkb;
 
+use std::sync::LazyLock;
+
+static ROWS: LazyLock<[Vec<&str>; 5]> = LazyLock::new(|| {
+    [
+        vec![
+            "~", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "⌫", "Num", "/", "*",
+        ],
+        vec![
+            "Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "\\", "7", "8", "9",
+        ],
+        vec![
+            "CAPS", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "\"", "Enter", "4", "5", "6",
+        ],
+        vec![
+            "⇧", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "⇧", "1", "2", "3",
+        ],
+        vec![
+            "Ctrl", "Alt", "Cmd", "Space", "AltGr", "Ctrl", "←", "↑", "→", "0", ".",
+        ],
+    ]
+});
+
 pub fn get_keymap_as_file() -> (File, u32) {
     let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
 
@@ -83,10 +105,7 @@ impl Application for KeyboardView {
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
-        canvas(KeyBoard::new(&self.draw_cache))
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .into()
+        canvas(self).height(Length::Fill).width(Length::Fill).into()
     }
 
     fn namespace(&self) -> String {
@@ -114,27 +133,15 @@ fn main() -> Result<(), iced_layershell::Error> {
     })
 }
 
-struct KeyBoard<'a> {
-    draw_cache: &'a Cache,
-    key_coords: RefCell<HashMap<String, KeyCoords>>, // For interior mutability
-}
-
-impl<'a> KeyBoard<'a> {
-    fn new(draw_cache: &'a Cache) -> Self {
-        Self {
-            draw_cache,
-            key_coords: RefCell::new(HashMap::new()),
-        }
-    }
-}
+type KeyboardState = RefCell<HashMap<String, KeyCoords>>;
 
 // Implement canvas for Keyboard view
-impl<'a> canvas::Program<Message> for KeyBoard<'a> {
-    type State = ();
+impl<'a> canvas::Program<Message> for KeyboardView {
+    type State = KeyboardState;
 
     fn draw(
         &self,
-        _state: &Self::State,
+        state: &Self::State,
         renderer: &Renderer,
         _theme: &Theme,
         bounds: Rectangle,
@@ -142,8 +149,8 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
     ) -> Vec<Geometry> {
         let letter_color = Color::BLACK;
         let key_fill_color = Color::from_rgb8(0xD1, 0xD1, 0xD1);
-        let mut key_coords = self.key_coords.borrow_mut();
 
+        let mut key_coords = state.borrow_mut();
         let keyboard = self.draw_cache.draw(renderer, bounds.size(), |frame| {
             let keyboard_width = frame.width();
             let simple_key_width = keyboard_width / 20.0;
@@ -165,28 +172,7 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
 
             let mut key_y: f32 = keyboard_top_pad + 5.0;
 
-            let rows = [
-                vec![
-                    "~", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "⌫", "Num",
-                    "/", "*",
-                ],
-                vec![
-                    "Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "{", "}", "\\", "7",
-                    "8", "9",
-                ],
-                vec![
-                    "CAPS", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "\"", "Enter", "4",
-                    "5", "6",
-                ],
-                vec![
-                    "⇧", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "⇧", "1", "2", "3",
-                ],
-                vec![
-                    "Ctrl", "Alt", "Cmd", "Space", "AltGr", "Ctrl", "←", "↑", "→", "0", ".",
-                ],
-            ];
-
-            for (row_index, row) in rows.iter().enumerate() {
+            for (row_index, row) in ROWS.iter().enumerate() {
                 let mut key_x = 5.0;
 
                 for (key_index, &label) in row.iter().enumerate() {
@@ -220,9 +206,6 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
                         shaping: iced::widget::text::Shaping::Advanced,
                         ..Text::default()
                     });
-
-                    // println!("{}, {}", key_x + key_width/ 3.5, key_y + key_height / 3.0);
-
                     key_coords.insert(
                         label.to_string(),
                         KeyCoords {
@@ -268,39 +251,41 @@ impl<'a> canvas::Program<Message> for KeyBoard<'a> {
 
     fn update(
         &self,
-        _state: &mut Self::State,
+        state: &mut Self::State,
         event: canvas::Event,
         bounds: Rectangle,
         cursor: Cursor,
     ) -> (Status, Option<Message>) {
-        if let Event::Mouse(mouse_event) = event {
-            match mouse_event {
-                iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) => {
-                    if let Some(click_position) = cursor.position_in(bounds) {
-                        for (label, key_coords) in self.key_coords.borrow().iter() {
-                            // Determine the position of the click
-                            let key_position = key_coords.position;
-                            let key_size = key_coords.size;
+        let Event::Mouse(mouse_event) = event else {
+            return (Status::Ignored, None);
+        };
+        let key_state = state.borrow();
+        match mouse_event {
+            iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) => {
+                if let Some(click_position) = cursor.position_in(bounds) {
+                    for (label, key_coords) in key_state.iter() {
+                        // Determine the position of the click
+                        let key_position = key_coords.position;
+                        let key_size = key_coords.size;
 
-                            if click_position.x >= key_position.x
-                                && click_position.x <= key_position.x + key_size.width
-                                && click_position.y >= key_position.y
-                                && click_position.y <= key_position.y + key_size.height
-                            {
-                                // Clear the cache
-                                self.draw_cache.clear();
-                                if let Some(key_code) = get_key_code(label) {
-                                    return (
-                                        Status::Captured,
-                                        Some(Message::InputKeyPressed(key_code)),
-                                    );
-                                }
+                        if click_position.x >= key_position.x
+                            && click_position.x <= key_position.x + key_size.width
+                            && click_position.y >= key_position.y
+                            && click_position.y <= key_position.y + key_size.height
+                        {
+                            // Clear the cache
+                            self.draw_cache.clear();
+                            if let Some(key_code) = get_key_code(label) {
+                                return (
+                                    Status::Captured,
+                                    Some(Message::InputKeyPressed(key_code)),
+                                );
                             }
                         }
                     }
                 }
-                _ => {}
             }
+            _ => {}
         }
 
         (Status::Ignored, None)
