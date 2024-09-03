@@ -9,7 +9,6 @@ use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
 use iced_layershell::Application;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
@@ -133,7 +132,58 @@ fn main() -> Result<(), iced_layershell::Error> {
     })
 }
 
-type KeyboardState = RefCell<HashMap<String, KeyCoords>>;
+type KeyboardState = HashMap<String, KeyCoords>;
+
+fn update_keyboard(
+    keyboard: &mut HashMap<String, KeyCoords>,
+    keyboard_width: f32,
+    frame_height: f32,
+) {
+    let simple_key_width = keyboard_width / 20.0;
+    let simple_key_height = simple_key_width;
+    let half_key_height = simple_key_height / 2.0; // For up and down arrow
+    let keyboard_height = simple_key_height * 5.0;
+    let keyboard_top_pad = (frame_height - keyboard_height) / 2.0;
+
+    let mut key_y: f32 = keyboard_top_pad + 5.0;
+    for (row_index, row) in ROWS.iter().enumerate() {
+        let mut key_x = 5.0;
+
+        for (key_index, &label) in row.iter().enumerate() {
+            let (width_ratio, key_height) = match (row_index, key_index) {
+                (0, 13) => (1.57, simple_key_height), // Backspace
+                (1, 0) => (1.55, simple_key_height),  // Tab
+                (2, 0) => (2.0, simple_key_height),   // CapsLock
+                (2, 12) => (1.6, simple_key_height),  // Enter
+                (3, 0) => (2.3, simple_key_height),   // Left Shift
+                (3, 11) => (2.35, simple_key_height), // Right Shift
+                (4, 3) => (8.0, simple_key_height),   // Space
+                (4, 0) => (1.0, simple_key_height),   // Left Ctrl
+                (4, 1) => (1.0, simple_key_height),   // Left Alt
+                (4, 4) => (1.0, simple_key_height),   // Alt
+                (4, 5) => (1.0, simple_key_height),   // Right Ctrl
+                (4, 6) => (1.0, simple_key_height),   // Left Arrow
+                (4, 7) => (1.0, half_key_height),     // Up Arrow
+                (4, 8) => (1.0, simple_key_height),   // Right Arrow
+                _ => (1.0, simple_key_height),        // Default width ratio
+            };
+
+            let key_width = simple_key_width * width_ratio;
+
+            let key_pos = Point::new(key_x, key_y);
+
+            keyboard.insert(
+                label.to_string(),
+                KeyCoords {
+                    position: key_pos,
+                    size: Size::new(key_width, key_height),
+                },
+            );
+            key_x += key_width + 5.0;
+        }
+        key_y += simple_key_height + 5.0;
+    }
+}
 
 // Implement canvas for Keyboard view
 impl canvas::Program<Message> for KeyboardView {
@@ -141,7 +191,7 @@ impl canvas::Program<Message> for KeyboardView {
 
     fn draw(
         &self,
-        state: &Self::State,
+        _state: &Self::State,
         renderer: &Renderer,
         _theme: &Theme,
         bounds: Rectangle,
@@ -150,7 +200,6 @@ impl canvas::Program<Message> for KeyboardView {
         let letter_color = Color::BLACK;
         let key_fill_color = Color::from_rgb8(0xD1, 0xD1, 0xD1);
 
-        let mut key_coords = state.borrow_mut();
         let keyboard = self.draw_cache.draw(renderer, bounds.size(), |frame| {
             let keyboard_width = frame.width();
             let simple_key_width = keyboard_width / 20.0;
@@ -206,13 +255,7 @@ impl canvas::Program<Message> for KeyboardView {
                         shaping: iced::widget::text::Shaping::Advanced,
                         ..Text::default()
                     });
-                    key_coords.insert(
-                        label.to_string(),
-                        KeyCoords {
-                            position: key_pos,
-                            size: Size::new(key_width, key_height),
-                        },
-                    );
+
                     key_x += key_width + 5.0;
 
                     if row_index == 4 && key_index == 7 {
@@ -256,14 +299,14 @@ impl canvas::Program<Message> for KeyboardView {
         bounds: Rectangle,
         cursor: Cursor,
     ) -> (Status, Option<Message>) {
+        update_keyboard(state, bounds.width, bounds.height);
         let Event::Mouse(mouse_event) = event else {
             return (Status::Ignored, None);
         };
-        let key_state = state.borrow();
         match mouse_event {
             iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) => {
                 if let Some(click_position) = cursor.position_in(bounds) {
-                    for (label, key_coords) in key_state.iter() {
+                    for (label, key_coords) in state.iter() {
                         // Determine the position of the click
                         let key_position = key_coords.position;
                         let key_size = key_coords.size;
