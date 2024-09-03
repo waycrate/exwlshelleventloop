@@ -318,10 +318,7 @@ impl canvas::Program<Message> for KeyboardView {
                         // Clear the cache
                         self.draw_cache.clear();
                         if let Some(key_code) = get_key_code(label) {
-                            return (
-                                Status::Captured,
-                                Some(Message::InputKeyPressed(key_code)),
-                            );
+                            return (Status::Captured, Some(Message::InputKeyPressed(key_code)));
                         }
                     }
                 }
