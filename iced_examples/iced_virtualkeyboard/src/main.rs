@@ -303,32 +303,29 @@ impl canvas::Program<Message> for KeyboardView {
         let Event::Mouse(mouse_event) = event else {
             return (Status::Ignored, None);
         };
-        match mouse_event {
-            iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) => {
-                if let Some(click_position) = cursor.position_in(bounds) {
-                    for (label, key_coords) in state.iter() {
-                        // Determine the position of the click
-                        let key_position = key_coords.position;
-                        let key_size = key_coords.size;
+        if let iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) = mouse_event {
+            if let Some(click_position) = cursor.position_in(bounds) {
+                for (label, key_coords) in state.iter() {
+                    // Determine the position of the click
+                    let key_position = key_coords.position;
+                    let key_size = key_coords.size;
 
-                        if click_position.x >= key_position.x
-                            && click_position.x <= key_position.x + key_size.width
-                            && click_position.y >= key_position.y
-                            && click_position.y <= key_position.y + key_size.height
-                        {
-                            // Clear the cache
-                            self.draw_cache.clear();
-                            if let Some(key_code) = get_key_code(label) {
-                                return (
-                                    Status::Captured,
-                                    Some(Message::InputKeyPressed(key_code)),
-                                );
-                            }
+                    if click_position.x >= key_position.x
+                        && click_position.x <= key_position.x + key_size.width
+                        && click_position.y >= key_position.y
+                        && click_position.y <= key_position.y + key_size.height
+                    {
+                        // Clear the cache
+                        self.draw_cache.clear();
+                        if let Some(key_code) = get_key_code(label) {
+                            return (
+                                Status::Captured,
+                                Some(Message::InputKeyPressed(key_code)),
+                            );
                         }
                     }
                 }
             }
-            _ => {}
         }
 
         (Status::Ignored, None)
