@@ -73,7 +73,7 @@ fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
     }
     for prefix in ICONS_SIZE {
         let iconpath =
-            xdg::BaseDirectories::with_prefix(&format!("icons/hicolor/{prefix}/apps")).unwrap();
+            xdg::BaseDirectories::with_prefix(format!("icons/hicolor/{prefix}/apps")).unwrap();
         if let Some(iconpath) = iconpath.find_data_file(format!("{iconname}.png")) {
             return Some(iconpath);
         }
@@ -87,12 +87,12 @@ fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
     }
     for themes in THEMES_LIST {
         let iconpath =
-            xdg::BaseDirectories::with_prefix(&format!("icons/{themes}/apps/48")).unwrap();
+            xdg::BaseDirectories::with_prefix(format!("icons/{themes}/apps/48")).unwrap();
         if let Some(iconpath) = iconpath.find_data_file(format!("{iconname}.svg")) {
             return Some(iconpath);
         }
         let iconpath =
-            xdg::BaseDirectories::with_prefix(&format!("icons/{themes}/apps/64")).unwrap();
+            xdg::BaseDirectories::with_prefix(format!("icons/{themes}/apps/64")).unwrap();
         if let Some(iconpath) = iconpath.find_data_file(format!("{iconname}.svg")) {
             return Some(iconpath);
         }
