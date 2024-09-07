@@ -10,7 +10,7 @@ use crate::{
     settings::VirtualKeyboardSettings,
 };
 
-use iced_graphics::Compositor;
+use iced_graphics::{compositor, Compositor};
 use state::State;
 
 use iced_core::{time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
@@ -27,7 +27,7 @@ use layershellev::{
     LayerEvent, ReturnData, WindowWrapper,
 };
 
-use futures::{channel::mpsc, SinkExt, StreamExt};
+use futures::{channel::mpsc, StreamExt};
 
 use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
@@ -452,7 +452,30 @@ async fn run_instance<A, E, C>(
                         &debug.overlay(),
                     )
                     .ok();
-                debug.render_finished();
+                match compositor.present(
+                    &mut renderer,
+                    &mut surface,
+                    state.viewport(),
+                    state.background_color(),
+                    &debug.overlay(),
+                ) {
+                    Ok(()) => {
+                        debug.render_finished();
+                    }
+                    Err(error) => match error {
+                        compositor::SurfaceError::OutOfMemory => {
+                            panic!("{:?}", error);
+                        }
+                        _ => {
+                            debug.render_finished();
+                            log::error!(
+                                "Error {error:?} when \
+                                        presenting surface."
+                            );
+                            custom_actions.push(LayerShellActions::RedrawAll);
+                        }
+                    },
+                }
             }
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
@@ -602,7 +625,6 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     runtime.track(subscription.into_recipes());
 }
 
-#[allow(unused)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_command<A, C, E>(
     application: &A,
@@ -643,7 +665,7 @@ pub(crate) fn run_command<A, C, E>(
                 clipboard::Action::Read(tag, kind) => {
                     let message = tag(clipboard.read(kind));
 
-                    proxy.send(message);
+                    proxy.send_event(message).ok();
                 }
                 clipboard::Action::Write(contents, kind) => {
                     clipboard.write(kind, contents);
@@ -691,7 +713,9 @@ pub(crate) fn run_command<A, C, E>(
                         &debug.overlay(),
                     );
 
-                    proxy.send(tag(window::Screenshot::new(bytes, state.physical_size())));
+                    proxy
+                        .send_event(tag(window::Screenshot::new(bytes, state.physical_size())))
+                        .ok();
                 }
                 _ => {}
             },
@@ -701,7 +725,7 @@ pub(crate) fn run_command<A, C, E>(
                 // TODO: Error handling (?)
                 renderer.load_font(bytes);
 
-                proxy.send(tagger(Ok(())));
+                proxy.send_event(tagger(Ok(()))).ok();
             }
             command::Action::Custom(custom) => {
                 if let Some(action) = custom.downcast_ref::<LayershellCustomActionsWithInfo<()>>() {

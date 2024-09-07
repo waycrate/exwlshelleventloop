@@ -18,7 +18,7 @@ use iced_futures::{Executor, Runtime, Subscription};
 
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 
-use futures::{channel::mpsc, SinkExt, StreamExt};
+use futures::{channel::mpsc, StreamExt};
 
 use crate::{
     event::{IcedSessionLockEvent, MultiWindowIcedSessionLockEvent},
@@ -328,7 +328,6 @@ async fn run_instance<A, E, C>(
         init_command,
         &mut runtime,
         &mut clipboard,
-        &mut custom_actions,
         &mut should_exit,
         &mut proxy,
         &mut debug,
@@ -336,7 +335,6 @@ async fn run_instance<A, E, C>(
         &mut ui_caches,
     );
 
-    // TODO: run_command
     runtime.track(application.subscription().into_recipes());
     while let Some(event) = event_receiver.next().await {
         match event {
@@ -388,8 +386,6 @@ async fn run_instance<A, E, C>(
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
                     window.state.update_view_port(width, height);
-                    #[allow(unused)]
-                    let renderer = &window.renderer;
                     let _ = user_interfaces.insert(
                         id,
                         ui.relayout(
@@ -535,7 +531,6 @@ async fn run_instance<A, E, C>(
                         &mut proxy,
                         &mut debug,
                         &mut messages,
-                        &mut custom_actions,
                         &mut window_manager,
                         &mut cached_interfaces,
                     );
@@ -629,7 +624,6 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    custom_actions: &mut [SessionShellActions],
     window_manager: &mut WindowManager<A, C>,
     ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
@@ -650,7 +644,6 @@ pub(crate) fn update<A: Application, C, E: Executor>(
             command,
             runtime,
             clipboard,
-            custom_actions,
             should_exit,
             proxy,
             debug,
@@ -663,7 +656,6 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     runtime.track(subscription.into_recipes());
 }
 
-#[allow(unused)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_command<A, C, E>(
     application: &A,
@@ -671,7 +663,6 @@ pub(crate) fn run_command<A, C, E>(
     command: Command<A::Message>,
     runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
     clipboard: &mut SessionLockClipboard,
-    custom_actions: &mut [SessionShellActions],
     should_exit: &mut bool,
     proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
@@ -702,7 +693,7 @@ pub(crate) fn run_command<A, C, E>(
                 clipboard::Action::Read(tag, kind) => {
                     let message = tag(clipboard.read(kind));
 
-                    proxy.send(message);
+                    proxy.send_event(message).ok();
                 }
                 clipboard::Action::Write(contents, kind) => {
                     clipboard.write(kind, contents);
@@ -726,7 +717,7 @@ pub(crate) fn run_command<A, C, E>(
                             match operation.finish() {
                                 operation::Outcome::None => {}
                                 operation::Outcome::Some(message) => {
-                                    proxy.send(message);
+                                    proxy.send_event(message).ok();
 
                                     // operation completed, don't need to try to operate on rest of UIs
                                     break 'operate;
@@ -757,10 +748,12 @@ pub(crate) fn run_command<A, C, E>(
                         &debug.overlay(),
                     );
 
-                    proxy.send(tag(window::Screenshot::new(
-                        bytes,
-                        window.state.physical_size(),
-                    )));
+                    proxy
+                        .send_event(tag(window::Screenshot::new(
+                            bytes,
+                            window.state.physical_size(),
+                        )))
+                        .ok();
                 }
                 _ => {}
             },
@@ -773,10 +766,10 @@ pub(crate) fn run_command<A, C, E>(
                     window.renderer.load_font(bytes.clone());
                 }
 
-                proxy.send(tagger(Ok(())));
+                proxy.send_event(tagger(Ok(()))).ok();
             }
             command::Action::Custom(custom) => {
-                if let Some(action) = custom.downcast_ref::<UnLockAction>() {
+                if let Some(_action) = custom.downcast_ref::<UnLockAction>() {
                     *should_exit = true;
                 }
             }

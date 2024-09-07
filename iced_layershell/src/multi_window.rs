@@ -16,7 +16,7 @@ use crate::{
     error::Error,
 };
 
-use iced_graphics::Compositor;
+use iced_graphics::{compositor, Compositor};
 
 use iced_core::{time::Instant, Size};
 
@@ -32,7 +32,7 @@ use layershellev::{
     LayerEvent, NewPopUpSettings, ReturnData, WindowState, WindowWrapper,
 };
 
-use futures::{channel::mpsc, SinkExt, StreamExt};
+use futures::{channel::mpsc, StreamExt};
 
 use crate::{
     event::{IcedLayerEvent, MultiWindowIcedLayerEvent},
@@ -553,8 +553,7 @@ async fn run_instance<A, E, C>(
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
                     window.state.update_view_port(width, height);
-                    #[allow(unused)]
-                    let renderer = &window.renderer;
+
                     let _ = user_interfaces.insert(
                         id,
                         ui.relayout(
@@ -614,18 +613,31 @@ async fn run_instance<A, E, C>(
                 );
                 debug.draw_finished();
                 if !is_new_window {
-                    compositor
-                        .present(
-                            &mut window.renderer,
-                            &mut window.surface,
-                            window.state.viewport(),
-                            window.state.background_color(),
-                            &debug.overlay(),
-                        )
-                        .ok();
+                    match compositor.present(
+                        &mut window.renderer,
+                        &mut window.surface,
+                        window.state.viewport(),
+                        window.state.background_color(),
+                        &debug.overlay(),
+                    ) {
+                        Ok(()) => {
+                            debug.render_finished();
+                        }
+                        Err(error) => match error {
+                            compositor::SurfaceError::OutOfMemory => {
+                                panic!("{:?}", error);
+                            }
+                            _ => {
+                                debug.render_finished();
+                                log::error!(
+                                    "Error {error:?} when \
+                                        presenting surface."
+                                );
+                                custom_actions.push(LayerShellActions::RedrawAll);
+                            }
+                        },
+                    }
                 }
-
-                debug.render_finished();
 
                 if is_created && is_new_window {
                     let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
@@ -908,7 +920,6 @@ pub(crate) fn update<A: Application, C, E: Executor>(
     runtime.track(subscription.into_recipes());
 }
 
-#[allow(unused)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_command<A, C, E>(
     application: &A,
@@ -949,7 +960,7 @@ pub(crate) fn run_command<A, C, E>(
                 clipboard::Action::Read(tag, kind) => {
                     let message = tag(clipboard.read(kind));
 
-                    proxy.send(message);
+                    proxy.send_event(message).ok();
                 }
                 clipboard::Action::Write(contents, kind) => {
                     clipboard.write(kind, contents);
@@ -973,7 +984,7 @@ pub(crate) fn run_command<A, C, E>(
                             match operation.finish() {
                                 operation::Outcome::None => {}
                                 operation::Outcome::Some(message) => {
-                                    proxy.send(message);
+                                    proxy.send_event(message).ok();
 
                                     // operation completed, don't need to try to operate on rest of UIs
                                     break 'operate;
@@ -1014,10 +1025,10 @@ pub(crate) fn run_command<A, C, E>(
                         &debug.overlay(),
                     );
 
-                    proxy.send(tag(window::Screenshot::new(
+                    proxy.send_event(tag(window::Screenshot::new(
                         bytes,
                         window.state.physical_size(),
-                    )));
+                    ))).ok();
                 }
                 _ => {}
             },
@@ -1030,7 +1041,7 @@ pub(crate) fn run_command<A, C, E>(
                     window.renderer.load_font(bytes.clone());
                 }
 
-                proxy.send(tagger(Ok(())));
+                proxy.send_event(tagger(Ok(()))).ok();
             }
             command::Action::Custom(custom) => {
                 if let Some(action) =
