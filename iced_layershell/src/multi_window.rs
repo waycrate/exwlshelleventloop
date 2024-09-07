@@ -1025,10 +1025,12 @@ pub(crate) fn run_command<A, C, E>(
                         &debug.overlay(),
                     );
 
-                    proxy.send_event(tag(window::Screenshot::new(
-                        bytes,
-                        window.state.physical_size(),
-                    ))).ok();
+                    proxy
+                        .send_event(tag(window::Screenshot::new(
+                            bytes,
+                            window.state.physical_size(),
+                        )))
+                        .ok();
                 }
                 _ => {}
             },
