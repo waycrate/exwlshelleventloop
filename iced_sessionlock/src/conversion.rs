@@ -134,7 +134,7 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::NotAllowed => "not_allowed".to_owned(),
         Interaction::ResizingVertically => "ns_resize".to_owned(),
         Interaction::ResizingHorizontally => "ew_resize".to_owned(),
-        _ => "default".to_owned()
+        _ => "default".to_owned(),
     }
 }
 

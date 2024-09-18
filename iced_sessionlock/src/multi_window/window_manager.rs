@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::multi_window::Application;
-use iced_graphics::Compositor;
 use crate::DefaultStyle;
+use iced_graphics::Compositor;
 use sessionlockev::{id::Id as SessionId, WindowWrapper};
 
 use iced::mouse;

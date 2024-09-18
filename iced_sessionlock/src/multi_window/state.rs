@@ -1,7 +1,7 @@
 use crate::multi_window::Application;
+use crate::{Appearance, DefaultStyle};
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
-use crate::{DefaultStyle, Appearance};
 use sessionlockev::keyboard::ModifiersState;
 
 use crate::event::WindowEvent;
