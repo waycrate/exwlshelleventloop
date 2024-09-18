@@ -124,7 +124,7 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<UnLockAction> + Clone,
+    A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
 {
     use futures::task;
     use futures::Future;
@@ -280,7 +280,7 @@ async fn run_instance<A, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<UnLockAction> + Clone,
+    A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
 {
     use iced::window;
     use iced_core::Event;
@@ -646,7 +646,7 @@ pub(crate) fn run_action<A, C>(
     A: Application,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<UnLockAction> + Clone,
+    A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
@@ -654,14 +654,13 @@ pub(crate) fn run_action<A, C>(
     use iced_runtime::window::Action as WinowAction;
     //let mut customactions = Vec::new();
     match action {
-        Action::Output(message) => {
-            if let Ok(action) = message.clone().try_into() {
+        Action::Output(message) => match message.try_into() {
+            Ok(action) => {
                 let _: UnLockAction = action;
                 *should_exit = true;
-            } else {
-                messages.push(message)
             }
-        }
+            Err(message) => messages.push(message),
+        },
         Action::Clipboard(action) => match action {
             clipboard::Action::Read { target, channel } => {
                 let _ = channel.send(clipboard.read(target));

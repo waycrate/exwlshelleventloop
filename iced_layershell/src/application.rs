@@ -126,7 +126,7 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActions> + Clone,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use futures::task;
     use futures::Future;
@@ -323,7 +323,7 @@ async fn run_instance<A, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActions> + Clone,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use iced_core::mouse;
     use iced_core::Event;
@@ -619,7 +619,7 @@ pub(crate) fn run_action<A, C>(
     A: Application,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActions> + Clone,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
@@ -627,13 +627,12 @@ pub(crate) fn run_action<A, C>(
     use iced_runtime::window::Action as WinowAction;
     use iced_runtime::Action;
     match event {
-        Action::Output(stream) => {
-            if let Ok(action) = stream.clone().try_into() {
-                custom_actions.push(LayerShellActions::CustomActions(action))
-            } else {
+        Action::Output(stream) => match stream.try_into() {
+            Ok(action) => custom_actions.push(LayerShellActions::CustomActions(action)),
+            Err(stream) => {
                 messages.push(stream);
             }
-        }
+        },
 
         Action::Clipboard(action) => match action {
             clipboard::Action::Read { target, channel } => {

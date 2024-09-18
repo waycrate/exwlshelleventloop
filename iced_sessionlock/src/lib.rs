@@ -154,7 +154,7 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
-        Self::Message: 'static + TryInto<UnLockAction> + Clone,
+        Self::Message: 'static + TryInto<UnLockAction, Error = Self::Message>,
     {
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {

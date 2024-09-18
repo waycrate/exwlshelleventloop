@@ -74,7 +74,7 @@ pub trait LayerShellSandbox {
     fn run(settings: Settings<()>) -> Result<(), error::Error>
     where
         Self: 'static + Sized,
-        Self::Message: 'static + TryInto<LayershellCustomActions> + Clone,
+        Self::Message: 'static + TryInto<LayershellCustomActions, Error = Self::Message>,
     {
         <Self as Application>::run(settings)
     }

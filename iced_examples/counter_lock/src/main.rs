@@ -24,12 +24,12 @@ enum Message {
 }
 
 impl TryInto<UnLockAction> for Message {
-    type Error = ();
+    type Error = Self;
     fn try_into(self) -> Result<UnLockAction, Self::Error> {
         if let Self::UnLock = self {
             return Ok(UnLockAction);
         }
-        Err(())
+        Err(self)
     }
 }
 

@@ -165,7 +165,7 @@ pub trait Application: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
-        Self::Message: 'static + TryInto<LayershellCustomActions> + Clone,
+        Self::Message: 'static + TryInto<LayershellCustomActions, Error = Self::Message>,
     {
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {
@@ -208,7 +208,7 @@ where
 impl<A> application::Application for Instance<A>
 where
     A: Application,
-    A::Message: 'static + TryInto<LayershellCustomActions> + Clone,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     type Flags = A::Flags;
 
@@ -355,8 +355,8 @@ pub trait MultiApplication: Sized {
     where
         Self: 'static,
         <Self as MultiApplication>::WindowInfo: Clone,
-        Self::Message:
-            'static + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>> + Clone,
+        Self::Message: 'static
+            + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>, Error = Self::Message>,
     {
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {

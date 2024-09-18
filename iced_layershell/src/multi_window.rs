@@ -156,7 +156,8 @@ where
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
     <A as Application>::WindowInfo: Clone,
-    A::Message: 'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>> + Clone,
+    A::Message:
+        'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
     use futures::task;
     use futures::Future;
@@ -457,7 +458,8 @@ async fn run_instance<A, E, C>(
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
     A::WindowInfo: Clone,
-    A::Message: 'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>> + Clone,
+    A::Message:
+        'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
     use iced::window;
     use iced_core::Event;
@@ -922,7 +924,8 @@ pub(crate) fn run_command<A, C>(
     A: Application,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>> + Clone,
+    A::Message:
+        'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
     A::WindowInfo: Clone + 'static,
 {
     use iced_core::widget::operation;
@@ -931,8 +934,8 @@ pub(crate) fn run_command<A, C>(
     use iced_runtime::window::Action as WinowAction;
     use iced_runtime::Action;
     match event {
-        Action::Output(stream) => {
-            if let Ok(action) = stream.clone().try_into() {
+        Action::Output(stream) => match stream.try_into() {
+            Ok(action) => {
                 let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
                 let option_id = if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1
                 {
@@ -947,10 +950,11 @@ pub(crate) fn run_command<A, C>(
                         action.1.clone(),
                     ),
                 ));
-            } else {
+            }
+            Err(stream) => {
                 messages.push(stream);
             }
-        }
+        },
 
         Action::Clipboard(action) => match action {
             clipboard::Action::Read { target, channel } => {

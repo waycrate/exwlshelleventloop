@@ -49,7 +49,7 @@ enum Message {
 }
 
 impl TryInto<LayershellCustomActions> for Message {
-    type Error = ();
+    type Error = Self;
     fn try_into(self) -> Result<LayershellCustomActions, Self::Error> {
         match self {
             Self::Direction(direction) => Ok(match direction {
@@ -67,7 +67,7 @@ impl TryInto<LayershellCustomActions> for Message {
                 ),
             }),
             Self::SizeChange((x, y)) => Ok(LayershellCustomActions::SizeChange((x, y))),
-            _ => Err(()),
+            _ => Err(self),
         }
     }
 }
