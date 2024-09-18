@@ -3,11 +3,12 @@ resolver = "2"
 members = [
 	"layershellev",
 	"iced_layershell",
-	"iced_sessionlock",
+	#"iced_sessionlock",
 	"starcolorkeyboard",
 	"sessionlockev",
 	"waycrate_xkbkeycode",
-	"iced_examples/*",
+	#"iced_examples/*",
+	"./iced_examples/counter"
 ]
 
 [workspace.package]
@@ -28,7 +29,7 @@ layershellev = { version = "0.6.0", path = "./layershellev" }
 sessionlockev = { version = "0.6.0", path = "./sessionlockev" }
 
 iced_layershell = { version = "0.6.0", path = "./iced_layershell" }
-iced_sessionlock = { version = "0.6.0", path = "./iced_sessionlock" }
+#iced_sessionlock = { version = "0.6.0", path = "./iced_sessionlock" }
 waycrate_xkbkeycode = { version = "0.6.0", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.12.0"
@@ -61,13 +62,13 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
-iced = "0.12"
-iced_runtime = { version = "0.12", features = ["multi-window"] }
-iced_style = "0.12"
-iced_core = "0.12"
-iced_renderer = "0.12.1"
-iced_futures = "0.12.0"
-iced_graphics = "0.12.1"
+iced = "0.13"
+iced_runtime = { version = "0.13", features = ["multi-window"] }
+#iced_style = "0.13"
+iced_core = "0.13"
+iced_renderer = "0.13"
+iced_futures = "0.13"
+iced_graphics = "0.13"
 window_clipboard = "0.4.1"
 
 bitflags = "2.6.0"

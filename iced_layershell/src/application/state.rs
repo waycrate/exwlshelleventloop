@@ -1,32 +1,32 @@
 use crate::application::Application;
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
-use iced_style::application::{self, StyleSheet};
+use crate::{Appearance, DefaultStyle};
 use layershellev::keyboard::ModifiersState;
 
 use crate::event::WindowEvent;
 
 pub struct State<A: Application>
 where
-    A::Theme: application::StyleSheet,
+    A::Theme: DefaultStyle,
 {
     scale_factor: f64,
     viewport: Viewport,
     viewport_version: usize,
     theme: A::Theme,
-    appearance: application::Appearance,
+    appearance: Appearance,
     mouse_position: Option<Point>,
     modifiers: ModifiersState,
 }
 
 impl<A: Application> State<A>
 where
-    A::Theme: application::StyleSheet,
+    A::Theme: DefaultStyle,
 {
     pub fn new(application: &A, window: &layershellev::WindowStateSimple) -> Self {
         let scale_factor = application.scale_factor();
         let theme = application.theme();
-        let appearance = theme.appearance(&application.style());
+        let appearance = application.style(&theme);
 
         let viewport = {
             let (width, height) = window.main_window().get_size();
@@ -113,6 +113,6 @@ where
             self.scale_factor = new_scale_factor;
         }
         self.theme = application.theme();
-        self.appearance = self.theme.appearance(&application.style());
+        let appearance = application.style(&self.theme);
     }
 }

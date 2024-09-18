@@ -1,7 +1,6 @@
 use crate::reexport::{Anchor, Layer};
 use iced::window::Id as IcedId;
 use iced_core::mouse::Interaction;
-use iced_runtime::command::Action;
 use layershellev::id::Id as LayerId;
 use layershellev::NewLayerShellSettings;
 
@@ -9,8 +8,8 @@ use layershellev::NewLayerShellSettings;
 #[derive(Debug, Clone)]
 pub(crate) enum LayerShellActions<INFO: Clone> {
     Mouse(Interaction),
-    CustomActions(Vec<LayershellCustomActionsWithInfo<INFO>>),
-    CustomActionsWithId(Vec<LayershellCustomActionsWithIdInner<INFO>>),
+    CustomActions(LayershellCustomActionsWithInfo<INFO>),
+    CustomActionsWithId(LayershellCustomActionsWithIdInner<INFO>),
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
     NewMenu((IcedNewPopupSettings, INFO)),
@@ -75,20 +74,3 @@ pub(crate) struct LayershellCustomActionsWithIdInner<INFO: Clone>(
     pub Option<LayerId>,                       // target if has one
     pub LayershellCustomActionsWithInfo<INFO>, // actions
 );
-
-impl<T, INFO: Clone + 'static> From<LayershellCustomActionsWithIdAndInfo<INFO>> for Action<T> {
-    fn from(value: LayershellCustomActionsWithIdAndInfo<INFO>) -> Self {
-        Action::Custom(Box::new(value.clone()))
-    }
-}
-impl<T, INFO: Clone + 'static> From<LayershellCustomActionsWithInfo<INFO>> for Action<T> {
-    fn from(value: LayershellCustomActionsWithInfo<INFO>) -> Self {
-        Action::Custom(Box::new(value.clone()))
-    }
-}
-
-impl<INFO: Clone + 'static> LayershellCustomActionsWithInfo<INFO> {
-    pub fn to_action<T>(&self) -> Action<T> {
-        (*self).clone().into()
-    }
-}

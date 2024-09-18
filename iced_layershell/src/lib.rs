@@ -19,16 +19,49 @@ pub mod reexport {
     pub use layershellev::NewLayerShellSettings;
 }
 
+use actions::{LayershellCustomActions, LayershellCustomActionsWithIdAndInfo};
 use settings::Settings;
+
+use iced_runtime::Task;
 
 pub use error::Error;
 
-use iced::Element;
+use iced::{Color, Element, Theme};
 use iced_futures::Subscription;
-use iced_runtime::Command;
-use iced_style::application::StyleSheet;
 
 pub use sandbox::LayerShellSandbox;
+
+/// The appearance of a program.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Appearance {
+    /// The background [`Color`] of the application.
+    pub background_color: Color,
+
+    /// The default text [`Color`] of the application.
+    pub text_color: Color,
+}
+
+/// The default style of a [`Program`].
+pub trait DefaultStyle {
+    /// Returns the default style of a [`Program`].
+    fn default_style(&self) -> Appearance;
+}
+
+impl DefaultStyle for Theme {
+    fn default_style(&self) -> Appearance {
+        default(self)
+    }
+}
+
+/// The default [`Appearance`] of a [`Program`] with the built-in [`Theme`].
+pub fn default(theme: &Theme) -> Appearance {
+    let palette = theme.extended_palette();
+
+    Appearance {
+        background_color: palette.background.base.color,
+        text_color: palette.background.base.text,
+    }
+}
 
 // layershell application
 pub trait Application: Sized {
@@ -44,7 +77,7 @@ pub trait Application: Sized {
     type Message: std::fmt::Debug + Send;
 
     /// The theme of your [`Application`].
-    type Theme: Default + StyleSheet;
+    type Theme: Default + DefaultStyle;
 
     /// The data needed to initialize your [`Application`].
     type Flags;
@@ -59,7 +92,7 @@ pub trait Application: Sized {
     /// load state from a file, perform an initial HTTP request, etc.
     ///
     /// [`run`]: Self::run
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
     /// Returns the current title of the [`Application`].
     ///
@@ -74,7 +107,7 @@ pub trait Application: Sized {
     /// this method.
     ///
     /// Any [`Command`] returned will be executed immediately in the background.
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message>;
 
     /// Returns the widgets to display in the [`Application`].
     ///
@@ -91,8 +124,8 @@ pub trait Application: Sized {
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        <Self::Theme as StyleSheet>::Style::default()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -132,9 +165,10 @@ pub trait Application: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
+        Self::Message: 'static + TryInto<LayershellCustomActions> + Clone,
     {
         #[allow(clippy::needless_update)]
-        let renderer_settings = iced_renderer::Settings {
+        let renderer_settings = iced_graphics::Settings {
             default_font: settings.default_font,
             default_text_size: settings.default_text_size,
             antialiasing: if settings.antialiasing {
@@ -142,7 +176,7 @@ pub trait Application: Sized {
             } else {
                 None
             },
-            ..iced_renderer::Settings::default()
+            ..iced_graphics::Settings::default()
         };
 
         application::run::<Instance<Self>, Self::Executor, iced_renderer::Compositor>(
@@ -162,7 +196,7 @@ where
     type Theme = A::Theme;
     type Renderer = iced_renderer::Renderer;
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         self.0.update(message)
     }
 
@@ -174,10 +208,11 @@ where
 impl<A> application::Application for Instance<A>
 where
     A: Application,
+    A::Message: 'static + TryInto<LayershellCustomActions> + Clone,
 {
     type Flags = A::Flags;
 
-    fn new(flags: Self::Flags) -> (Self, Command<A::Message>) {
+    fn new(flags: Self::Flags) -> (Self, Task<A::Message>) {
         let (app, command) = A::new(flags);
 
         (Instance(app), command)
@@ -191,8 +226,8 @@ where
         self.0.theme()
     }
 
-    fn style(&self) -> <A::Theme as StyleSheet>::Style {
-        self.0.style()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        self.0.style(theme)
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
@@ -221,7 +256,7 @@ pub trait MultiApplication: Sized {
 
     type WindowInfo;
 
-    type Theme: Default + StyleSheet;
+    type Theme: Default + DefaultStyle;
 
     const BACKGROUND_MODE: bool = false;
 
@@ -235,7 +270,7 @@ pub trait MultiApplication: Sized {
     /// load state from a file, perform an initial HTTP request, etc.
     ///
     /// [`run`]: Self::run
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
     /// Returns the current title of the `window` of the [`Application`].
     ///
@@ -256,7 +291,7 @@ pub trait MultiApplication: Sized {
     /// this method.
     ///
     /// Any [`Command`] returned will be executed immediately in the background.
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message>;
 
     /// Returns the widgets to display in the `window` of the [`Application`].
     ///
@@ -277,8 +312,8 @@ pub trait MultiApplication: Sized {
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        <Self::Theme as StyleSheet>::Style::default()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -320,9 +355,11 @@ pub trait MultiApplication: Sized {
     where
         Self: 'static,
         <Self as MultiApplication>::WindowInfo: Clone,
+        Self::Message:
+            'static + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>> + Clone,
     {
         #[allow(clippy::needless_update)]
-        let renderer_settings = iced_renderer::Settings {
+        let renderer_settings = iced_graphics::Settings {
             default_font: settings.default_font,
             default_text_size: settings.default_text_size,
             antialiasing: if settings.antialiasing {
@@ -330,7 +367,7 @@ pub trait MultiApplication: Sized {
             } else {
                 None
             },
-            ..iced_renderer::Settings::default()
+            ..iced_graphics::Settings::default()
         };
 
         multi_window::run::<MultiInstance<Self>, Self::Executor, iced_renderer::Compositor>(
@@ -350,7 +387,7 @@ where
     type Theme = A::Theme;
     type Renderer = iced_renderer::Renderer;
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         self.0.update(message)
     }
 
@@ -372,7 +409,7 @@ where
 
     const BACKGROUND_MODE: bool = A::BACKGROUND_MODE;
 
-    fn new(flags: Self::Flags) -> (Self, Command<A::Message>) {
+    fn new(flags: Self::Flags) -> (Self, Task<A::Message>) {
         let (app, command) = A::new(flags);
 
         (MultiInstance(app), command)
@@ -386,8 +423,8 @@ where
         self.0.theme()
     }
 
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        self.0.style()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        self.0.style(theme)
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

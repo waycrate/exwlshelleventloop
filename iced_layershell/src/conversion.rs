@@ -61,10 +61,12 @@ pub fn window_event(
             };
             match state {
                 ElementState::Pressed => keyboard::Event::KeyPressed {
-                    key,
+                    key: key.clone(),
                     location,
                     modifiers,
                     text,
+                    modified_key: key,
+                    physical_key: keyboard::key::Physical::Code(keyboard::key::Code::NumpadStar),
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
                     key,
@@ -130,6 +132,7 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::NotAllowed => "not_allowed".to_owned(),
         Interaction::ResizingVertically => "ns_resize".to_owned(),
         Interaction::ResizingHorizontally => "ew_resize".to_owned(),
+        _ => "default".to_owned(),
     }
 }
 
