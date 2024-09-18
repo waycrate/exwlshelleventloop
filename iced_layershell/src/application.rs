@@ -114,6 +114,8 @@ where
     }
 }
 
+type SingleRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
+
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
     settings: Settings<A::Flags>,
@@ -135,7 +137,7 @@ where
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
-    let mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<<A as Program>::Message>> = {
+    let mut runtime: SingleRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
@@ -310,7 +312,7 @@ where
 async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
-    mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
+    mut runtime: SingleRuntime<E, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>, ()>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActions<()>>,
@@ -470,7 +472,7 @@ async fn run_instance<A, E, C>(
                     &mut compositor,
                     &mut surface,
                     &mut cache,
-                    &mut state,
+                    &state,
                     &mut renderer,
                     event,
                     &mut messages,
@@ -573,7 +575,7 @@ where
 pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
     state: &mut State<A>,
-    runtime: &mut Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
+    runtime: &mut SingleRuntime<E, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
 ) where

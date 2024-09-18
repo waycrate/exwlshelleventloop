@@ -113,6 +113,6 @@ where
             self.scale_factor = new_scale_factor;
         }
         self.theme = application.theme();
-        let appearance = application.style(&self.theme);
+        self.appearance = application.style(&self.theme);
     }
 }

@@ -143,6 +143,8 @@ where
     }
 }
 
+type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
+
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
     settings: Settings<A::Flags>,
@@ -165,7 +167,7 @@ where
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
-    let mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<<A as Program>::Message>> = {
+    let mut runtime: MultiRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
@@ -442,7 +444,7 @@ where
 async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
-    mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
+    mut runtime: MultiRuntime<E, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<
         MultiWindowIcedLayerEvent<Action<A::Message>, A::WindowInfo>,
@@ -878,7 +880,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
-    runtime: &mut Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
+    runtime: &mut MultiRuntime<E, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
 ) where
