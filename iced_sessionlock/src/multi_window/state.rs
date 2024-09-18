@@ -1,7 +1,7 @@
 use crate::multi_window::Application;
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
-use iced_style::application::{self, StyleSheet};
+use crate::{DefaultStyle, Appearance};
 use sessionlockev::keyboard::ModifiersState;
 
 use crate::event::WindowEvent;
@@ -9,26 +9,26 @@ use iced::window;
 
 pub struct State<A: Application>
 where
-    A::Theme: application::StyleSheet,
+    A::Theme: DefaultStyle,
 {
     id: window::Id,
     scale_factor: f64,
     viewport: Viewport,
     viewport_version: usize,
     theme: A::Theme,
-    appearance: application::Appearance,
+    appearance: Appearance,
     mouse_position: Option<Point>,
     modifiers: ModifiersState,
 }
 
 impl<A: Application> State<A>
 where
-    A::Theme: application::StyleSheet,
+    A::Theme: DefaultStyle,
 {
     pub fn new(id: window::Id, application: &A, (width, height): (u32, u32)) -> Self {
         let scale_factor = application.scale_factor(id);
         let theme = application.theme();
-        let appearance = theme.appearance(&application.style());
+        let appearance = application.style(&theme);
 
         let viewport =
             Viewport::with_physical_size(iced_core::Size::new(width, height), 1. * scale_factor);
@@ -111,6 +111,6 @@ where
             self.scale_factor = new_scale_factor;
         }
         self.theme = application.theme();
-        self.appearance = self.theme.appearance(&application.style());
+        self.appearance = application.style(&self.theme);
     }
 }

@@ -1,5 +1,5 @@
 use iced::widget::{button, column, text, text_input};
-use iced::{event, Alignment, Command, Element, Event, Length, Theme};
+use iced::{event, Element, Event, Task as Command, Theme};
 
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
@@ -20,7 +20,17 @@ enum Message {
     DecrementPressed,
     TextInput(String),
     IcedEvent(Event),
-    Lock,
+    UnLock,
+}
+
+impl TryInto<UnLockAction> for Message {
+    type Error = ();
+    fn try_into(self) -> Result<UnLockAction, Self::Error> {
+        if let Self::UnLock = self {
+            return Ok(UnLockAction);
+        }
+        Err(())
+    }
 }
 
 impl MultiApplication for Counter {
@@ -65,7 +75,7 @@ impl MultiApplication for Counter {
                 self.text = text;
                 Command::none()
             }
-            Message::Lock => Command::single(UnLockAction.into()),
+            Message::UnLock => Command::done(message),
         }
     }
 
@@ -73,7 +83,7 @@ impl MultiApplication for Counter {
         //println!("{:?}, {}", _id, self.value);
         column![
             button("Increment").on_press(Message::IncrementPressed),
-            button("Lock").on_press(Message::Lock),
+            button("Lock").on_press(Message::UnLock),
             text(self.value).size(50),
             text_input("hello", &self.text)
                 .on_input(Message::TextInput)
@@ -81,9 +91,6 @@ impl MultiApplication for Counter {
             button("Decrement").on_press(Message::DecrementPressed)
         ]
         .padding(20)
-        .align_items(Alignment::Center)
-        .width(Length::Fill)
-        .height(Length::Fill)
         .into()
     }
 }

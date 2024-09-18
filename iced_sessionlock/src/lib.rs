@@ -8,14 +8,45 @@ mod proxy;
 
 pub mod settings;
 
+use actions::UnLockAction;
 use settings::Settings;
 
 pub use error::Error;
 
-use iced::Element;
+use iced::{Color, Element, Theme};
 use iced_futures::Subscription;
-use iced_runtime::Command;
-use iced_style::application::StyleSheet;
+use iced_runtime::Task;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Appearance {
+    /// The background [`Color`] of the application.
+    pub background_color: Color,
+
+    /// The default text [`Color`] of the application.
+    pub text_color: Color,
+}
+
+/// The default style of a [`Program`].
+pub trait DefaultStyle {
+    /// Returns the default style of a [`Program`].
+    fn default_style(&self) -> Appearance;
+}
+
+impl DefaultStyle for Theme {
+    fn default_style(&self) -> Appearance {
+        default(self)
+    }
+}
+
+/// The default [`Appearance`] of a [`Program`] with the built-in [`Theme`].
+pub fn default(theme: &Theme) -> Appearance {
+    let palette = theme.extended_palette();
+
+    Appearance {
+        background_color: palette.background.base.color,
+        text_color: palette.background.base.text,
+    }
+}
 
 pub trait MultiApplication: Sized {
     /// The [`Executor`] that will run commands and subscriptions.
@@ -32,7 +63,7 @@ pub trait MultiApplication: Sized {
     /// The data needed to initialize your [`MultiApplication`].
     type Flags;
 
-    type Theme: Default + StyleSheet;
+    type Theme: Default + DefaultStyle;
 
     /// Initializes the [`MultiApplication`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -44,7 +75,7 @@ pub trait MultiApplication: Sized {
     /// load state from a file, perform an initial HTTP request, etc.
     ///
     /// [`run`]: Self::run
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
     /// Returns the current title of the `window` of the [`MultiApplication`].
     ///
@@ -59,7 +90,7 @@ pub trait MultiApplication: Sized {
     /// this method.
     ///
     /// Any [`Command`] returned will be executed immediately in the background.
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message>;
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message>;
 
     /// Returns the widgets to display in the `window` of the [`MultiApplication`].
     ///
@@ -80,8 +111,9 @@ pub trait MultiApplication: Sized {
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        <Self::Theme as StyleSheet>::Style::default()
+
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -122,9 +154,10 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
+        Self::Message: 'static + TryInto<UnLockAction> + Clone,
     {
         #[allow(clippy::needless_update)]
-        let renderer_settings = iced_renderer::Settings {
+        let renderer_settings = iced_graphics::Settings {
             default_font: settings.default_font,
             default_text_size: settings.default_text_size,
             antialiasing: if settings.antialiasing {
@@ -132,7 +165,7 @@ pub trait MultiApplication: Sized {
             } else {
                 None
             },
-            ..iced_renderer::Settings::default()
+            ..iced_graphics::Settings::default()
         };
 
         multi_window::run::<MultiInstance<Self>, Self::Executor, iced_renderer::Compositor>(
@@ -152,7 +185,7 @@ where
     type Theme = A::Theme;
     type Renderer = iced_renderer::Renderer;
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         self.0.update(message)
     }
 
@@ -170,7 +203,7 @@ where
 {
     type Flags = A::Flags;
 
-    fn new(flags: Self::Flags) -> (Self, Command<A::Message>) {
+    fn new(flags: Self::Flags) -> (Self, Task<A::Message>) {
         let (app, command) = A::new(flags);
 
         (MultiInstance(app), command)
@@ -184,8 +217,8 @@ where
         self.0.theme()
     }
 
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        self.0.style()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        self.0.style(theme)
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {

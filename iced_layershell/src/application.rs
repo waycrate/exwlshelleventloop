@@ -138,7 +138,7 @@ where
     let mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<<A as Program>::Message>> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
-        Runtime::new(executor, proxy.clone())
+        Runtime::new(executor, proxy)
     };
 
     let (application, task) = {
@@ -180,12 +180,11 @@ where
         application,
         compositor_settings,
         runtime,
-        proxy,
         debug,
         event_receiver,
         control_sender,
         state,
-        window.clone(),
+        window,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -312,7 +311,6 @@ async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
     mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
-    #[allow(unused)] mut proxy: IcedProxy<Action<A::Message>>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>, ()>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActions<()>>,

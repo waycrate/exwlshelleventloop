@@ -3,12 +3,13 @@ resolver = "2"
 members = [
 	"layershellev",
 	"iced_layershell",
-	#"iced_sessionlock",
+	"iced_sessionlock",
 	"starcolorkeyboard",
 	"sessionlockev",
 	"waycrate_xkbkeycode",
 	#"iced_examples/*",
-	"./iced_examples/counter"
+	"./iced_examples/counter",
+	"./iced_examples/counter_lock"
 ]
 
 [workspace.package]
@@ -29,7 +30,7 @@ layershellev = { version = "0.6.0", path = "./layershellev" }
 sessionlockev = { version = "0.6.0", path = "./sessionlockev" }
 
 iced_layershell = { version = "0.6.0", path = "./iced_layershell" }
-#iced_sessionlock = { version = "0.6.0", path = "./iced_sessionlock" }
+iced_sessionlock = { version = "0.6.0", path = "./iced_sessionlock" }
 waycrate_xkbkeycode = { version = "0.6.0", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.12.0"

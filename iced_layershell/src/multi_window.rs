@@ -168,7 +168,7 @@ where
     let mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<<A as Program>::Message>> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
-        Runtime::new(executor, proxy.clone())
+        Runtime::new(executor, proxy)
     };
     let (application, task) = {
         let flags = settings.flags;
@@ -208,11 +208,9 @@ where
         application,
         compositor_settings,
         runtime,
-        proxy,
         debug,
         event_receiver,
         control_sender,
-        //state,
         window,
     ));
 
@@ -445,7 +443,6 @@ async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
     mut runtime: Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
-    mut proxy: IcedProxy<Action<A::Message>>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<
         MultiWindowIcedLayerEvent<Action<A::Message>, A::WindowInfo>,
@@ -657,15 +654,13 @@ async fn run_instance<A, E, C>(
                         .map(|(id, ui)| (id, ui.into_cache()))
                         .collect();
                 run_command(
-                    &mut application,
+                    &application,
                     &mut compositor,
                     event,
                     &mut messages,
-                    &mut runtime,
                     &mut clipboard,
                     &mut custom_actions,
                     &mut should_exit,
-                    &mut proxy,
                     &mut debug,
                     &mut window_manager,
                     &mut cached_interfaces,
@@ -910,22 +905,19 @@ pub(crate) fn update<A: Application, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_command<A, C, E>(
+pub(crate) fn run_command<A, C>(
     application: &A,
     compositor: &mut C,
     event: Action<A::Message>,
     messages: &mut Vec<A::Message>,
-    runtime: &mut Runtime<E, IcedProxy<Action<A::Message>>, Action<A::Message>>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellActions<A::WindowInfo>>,
     should_exit: &mut bool,
-    proxy: &mut IcedProxy<Action<A::Message>>,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
     A: Application,
-    E: Executor,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>> + Clone,
@@ -939,6 +931,7 @@ pub(crate) fn run_command<A, C, E>(
     match event {
         Action::Output(stream) => {
             if let Ok(action) = stream.clone().try_into() {
+                let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
                 let option_id = if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1
                 {
                     window_manager.get_layer_id(id)
