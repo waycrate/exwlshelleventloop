@@ -10,7 +10,7 @@ keywords.workspace = true
 readme.workspace = true
 
 [dependencies]
-iced = { version = "0.12.1", features = ["canvas"] }
+iced = { version = "0.13.1", features = ["canvas"] }
 iced_runtime.workspace = true
 iced_layershell.workspace = true
 xkbcommon = "0.6.0"

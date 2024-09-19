@@ -7,10 +7,7 @@ members = [
 	"starcolorkeyboard",
 	"sessionlockev",
 	"waycrate_xkbkeycode",
-	#"iced_examples/*",
-	"./iced_examples/counter",
-	"./iced_examples/counter_lock",
-	"./iced_examples/counter_muti"
+	"iced_examples/*",
 ]
 
 [workspace.package]
