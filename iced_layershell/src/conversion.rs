@@ -5,15 +5,14 @@ use crate::event::WindowEvent as LayerShellEvent;
 use iced::touch;
 use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
-use keymap::key;
+use keymap::{key, physical_key};
 use layershellev::keyboard::KeyLocation;
 use layershellev::keyboard::ModifiersState;
 use layershellev::xkb_keyboard::ElementState;
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 
-#[allow(unused)]
 pub fn window_event(
-    id: iced_core::window::Id,
+    #[allow(unused)] id: iced_core::window::Id,
     layerevent: &LayerShellEvent,
     modifiers: ModifiersState,
 ) -> Option<IcedEvent> {
@@ -42,15 +41,23 @@ pub fn window_event(
             }))
         }
         LayerShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
-            let logical_key = event.key_without_modifiers();
+            let key = event.key_without_modifiers();
             let text = event
                 .text_with_all_modifiers()
                 .map(SmolStr::new)
                 .filter(|text| !text.as_str().chars().any(is_private_use));
             let LayerShellKeyEvent {
-                state, location, ..
+                state,
+                location,
+                logical_key,
+                physical_key,
+                ..
             } = event;
-            let key = key(logical_key);
+            let key = self::key(key);
+            let modified_key = self::key(logical_key.clone());
+
+            let physical_key = self::physical_key(*physical_key);
+
             let modifiers = keymap::modifiers(modifiers);
 
             let location = match location {
@@ -61,12 +68,12 @@ pub fn window_event(
             };
             match state {
                 ElementState::Pressed => keyboard::Event::KeyPressed {
-                    key: key.clone(),
+                    key,
                     location,
                     modifiers,
                     text,
-                    modified_key: key,
-                    physical_key: keyboard::key::Physical::Code(keyboard::key::Code::NumpadStar),
+                    modified_key,
+                    physical_key,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
                     key,
