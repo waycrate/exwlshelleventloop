@@ -675,6 +675,9 @@ async fn run_instance<A, E, C>(
                     &mut window_manager,
                     cached_interfaces,
                 ));
+                if should_exit {
+                    break;
+                }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::NormalUpdate) => {
                 if events.is_empty() && messages.is_empty() {
@@ -763,9 +766,6 @@ async fn run_instance<A, E, C>(
                         &mut window_manager,
                         cached_interfaces,
                     ));
-                    if should_exit {
-                        break;
-                    }
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
