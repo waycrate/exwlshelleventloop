@@ -816,11 +816,11 @@ async fn run_instance<A, E, C>(
             }
             _ => {}
         }
-        for action in &custom_actions {
-            control_sender.start_send(action.clone()).ok();
+        let mut swap_actions = vec![];
+        std::mem::swap(&mut swap_actions, &mut custom_actions);
+        for action in swap_actions.into_iter() {
+            control_sender.start_send(action).ok();
         }
-
-        custom_actions.clear();
     }
     let _ = ManuallyDrop::into_inner(user_interfaces);
 }
