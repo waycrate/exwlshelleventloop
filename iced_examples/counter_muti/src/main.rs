@@ -74,17 +74,6 @@ enum CounterLayerActions {
     NewWindowRight,
 }
 
-//#[derive(Default)]
-//struct BlackMenu;
-//
-//impl container::StyleSheet for BlackMenu {
-//    type Style = iced::Theme;
-//    fn appearance(&self, _style: &Self::Style) -> container::Appearance {
-//        container::Appearance::default().with_background(iced::Color::new(0., 0.5, 0.7, 0.6))
-//    }
-//}
-//
-//
 type CounterLayerAction = LayershellCustomActionsWithIdAndInfo<WindowInfo>;
 type CounterLayerCustonAction = LayershellCustomActionsWithInfo<WindowInfo>;
 
@@ -304,6 +293,10 @@ impl MultiApplication for Counter {
             return container(button("close PopUp").on_press(Message::Close(id)))
                 .center_x(Length::Fill)
                 .center_y(Length::Fill)
+                .style(|_theme| container::Style {
+                    background: Some(iced::Color::new(0., 0.5, 0.7, 0.6).into()),
+                    ..Default::default()
+                })
                 //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
