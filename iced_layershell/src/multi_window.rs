@@ -945,7 +945,7 @@ pub(crate) fn run_command<A, C>(
                 };
                 custom_actions.push(LayerShellActions::CustomActionsWithId(
                     LayershellCustomActionsWithIdInner(
-                        window_manager.get_layer_id(action.0),
+                        action.0.and_then(|id| window_manager.get_layer_id(id)),
                         option_id,
                         action.1.clone(),
                     ),

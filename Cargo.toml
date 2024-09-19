@@ -9,7 +9,8 @@ members = [
 	"waycrate_xkbkeycode",
 	#"iced_examples/*",
 	"./iced_examples/counter",
-	"./iced_examples/counter_lock"
+	"./iced_examples/counter_lock",
+	"./iced_examples/counter_muti"
 ]
 
 [workspace.package]

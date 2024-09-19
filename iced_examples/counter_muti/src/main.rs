@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 
-use iced::theme::Container;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
-use iced::{event, Alignment, Command, Element, Event, Length, Theme};
+use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
 use iced_layershell::actions::{
-    IcedNewMenuSettings, LayershellCustomActions, LayershellCustomActionsWithId,
-    LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo, MenuDirection,
+    IcedNewMenuSettings, LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo,
+    MenuDirection,
 };
-use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
+use iced_runtime::{task, Action};
 
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings};
@@ -57,15 +56,122 @@ enum Message {
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
+    IcedAction(CounterLayerActions),
 }
 
-#[derive(Default)]
-struct BlackMenu;
+#[derive(Debug, Clone)]
+enum CounterLayerActions {
+    MenuShown,
+    ToLeft(Id),
+    LeftSizeChange(Id),
+    ToRight(Id),
+    RightSizeChange(Id),
+    ToBottom(Id),
+    BottomSizeChange(Id),
+    ToTop(Id),
+    TopSizeChange(Id),
+    NewWindowLeft,
+    NewWindowRight,
+}
 
-impl container::StyleSheet for BlackMenu {
-    type Style = iced::Theme;
-    fn appearance(&self, _style: &Self::Style) -> container::Appearance {
-        container::Appearance::default().with_background(iced::Color::new(0., 0.5, 0.7, 0.6))
+//#[derive(Default)]
+//struct BlackMenu;
+//
+//impl container::StyleSheet for BlackMenu {
+//    type Style = iced::Theme;
+//    fn appearance(&self, _style: &Self::Style) -> container::Appearance {
+//        container::Appearance::default().with_background(iced::Color::new(0., 0.5, 0.7, 0.6))
+//    }
+//}
+//
+//
+type CounterLayerAction = LayershellCustomActionsWithIdAndInfo<WindowInfo>;
+type CounterLayerCustonAction = LayershellCustomActionsWithInfo<WindowInfo>;
+
+impl TryInto<CounterLayerAction> for Message {
+    type Error = Self;
+    fn try_into(self) -> Result<CounterLayerAction, Self::Error> {
+        let Self::IcedAction(action) = self else {
+            return Err(self);
+        };
+        match action {
+            CounterLayerActions::MenuShown => Ok(CounterLayerAction::new(
+                None,
+                LayershellCustomActionsWithInfo::NewMenu((
+                    IcedNewMenuSettings {
+                        size: (100, 100),
+                        direction: MenuDirection::Up,
+                    },
+                    WindowInfo::PopUp,
+                )),
+            )),
+            CounterLayerActions::ToLeft(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::AnchorChange(Anchor::Left | Anchor::Top | Anchor::Bottom),
+            )),
+            CounterLayerActions::LeftSizeChange(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::SizeChange((400, 0)),
+            )),
+            CounterLayerActions::ToRight(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::AnchorChange(
+                    Anchor::Right | Anchor::Top | Anchor::Bottom,
+                ),
+            )),
+            CounterLayerActions::RightSizeChange(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::SizeChange((400, 0)),
+            )),
+            CounterLayerActions::ToBottom(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::AnchorChange(
+                    Anchor::Bottom | Anchor::Left | Anchor::Right,
+                ),
+            )),
+            CounterLayerActions::BottomSizeChange(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::SizeChange((0, 400)),
+            )),
+            CounterLayerActions::ToTop(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::AnchorChange(Anchor::Top | Anchor::Left | Anchor::Right),
+            )),
+            CounterLayerActions::TopSizeChange(id) => Ok(CounterLayerAction::new(
+                Some(id),
+                CounterLayerCustonAction::SizeChange((0, 400)),
+            )),
+            CounterLayerActions::NewWindowLeft => Ok(CounterLayerAction::new(
+                None,
+                CounterLayerCustonAction::NewLayerShell((
+                    NewLayerShellSettings {
+                        size: Some((100, 100)),
+                        exclusive_zone: None,
+                        anchor: Anchor::Left | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: None,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        use_last_output: false,
+                    },
+                    WindowInfo::Left,
+                )),
+            )),
+            CounterLayerActions::NewWindowRight => Ok(CounterLayerAction::new(
+                None,
+                CounterLayerCustonAction::NewLayerShell((
+                    NewLayerShellSettings {
+                        size: Some((100, 100)),
+                        exclusive_zone: None,
+                        anchor: Anchor::Right | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: None,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        use_last_output: false,
+                    },
+                    WindowInfo::Right,
+                )),
+            )),
+        }
     }
 }
 
@@ -130,23 +236,13 @@ impl MultiApplication for Counter {
                         ..
                     }) => {
                         if let Some(id) = self.window_id(&WindowInfo::Left) {
-                            return Command::single(Action::Window(WindowAction::Close(*id)));
+                            return iced_runtime::task::effect(Action::Window(
+                                WindowAction::Close(*id),
+                            ));
                         }
                     }
                     Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
-                        return Command::single(
-                            LayershellCustomActionsWithIdAndInfo::new(
-                                iced::window::Id::MAIN,
-                                LayershellCustomActionsWithInfo::NewMenu((
-                                    IcedNewMenuSettings {
-                                        size: (100, 100),
-                                        direction: MenuDirection::Up,
-                                    },
-                                    WindowInfo::PopUp,
-                                )),
-                            )
-                            .into(),
-                        );
+                        return Command::done(Message::IcedAction(CounterLayerActions::MenuShown));
                     }
                     _ => {}
                 }
@@ -166,115 +262,34 @@ impl MultiApplication for Counter {
             }
             Message::Direction(direction) => match direction {
                 WindowDirection::Left(id) => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActions::AnchorChange(
-                                Anchor::Left | Anchor::Top | Anchor::Bottom,
-                            ),
-                        )
-                        .into(),
-                    ),
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActions::SizeChange((400, 0)),
-                        )
-                        .into(),
-                    ),
+                    Command::done(Message::IcedAction(CounterLayerActions::ToLeft(id))),
+                    Command::done(Message::IcedAction(CounterLayerActions::LeftSizeChange(id))),
                 ]),
                 WindowDirection::Right(id) => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActions::AnchorChange(
-                                Anchor::Right | Anchor::Top | Anchor::Bottom,
-                            ),
-                        )
-                        .into(),
-                    ),
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActions::SizeChange((400, 0)),
-                        )
-                        .into(),
-                    ),
+                    Command::done(Message::IcedAction(CounterLayerActions::ToRight(id))),
+                    Command::done(Message::IcedAction(CounterLayerActions::RightSizeChange(
+                        id,
+                    ))),
                 ]),
                 WindowDirection::Bottom(id) => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActions::AnchorChange(
-                                Anchor::Bottom | Anchor::Left | Anchor::Right,
-                            ),
-                        )
-                        .into(),
-                    ),
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActionsWithInfo::SizeChange((0, 400)),
-                        )
-                        .into(),
-                    ),
+                    Command::done(Message::IcedAction(CounterLayerActions::ToBottom(id))),
+                    Command::done(Message::IcedAction(CounterLayerActions::BottomSizeChange(
+                        id,
+                    ))),
                 ]),
                 WindowDirection::Top(id) => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActionsWithInfo::AnchorChange(
-                                Anchor::Top | Anchor::Left | Anchor::Right,
-                            ),
-                        )
-                        .into(),
-                    ),
-                    Command::single(
-                        LayershellCustomActionsWithId::new(
-                            id,
-                            LayershellCustomActions::SizeChange((0, 400)),
-                        )
-                        .into(),
-                    ),
+                    Command::done(Message::IcedAction(CounterLayerActions::ToTop(id))),
+                    Command::done(Message::IcedAction(CounterLayerActions::TopSizeChange(id))),
                 ]),
             },
-            Message::NewWindowLeft => Command::single(
-                LayershellCustomActionsWithIdAndInfo::new(
-                    iced::window::Id::MAIN,
-                    LayershellCustomActionsWithInfo::NewLayerShell((
-                        NewLayerShellSettings {
-                            size: Some((100, 100)),
-                            exclusive_zone: None,
-                            anchor: Anchor::Left | Anchor::Bottom,
-                            layer: Layer::Top,
-                            margin: None,
-                            keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                            use_last_output: false,
-                        },
-                        WindowInfo::Left,
-                    )),
-                )
-                .into(),
-            ),
-            Message::NewWindowRight => Command::single(
-                LayershellCustomActionsWithIdAndInfo::new(
-                    iced::window::Id::MAIN,
-                    LayershellCustomActionsWithInfo::NewLayerShell((
-                        NewLayerShellSettings {
-                            size: Some((100, 100)),
-                            exclusive_zone: None,
-                            anchor: Anchor::Right | Anchor::Bottom,
-                            layer: Layer::Top,
-                            margin: None,
-                            keyboard_interactivity: KeyboardInteractivity::None,
-                            use_last_output: false,
-                        },
-                        WindowInfo::Right,
-                    )),
-                )
-                .into(),
-            ),
-            Message::Close(id) => Command::single(Action::Window(WindowAction::Close(id))),
+            Message::NewWindowLeft => {
+                Command::done(Message::IcedAction(CounterLayerActions::NewWindowLeft))
+            }
+            Message::NewWindowRight => {
+                Command::done(Message::IcedAction(CounterLayerActions::NewWindowRight))
+            }
+            Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
+            _ => unreachable!(),
         }
     }
 
@@ -287,9 +302,9 @@ impl MultiApplication for Counter {
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
             return container(button("close PopUp").on_press(Message::Close(id)))
-                .center_x()
-                .center_y()
-                .style(Container::Custom(Box::new(BlackMenu)))
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();
@@ -301,8 +316,8 @@ impl MultiApplication for Counter {
             button("newwindowLeft").on_press(Message::NewWindowLeft),
             button("newwindowRight").on_press(Message::NewWindowRight),
         ]
+        .align_x(Alignment::Center)
         .padding(20)
-        .align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill);
         row![
@@ -328,7 +343,7 @@ impl MultiApplication for Counter {
         ]
         .padding(20)
         .spacing(10)
-        .align_items(Alignment::Center)
+        //.align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()

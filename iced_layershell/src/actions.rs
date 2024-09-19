@@ -55,12 +55,12 @@ pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct LayershellCustomActionsWithIdAndInfo<INFO: Clone>(
-    pub IcedId,
+    pub Option<IcedId>,
     pub LayershellCustomActionsWithInfo<INFO>,
 );
 
 impl<INFO: Clone> LayershellCustomActionsWithIdAndInfo<INFO> {
-    pub fn new(id: IcedId, actions: LayershellCustomActionsWithInfo<INFO>) -> Self {
+    pub fn new(id: Option<IcedId>, actions: LayershellCustomActionsWithInfo<INFO>) -> Self {
         Self(id, actions)
     }
 }

@@ -1,5 +1,5 @@
-use iced::widget::{button, column, text, text_input};
-use iced::{event, Element, Event, Task as Command, Theme};
+use iced::widget::{button, column, text, text_input, Space};
+use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
 
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
@@ -80,17 +80,21 @@ impl MultiApplication for Counter {
     }
 
     fn view(&self, _id: iced::window::Id) -> Element<Message> {
-        //println!("{:?}, {}", _id, self.value);
         column![
+            Space::with_height(Length::Fill),
             button("Increment").on_press(Message::IncrementPressed),
             button("Lock").on_press(Message::UnLock),
             text(self.value).size(50),
             text_input("hello", &self.text)
                 .on_input(Message::TextInput)
                 .padding(10),
-            button("Decrement").on_press(Message::DecrementPressed)
+            button("Decrement").on_press(Message::DecrementPressed),
+            Space::with_height(Length::Fill),
         ]
         .padding(20)
+        .align_x(Alignment::Center)
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into()
     }
 }

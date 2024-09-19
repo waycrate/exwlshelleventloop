@@ -697,6 +697,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_multi"
+version = "0.6.0"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -1,5 +1,5 @@
 use iced::widget::{button, column, row, text, text_input};
-use iced::{event, Element, Event, Length, Task as Command, Theme};
+use iced::{event, Alignment, Color, Element, Event, Length, Task as Command, Theme};
 use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
@@ -143,7 +143,10 @@ impl Application for Counter {
             text(self.value).size(50),
             button("Decrement").on_press(Message::DecrementPressed)
         ]
-        .padding(20);
+        .align_x(Alignment::Center)
+        .padding(20)
+        .width(Length::Fill)
+        .height(Length::Fill);
         row![
             button("left")
                 .on_press(Message::Direction(WindowDirection::Left))
@@ -167,6 +170,16 @@ impl Application for Counter {
         ]
         .padding(20)
         .spacing(10)
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into()
+    }
+
+    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
+        use iced_layershell::Appearance;
+        Appearance {
+            background_color: Color::TRANSPARENT,
+            text_color: theme.palette().text,
+        }
     }
 }
