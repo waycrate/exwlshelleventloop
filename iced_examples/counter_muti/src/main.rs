@@ -75,7 +75,7 @@ enum CounterLayerActions {
 }
 
 type CounterLayerAction = LayershellCustomActionsWithIdAndInfo<WindowInfo>;
-type CounterLayerCustonAction = LayershellCustomActionsWithInfo<WindowInfo>;
+type CounterLayerCustomAction = LayershellCustomActionsWithInfo<WindowInfo>;
 
 impl TryInto<CounterLayerAction> for Message {
     type Error = Self;
@@ -96,43 +96,43 @@ impl TryInto<CounterLayerAction> for Message {
             )),
             CounterLayerActions::ToLeft(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::AnchorChange(Anchor::Left | Anchor::Top | Anchor::Bottom),
+                CounterLayerCustomAction::AnchorChange(Anchor::Left | Anchor::Top | Anchor::Bottom),
             )),
             CounterLayerActions::LeftSizeChange(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::SizeChange((400, 0)),
+                CounterLayerCustomAction::SizeChange((400, 0)),
             )),
             CounterLayerActions::ToRight(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::AnchorChange(
+                CounterLayerCustomAction::AnchorChange(
                     Anchor::Right | Anchor::Top | Anchor::Bottom,
                 ),
             )),
             CounterLayerActions::RightSizeChange(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::SizeChange((400, 0)),
+                CounterLayerCustomAction::SizeChange((400, 0)),
             )),
             CounterLayerActions::ToBottom(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::AnchorChange(
+                CounterLayerCustomAction::AnchorChange(
                     Anchor::Bottom | Anchor::Left | Anchor::Right,
                 ),
             )),
             CounterLayerActions::BottomSizeChange(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::SizeChange((0, 400)),
+                CounterLayerCustomAction::SizeChange((0, 400)),
             )),
             CounterLayerActions::ToTop(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::AnchorChange(Anchor::Top | Anchor::Left | Anchor::Right),
+                CounterLayerCustomAction::AnchorChange(Anchor::Top | Anchor::Left | Anchor::Right),
             )),
             CounterLayerActions::TopSizeChange(id) => Ok(CounterLayerAction::new(
                 Some(id),
-                CounterLayerCustonAction::SizeChange((0, 400)),
+                CounterLayerCustomAction::SizeChange((0, 400)),
             )),
             CounterLayerActions::NewWindowLeft => Ok(CounterLayerAction::new(
                 None,
-                CounterLayerCustonAction::NewLayerShell((
+                CounterLayerCustomAction::NewLayerShell((
                     NewLayerShellSettings {
                         size: Some((100, 100)),
                         exclusive_zone: None,
@@ -147,7 +147,7 @@ impl TryInto<CounterLayerAction> for Message {
             )),
             CounterLayerActions::NewWindowRight => Ok(CounterLayerAction::new(
                 None,
-                CounterLayerCustonAction::NewLayerShell((
+                CounterLayerCustomAction::NewLayerShell((
                     NewLayerShellSettings {
                         size: Some((100, 100)),
                         exclusive_zone: None,
