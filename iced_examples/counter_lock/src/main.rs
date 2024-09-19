@@ -1,5 +1,5 @@
-use iced::widget::{button, column, text, text_input};
-use iced::{event, Alignment, Command, Element, Event, Length, Theme};
+use iced::widget::{button, column, text, text_input, Space};
+use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
 
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
@@ -20,7 +20,17 @@ enum Message {
     DecrementPressed,
     TextInput(String),
     IcedEvent(Event),
-    Lock,
+    UnLock,
+}
+
+impl TryInto<UnLockAction> for Message {
+    type Error = Self;
+    fn try_into(self) -> Result<UnLockAction, Self::Error> {
+        if let Self::UnLock = self {
+            return Ok(UnLockAction);
+        }
+        Err(self)
+    }
 }
 
 impl MultiApplication for Counter {
@@ -65,23 +75,24 @@ impl MultiApplication for Counter {
                 self.text = text;
                 Command::none()
             }
-            Message::Lock => Command::single(UnLockAction.into()),
+            Message::UnLock => Command::done(message),
         }
     }
 
     fn view(&self, _id: iced::window::Id) -> Element<Message> {
-        //println!("{:?}, {}", _id, self.value);
         column![
+            Space::with_height(Length::Fill),
             button("Increment").on_press(Message::IncrementPressed),
-            button("Lock").on_press(Message::Lock),
+            button("Lock").on_press(Message::UnLock),
             text(self.value).size(50),
             text_input("hello", &self.text)
                 .on_input(Message::TextInput)
                 .padding(10),
-            button("Decrement").on_press(Message::DecrementPressed)
+            button("Decrement").on_press(Message::DecrementPressed),
+            Space::with_height(Length::Fill),
         ]
         .padding(20)
-        .align_items(Alignment::Center)
+        .align_x(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()

@@ -1,9 +1,10 @@
-use iced::theme;
-use iced::Element;
+use super::Appearance;
+use super::DefaultStyle;
+use iced::theme::Theme;
+use iced::{Element, Task};
 use iced_futures::Subscription;
-use iced_runtime::Command;
-use iced_style::Theme;
 
+use crate::actions::LayershellCustomActions;
 use crate::error;
 use crate::settings::Settings;
 use crate::Application;
@@ -47,8 +48,8 @@ pub trait LayerShellSandbox {
     /// Returns the current style variant of [`theme::Application`].
     ///
     /// By default, it returns [`theme::Application::default`].
-    fn style(&self) -> theme::Application {
-        theme::Application::default()
+    fn style(&self, theme: &Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the scale factor of the [`LayerShellSandbox`].
@@ -73,6 +74,7 @@ pub trait LayerShellSandbox {
     fn run(settings: Settings<()>) -> Result<(), error::Error>
     where
         Self: 'static + Sized,
+        Self::Message: 'static + TryInto<LayershellCustomActions, Error = Self::Message>,
     {
         <Self as Application>::run(settings)
     }
@@ -87,18 +89,18 @@ where
     type Message = T::Message;
     type Theme = Theme;
 
-    fn new(_flags: ()) -> (Self, Command<T::Message>) {
-        (T::new(), Command::none())
+    fn new(_flags: ()) -> (Self, Task<T::Message>) {
+        (T::new(), Task::none())
     }
 
     fn namespace(&self) -> String {
         T::namespace(self)
     }
 
-    fn update(&mut self, message: T::Message) -> Command<T::Message> {
+    fn update(&mut self, message: T::Message) -> Task<T::Message> {
         T::update(self, message);
 
-        Command::none()
+        Task::none()
     }
 
     fn view(&self) -> Element<'_, T::Message> {
@@ -109,8 +111,8 @@ where
         T::theme(self)
     }
 
-    fn style(&self) -> theme::Application {
-        T::style(self)
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        T::style(self, theme)
     }
 
     fn subscription(&self) -> Subscription<T::Message> {

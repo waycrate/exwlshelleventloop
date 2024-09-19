@@ -5,15 +5,14 @@ use crate::event::WindowEvent as LayerShellEvent;
 use iced::touch;
 use iced_core::SmolStr;
 use iced_core::{keyboard, mouse, Event as IcedEvent};
-use keymap::key;
+use keymap::{key, physical_key};
 use layershellev::keyboard::KeyLocation;
 use layershellev::keyboard::ModifiersState;
 use layershellev::xkb_keyboard::ElementState;
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 
-#[allow(unused)]
 pub fn window_event(
-    id: iced_core::window::Id,
+    #[allow(unused)] id: iced_core::window::Id,
     layerevent: &LayerShellEvent,
     modifiers: ModifiersState,
 ) -> Option<IcedEvent> {
@@ -42,15 +41,23 @@ pub fn window_event(
             }))
         }
         LayerShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
-            let logical_key = event.key_without_modifiers();
+            let key = event.key_without_modifiers();
             let text = event
                 .text_with_all_modifiers()
                 .map(SmolStr::new)
                 .filter(|text| !text.as_str().chars().any(is_private_use));
             let LayerShellKeyEvent {
-                state, location, ..
+                state,
+                location,
+                logical_key,
+                physical_key,
+                ..
             } = event;
-            let key = key(logical_key);
+            let key = self::key(key);
+            let modified_key = self::key(logical_key.clone());
+
+            let physical_key = self::physical_key(*physical_key);
+
             let modifiers = keymap::modifiers(modifiers);
 
             let location = match location {
@@ -65,6 +72,8 @@ pub fn window_event(
                     location,
                     modifiers,
                     text,
+                    modified_key,
+                    physical_key,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
                     key,
@@ -130,6 +139,7 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::NotAllowed => "not_allowed".to_owned(),
         Interaction::ResizingVertically => "ns_resize".to_owned(),
         Interaction::ResizingHorizontally => "ew_resize".to_owned(),
+        _ => "default".to_owned(),
     }
 }
 

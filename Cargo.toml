@@ -61,13 +61,13 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
-iced = "0.12"
-iced_runtime = { version = "0.12", features = ["multi-window"] }
-iced_style = "0.12"
-iced_core = "0.12"
-iced_renderer = "0.12.1"
-iced_futures = "0.12.0"
-iced_graphics = "0.12.1"
+iced = "0.13"
+iced_runtime = { version = "0.13", features = ["multi-window"] }
+#iced_style = "0.13"
+iced_core = "0.13"
+iced_renderer = "0.13"
+iced_futures = "0.13"
+iced_graphics = "0.13"
 window_clipboard = "0.4.1"
 
 bitflags = "2.6.0"

@@ -1,12 +1,12 @@
 use futures::future::pending;
 use iced::widget::{button, column, container, text, text_input};
 use iced::window::Id;
-use iced::{Command, Element, Length, Theme};
+use iced::{Element, Length, Task as Command, Theme};
 use iced_layershell::actions::{
     LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo,
 };
-use iced_runtime::command::Action;
 use iced_runtime::window::Action as WindowAction;
+use iced_runtime::Action;
 
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::Settings;
@@ -25,12 +25,38 @@ struct Counter {
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings::default())
 }
+
 #[derive(Debug, Clone)]
 enum Message {
     NewWindow,
     TextInput(String),
     CloseWindow(Id),
 }
+
+impl TryInto<LaLaShellIdAction> for Message {
+    type Error = Self;
+    fn try_into(self) -> Result<LayershellCustomActionsWithIdAndInfo<()>, Self::Error> {
+        match self {
+            Self::NewWindow => Ok(LaLaShellIdAction::new(
+                None,
+                LalaShellAction::NewLayerShell((
+                    NewLayerShellSettings {
+                        size: None,
+                        exclusive_zone: None,
+                        anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: Some((100, 100, 100, 100)),
+                        keyboard_interactivity: KeyboardInteractivity::OnDemand,
+                        use_last_output: false,
+                    },
+                    (),
+                )),
+            )),
+            _ => Err(self),
+        }
+    }
+}
+
 impl MultiApplication for Counter {
     type Message = Message;
     type Flags = ();
@@ -66,7 +92,7 @@ impl MultiApplication for Counter {
             column![
                 container(button(text("hello")).on_press(Message::CloseWindow(id)))
                     .width(Length::Fill)
-                    .center_x(),
+                    .center_x(Length::Fill),
                 container(
                     text_input("hello", &self.text)
                         .on_input(Message::TextInput)
@@ -74,57 +100,42 @@ impl MultiApplication for Counter {
                         .width(300.)
                 )
                 .width(Length::Fill)
-                .center_x(),
+                .center_x(Length::Fill),
             ]
             .padding(10.),
         )
-        .center_x()
-        .center_y()
-        .width(Length::Fill)
-        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
         .into()
     }
     fn subscription(&self) -> iced::Subscription<Self::Message> {
-        iced::subscription::channel(std::any::TypeId::of::<()>(), 100, |sender| async move {
-            // setup the object server
-            let _connection = ConnectionBuilder::session()
-                .unwrap()
-                .name("zbus.iced.MyGreeter1")
-                .unwrap()
-                .serve_at("/org/zbus/MyGreeter1", Greeter { sender })
-                .unwrap()
-                .build()
-                .await
-                .unwrap();
-            pending::<()>().await;
-            unreachable!()
+        iced::Subscription::run(|| {
+            iced::stream::channel(100, |sender| async move {
+                // setup the object server
+                let _connection = ConnectionBuilder::session()
+                    .unwrap()
+                    .name("zbus.iced.MyGreeter1")
+                    .unwrap()
+                    .serve_at("/org/zbus/MyGreeter1", Greeter { sender })
+                    .unwrap()
+                    .build()
+                    .await
+                    .unwrap();
+                pending::<()>().await;
+                unreachable!()
+            })
         })
     }
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::CloseWindow(id) => Command::single(Action::Window(WindowAction::Close(id))),
+            Message::CloseWindow(id) => {
+                iced_runtime::task::effect(Action::Window(WindowAction::Close(id)))
+            }
             Message::NewWindow => {
                 if self.window_shown {
                     return Command::none();
                 }
-                Command::single(
-                    LaLaShellIdAction::new(
-                        iced::window::Id::MAIN,
-                        LalaShellAction::NewLayerShell((
-                            NewLayerShellSettings {
-                                size: None,
-                                exclusive_zone: None,
-                                anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
-                                layer: Layer::Top,
-                                margin: Some((100, 100, 100, 100)),
-                                keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                                use_last_output: false,
-                            },
-                            (),
-                        )),
-                    )
-                    .into(),
-                )
+                Command::done(message)
             }
             Message::TextInput(text) => {
                 self.text = text;

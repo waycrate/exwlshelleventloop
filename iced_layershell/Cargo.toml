@@ -14,7 +14,6 @@ description = "layershell binding for iced"
 iced.workspace = true
 iced_renderer.workspace = true
 iced_runtime.workspace = true
-iced_style.workspace = true
 iced_core.workspace = true
 iced_futures.workspace = true
 iced_graphics.workspace = true

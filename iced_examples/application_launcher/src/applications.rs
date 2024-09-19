@@ -5,7 +5,7 @@ use gio::{AppLaunchContext, DesktopAppInfo};
 
 use gio::prelude::*;
 use iced::widget::{button, column, image, row, svg, text};
-use iced::{theme, Pixels};
+use iced::Pixels;
 use iced::{Element, Length};
 
 use crate::Message;
@@ -82,10 +82,12 @@ impl App {
         .on_press(Message::Launch(index))
         .width(Length::Fill)
         .height(Length::Fixed(85.))
-        .style(if selected {
-            theme::Button::Primary
-        } else {
-            theme::Button::Secondary
+        .style(move |theme, status| {
+            if selected {
+                button::primary(theme, status)
+            } else {
+                button::secondary(theme, status)
+            }
         })
         .into()
     }

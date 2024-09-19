@@ -6,6 +6,7 @@ use crate::{
     },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
+    DefaultStyle,
 };
 use std::{collections::HashMap, f64, mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
@@ -16,13 +17,13 @@ use crate::{
     error::Error,
 };
 
+use super::Appearance;
 use iced_graphics::{compositor, Compositor};
+use iced_runtime::{Action, Task};
 
 use iced_core::{time::Instant, Size};
 
-use iced_runtime::{multi_window::Program, user_interface, Command, Debug, UserInterface};
-
-use iced_style::application::StyleSheet;
+use iced_runtime::{multi_window::Program, user_interface, Debug, UserInterface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
@@ -55,7 +56,7 @@ mod window_manager;
 /// can be toggled by pressing `F12`.
 pub trait Application: Program
 where
-    Self::Theme: StyleSheet,
+    Self::Theme: DefaultStyle,
 {
     /// The data needed to initialize your [`Application`].
     type Flags;
@@ -72,7 +73,7 @@ where
     /// Additionally, you can return a [`Command`] if you need to perform some
     /// async action in the background on startup. This is useful if you want to
     /// load state from a file, perform an initial HTTP request, etc.
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
     /// The name space of the layershell
     fn namespace(&self) -> String;
@@ -99,8 +100,8 @@ where
     fn theme(&self) -> Self::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        Default::default()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -142,17 +143,21 @@ where
     }
 }
 
+type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
+
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
     settings: Settings<A::Flags>,
-    compositor_settings: C::Settings,
+    compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where
     A: Application + 'static,
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
     <A as Application>::WindowInfo: Clone,
+    A::Message:
+        'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
     use futures::task;
     use futures::Future;
@@ -160,20 +165,27 @@ where
     let mut debug = Debug::new();
     debug.startup_started();
 
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<A::Message>();
+    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
-    let runtime: Runtime<E, IcedProxy<A::Message>, <A as Program>::Message> = {
+    let mut runtime: MultiRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
-        Runtime::new(executor, proxy.clone())
+        Runtime::new(executor, proxy)
     };
-
-    let (application, init_command) = {
+    let (application, task) = {
         let flags = settings.flags;
 
         runtime.enter(|| A::new(flags))
     };
+
+    if let Some(stream) = iced_runtime::task::into_stream(task) {
+        runtime.run(stream);
+    }
+
+    runtime.track(iced_futures::subscription::into_recipes(
+        runtime.enter(|| application.subscription().map(Action::Output)),
+    ));
 
     let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
         .with_single(false)
@@ -189,27 +201,20 @@ where
         .expect("Cannot create layershell");
 
     let window = Arc::new(ev.gen_main_wrapper());
-    let compositor = C::new(compositor_settings, window.clone())?;
-
-    let window_manager = WindowManager::new();
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<MultiWindowIcedLayerEvent<A::Message, A::WindowInfo>>();
+        mpsc::unbounded::<MultiWindowIcedLayerEvent<Action<A::Message>, A::WindowInfo>>();
     let (control_sender, mut control_receiver) =
-        mpsc::unbounded::<Vec<LayerShellActions<A::WindowInfo>>>();
+        mpsc::unbounded::<LayerShellActions<A::WindowInfo>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
-        compositor,
+        compositor_settings,
         runtime,
-        proxy,
         debug,
         event_receiver,
         control_sender,
-        //state,
-        window_manager,
         window,
-        init_command,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -308,137 +313,128 @@ where
         let Ok(Some(flow)) = control_receiver.try_next() else {
             return def_returndata;
         };
-        for flow in flow {
-            match flow {
-                LayerShellActions::CustomActionsWithId(actions) => {
-                    for LayershellCustomActionsWithIdInner(id, option_id, action) in actions {
-                        match action {
-                            LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
-                                let Some(id) = id else {
-                                    continue;
-                                };
-                                let Some(window) = ev.get_window_with_id(id) else {
-                                    continue;
-                                };
-                                window.set_anchor(anchor);
-                            }
-                            LayershellCustomActionsWithInfo::LayerChange(layer) => {
-                                let Some(id) = id else {
-                                    continue;
-                                };
-                                let Some(window) = ev.get_window_with_id(id) else {
-                                    continue;
-                                };
-                                window.set_layer(layer);
-                            }
-                            LayershellCustomActionsWithInfo::MarginChange(margin) => {
-                                let Some(id) = id else {
-                                    continue;
-                                };
-                                let Some(window) = ev.get_window_with_id(id) else {
-                                    continue;
-                                };
-                                window.set_margin(margin);
-                            }
-                            LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
-                                let Some(id) = id else {
-                                    continue;
-                                };
-                                let Some(window) = ev.get_window_with_id(id) else {
-                                    continue;
-                                };
-                                window.set_size((width, height));
-                            }
-                            LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
-                                time,
-                                key,
-                            } => {
-                                use layershellev::reexport::wayland_client::KeyState;
-                                let ky = ev.get_virtual_keyboard().unwrap();
-                                ky.key(time, key, KeyState::Pressed.into());
+        match flow {
+            LayerShellActions::CustomActionsWithId(LayershellCustomActionsWithIdInner(
+                id,
+                option_id,
+                action,
+            )) => 'out: {
+                match action {
+                    LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                        let Some(id) = id else {
+                            break 'out;
+                        };
+                        let Some(window) = ev.get_window_with_id(id) else {
+                            break 'out;
+                        };
+                        window.set_anchor(anchor);
+                    }
+                    LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                        let Some(id) = id else {
+                            break 'out;
+                        };
+                        let Some(window) = ev.get_window_with_id(id) else {
+                            break 'out;
+                        };
+                        window.set_layer(layer);
+                    }
+                    LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                        let Some(id) = id else {
+                            break 'out;
+                        };
+                        let Some(window) = ev.get_window_with_id(id) else {
+                            break 'out;
+                        };
+                        window.set_margin(margin);
+                    }
+                    LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
+                        let Some(id) = id else {
+                            break 'out;
+                        };
+                        let Some(window) = ev.get_window_with_id(id) else {
+                            break 'out;
+                        };
+                        window.set_size((width, height));
+                    }
+                    LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
+                        use layershellev::reexport::wayland_client::KeyState;
+                        let ky = ev.get_virtual_keyboard().unwrap();
+                        ky.key(time, key, KeyState::Pressed.into());
 
-                                let eh = ev.get_loop_handler().unwrap();
-                                eh.insert_source(
-                                    Timer::from_duration(Duration::from_micros(100)),
-                                    move |_, _, state| {
-                                        let ky = state.get_virtual_keyboard().unwrap();
+                        let eh = ev.get_loop_handler().unwrap();
+                        eh.insert_source(
+                            Timer::from_duration(Duration::from_micros(100)),
+                            move |_, _, state| {
+                                let ky = state.get_virtual_keyboard().unwrap();
 
-                                        ky.key(time, key, KeyState::Released.into());
-                                        TimeoutAction::Drop
-                                    },
-                                )
-                                .ok();
-                            }
-                            LayershellCustomActionsWithInfo::NewLayerShell((settings, info)) => {
-                                ev.append_return_data(ReturnData::NewLayerShell((
-                                    settings,
-                                    Some(info),
-                                )));
-                            }
-                            LayershellCustomActionsWithInfo::RemoveWindow(id) => {
-                                ev.remove_shell(option_id.unwrap());
-                                event_sender
-                                    .start_send(MultiWindowIcedLayerEvent(
-                                        None,
-                                        IcedLayerEvent::WindowRemoved(id),
-                                    ))
-                                    .ok();
-                            }
-                            LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
-                                let IcedNewPopupSettings { size, position } = menusettings;
-                                let Some(id) = ev.current_surface_id() else {
-                                    continue;
-                                };
-                                let popup_settings = NewPopUpSettings { size, position, id };
-                                ev.append_return_data(ReturnData::NewPopUp((
-                                    popup_settings,
-                                    Some(info),
-                                )));
-                            }
-                            LayershellCustomActionsWithInfo::NewMenu((menusetting, info)) => {
-                                let Some(id) = ev.current_surface_id() else {
-                                    continue;
-                                };
-                                event_sender
-                                    .start_send(MultiWindowIcedLayerEvent(
-                                        Some(id),
-                                        IcedLayerEvent::NewMenu((menusetting, info)),
-                                    ))
-                                    .expect("Cannot send");
-                            }
-                            LayershellCustomActionsWithInfo::ForgetLastOutput => {
-                                ev.forget_last_output();
-                            }
-                        }
+                                ky.key(time, key, KeyState::Released.into());
+                                TimeoutAction::Drop
+                            },
+                        )
+                        .ok();
+                    }
+                    LayershellCustomActionsWithInfo::NewLayerShell((settings, info)) => {
+                        ev.append_return_data(ReturnData::NewLayerShell((settings, Some(info))));
+                    }
+                    LayershellCustomActionsWithInfo::RemoveWindow(id) => {
+                        ev.remove_shell(option_id.unwrap());
+                        event_sender
+                            .start_send(MultiWindowIcedLayerEvent(
+                                None,
+                                IcedLayerEvent::WindowRemoved(id),
+                            ))
+                            .ok();
+                    }
+                    LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
+                        let IcedNewPopupSettings { size, position } = menusettings;
+                        let Some(id) = ev.current_surface_id() else {
+                            break 'out;
+                        };
+                        let popup_settings = NewPopUpSettings { size, position, id };
+                        ev.append_return_data(ReturnData::NewPopUp((popup_settings, Some(info))));
+                    }
+                    LayershellCustomActionsWithInfo::NewMenu((menusetting, info)) => {
+                        let Some(id) = ev.current_surface_id() else {
+                            break 'out;
+                        };
+                        event_sender
+                            .start_send(MultiWindowIcedLayerEvent(
+                                Some(id),
+                                IcedLayerEvent::NewMenu((menusetting, info)),
+                            ))
+                            .expect("Cannot send");
+                    }
+                    LayershellCustomActionsWithInfo::ForgetLastOutput => {
+                        ev.forget_last_output();
                     }
                 }
-                LayerShellActions::NewMenu((menusettings, info)) => {
-                    let IcedNewPopupSettings { size, position } = menusettings;
-                    let Some(id) = ev.current_surface_id() else {
-                        continue;
-                    };
-                    let popup_settings = NewPopUpSettings { size, position, id };
-                    ev.append_return_data(ReturnData::NewPopUp((popup_settings, Some(info))))
-                }
-                LayerShellActions::Mouse(mouse) => {
-                    let Some(pointer) = ev.get_pointer() else {
-                        return ReturnData::None;
-                    };
-
-                    ev.append_return_data(ReturnData::RequestSetCursorShape((
-                        conversion::mouse_interaction(mouse),
-                        pointer.clone(),
-                        pointer_serial,
-                    )));
-                }
-                LayerShellActions::RedrawAll => {
-                    ev.append_return_data(ReturnData::RedrawAllRequest);
-                }
-                LayerShellActions::RedrawWindow(index) => {
-                    ev.append_return_data(ReturnData::RedrawIndexRequest(index));
-                }
-                _ => {}
             }
+            LayerShellActions::NewMenu((menusettings, info)) => 'out: {
+                let IcedNewPopupSettings { size, position } = menusettings;
+                let Some(id) = ev.current_surface_id() else {
+                    break 'out;
+                };
+                let popup_settings = NewPopUpSettings { size, position, id };
+                ev.append_return_data(ReturnData::NewPopUp((popup_settings, Some(info))))
+            }
+            LayerShellActions::Mouse(mouse) => {
+                let Some(pointer) = ev.get_pointer() else {
+                    return ReturnData::None;
+                };
+
+                ev.append_return_data(ReturnData::RequestSetCursorShape((
+                    conversion::mouse_interaction(mouse),
+                    pointer.clone(),
+                    pointer_serial,
+                )));
+            }
+            LayerShellActions::RedrawAll => {
+                ev.append_return_data(ReturnData::RedrawAllRequest);
+            }
+            LayerShellActions::RedrawWindow(index) => {
+                ev.append_return_data(ReturnData::RedrawIndexRequest(index));
+            }
+            _ => {}
         }
         def_returndata
     });
@@ -448,26 +444,31 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
     mut application: A,
-    mut compositor: C,
-    mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
-    mut proxy: IcedProxy<A::Message>,
+    compositor_settings: iced_graphics::Settings,
+    mut runtime: MultiRuntime<E, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<
-        MultiWindowIcedLayerEvent<A::Message, A::WindowInfo>,
+        MultiWindowIcedLayerEvent<Action<A::Message>, A::WindowInfo>,
     >,
-    mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions<A::WindowInfo>>>,
-    mut window_manager: WindowManager<A, C>,
+    mut control_sender: mpsc::UnboundedSender<LayerShellActions<A::WindowInfo>>,
     window: Arc<WindowWrapper>,
-    init_command: Command<A::Message>,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
     A::WindowInfo: Clone,
+    A::Message:
+        'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
     use iced::window;
     use iced_core::Event;
+    let mut compositor = C::new(compositor_settings, window.clone())
+        .await
+        .expect("Cannot create compositer");
+
+    let mut window_manager = WindowManager::new();
+
     let mut clipboard = LayerShellClipboard::connect(&window);
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
@@ -484,21 +485,6 @@ async fn run_instance<A, E, C>(
     let mut should_exit = false;
     let mut messages = Vec::new();
 
-    run_command(
-        &application,
-        &mut compositor,
-        init_command,
-        &mut runtime,
-        &mut clipboard,
-        &mut custom_actions,
-        &mut should_exit,
-        &mut proxy,
-        &mut debug,
-        &mut window_manager,
-        &mut ui_caches,
-    );
-
-    runtime.track(application.subscription().into_recipes());
     while let Some(event) = event_receiver.next().await {
         match event {
             MultiWindowIcedLayerEvent(
@@ -540,13 +526,10 @@ async fn run_instance<A, E, C>(
 
                     events.push((
                         Some(id),
-                        Event::Window(
-                            id,
-                            window::Event::Opened {
-                                position: None,
-                                size: window.state.logical_size(),
-                            },
-                        ),
+                        Event::Window(window::Event::Opened {
+                            position: None,
+                            size: window.state.logical_size(),
+                        }),
                     ));
                     (id, window)
                 } else {
@@ -570,7 +553,7 @@ async fn run_instance<A, E, C>(
                 let ui = user_interfaces.get_mut(&id).expect("Get User interface");
 
                 let redraw_event =
-                    Event::Window(id, window::Event::RedrawRequested(Instant::now()));
+                    iced_core::Event::Window(window::Event::RedrawRequested(Instant::now()));
 
                 let cursor = window.state.cursor();
 
@@ -599,7 +582,11 @@ async fn run_instance<A, E, C>(
                 }
 
                 compositor.configure_surface(&mut window.surface, width, height);
-                runtime.broadcast(redraw_event.clone(), iced_core::event::Status::Ignored);
+                runtime.broadcast(iced_futures::subscription::Event::Interaction {
+                    window: id,
+                    event: redraw_event.clone(),
+                    status: iced_core::event::Status::Ignored,
+                });
                 debug.render_started();
 
                 debug.draw_started();
@@ -665,7 +652,32 @@ async fn run_instance<A, E, C>(
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::UserEvent(event)) => {
-                messages.push(event);
+                let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                    ManuallyDrop::into_inner(user_interfaces)
+                        .drain()
+                        .map(|(id, ui)| (id, ui.into_cache()))
+                        .collect();
+                run_command(
+                    &application,
+                    &mut compositor,
+                    event,
+                    &mut messages,
+                    &mut clipboard,
+                    &mut custom_actions,
+                    &mut should_exit,
+                    &mut debug,
+                    &mut window_manager,
+                    &mut cached_interfaces,
+                );
+                user_interfaces = ManuallyDrop::new(build_user_interfaces(
+                    &application,
+                    &mut debug,
+                    &mut window_manager,
+                    cached_interfaces,
+                ));
+                if should_exit {
+                    break;
+                }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::NormalUpdate) => {
                 if events.is_empty() && messages.is_empty() {
@@ -714,7 +726,11 @@ async fn run_instance<A, E, C>(
                     debug.event_processing_finished();
 
                     for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
-                        runtime.broadcast(event, status);
+                        runtime.broadcast(iced_futures::subscription::Event::Interaction {
+                            window: id,
+                            event,
+                            status,
+                        });
                     }
                 }
 
@@ -727,26 +743,14 @@ async fn run_instance<A, E, C>(
 
                 // TODO mw application update returns which window IDs to update
                 if !messages.is_empty() || uis_stale {
-                    let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                    let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
                         ManuallyDrop::into_inner(user_interfaces)
                             .drain()
                             .map(|(id, ui)| (id, ui.into_cache()))
                             .collect();
 
                     // Update application
-                    update(
-                        &mut application,
-                        &mut compositor,
-                        &mut runtime,
-                        &mut clipboard,
-                        &mut should_exit,
-                        &mut proxy,
-                        &mut debug,
-                        &mut messages,
-                        &mut custom_actions,
-                        &mut window_manager,
-                        &mut cached_interfaces,
-                    );
+                    update(&mut application, &mut runtime, &mut debug, &mut messages);
 
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
@@ -762,9 +766,6 @@ async fn run_instance<A, E, C>(
                         &mut window_manager,
                         cached_interfaces,
                     ));
-                    if should_exit {
-                        break;
-                    }
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
@@ -815,7 +816,10 @@ async fn run_instance<A, E, C>(
             }
             _ => {}
         }
-        control_sender.start_send(custom_actions.clone()).ok();
+        for action in &custom_actions {
+            control_sender.start_send(action.clone()).ok();
+        }
+
         custom_actions.clear();
     }
     let _ = ManuallyDrop::into_inner(user_interfaces);
@@ -830,7 +834,7 @@ pub fn build_user_interfaces<'a, A: Application, C>(
 ) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
 where
     C: Compositor<Renderer = A::Renderer>,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     cached_user_interfaces
         .drain()
@@ -863,7 +867,7 @@ fn build_user_interface<'a, A: Application>(
     id: iced::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     debug.view_started();
     let view = application.view(id);
@@ -876,21 +880,13 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn update<A: Application, C, E: Executor>(
+pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
-    compositor: &mut C,
-    runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
-    clipboard: &mut LayerShellClipboard,
-    should_exit: &mut bool,
-    proxy: &mut IcedProxy<A::Message>,
+    runtime: &mut MultiRuntime<E, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    custom_actions: &mut Vec<LayerShellActions<A::WindowInfo>>,
-    window_manager: &mut WindowManager<A, C>,
-    ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
     A::Message: 'static,
     A::WindowInfo: Clone + 'static,
 {
@@ -898,208 +894,150 @@ pub(crate) fn update<A: Application, C, E: Executor>(
         debug.log_message(&message);
 
         debug.update_started();
-        let command: Command<A::Message> = runtime.enter(|| application.update(message));
+        let task = runtime.enter(|| application.update(message));
         debug.update_finished();
 
-        run_command(
-            application,
-            compositor,
-            command,
-            runtime,
-            clipboard,
-            custom_actions,
-            should_exit,
-            proxy,
-            debug,
-            window_manager,
-            ui_caches,
-        );
+        if let Some(stream) = iced_runtime::task::into_stream(task) {
+            runtime.run(stream);
+        }
     }
 
-    let subscription = application.subscription();
-    runtime.track(subscription.into_recipes());
+    let subscription = runtime.enter(|| application.subscription());
+    runtime.track(iced_futures::subscription::into_recipes(
+        subscription.map(Action::Output),
+    ));
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_command<A, C, E>(
+pub(crate) fn run_command<A, C>(
     application: &A,
     compositor: &mut C,
-    command: Command<A::Message>,
-    runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    event: Action<A::Message>,
+    messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellActions<A::WindowInfo>>,
     should_exit: &mut bool,
-    proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
     A: Application,
-    E: Executor,
     C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
-    A::Message: 'static,
+    A::Theme: DefaultStyle,
+    A::Message:
+        'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
     A::WindowInfo: Clone + 'static,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
-    use iced_runtime::command;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
-    let mut customactions = Vec::new();
-    for action in command.actions() {
-        match action {
-            command::Action::Future(future) => {
-                runtime.spawn(future);
+    use iced_runtime::Action;
+    match event {
+        Action::Output(stream) => match stream.try_into() {
+            Ok(action) => {
+                let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
+                let option_id = if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1
+                {
+                    window_manager.get_layer_id(id)
+                } else {
+                    None
+                };
+                custom_actions.push(LayerShellActions::CustomActionsWithId(
+                    LayershellCustomActionsWithIdInner(
+                        action.0.and_then(|id| window_manager.get_layer_id(id)),
+                        option_id,
+                        action.1.clone(),
+                    ),
+                ));
             }
-            command::Action::Stream(stream) => {
-                runtime.run(stream);
+            Err(stream) => {
+                messages.push(stream);
             }
+        },
 
-            command::Action::Clipboard(action) => match action {
-                clipboard::Action::Read(tag, kind) => {
-                    let message = tag(clipboard.read(kind));
+        Action::Clipboard(action) => match action {
+            clipboard::Action::Read { target, channel } => {
+                let _ = channel.send(clipboard.read(target));
+            }
+            clipboard::Action::Write { target, contents } => {
+                clipboard.write(target, contents);
+            }
+        },
+        Action::Widget(action) => {
+            let mut current_operation = Some(action);
 
-                    proxy.send_event(message).ok();
-                }
-                clipboard::Action::Write(contents, kind) => {
-                    clipboard.write(kind, contents);
-                }
-            },
-            command::Action::Widget(action) => {
-                let mut current_operation = Some(action);
+            let mut uis = build_user_interfaces(
+                application,
+                debug,
+                window_manager,
+                std::mem::take(ui_caches),
+            );
 
-                let mut uis = build_user_interfaces(
-                    application,
-                    debug,
-                    window_manager,
-                    std::mem::take(ui_caches),
-                );
+            'operate: while let Some(mut operation) = current_operation.take() {
+                for (id, ui) in uis.iter_mut() {
+                    if let Some(window) = window_manager.get_mut(*id) {
+                        ui.operate(&window.renderer, operation.as_mut());
 
-                'operate: while let Some(mut operation) = current_operation.take() {
-                    for (id, ui) in uis.iter_mut() {
-                        if let Some(window) = window_manager.get_mut(*id) {
-                            ui.operate(&window.renderer, operation.as_mut());
+                        match operation.finish() {
+                            operation::Outcome::None => {}
+                            operation::Outcome::Some(_message) => {
+                                //proxy.send_event(message).ok();
 
-                            match operation.finish() {
-                                operation::Outcome::None => {}
-                                operation::Outcome::Some(message) => {
-                                    proxy.send_event(message).ok();
-
-                                    // operation completed, don't need to try to operate on rest of UIs
-                                    break 'operate;
-                                }
-                                operation::Outcome::Chain(next) => {
-                                    current_operation = Some(next);
-                                }
+                                // operation completed, don't need to try to operate on rest of UIs
+                                break 'operate;
+                            }
+                            operation::Outcome::Chain(next) => {
+                                current_operation = Some(next);
                             }
                         }
                     }
                 }
-
-                *ui_caches = uis.drain().map(|(id, ui)| (id, ui.into_cache())).collect();
             }
-            command::Action::Window(action) => match action {
-                WinowAction::Close(id) => {
-                    if id == iced::window::Id::MAIN {
-                        *should_exit = true;
-                        continue;
-                    }
-                    if let Some(layerid) = window_manager.get_layer_id(id) {
-                        customactions.push(LayershellCustomActionsWithIdInner(
+
+            *ui_caches = uis.drain().map(|(id, ui)| (id, ui.into_cache())).collect();
+        }
+        Action::Window(action) => match action {
+            WinowAction::Close(id) => {
+                if let Some(layerid) = window_manager.get_layer_id(id) {
+                    custom_actions.push(LayerShellActions::CustomActionsWithId(
+                        LayershellCustomActionsWithIdInner(
                             Some(layerid),
                             Some(layerid),
                             LayershellCustomActionsWithInfo::RemoveWindow(id),
-                        ))
-                    }
+                        ),
+                    ))
                 }
-                WinowAction::Screenshot(id, tag) => {
-                    let Some(window) = window_manager.get_mut(id) else {
-                        continue;
-                    };
-                    let bytes = compositor.screenshot(
-                        &mut window.renderer,
-                        &mut window.surface,
-                        window.state.viewport(),
-                        window.state.background_color(),
-                        &debug.overlay(),
-                    );
-
-                    proxy
-                        .send_event(tag(window::Screenshot::new(
-                            bytes,
-                            window.state.physical_size(),
-                        )))
-                        .ok();
-                }
-                _ => {}
-            },
-            command::Action::LoadFont { bytes, tagger } => {
-                use iced_core::text::Renderer;
-
-                // TODO change this once we change each renderer to having a single backend reference.. :pain:
-                // TODO: Error handling (?)
-                for (_, window) in window_manager.iter_mut() {
-                    window.renderer.load_font(bytes.clone());
-                }
-
-                proxy.send_event(tagger(Ok(()))).ok();
             }
-            command::Action::Custom(custom) => {
-                if let Some(action) =
-                    custom.downcast_ref::<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>>()
-                {
-                    let option_id =
-                        if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1 {
-                            window_manager.get_layer_id(id)
-                        } else {
-                            None
-                        };
-                    customactions.push(LayershellCustomActionsWithIdInner(
-                        window_manager.get_layer_id(action.0),
-                        option_id,
-                        action.1.clone(),
-                    ));
-                } else if let Some(action) =
-                    custom.downcast_ref::<LayershellCustomActionsWithIdAndInfo<()>>()
-                {
-                    // NOTE: try to unwrap again, if with type LayershellCustomActionsWithInfo<()>,
-                    let option_id =
-                        if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1 {
-                            window_manager.get_layer_id(id)
-                        } else {
-                            None
-                        };
-                    let turnaction: LayershellCustomActionsWithInfo<A::WindowInfo> = match action.1
-                    {
-                        LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
-                            LayershellCustomActionsWithInfo::AnchorChange(anchor)
-                        }
-                        LayershellCustomActionsWithInfo::LayerChange(layer) => {
-                            LayershellCustomActionsWithInfo::LayerChange(layer)
-                        }
-                        LayershellCustomActionsWithInfo::SizeChange(size) => {
-                            LayershellCustomActionsWithInfo::SizeChange(size)
-                        }
-                        LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
-                            LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key }
-                        }
-                        LayershellCustomActionsWithInfo::RemoveWindow(id) => {
-                            LayershellCustomActionsWithInfo::RemoveWindow(id)
-                        }
-                        _ => {
-                            continue;
-                        }
-                    };
-                    customactions.push(LayershellCustomActionsWithIdInner(
-                        window_manager.get_layer_id(action.0),
-                        option_id,
-                        turnaction,
-                    ));
-                }
+            WinowAction::Screenshot(id, channel) => 'out: {
+                let Some(window) = window_manager.get_mut(id) else {
+                    break 'out;
+                };
+                let bytes = compositor.screenshot(
+                    &mut window.renderer,
+                    &mut window.surface,
+                    window.state.viewport(),
+                    window.state.background_color(),
+                    &debug.overlay(),
+                );
+
+                let _ = channel.send(window::Screenshot::new(
+                    bytes,
+                    window.state.physical_size(),
+                    window.state.viewport().scale_factor(),
+                ));
             }
             _ => {}
+        },
+        Action::Exit => {
+            *should_exit = true;
         }
+        Action::LoadFont { bytes, channel } => {
+            // TODO: Error handling (?)
+            compositor.load_font(bytes.clone());
+
+            let _ = channel.send(Ok(()));
+        }
+        _ => {}
     }
-    custom_actions.push(LayerShellActions::CustomActionsWithId(customactions));
 }

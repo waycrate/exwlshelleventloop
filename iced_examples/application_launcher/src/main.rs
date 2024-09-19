@@ -1,13 +1,12 @@
 use applications::{all_apps, App};
 use iced::widget::{column, scrollable, text_input};
-use iced::{event, Command, Element, Event, Length, Theme};
+use iced::{event, Element, Event, Length, Task as Command, Theme};
 mod applications;
-use iced::window::Id;
+use iced_layershell::actions::LayershellCustomActionsWithInfo;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
-use iced_runtime::command::Action;
-use iced_runtime::window::Action as WindowAction;
+use iced_runtime::Action;
 
 use std::sync::LazyLock;
 
@@ -26,6 +25,13 @@ fn main() -> Result<(), iced_layershell::Error> {
     })?;
     std::thread::sleep(std::time::Duration::from_millis(1));
     Ok(())
+}
+
+impl TryInto<LayershellCustomActionsWithInfo<()>> for Message {
+    type Error = Self;
+    fn try_into(self) -> Result<LayershellCustomActionsWithInfo<()>, Self::Error> {
+        Err(self)
+    }
 }
 
 struct Launcher {
@@ -90,7 +96,7 @@ impl Application for Launcher {
                     .find(|(index, _)| *index == self.scrollpos);
                 if let Some((_, (_, app))) = index {
                     app.launch();
-                    Command::single(Action::Window(WindowAction::Close(Id::MAIN)))
+                    iced_runtime::task::effect(Action::Exit)
                 } else {
                     Command::none()
                 }
@@ -102,7 +108,7 @@ impl Application for Launcher {
             }
             Message::Launch(index) => {
                 self.apps[index].launch();
-                Command::single(Action::Window(WindowAction::Close(Id::MAIN)))
+                iced_runtime::task::effect(Action::Exit)
             }
             Message::IcedEvent(event) => {
                 let mut len = self.apps.len();
@@ -135,7 +141,7 @@ impl Application for Launcher {
                             self.scrollpos += 1;
                         }
                         keyboard::Key::Named(Named::Escape) => {
-                            return Command::single(Action::Window(WindowAction::Close(Id::MAIN)));
+                            return iced_runtime::task::effect(Action::Exit)
                         }
                         _ => {}
                     }

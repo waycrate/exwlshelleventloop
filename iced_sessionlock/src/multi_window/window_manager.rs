@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::multi_window::Application;
+use crate::DefaultStyle;
 use iced_graphics::Compositor;
-use iced_style::application::StyleSheet;
 use sessionlockev::{id::Id as SessionId, WindowWrapper};
 
 use iced::mouse;
@@ -13,7 +13,7 @@ pub struct Window<A, C>
 where
     A: Application,
     C: Compositor<Renderer = A::Renderer>,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     pub id: SessionId,
     pub renderer: A::Renderer,
@@ -25,7 +25,7 @@ where
 pub struct WindowManager<A: Application, C: Compositor>
 where
     C: Compositor<Renderer = A::Renderer>,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     aliases: BTreeMap<SessionId, IcedId>,
     back_aliases: BTreeMap<IcedId, SessionId>,
@@ -36,7 +36,7 @@ impl<A, C> Default for WindowManager<A, C>
 where
     A: Application,
     C: Compositor<Renderer = A::Renderer>,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     fn default() -> Self {
         Self::new()
@@ -47,7 +47,7 @@ impl<A, C> WindowManager<A, C>
 where
     A: Application,
     C: Compositor<Renderer = A::Renderer>,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     pub fn new() -> Self {
         Self {

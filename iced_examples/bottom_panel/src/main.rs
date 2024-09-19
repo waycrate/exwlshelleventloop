@@ -1,8 +1,9 @@
 mod applications;
 use applications::{all_apps, App};
 use iced::widget::row;
-use iced::{Command, Element, Theme};
+use iced::{Element, Task as Command, Theme};
 
+use iced_layershell::actions::LayershellCustomActionsWithInfo;
 use iced_layershell::reexport::{Anchor, Layer};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
@@ -18,6 +19,13 @@ fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
+}
+
+impl TryInto<LayershellCustomActionsWithInfo<()>> for Message {
+    type Error = Self;
+    fn try_into(self) -> Result<LayershellCustomActionsWithInfo<()>, Self::Error> {
+        Err(self)
+    }
 }
 
 struct Panel {

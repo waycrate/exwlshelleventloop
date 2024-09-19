@@ -3,21 +3,20 @@ mod state;
 use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
 use crate::{
-    actions::{LayerShellActions, LayershellCustomActionsWithInfo},
+    actions::{LayerShellActions, LayershellCustomActions, LayershellCustomActionsWithInfo},
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
     settings::VirtualKeyboardSettings,
 };
 
+use super::{Appearance, DefaultStyle};
 use iced_graphics::{compositor, Compositor};
 use state::State;
 
 use iced_core::{time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
 
-use iced_runtime::{user_interface, Command, Debug, Program, UserInterface};
-
-use iced_style::application::StyleSheet;
+use iced_runtime::{task::Task, user_interface, Action, Debug, Program, UserInterface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
@@ -44,7 +43,7 @@ use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 /// can be toggled by pressing `F12`.
 pub trait Application: Program
 where
-    Self::Theme: StyleSheet,
+    Self::Theme: DefaultStyle,
 {
     /// The data needed to initialize your [`Application`].
     type Flags;
@@ -57,7 +56,7 @@ where
     /// Additionally, you can return a [`Command`] if you need to perform some
     /// async action in the background on startup. This is useful if you want to
     /// load state from a file, perform an initial HTTP request, etc.
-    fn new(flags: Self::Flags) -> (Self, Command<Self::Message>);
+    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
     fn namespace(&self) -> String;
     /// Returns the current title of the [`Application`].
@@ -72,8 +71,8 @@ where
     fn theme(&self) -> Self::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(&self) -> <Self::Theme as StyleSheet>::Style {
-        Default::default()
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        theme.default_style()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -115,16 +114,19 @@ where
     }
 }
 
+type SingleRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
+
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
     settings: Settings<A::Flags>,
-    compositor_settings: C::Settings,
+    compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where
     A: Application + 'static,
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use futures::task;
     use futures::Future;
@@ -132,16 +134,16 @@ where
     let mut debug = Debug::new();
     debug.startup_started();
 
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<A::Message>();
+    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
-    let runtime: Runtime<E, IcedProxy<A::Message>, <A as Program>::Message> = {
+    let mut runtime: SingleRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
 
-        Runtime::new(executor, proxy.clone())
+        Runtime::new(executor, proxy)
     };
 
-    let (application, init_command) = {
+    let (application, task) = {
         let flags = settings.flags;
 
         runtime.enter(|| A::new(flags))
@@ -161,32 +163,30 @@ where
         .expect("Cannot create layershell");
 
     let window = Arc::new(ev.gen_main_wrapper());
-    let compositor = C::new(compositor_settings, window.clone())?;
-    let mut renderer = compositor.create_renderer();
 
-    for font in settings.fonts {
-        use iced_core::text::Renderer;
-
-        renderer.load_font(font);
+    if let Some(stream) = iced_runtime::task::into_stream(task) {
+        runtime.run(stream);
     }
+
+    runtime.track(iced_futures::subscription::into_recipes(
+        runtime.enter(|| application.subscription().map(Action::Output)),
+    ));
 
     let state = State::new(&application, &ev);
 
-    let (mut event_sender, event_receiver) = mpsc::unbounded::<IcedLayerEvent<A::Message, ()>>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<Vec<LayerShellActions<()>>>();
+    let (mut event_sender, event_receiver) =
+        mpsc::unbounded::<IcedLayerEvent<Action<A::Message>, ()>>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActions<()>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
-        compositor,
-        renderer,
+        compositor_settings,
         runtime,
-        proxy,
         debug,
         event_receiver,
         control_sender,
         state,
-        init_command,
-        window.clone(),
+        window,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -251,66 +251,57 @@ where
         let Ok(Some(flow)) = control_receiver.try_next() else {
             return def_returndata;
         };
-        for flow in flow {
-            match flow {
-                LayerShellActions::CustomActions(actions) => {
-                    for action in actions {
-                        match action {
-                            LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
-                                ev.main_window().set_anchor(anchor);
-                            }
-                            LayershellCustomActionsWithInfo::LayerChange(layer) => {
-                                ev.main_window().set_layer(layer);
-                            }
-                            LayershellCustomActionsWithInfo::MarginChange(margin) => {
-                                ev.main_window().set_margin(margin);
-                            }
-                            LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
-                                ev.main_window().set_size((width, height));
-                            }
-                            LayershellCustomActionsWithInfo::VirtualKeyboardPressed {
-                                time,
-                                key,
-                            } => {
-                                use layershellev::reexport::wayland_client::KeyState;
-                                let ky = ev.get_virtual_keyboard().unwrap();
-                                ky.key(time, key, KeyState::Pressed.into());
-
-                                let eh = ev.get_loop_handler().unwrap();
-                                eh.insert_source(
-                                    Timer::from_duration(Duration::from_micros(100)),
-                                    move |_, _, state| {
-                                        let ky = state.get_virtual_keyboard().unwrap();
-
-                                        ky.key(time, key, KeyState::Released.into());
-                                        TimeoutAction::Drop
-                                    },
-                                )
-                                .ok();
-                            }
-                            _ => {}
-                        }
-                    }
+        match flow {
+            LayerShellActions::CustomActions(action) => match action {
+                LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                    ev.main_window().set_anchor(anchor);
                 }
-                LayerShellActions::Mouse(mouse) => {
-                    let Some(pointer) = ev.get_pointer() else {
-                        return ReturnData::None;
-                    };
+                LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                    ev.main_window().set_layer(layer);
+                }
+                LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                    ev.main_window().set_margin(margin);
+                }
+                LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
+                    ev.main_window().set_size((width, height));
+                }
+                LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
+                    use layershellev::reexport::wayland_client::KeyState;
+                    let ky = ev.get_virtual_keyboard().unwrap();
+                    ky.key(time, key, KeyState::Pressed.into());
 
-                    ev.append_return_data(ReturnData::RequestSetCursorShape((
-                        conversion::mouse_interaction(mouse),
-                        pointer.clone(),
-                        pointer_serial,
-                    )));
-                }
-                LayerShellActions::RedrawAll => {
-                    ev.append_return_data(ReturnData::RedrawAllRequest);
-                }
-                LayerShellActions::RedrawWindow(index) => {
-                    ev.append_return_data(ReturnData::RedrawIndexRequest(index));
+                    let eh = ev.get_loop_handler().unwrap();
+                    eh.insert_source(
+                        Timer::from_duration(Duration::from_micros(100)),
+                        move |_, _, state| {
+                            let ky = state.get_virtual_keyboard().unwrap();
+
+                            ky.key(time, key, KeyState::Released.into());
+                            TimeoutAction::Drop
+                        },
+                    )
+                    .ok();
                 }
                 _ => {}
+            },
+            LayerShellActions::Mouse(mouse) => {
+                let Some(pointer) = ev.get_pointer() else {
+                    return ReturnData::None;
+                };
+
+                ev.append_return_data(ReturnData::RequestSetCursorShape((
+                    conversion::mouse_interaction(mouse),
+                    pointer.clone(),
+                    pointer_serial,
+                )));
             }
+            LayerShellActions::RedrawAll => {
+                ev.append_return_data(ReturnData::RedrawAllRequest);
+            }
+            LayerShellActions::RedrawWindow(index) => {
+                ev.append_return_data(ReturnData::RedrawIndexRequest(index));
+            }
+            _ => {}
         }
         def_returndata
     });
@@ -320,26 +311,30 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
     mut application: A,
-    mut compositor: C,
-    mut renderer: A::Renderer,
-    mut runtime: Runtime<E, IcedProxy<A::Message>, A::Message>,
-    mut proxy: IcedProxy<A::Message>,
+    compositor_settings: iced_graphics::Settings,
+    mut runtime: SingleRuntime<E, A::Message>,
     mut debug: Debug,
-    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<A::Message, ()>>,
-    mut control_sender: mpsc::UnboundedSender<Vec<LayerShellActions<()>>>,
+    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>, ()>>,
+    mut control_sender: mpsc::UnboundedSender<LayerShellActions<()>>,
     mut state: State<A>,
-    init_command: Command<A::Message>,
     window: Arc<WindowWrapper>,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use iced_core::mouse;
     use iced_core::Event;
+
+    let mut compositor = C::new(compositor_settings, window.clone())
+        .await
+        .expect("Cannot create compositor");
+    let mut renderer = compositor.create_renderer();
+
     let physical_size = state.physical_size();
-    let mut cache = user_interface::Cache::default();
+    let cache = user_interface::Cache::default();
     let mut surface =
         compositor.create_surface(window.clone(), physical_size.width, physical_size.height);
 
@@ -352,24 +347,6 @@ async fn run_instance<A, E, C>(
     let mut events: Vec<Event> = Vec::new();
     let mut custom_actions = Vec::new();
 
-    run_command(
-        &application,
-        &mut compositor,
-        &mut surface,
-        &mut cache,
-        &state,
-        &mut renderer,
-        init_command,
-        &mut runtime,
-        &mut clipboard,
-        &mut custom_actions,
-        &mut should_exit,
-        &mut proxy,
-        &mut debug,
-    );
-
-    runtime.track(application.subscription().into_recipes());
-
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &application,
         cache,
@@ -379,6 +356,8 @@ async fn run_instance<A, E, C>(
     ));
 
     debug.startup_finished();
+
+    let main_id = IcedCoreWindow::Id::unique();
 
     while let Some(event) = event_receiver.next().await {
         match event {
@@ -400,10 +379,8 @@ async fn run_instance<A, E, C>(
                 debug.layout_finished();
 
                 compositor.configure_surface(&mut surface, width, height);
-                let redraw_event = IcedCoreEvent::Window(
-                    IcedCoreWindow::Id::MAIN,
-                    IcedCoreWindow::Event::RedrawRequested(Instant::now()),
-                );
+                let redraw_event =
+                    IcedCoreEvent::Window(IcedCoreWindow::Event::RedrawRequested(Instant::now()));
 
                 user_interface.update(
                     &[redraw_event.clone()],
@@ -412,7 +389,11 @@ async fn run_instance<A, E, C>(
                     &mut clipboard,
                     &mut messages,
                 );
-                runtime.broadcast(redraw_event, iced_core::event::Status::Ignored);
+                runtime.broadcast(iced_futures::subscription::Event::Interaction {
+                    window: main_id,
+                    event: redraw_event,
+                    status: iced_core::event::Status::Ignored,
+                });
 
                 debug.draw_started();
                 let new_mouse_interaction = user_interface.draw(
@@ -480,14 +461,33 @@ async fn run_instance<A, E, C>(
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
 
-                if let Some(event) =
-                    conversion::window_event(IcedCoreWindow::Id::MAIN, &event, state.modifiers())
-                {
+                if let Some(event) = conversion::window_event(main_id, &event, state.modifiers()) {
                     events.push(event);
                 }
             }
             IcedLayerEvent::UserEvent(event) => {
-                messages.push(event);
+                let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
+                run_action(
+                    &application,
+                    &mut compositor,
+                    &mut surface,
+                    &mut cache,
+                    &state,
+                    &mut renderer,
+                    event,
+                    &mut messages,
+                    &mut clipboard,
+                    &mut custom_actions,
+                    &mut should_exit,
+                    &mut debug,
+                );
+                user_interface = ManuallyDrop::new(build_user_interface(
+                    &application,
+                    cache,
+                    &mut renderer,
+                    state.logical_size(),
+                    &mut debug,
+                ));
             }
             IcedLayerEvent::NormalUpdate => {
                 if events.is_empty() && messages.is_empty() {
@@ -504,31 +504,25 @@ async fn run_instance<A, E, C>(
                 debug.event_processing_finished();
 
                 for (event, status) in events.drain(..).zip(statuses.into_iter()) {
-                    runtime.broadcast(event, status);
+                    runtime.broadcast(iced_futures::subscription::Event::Interaction {
+                        window: main_id,
+                        event,
+                        status,
+                    });
                 }
 
                 if !messages.is_empty()
                     || matches!(interface_state, user_interface::State::Outdated)
                 {
-                    let mut cache = ManuallyDrop::into_inner(user_interface).into_cache();
-
+                    let cache = ManuallyDrop::into_inner(user_interface).into_cache();
                     // Update application
                     update(
                         &mut application,
-                        &mut compositor,
-                        &mut surface,
-                        &mut cache,
                         &mut state,
-                        &mut renderer,
                         &mut runtime,
-                        &mut clipboard,
-                        &mut should_exit,
-                        &mut proxy,
                         &mut debug,
                         &mut messages,
-                        &mut custom_actions,
                     );
-
                     user_interface = ManuallyDrop::new(build_user_interface(
                         &application,
                         cache,
@@ -536,7 +530,6 @@ async fn run_instance<A, E, C>(
                         state.logical_size(),
                         &mut debug,
                     ));
-
                     if should_exit {
                         break;
                     }
@@ -545,7 +538,9 @@ async fn run_instance<A, E, C>(
             }
             _ => unreachable!(),
         }
-        control_sender.start_send(custom_actions.clone()).ok();
+        for action in custom_actions.iter() {
+            control_sender.start_send(action.clone()).ok();
+        }
         custom_actions.clear();
     }
 
@@ -562,7 +557,7 @@ pub fn build_user_interface<'a, A: Application>(
     debug: &mut Debug,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
 {
     debug.view_started();
     let view = application.view();
@@ -577,163 +572,134 @@ where
 /// Updates an [`Application`] by feeding it the provided messages, spawning any
 /// resulting [`Command`], and tracking its [`Subscription`].
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn update<A: Application, C, E: Executor>(
+pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
-    compositor: &mut C,
-    surface: &mut C::Surface,
-    cache: &mut user_interface::Cache,
     state: &mut State<A>,
-    renderer: &mut A::Renderer,
-    runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
-    clipboard: &mut LayerShellClipboard,
-    should_exit: &mut bool,
-    proxy: &mut IcedProxy<A::Message>,
+    runtime: &mut SingleRuntime<E, A::Message>,
     debug: &mut Debug,
     messages: &mut Vec<A::Message>,
-    custom_actions: &mut Vec<LayerShellActions<()>>,
 ) where
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
+    A::Theme: DefaultStyle,
     A::Message: 'static,
 {
     for message in messages.drain(..) {
         debug.log_message(&message);
 
         debug.update_started();
-        let command: Command<A::Message> = runtime.enter(|| application.update(message));
+        let task = runtime.enter(|| application.update(message));
         debug.update_finished();
 
-        run_command(
-            application,
-            compositor,
-            surface,
-            cache,
-            state,
-            renderer,
-            command,
-            runtime,
-            clipboard,
-            custom_actions,
-            should_exit,
-            proxy,
-            debug,
-        );
+        if let Some(stream) = iced_runtime::task::into_stream(task) {
+            runtime.run(stream);
+        }
     }
     state.synchronize(application);
 
-    let subscription = application.subscription();
-    runtime.track(subscription.into_recipes());
+    let subscription = runtime.enter(|| application.subscription());
+    runtime.track(iced_futures::subscription::into_recipes(
+        subscription.map(Action::Output),
+    ));
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_command<A, C, E>(
+pub(crate) fn run_action<A, C>(
     application: &A,
     compositor: &mut C,
     surface: &mut C::Surface,
     cache: &mut user_interface::Cache,
     state: &State<A>,
     renderer: &mut A::Renderer,
-    command: Command<A::Message>,
-    runtime: &mut Runtime<E, IcedProxy<A::Message>, A::Message>,
+    event: Action<A::Message>,
+    messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellActions<()>>,
     should_exit: &mut bool,
-    proxy: &mut IcedProxy<A::Message>,
     debug: &mut Debug,
 ) where
     A: Application,
-    E: Executor,
     C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: StyleSheet,
-    A::Message: 'static,
+    A::Theme: DefaultStyle,
+    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
-    use iced_runtime::command;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
-    let mut customactions = Vec::new();
-    for action in command.actions() {
-        match action {
-            command::Action::Future(future) => {
-                runtime.spawn(future);
+    use iced_runtime::Action;
+    match event {
+        Action::Output(stream) => match stream.try_into() {
+            Ok(action) => custom_actions.push(LayerShellActions::CustomActions(action)),
+            Err(stream) => {
+                messages.push(stream);
             }
-            command::Action::Stream(stream) => {
-                runtime.run(stream);
+        },
+
+        Action::Clipboard(action) => match action {
+            clipboard::Action::Read { target, channel } => {
+                let _ = channel.send(clipboard.read(target));
             }
-            command::Action::Clipboard(action) => match action {
-                clipboard::Action::Read(tag, kind) => {
-                    let message = tag(clipboard.read(kind));
+            clipboard::Action::Write { target, contents } => {
+                clipboard.write(target, contents);
+            }
+        },
+        Action::Widget(action) => {
+            let mut current_cache = std::mem::take(cache);
+            let mut current_operation = Some(action);
 
-                    proxy.send_event(message).ok();
-                }
-                clipboard::Action::Write(contents, kind) => {
-                    clipboard.write(kind, contents);
-                }
-            },
-            command::Action::Widget(action) => {
-                let mut current_cache = std::mem::take(cache);
-                let mut current_operation = Some(action);
+            let mut user_interface = build_user_interface(
+                application,
+                current_cache,
+                renderer,
+                state.logical_size(),
+                debug,
+            );
 
-                let mut user_interface = build_user_interface(
-                    application,
-                    current_cache,
-                    renderer,
-                    state.logical_size(),
-                    debug,
-                );
+            while let Some(mut operation) = current_operation.take() {
+                user_interface.operate(renderer, operation.as_mut());
 
-                while let Some(mut operation) = current_operation.take() {
-                    user_interface.operate(renderer, operation.as_mut());
-
-                    match operation.finish() {
-                        operation::Outcome::None => {}
-                        operation::Outcome::Some(_message) => {
-                            // TODO:
-                        }
-                        operation::Outcome::Chain(next) => {
-                            current_operation = Some(next);
-                        }
+                match operation.finish() {
+                    operation::Outcome::None => {}
+                    operation::Outcome::Some(_message) => {
+                        // TODO:
+                    }
+                    operation::Outcome::Chain(next) => {
+                        current_operation = Some(next);
                     }
                 }
-
-                current_cache = user_interface.into_cache();
-                *cache = current_cache;
             }
-            command::Action::Window(action) => match action {
-                WinowAction::Close(_) => {
-                    *should_exit = true;
-                }
-                WinowAction::Screenshot(_id, tag) => {
-                    let bytes = compositor.screenshot(
-                        renderer,
-                        surface,
-                        state.viewport(),
-                        state.background_color(),
-                        &debug.overlay(),
-                    );
 
-                    proxy
-                        .send_event(tag(window::Screenshot::new(bytes, state.physical_size())))
-                        .ok();
-                }
-                _ => {}
-            },
-            command::Action::LoadFont { bytes, tagger } => {
-                use iced_core::text::Renderer;
-
-                // TODO: Error handling (?)
-                renderer.load_font(bytes);
-
-                proxy.send_event(tagger(Ok(()))).ok();
+            current_cache = user_interface.into_cache();
+            *cache = current_cache;
+        }
+        Action::Window(action) => match action {
+            WinowAction::Close(_) => {
+                *should_exit = true;
             }
-            command::Action::Custom(custom) => {
-                if let Some(action) = custom.downcast_ref::<LayershellCustomActionsWithInfo<()>>() {
-                    customactions.push(*action);
-                }
+            WinowAction::Screenshot(_id, channel) => {
+                let bytes = compositor.screenshot(
+                    renderer,
+                    surface,
+                    state.viewport(),
+                    state.background_color(),
+                    &debug.overlay(),
+                );
+                let _ = channel.send(window::Screenshot::new(
+                    bytes,
+                    state.physical_size(),
+                    state.viewport().scale_factor(),
+                ));
             }
             _ => {}
+        },
+        Action::Exit => {
+            *should_exit = true;
         }
+        Action::LoadFont { bytes, channel } => {
+            // TODO: Error handling (?)
+            compositor.load_font(bytes.clone());
+
+            let _ = channel.send(Ok(()));
+        }
+        _ => {}
     }
-    custom_actions.push(LayerShellActions::CustomActions(customactions));
 }

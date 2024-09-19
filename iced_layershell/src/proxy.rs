@@ -12,12 +12,6 @@ use std::sync::mpsc as stdmpsc;
 #[derive(Debug)]
 pub struct IcedProxy<Message: 'static>(stdmpsc::Sender<Message>);
 
-impl<Message: 'static> IcedProxy<Message> {
-    pub fn send_event(&self, event: Message) -> Result<(), stdmpsc::SendError<Message>> {
-        self.0.send(event)
-    }
-}
-
 impl<Message: 'static> Clone for IcedProxy<Message> {
     fn clone(&self) -> Self {
         Self(self.0.clone())

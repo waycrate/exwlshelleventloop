@@ -2,9 +2,9 @@ use iced::event::Status;
 use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
-use iced::{Color, Command};
+use iced::{Color, Task as Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_layershell::actions::LayershellCustomActions;
+use iced_layershell::actions::{LayershellCustomActions, LayershellCustomActionsWithInfo};
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
@@ -83,11 +83,19 @@ struct KeyCoords {
 struct KeyboardView {
     draw_cache: Cache,
 }
+
 #[derive(Debug, Clone)]
 enum Message {
     InputKeyPressed(u32),
 }
 
+impl TryInto<LayershellCustomActionsWithInfo<()>> for Message {
+    type Error = Self;
+    fn try_into(self) -> Result<LayershellCustomActionsWithInfo<()>, Self::Error> {
+        let Message::InputKeyPressed(key) = self;
+        Ok(LayershellCustomActions::VirtualKeyboardPressed { time: 100, key })
+    }
+}
 impl Application for KeyboardView {
     type Executor = iced::executor::Default;
     type Message = Message;
@@ -105,9 +113,7 @@ impl Application for KeyboardView {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::InputKeyPressed(key) => Command::single(
-                LayershellCustomActions::VirtualKeyboardPressed { time: 100, key }.into(),
-            ),
+            Message::InputKeyPressed(_) => Command::done(message),
         }
     }
 

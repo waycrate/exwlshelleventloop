@@ -6,7 +6,7 @@ use gio::{AppLaunchContext, DesktopAppInfo};
 use crate::Message;
 use gio::prelude::*;
 use iced::widget::{button, image, row, svg};
-use iced::{theme, Element, Length};
+use iced::{Element, Length};
 
 static DEFAULT_ICON: &[u8] = include_bytes!("../misc/text-plain.svg");
 
@@ -52,10 +52,12 @@ impl App {
             .on_press(Message::Launch(index))
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(if selected {
-                theme::Button::Primary
-            } else {
-                theme::Button::Secondary
+            .style(move |theme, status| {
+                if selected {
+                    button::primary(theme, status)
+                } else {
+                    button::secondary(theme, status)
+                }
             })
             .into()
     }
