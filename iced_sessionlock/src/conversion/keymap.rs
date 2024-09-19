@@ -356,9 +356,7 @@ use iced_core::keyboard;
 ///
 /// [`winit`]: https://github.com/rust-windowing/winit
 /// [`iced`]: https://github.com/iced-rs/iced/tree/0.12
-pub fn key_code(
-    key_code: sessionlockev::keyboard::KeyCode,
-) -> Option<keyboard::key::Code> {
+pub fn key_code(key_code: sessionlockev::keyboard::KeyCode) -> Option<keyboard::key::Code> {
     use sessionlockev::keyboard::KeyCode;
 
     Some(match key_code {
@@ -470,9 +468,7 @@ pub fn key_code(
         KeyCode::NumpadMemoryClear => keyboard::key::Code::NumpadMemoryClear,
         KeyCode::NumpadMemoryRecall => keyboard::key::Code::NumpadMemoryRecall,
         KeyCode::NumpadMemoryStore => keyboard::key::Code::NumpadMemoryStore,
-        KeyCode::NumpadMemorySubtract => {
-            keyboard::key::Code::NumpadMemorySubtract
-        }
+        KeyCode::NumpadMemorySubtract => keyboard::key::Code::NumpadMemorySubtract,
         KeyCode::NumpadMultiply => keyboard::key::Code::NumpadMultiply,
         KeyCode::NumpadParenLeft => keyboard::key::Code::NumpadParenLeft,
         KeyCode::NumpadParenRight => keyboard::key::Code::NumpadParenRight,
@@ -573,14 +569,9 @@ pub fn native_key_code(
 
     match native_key_code {
         NativeKeyCode::Unidentified => keyboard::key::NativeCode::Unidentified,
-        NativeKeyCode::Android(code) => {
-            keyboard::key::NativeCode::Android(code)
-        }
+        NativeKeyCode::Android(code) => keyboard::key::NativeCode::Android(code),
         NativeKeyCode::MacOS(code) => keyboard::key::NativeCode::MacOS(code),
-        NativeKeyCode::Windows(code) => {
-            keyboard::key::NativeCode::Windows(code)
-        }
+        NativeKeyCode::Windows(code) => keyboard::key::NativeCode::Windows(code),
         NativeKeyCode::Xkb(code) => keyboard::key::NativeCode::Xkb(code),
     }
 }
-
