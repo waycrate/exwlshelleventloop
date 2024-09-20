@@ -377,13 +377,14 @@ where
                         ev.append_return_data(ReturnData::NewLayerShell((settings, Some(info))));
                     }
                     LayershellCustomActionsWithInfo::RemoveWindow(id) => {
-                        ev.remove_shell(option_id.unwrap());
-                        event_sender
-                            .start_send(MultiWindowIcedLayerEvent(
-                                None,
-                                IcedLayerEvent::WindowRemoved(id),
-                            ))
-                            .ok();
+                        if ev.remove_shell(option_id.unwrap()).is_some() {
+                            event_sender
+                                .start_send(MultiWindowIcedLayerEvent(
+                                    None,
+                                    IcedLayerEvent::WindowRemoved(id),
+                                ))
+                                .ok();
+                        }
                     }
                     LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
                         let IcedNewPopupSettings { size, position } = menusettings;

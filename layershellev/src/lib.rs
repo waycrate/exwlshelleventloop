@@ -583,13 +583,13 @@ impl<T> WindowState<T> {
         self.return_data.push(data);
     }
     /// remove a shell, destroy the surface
-    pub fn remove_shell(&mut self, id: id::Id) {
+    pub fn remove_shell(&mut self, id: id::Id) -> Option<()> {
         let Some(index) = self
             .units
             .iter()
             .position(|unit| unit.id == id && unit.becreated)
         else {
-            return;
+            return None;
         };
 
         self.units[index].shell.destroy();
@@ -599,6 +599,7 @@ impl<T> WindowState<T> {
             buffer.destroy()
         }
         self.units.remove(index);
+        Some(())
     }
 
     /// forget the remembered last output, next time it will get the new activated output to set the
