@@ -584,13 +584,10 @@ impl<T> WindowState<T> {
     }
     /// remove a shell, destroy the surface
     pub fn remove_shell(&mut self, id: id::Id) -> Option<()> {
-        let Some(index) = self
+        let index = self
             .units
             .iter()
-            .position(|unit| unit.id == id && unit.becreated)
-        else {
-            return None;
-        };
+            .position(|unit| unit.id == id && unit.becreated)?;
 
         self.units[index].shell.destroy();
         self.units[index].wl_surface.destroy();
