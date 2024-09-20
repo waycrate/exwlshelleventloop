@@ -816,9 +816,7 @@ async fn run_instance<A, E, C>(
             }
             _ => {}
         }
-        let mut swap_actions = vec![];
-        std::mem::swap(&mut swap_actions, &mut custom_actions);
-        for action in swap_actions.into_iter() {
+        for action in custom_actions.drain(..) {
             control_sender.start_send(action).ok();
         }
     }
