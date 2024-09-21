@@ -1,4 +1,3 @@
-extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use syn::{parse_macro_input, ItemEnum, LitStr};
@@ -93,8 +92,8 @@ pub fn to_layer_message(attr: TokenStream, input: TokenStream) -> TokenStream {
                         Self::NewLayerShell {settings, info } => {
                             Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell((settings, info))))
                         }
-                        Self::NewPopUp { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp((settings, info)))),
-                        Self::NewMenu { settings, info } =>   Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu((settings, info)))),
+                        Self::NewPopUp { settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp((settings, info)))),
+                        Self::NewMenu { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu((settings, info)))),
                         Self::RemoveWindow(id) => Ok(InnerLayerActionId::new(None, InnerLayerAction::RemoveWindow(id))),
                         Self::ForgetLastOutput => Ok(InnerLayerActionId::new(None, InnerLayerAction::ForgetLastOutput)),
                         _ => Err(self)
