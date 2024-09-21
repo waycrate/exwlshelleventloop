@@ -56,7 +56,7 @@ enum WindowDirection {
     Bottom,
 }
 
-// Beause new iced delete the custom command, so now we make a macro crate to generate
+// Because new iced delete the custom command, so now we make a macro crate to generate
 // the Command
 #[to_layer_message(derives = "Debug Clone")]
 enum Message {
