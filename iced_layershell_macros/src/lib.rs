@@ -66,7 +66,7 @@ pub fn to_layer_message(attr: TokenStream, input: TokenStream) -> TokenStream {
 
                 fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActionsWithIdAndInfo<#info>, Self::Error> {
                     type InnerLayerActionId = iced_layershell::actions::LayershellCustomActionsWithIdAndInfo<#info>;
-                    type InnerLayerAction = LayershellCustomActionsWithInfo<#info>;
+                    type InnerLayerAction = iced_layershell::actions::LayershellCustomActionsWithInfo<#info>;
                     match self {
                         Self::AnchorChange{id, anchor} => {
                             Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::AnchorChange(anchor)))

@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
-use iced_layershell::actions::{
-    IcedNewMenuSettings, LayershellCustomActionsWithInfo, MenuDirection,
-};
+use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
