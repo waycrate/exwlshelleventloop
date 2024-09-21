@@ -56,14 +56,14 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream>
             "RustEmbed can only be derived for enum",
         ));
     };
-    let enum_identifer = &ast.ident;
+    let enum_identifier = &ast.ident;
     let is_multi = find_attribute_values_boolean(ast, "multi")
         .last()
         .unwrap_or(&false)
         .to_owned();
 
     let new_enum_identifier = Ident::new(
-        &format!("{}LayerMessage", enum_identifer),
+        &format!("{}LayerMessage", enum_identifier),
         Span::call_site(),
     );
 
