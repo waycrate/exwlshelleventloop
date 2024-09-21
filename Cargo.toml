@@ -3,6 +3,7 @@ resolver = "2"
 members = [
 	"layershellev",
 	"iced_layershell",
+	"iced_layershell_macros",
 	"iced_sessionlock",
 	"starcolorkeyboard",
 	"sessionlockev",
@@ -28,6 +29,7 @@ layershellev = { version = "0.7.0-beta1", path = "./layershellev" }
 sessionlockev = { version = "0.7.0-beta1", path = "./sessionlockev" }
 
 iced_layershell = { version = "0.7.0-beta1", path = "./iced_layershell" }
+iced_layershell_macros = { version = "0.7.0-beta1", path = "./iced_layershell_macros" }
 iced_sessionlock = { version = "0.7.0-beta1", path = "./iced_sessionlock" }
 waycrate_xkbkeycode = { version = "0.7.0-beta1", path = "./waycrate_xkbkeycode" }
 

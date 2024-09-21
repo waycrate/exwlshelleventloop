@@ -1,9 +1,9 @@
 use iced::widget::{button, column, row, text, text_input};
 use iced::{event, Alignment, Color, Element, Event, Length, Task as Command, Theme};
-use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
+use iced_layershell_macros::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     let args: Vec<String> = std::env::args().collect();
@@ -38,38 +38,13 @@ enum WindowDirection {
     Bottom,
 }
 
-#[derive(Debug, Clone)]
+#[to_layer_message(derives = "Debug Clone")]
 enum Message {
     IncrementPressed,
     DecrementPressed,
     TextInput(String),
     Direction(WindowDirection),
-    SizeChange((u32, u32)),
     IcedEvent(Event),
-}
-
-impl TryInto<LayershellCustomActions> for Message {
-    type Error = Self;
-    fn try_into(self) -> Result<LayershellCustomActions, Self::Error> {
-        match self {
-            Self::Direction(direction) => Ok(match direction {
-                WindowDirection::Left => LayershellCustomActions::AnchorChange(
-                    Anchor::Left | Anchor::Top | Anchor::Bottom,
-                ),
-                WindowDirection::Top => LayershellCustomActions::AnchorChange(
-                    Anchor::Top | Anchor::Left | Anchor::Right,
-                ),
-                WindowDirection::Right => LayershellCustomActions::AnchorChange(
-                    Anchor::Top | Anchor::Bottom | Anchor::Right,
-                ),
-                WindowDirection::Bottom => LayershellCustomActions::AnchorChange(
-                    Anchor::Bottom | Anchor::Left | Anchor::Right,
-                ),
-            }),
-            Self::SizeChange((x, y)) => Ok(LayershellCustomActions::SizeChange((x, y))),
-            _ => Err(self),
-        }
-    }
 }
 
 impl Application for Counter {
@@ -82,7 +57,7 @@ impl Application for Counter {
         (
             Self {
                 value: 0,
-                text: "eee".to_string(),
+                text: "hello, write something here".to_string(),
             },
             Command::none(),
         )
@@ -117,19 +92,27 @@ impl Application for Counter {
 
             Message::Direction(direction) => match direction {
                 WindowDirection::Left => Command::batch(vec![
-                    Command::done(message),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Left | Anchor::Top | Anchor::Bottom,
+                    )),
                     Command::done(Message::SizeChange((400, 0))),
                 ]),
                 WindowDirection::Right => Command::batch(vec![
-                    Command::done(message),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Right | Anchor::Top | Anchor::Bottom,
+                    )),
                     Command::done(Message::SizeChange((400, 0))),
                 ]),
                 WindowDirection::Bottom => Command::batch(vec![
-                    Command::done(message),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Bottom | Anchor::Left | Anchor::Right,
+                    )),
                     Command::done(Message::SizeChange((0, 400))),
                 ]),
                 WindowDirection::Top => Command::batch(vec![
-                    Command::done(message),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Top | Anchor::Left | Anchor::Right,
+                    )),
                     Command::done(Message::SizeChange((0, 400))),
                 ]),
             },

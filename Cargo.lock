@@ -794,6 +794,7 @@ version = "0.7.0-beta1"
 dependencies = [
  "iced",
  "iced_layershell",
+ "iced_layershell_macros",
  "iced_runtime",
 ]
 
@@ -812,6 +813,7 @@ version = "0.7.0-beta1"
 dependencies = [
  "iced",
  "iced_layershell",
+ "iced_layershell_macros",
  "iced_runtime",
 ]
 
@@ -1780,6 +1782,15 @@ dependencies = [
  "thiserror",
  "tracing",
  "window_clipboard",
+]
+
+[[package]]
+name = "iced_layershell_macros"
+version = "0.7.0-beta1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
 ]
 
 [[package]]
