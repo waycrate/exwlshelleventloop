@@ -6,7 +6,7 @@ use syn::{parse_macro_input, ItemEnum, LitStr};
 use quote::quote;
 
 #[proc_macro_attribute]
-pub fn layer_message_attribute(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn to_layer_message(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut is_multi = false;
     let mut info_name: Option<LitStr> = None;
     let mut derives: Option<LitStr> = None;

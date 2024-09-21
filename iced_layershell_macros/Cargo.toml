@@ -1,5 +1,5 @@
 [package]
-name = "iced_layershell_derive"
+name = "iced_layershell_macros"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true
