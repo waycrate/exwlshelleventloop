@@ -3,7 +3,7 @@ use iced::{event, Alignment, Color, Element, Event, Length, Task as Command, The
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
-use iced_layershell_derive::LayerShellMessage;
+use iced_layershell_derive::layer_message_attribute;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     let args: Vec<String> = std::env::args().collect();
@@ -38,19 +38,14 @@ enum WindowDirection {
     Bottom,
 }
 
-#[derive(LayerShellMessage)]
-#[usederive = "Debug"]
-#[usederive = "Clone"]
-#[allow(unused)]
-enum MessagePre {
+#[layer_message_attribute(derives = "Debug Clone")]
+enum Message {
     IncrementPressed,
     DecrementPressed,
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
 }
-
-use MessagePreLayerMessage as Message;
 
 impl Application for Counter {
     type Message = Message;

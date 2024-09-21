@@ -13,6 +13,7 @@ use iced_runtime::{task, Action};
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::MultiApplication;
+use iced_layershell_derive::layer_message_attribute;
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
@@ -44,6 +45,11 @@ enum WindowDirection {
     Left(Id),
     Right(Id),
     Bottom(Id),
+}
+
+#[layer_message_attribute(multi, info_name="WindowInfo")]
+enum TempMessage {
+    
 }
 
 #[derive(Debug, Clone)]

@@ -1,139 +1,102 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use syn::{
-    parse_macro_input, Data, DataEnum, DeriveInput, Expr, ExprLit, Lit, Meta, MetaNameValue,
-};
+use syn::{parse_macro_input, ItemEnum, LitStr};
 
 use quote::quote;
 
-fn find_attribute_values(ast: &syn::DeriveInput, attr_name: &str) -> Vec<String> {
-    ast.attrs
-        .iter()
-        .filter(|value| value.path().is_ident(attr_name))
-        .filter_map(|attr| match &attr.meta {
-            Meta::NameValue(MetaNameValue {
-                value:
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(val), ..
-                    }),
-                ..
-            }) => Some(val.value()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn derive_values(ast: &syn::DeriveInput) -> Vec<Ident> {
-    find_attribute_values(ast, "usederive")
-        .iter()
-        .map(|derive| Ident::new(derive, Span::call_site()))
-        .collect()
-}
-
-fn find_attribute_values_boolean(ast: &syn::DeriveInput, attr_name: &str) -> Vec<bool> {
-    ast.attrs
-        .iter()
-        .filter(|value| value.path().is_ident(attr_name))
-        .filter_map(|attr| match &attr.meta {
-            Meta::NameValue(MetaNameValue {
-                value:
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Bool(val),
-                        ..
-                    }),
-                ..
-            }) => Some(val.value()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
-    let Data::Enum(DataEnum { variants, .. }) = &ast.data else {
-        return Err(syn::Error::new_spanned(
-            ast,
-            "RustEmbed can only be derived for enum",
-        ));
-    };
-    let enum_identifier = &ast.ident;
-    let is_multi = find_attribute_values_boolean(ast, "multi")
-        .last()
-        .unwrap_or(&false)
-        .to_owned();
-
-    let new_enum_identifier = Ident::new(
-        &format!("{}LayerMessage", enum_identifier),
-        Span::call_site(),
-    );
-
+#[proc_macro_attribute]
+pub fn layer_message_attribute(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let mut is_multi = false;
+    let mut info_name: Option<LitStr> = None;
+    let mut derives: Option<LitStr> = None;
+    let tea_parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("multi") {
+            is_multi = true;
+            Ok(())
+        } else if meta.path.is_ident("info_name") {
+            info_name = Some(meta.value()?.parse()?);
+            Ok(())
+        } else if meta.path.is_ident("derives") {
+            derives = Some(meta.value()?.parse()?);
+            Ok(())
+        } else {
+            Err(meta.error("unsupported tea property"))
+        }
+    });
+    let input_enum = parse_macro_input!(input as ItemEnum);
+    parse_macro_input!(attr with tea_parser);
     let mut derive_part = vec![];
-    for derive in derive_values(ast) {
-        derive_part.push(quote! {
-            #[derive(#derive)]
-        });
+    if let Some(derives) = derives {
+        let tmpval = derives.value();
+        let val: Vec<&str> = tmpval.split(' ').collect();
+        for der in val.iter() {
+            let iden_tmp = Ident::new(der, Span::call_site());
+            derive_part.push(quote! {
+                #[derive(#iden_tmp)]
+            });
+        }
     }
-
+    // Extract the enum name
+    let enum_name = &input_enum.ident;
+    let variants = &input_enum.variants;
     let new_varents = if is_multi {
-        let info_name = find_attribute_values(ast, "info")
-            .last()
-            .ok_or(syn::Error::new_spanned(ast, "please provide info"))?
-            .to_owned();
+        let info_name = info_name.expect("Sould set the infoName").value();
         let info = Ident::new(&info_name, Span::call_site());
 
         quote! {
             #(#derive_part)*
-            enum #new_enum_identifier {
+            enum #enum_name {
                 #variants
-                AnchorChange(iced_layershell::reexport::Anchor),
-                LayerChange(iced_layershell::reexport::Layer),
-                MarginChange((i32, i32, i32, i32)),
-                SizeChange((u32, u32)),
+                AnchorChange{id: iced::window::Id, anchor: iced_layershell::reexport::Anchor},
+                LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
+                MarginChange{id: iced::window::Id, margin: (i32, i32, i32, i32)},
+                SizeChange{id: iced::window::Id, size: (u32, u32)},
                 VirtualKeyboardPressed {
                     time: u32,
                     key: u32,
                 },
-                NewLayerShell((iced_layershell::actions::IcedNewMenuSettings, #info)),
+                NewLayerShell((iced_layershell::reexport::NewLayerShellSettings, #info)),
                 NewPopUp((iced_layershell::actions::IcedNewPopupSettings, #info)),
                 NewMenu((iced_layershell::actions::IcedNewMenuSettings, #info)),
                 RemoveWindow(iced::window::Id),
                 ForgetLastOutput,
             }
-            impl TryInto<iced_layershell::actions::LayershellCustomActionsWithIdAndInfo<#info>> for #new_enum_identifier {
+            impl TryInto<iced_layershell::actions::LayershellCustomActionsWithIdAndInfo<#info>> for #enum_name {
                 type Error = Self;
 
                 fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActionsWithIdAndInfo<#info>, Self::Error> {
-                    type InnerLayerAction = iced_layershell::actions::LayershellCustomActions<#info>;
+                    type InnerLayerActionId = iced_layershell::actions::LayershellCustomActionsWithIdAndInfo<#info>;
+                    type InnerLayerAction = LayershellCustomActionsWithInfo<#info>;
                     match self {
-                        Self::AnchorChange(anchor) => {
-                            Ok(InnerLayerAction::AnchorChange(anchor))
+                        Self::AnchorChange{id, anchor} => {
+                            Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::AnchorChange(anchor)))
                         }
-                        Self::LayerChange(layer) => {
-                            Ok(InnerLayerAction::LayerChange(layer))
+                        Self::LayerChange{id, layer} => {
+                            Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::LayerChange(layer)))
                         }
-                        Self::MarginChange(margin) => {
-                            Ok(InnerLayerAction::MarginChange(margin))
+                        Self::MarginChange{id, margin} => {
+                            Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::MarginChange(margin)))
                         }
-                        Self::SizeChange(size) => {
-                            Ok(InnerLayerAction::SizeChange(size))
+                        Self::SizeChange {id,size} => {
+                            Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::SizeChange(size)))
                         }
                         Self::VirtualKeyboardPressed {
                             time,
                             key,
                         } => {
-
-                            Ok(InnerLayerAction::VirtualKeyboardPressed {
+                            Ok(InnerLayerActionId::new(None, InnerLayerAction::VirtualKeyboardPressed {
                                 time,
                                 key
-                            })
+                            }))
                         }
                         Self::NewLayerShell((settings, info)) => {
-                            Ok(InnerLayerAction::NewLayerShell((settings, info)));
+                            Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell((settings, info))))
                         }
-                        Self::NewPopUp(param) => Ok(InnerLayerAction::NewPopUp(param)),
-                        Self::NewMenu(param) => Ok(InnerLayerAction::NewMenu(param)),
-                        Self::RemoveWindow(id) => Ok(InnerLayerAction::RemoveWindow(id)),
-                        Self::ForgetLastOutput => Ok(InnerLayerAction::ForgetLastOutput),
+                        Self::NewPopUp(param) =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp(param))),
+                        Self::NewMenu(param) =>   Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu(param))),
+                        Self::RemoveWindow(id) => Ok(InnerLayerActionId::new(None, InnerLayerAction::RemoveWindow(id))),
+                        Self::ForgetLastOutput => Ok(InnerLayerActionId::new(None, InnerLayerAction::ForgetLastOutput)),
                         _ => Err(self)
                     }
                 }
@@ -142,7 +105,7 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream>
     } else {
         quote! {
             #(#derive_part)*
-            enum #new_enum_identifier {
+            enum #enum_name {
                 #variants
                 AnchorChange(iced_layershell::reexport::Anchor),
                 LayerChange(iced_layershell::reexport::Layer),
@@ -152,10 +115,9 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream>
                     time: u32,
                     key: u32,
                 },
-
             }
 
-            impl TryInto<iced_layershell::actions::LayershellCustomActions> for #new_enum_identifier {
+            impl TryInto<iced_layershell::actions::LayershellCustomActions> for #enum_name {
                 type Error = Self;
                 fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActions, Self::Error> {
                     use iced_layershell::actions::LayershellCustomActions;
@@ -191,14 +153,5 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream>
         }
     };
 
-    Ok(TokenStream::from(new_varents))
-}
-
-#[proc_macro_derive(LayerShellMessage, attributes(multi, info, usederive))]
-pub fn layer_message_derive(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-    match impl_layer_action_message(&ast) {
-        Ok(ok) => ok,
-        Err(e) => e.to_compile_error().into(),
-    }
+    TokenStream::from(new_varents)
 }
