@@ -17,18 +17,26 @@ The smallest example is like
 
 ```rust
 use iced::widget::{button, column, row, text, text_input};
-use iced::{event, Alignment, Command, Element, Event, Length, Theme};
-use iced_layershell::actions::LayershellCustomActions;
+use iced::{event, Alignment, Color, Element, Event, Length, Task as Command, Theme};
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
+use iced_layershell_macros::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
+    let args: Vec<String> = std::env::args().collect();
+
+    let mut binded_output_name = None;
+    if args.len() >= 2 {
+        binded_output_name = Some(args[1].to_string())
+    }
+
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            binded_output_name,
             ..Default::default()
         },
         ..Default::default()
@@ -48,7 +56,9 @@ enum WindowDirection {
     Bottom,
 }
 
-#[derive(Debug, Clone)]
+// Beause new iced delete the custom command, so now we make a macro crate to generate
+// the Command
+#[to_layer_message(derives = "Debug Clone")]
 enum Message {
     IncrementPressed,
     DecrementPressed,
@@ -67,7 +77,7 @@ impl Application for Counter {
         (
             Self {
                 value: 0,
-                text: "eee".to_string(),
+                text: "hello, write something here".to_string(),
             },
             Command::none(),
         )
@@ -99,44 +109,34 @@ impl Application for Counter {
                 self.text = text;
                 Command::none()
             }
+
             Message::Direction(direction) => match direction {
                 WindowDirection::Left => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActions::AnchorChange(
-                            Anchor::Left | Anchor::Top | Anchor::Bottom,
-                        )
-                        .into(),
-                    ),
-                    Command::single(LayershellCustomActions::SizeChange((400, 0)).into()),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Left | Anchor::Top | Anchor::Bottom,
+                    )),
+                    Command::done(Message::SizeChange((400, 0))),
                 ]),
                 WindowDirection::Right => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActions::AnchorChange(
-                            Anchor::Right | Anchor::Top | Anchor::Bottom,
-                        )
-                        .into(),
-                    ),
-                    Command::single(LayershellCustomActions::SizeChange((400, 0)).into()),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Right | Anchor::Top | Anchor::Bottom,
+                    )),
+                    Command::done(Message::SizeChange((400, 0))),
                 ]),
                 WindowDirection::Bottom => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActions::AnchorChange(
-                            Anchor::Bottom | Anchor::Left | Anchor::Right,
-                        )
-                        .into(),
-                    ),
-                    Command::single(LayershellCustomActions::SizeChange((0, 400)).into()),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Bottom | Anchor::Left | Anchor::Right,
+                    )),
+                    Command::done(Message::SizeChange((0, 400))),
                 ]),
                 WindowDirection::Top => Command::batch(vec![
-                    Command::single(
-                        LayershellCustomActions::AnchorChange(
-                            Anchor::Top | Anchor::Left | Anchor::Right,
-                        )
-                        .into(),
-                    ),
-                    Command::single(LayershellCustomActions::SizeChange((0, 400)).into()),
+                    Command::done(Message::AnchorChange(
+                        Anchor::Top | Anchor::Left | Anchor::Right,
+                    )),
+                    Command::done(Message::SizeChange((0, 400))),
                 ]),
             },
+            _ => unreachable!(),
         }
     }
 
@@ -146,8 +146,8 @@ impl Application for Counter {
             text(self.value).size(50),
             button("Decrement").on_press(Message::DecrementPressed)
         ]
+        .align_x(Alignment::Center)
         .padding(20)
-        .align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill);
         row![
@@ -173,10 +173,17 @@ impl Application for Counter {
         ]
         .padding(20)
         .spacing(10)
-        .align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+    }
+
+    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
+        use iced_layershell::Appearance;
+        Appearance {
+            background_color: Color::TRANSPARENT,
+            text_color: theme.palette().text,
+        }
     }
 }
 
