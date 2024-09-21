@@ -69,6 +69,7 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2
         let info = Ident::new(&info_name, Span::call_site());
 
         quote! {
+            #[derive(Debug, Clone)]
             enum #new_enum_identifier {
                 #variants
                 AnchorChange(iced_layershell::reexport::Anchor),
@@ -127,6 +128,7 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2
         }
     } else {
         quote! {
+            #[derive(Debug, Clone)]
             enum #new_enum_identifier {
                 #variants
                 AnchorChange(iced_layershell::reexport::Anchor),

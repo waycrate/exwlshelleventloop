@@ -794,6 +794,7 @@ version = "0.7.0-beta1"
 dependencies = [
  "iced",
  "iced_layershell",
+ "iced_layershell_derive",
  "iced_runtime",
 ]
 
