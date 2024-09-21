@@ -1783,6 +1783,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_layershell_derive"
+version = "0.7.0-beta1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+]
+
+[[package]]
 name = "iced_renderer"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
