@@ -125,13 +125,13 @@ impl MultiApplication for Counter {
                         }
                     }
                     Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
-                        return Command::done(Message::NewMenu((
-                            IcedNewMenuSettings {
+                        return Command::done(Message::NewMenu {
+                            settings: IcedNewMenuSettings {
                                 size: (100, 100),
                                 direction: MenuDirection::Up,
                             },
-                            WindowInfo::PopUp,
-                        )));
+                            info: WindowInfo::PopUp,
+                        });
                     }
                     _ => {}
                 }
@@ -179,8 +179,8 @@ impl MultiApplication for Counter {
                     Command::done(Message::SizeChange { id, size: (0, 400) }),
                 ]),
             },
-            Message::NewWindowLeft => Command::done(Message::NewLayerShell((
-                NewLayerShellSettings {
+            Message::NewWindowLeft => Command::done(Message::NewLayerShell {
+                settings: NewLayerShellSettings {
                     size: Some((100, 100)),
                     exclusive_zone: None,
                     anchor: Anchor::Left | Anchor::Bottom,
@@ -189,10 +189,10 @@ impl MultiApplication for Counter {
                     keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     use_last_output: false,
                 },
-                WindowInfo::Left,
-            ))),
-            Message::NewWindowRight => Command::done(Message::NewLayerShell((
-                NewLayerShellSettings {
+                info: WindowInfo::Left,
+            }),
+            Message::NewWindowRight => Command::done(Message::NewLayerShell {
+                settings: NewLayerShellSettings {
                     size: Some((100, 100)),
                     exclusive_zone: None,
                     anchor: Anchor::Right | Anchor::Bottom,
@@ -201,8 +201,8 @@ impl MultiApplication for Counter {
                     keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     use_last_output: false,
                 },
-                WindowInfo::Right,
-            ))),
+                info: WindowInfo::Right,
+            }),
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),
         }

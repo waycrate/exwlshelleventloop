@@ -56,9 +56,9 @@ pub fn layer_message_attribute(attr: TokenStream, input: TokenStream) -> TokenSt
                     time: u32,
                     key: u32,
                 },
-                NewLayerShell((iced_layershell::reexport::NewLayerShellSettings, #info)),
-                NewPopUp((iced_layershell::actions::IcedNewPopupSettings, #info)),
-                NewMenu((iced_layershell::actions::IcedNewMenuSettings, #info)),
+                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, info: #info },
+                NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, info: #info },
+                NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, info: #info },
                 RemoveWindow(iced::window::Id),
                 ForgetLastOutput,
             }
@@ -90,11 +90,11 @@ pub fn layer_message_attribute(attr: TokenStream, input: TokenStream) -> TokenSt
                                 key
                             }))
                         }
-                        Self::NewLayerShell((settings, info)) => {
+                        Self::NewLayerShell {settings, info } => {
                             Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell((settings, info))))
                         }
-                        Self::NewPopUp(param) =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp(param))),
-                        Self::NewMenu(param) =>   Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu(param))),
+                        Self::NewPopUp { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp((settings, info)))),
+                        Self::NewMenu { settings, info } =>   Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu((settings, info)))),
                         Self::RemoveWindow(id) => Ok(InnerLayerActionId::new(None, InnerLayerAction::RemoveWindow(id))),
                         Self::ForgetLastOutput => Ok(InnerLayerActionId::new(None, InnerLayerAction::ForgetLastOutput)),
                         _ => Err(self)
