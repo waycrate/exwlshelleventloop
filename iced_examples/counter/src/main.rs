@@ -38,7 +38,9 @@ enum WindowDirection {
     Bottom,
 }
 
-#[derive(LayerShellMessage, Debug, Clone)]
+#[derive(LayerShellMessage)]
+#[usederive = "Debug"]
+#[usederive = "Clone"]
 #[allow(unused)]
 enum MessagePre {
     IncrementPressed,
@@ -60,7 +62,7 @@ impl Application for Counter {
         (
             Self {
                 value: 0,
-                text: "eee".to_string(),
+                text: "hello, write something here".to_string(),
             },
             Command::none(),
         )

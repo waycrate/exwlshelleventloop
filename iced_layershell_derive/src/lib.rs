@@ -1,6 +1,6 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
+use proc_macro2::{Ident, Span};
 use syn::{
     parse_macro_input, Data, DataEnum, DeriveInput, Expr, ExprLit, Lit, Meta, MetaNameValue,
 };
@@ -24,6 +24,13 @@ fn find_attribute_values(ast: &syn::DeriveInput, attr_name: &str) -> Vec<String>
         .collect()
 }
 
+fn derive_values(ast: &syn::DeriveInput) -> Vec<Ident> {
+    find_attribute_values(ast, "usederive")
+        .iter()
+        .map(|derive| Ident::new(derive, Span::call_site()))
+        .collect()
+}
+
 fn find_attribute_values_boolean(ast: &syn::DeriveInput, attr_name: &str) -> Vec<bool> {
     ast.attrs
         .iter()
@@ -42,14 +49,13 @@ fn find_attribute_values_boolean(ast: &syn::DeriveInput, attr_name: &str) -> Vec
         .collect()
 }
 
-fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2> {
+fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream> {
     let Data::Enum(DataEnum { variants, .. }) = &ast.data else {
         return Err(syn::Error::new_spanned(
             ast,
             "RustEmbed can only be derived for enum",
         ));
     };
-
     let enum_identifer = &ast.ident;
     let is_multi = find_attribute_values_boolean(ast, "multi")
         .last()
@@ -57,9 +63,16 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2
         .to_owned();
 
     let new_enum_identifier = Ident::new(
-        &format!("{}LayerMessage", enum_identifer.to_string()),
+        &format!("{}LayerMessage", enum_identifer),
         Span::call_site(),
     );
+
+    let mut derive_part = vec![];
+    for derive in derive_values(ast) {
+        derive_part.push(quote! {
+            #[derive(#derive)]
+        });
+    }
 
     let new_varents = if is_multi {
         let info_name = find_attribute_values(ast, "info")
@@ -69,7 +82,7 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2
         let info = Ident::new(&info_name, Span::call_site());
 
         quote! {
-            #[derive(Debug, Clone)]
+            #(#derive_part)*
             enum #new_enum_identifier {
                 #variants
                 AnchorChange(iced_layershell::reexport::Anchor),
@@ -128,7 +141,7 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2
         }
     } else {
         quote! {
-            #[derive(Debug, Clone)]
+            #(#derive_part)*
             enum #new_enum_identifier {
                 #variants
                 AnchorChange(iced_layershell::reexport::Anchor),
@@ -178,14 +191,14 @@ fn impl_layer_action_message(ast: &syn::DeriveInput) -> syn::Result<TokenStream2
         }
     };
 
-    return Ok(TokenStream2::from(new_varents));
+    Ok(TokenStream::from(new_varents))
 }
 
-#[proc_macro_derive(LayerShellMessage, attributes(multi, info))]
+#[proc_macro_derive(LayerShellMessage, attributes(multi, info, usederive))]
 pub fn layer_message_derive(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     match impl_layer_action_message(&ast) {
-        Ok(ok) => ok.into(),
+        Ok(ok) => ok,
         Err(e) => e.to_compile_error().into(),
     }
 }
