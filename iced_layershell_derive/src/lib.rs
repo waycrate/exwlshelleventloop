@@ -41,7 +41,7 @@ pub fn layer_message_attribute(attr: TokenStream, input: TokenStream) -> TokenSt
     let enum_name = &input_enum.ident;
     let variants = &input_enum.variants;
     let new_varents = if is_multi {
-        let info_name = info_name.expect("Sould set the infoName").value();
+        let info_name = info_name.expect("Should set the infoName").value();
         let info = Ident::new(&info_name, Span::call_site());
 
         quote! {

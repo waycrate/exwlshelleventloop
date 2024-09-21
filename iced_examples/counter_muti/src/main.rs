@@ -4,8 +4,7 @@ use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
 use iced_layershell::actions::{
-    IcedNewMenuSettings, LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo,
-    MenuDirection,
+    IcedNewMenuSettings, LayershellCustomActionsWithInfo, MenuDirection,
 };
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
@@ -47,12 +46,7 @@ enum WindowDirection {
     Bottom(Id),
 }
 
-#[layer_message_attribute(multi, info_name="WindowInfo")]
-enum TempMessage {
-    
-}
-
-#[derive(Debug, Clone)]
+#[layer_message_attribute(multi, info_name = "WindowInfo", derives = "Debug Clone")]
 enum Message {
     IncrementPressed,
     DecrementPressed,
@@ -62,112 +56,6 @@ enum Message {
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
-    IcedAction(CounterLayerActions),
-}
-
-#[derive(Debug, Clone)]
-enum CounterLayerActions {
-    MenuShown,
-    ToLeft(Id),
-    LeftSizeChange(Id),
-    ToRight(Id),
-    RightSizeChange(Id),
-    ToBottom(Id),
-    BottomSizeChange(Id),
-    ToTop(Id),
-    TopSizeChange(Id),
-    NewWindowLeft,
-    NewWindowRight,
-}
-
-type CounterLayerAction = LayershellCustomActionsWithIdAndInfo<WindowInfo>;
-type CounterLayerCustomAction = LayershellCustomActionsWithInfo<WindowInfo>;
-
-impl TryInto<CounterLayerAction> for Message {
-    type Error = Self;
-    fn try_into(self) -> Result<CounterLayerAction, Self::Error> {
-        let Self::IcedAction(action) = self else {
-            return Err(self);
-        };
-        match action {
-            CounterLayerActions::MenuShown => Ok(CounterLayerAction::new(
-                None,
-                LayershellCustomActionsWithInfo::NewMenu((
-                    IcedNewMenuSettings {
-                        size: (100, 100),
-                        direction: MenuDirection::Up,
-                    },
-                    WindowInfo::PopUp,
-                )),
-            )),
-            CounterLayerActions::ToLeft(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::AnchorChange(Anchor::Left | Anchor::Top | Anchor::Bottom),
-            )),
-            CounterLayerActions::LeftSizeChange(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::SizeChange((400, 0)),
-            )),
-            CounterLayerActions::ToRight(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::AnchorChange(
-                    Anchor::Right | Anchor::Top | Anchor::Bottom,
-                ),
-            )),
-            CounterLayerActions::RightSizeChange(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::SizeChange((400, 0)),
-            )),
-            CounterLayerActions::ToBottom(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::AnchorChange(
-                    Anchor::Bottom | Anchor::Left | Anchor::Right,
-                ),
-            )),
-            CounterLayerActions::BottomSizeChange(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::SizeChange((0, 400)),
-            )),
-            CounterLayerActions::ToTop(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::AnchorChange(Anchor::Top | Anchor::Left | Anchor::Right),
-            )),
-            CounterLayerActions::TopSizeChange(id) => Ok(CounterLayerAction::new(
-                Some(id),
-                CounterLayerCustomAction::SizeChange((0, 400)),
-            )),
-            CounterLayerActions::NewWindowLeft => Ok(CounterLayerAction::new(
-                None,
-                CounterLayerCustomAction::NewLayerShell((
-                    NewLayerShellSettings {
-                        size: Some((100, 100)),
-                        exclusive_zone: None,
-                        anchor: Anchor::Left | Anchor::Bottom,
-                        layer: Layer::Top,
-                        margin: None,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        use_last_output: false,
-                    },
-                    WindowInfo::Left,
-                )),
-            )),
-            CounterLayerActions::NewWindowRight => Ok(CounterLayerAction::new(
-                None,
-                CounterLayerCustomAction::NewLayerShell((
-                    NewLayerShellSettings {
-                        size: Some((100, 100)),
-                        exclusive_zone: None,
-                        anchor: Anchor::Right | Anchor::Bottom,
-                        layer: Layer::Top,
-                        margin: None,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        use_last_output: false,
-                    },
-                    WindowInfo::Right,
-                )),
-            )),
-        }
-    }
 }
 
 impl Counter {
@@ -237,7 +125,13 @@ impl MultiApplication for Counter {
                         }
                     }
                     Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
-                        return Command::done(Message::IcedAction(CounterLayerActions::MenuShown));
+                        return Command::done(Message::NewMenu((
+                            IcedNewMenuSettings {
+                                size: (100, 100),
+                                direction: MenuDirection::Up,
+                            },
+                            WindowInfo::PopUp,
+                        )));
                     }
                     _ => {}
                 }
@@ -257,32 +151,58 @@ impl MultiApplication for Counter {
             }
             Message::Direction(direction) => match direction {
                 WindowDirection::Left(id) => Command::batch(vec![
-                    Command::done(Message::IcedAction(CounterLayerActions::ToLeft(id))),
-                    Command::done(Message::IcedAction(CounterLayerActions::LeftSizeChange(id))),
+                    Command::done(Message::AnchorChange {
+                        id,
+                        anchor: Anchor::Top | Anchor::Left | Anchor::Bottom,
+                    }),
+                    Command::done(Message::SizeChange { id, size: (400, 0) }),
                 ]),
                 WindowDirection::Right(id) => Command::batch(vec![
-                    Command::done(Message::IcedAction(CounterLayerActions::ToRight(id))),
-                    Command::done(Message::IcedAction(CounterLayerActions::RightSizeChange(
+                    Command::done(Message::AnchorChange {
                         id,
-                    ))),
+                        anchor: Anchor::Top | Anchor::Right | Anchor::Bottom,
+                    }),
+                    Command::done(Message::SizeChange { id, size: (400, 0) }),
                 ]),
                 WindowDirection::Bottom(id) => Command::batch(vec![
-                    Command::done(Message::IcedAction(CounterLayerActions::ToBottom(id))),
-                    Command::done(Message::IcedAction(CounterLayerActions::BottomSizeChange(
+                    Command::done(Message::AnchorChange {
                         id,
-                    ))),
+                        anchor: Anchor::Left | Anchor::Right | Anchor::Bottom,
+                    }),
+                    Command::done(Message::SizeChange { id, size: (0, 400) }),
                 ]),
                 WindowDirection::Top(id) => Command::batch(vec![
-                    Command::done(Message::IcedAction(CounterLayerActions::ToTop(id))),
-                    Command::done(Message::IcedAction(CounterLayerActions::TopSizeChange(id))),
+                    Command::done(Message::AnchorChange {
+                        id,
+                        anchor: Anchor::Left | Anchor::Right | Anchor::Top,
+                    }),
+                    Command::done(Message::SizeChange { id, size: (0, 400) }),
                 ]),
             },
-            Message::NewWindowLeft => {
-                Command::done(Message::IcedAction(CounterLayerActions::NewWindowLeft))
-            }
-            Message::NewWindowRight => {
-                Command::done(Message::IcedAction(CounterLayerActions::NewWindowRight))
-            }
+            Message::NewWindowLeft => Command::done(Message::NewLayerShell((
+                NewLayerShellSettings {
+                    size: Some((100, 100)),
+                    exclusive_zone: None,
+                    anchor: Anchor::Left | Anchor::Bottom,
+                    layer: Layer::Top,
+                    margin: None,
+                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                    use_last_output: false,
+                },
+                WindowInfo::Left,
+            ))),
+            Message::NewWindowRight => Command::done(Message::NewLayerShell((
+                NewLayerShellSettings {
+                    size: Some((100, 100)),
+                    exclusive_zone: None,
+                    anchor: Anchor::Right | Anchor::Bottom,
+                    layer: Layer::Top,
+                    margin: None,
+                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                    use_last_output: false,
+                },
+                WindowInfo::Right,
+            ))),
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),
         }
