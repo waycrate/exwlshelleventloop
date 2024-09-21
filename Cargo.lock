@@ -794,7 +794,6 @@ version = "0.7.0-rc1"
 dependencies = [
  "iced",
  "iced_layershell",
- "iced_layershell_macros",
  "iced_runtime",
 ]
 
@@ -813,7 +812,6 @@ version = "0.7.0-rc1"
 dependencies = [
  "iced",
  "iced_layershell",
- "iced_layershell_macros",
  "iced_runtime",
 ]
 
@@ -1775,6 +1773,7 @@ dependencies = [
  "iced_core",
  "iced_futures",
  "iced_graphics",
+ "iced_layershell_macros",
  "iced_renderer",
  "iced_runtime",
  "layershellev",

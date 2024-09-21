@@ -24,6 +24,8 @@ use settings::Settings;
 
 use iced_runtime::Task;
 
+pub use iced_layershell_macros::to_layer_message;
+
 pub use error::Error;
 
 use iced::{Color, Element, Theme};

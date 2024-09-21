@@ -17,6 +17,7 @@ iced_runtime.workspace = true
 iced_core.workspace = true
 iced_futures.workspace = true
 iced_graphics.workspace = true
+iced_layershell_macros.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 layershellev.workspace = true
