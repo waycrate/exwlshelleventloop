@@ -55,7 +55,7 @@ impl App {
             .height(Length::Fill)
             .style(move |_theme, _status| button::Style {
                 background: Some(Background::Color(iced::Color::from_rgba(
-                    0.188, 0.192, 0.188, 0.65
+                    0.188, 0.192, 0.188, 0.65,
                 ))),
                 text_color: iced::Color::WHITE,
                 border: Border {
