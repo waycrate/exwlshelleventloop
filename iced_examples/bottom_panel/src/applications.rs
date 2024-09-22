@@ -5,8 +5,9 @@ use gio::{AppLaunchContext, DesktopAppInfo};
 
 use crate::Message;
 use gio::prelude::*;
+use iced::border::Radius;
 use iced::widget::{button, image, row, svg};
-use iced::{Element, Length};
+use iced::{Background, Border, Element, Length, Shadow, Vector};
 
 static DEFAULT_ICON: &[u8] = include_bytes!("../misc/text-plain.svg");
 
@@ -47,17 +48,31 @@ impl App {
         }
     }
 
-    pub fn view(&self, index: usize, selected: bool) -> Element<Message> {
+    pub fn view(&self, index: usize, _selected: bool) -> Element<Message> {
         button(row![self.icon(),].spacing(10))
             .on_press(Message::Launch(index))
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(move |theme, status| {
-                if selected {
-                    button::primary(theme, status)
-                } else {
-                    button::secondary(theme, status)
-                }
+            .style(move |_theme, _status| button::Style {
+                background: Some(Background::Color(iced::Color::from_rgba(
+                    0.188, 0.192, 0.188, 0.65,
+                ))),
+                text_color: iced::Color::WHITE,
+                border: Border {
+                    color: iced::Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: Radius {
+                        top_left: 0.0,
+                        top_right: 0.0,
+                        bottom_right: 0.0,
+                        bottom_left: 0.0,
+                    },
+                },
+                shadow: Shadow {
+                    color: iced::Color::TRANSPARENT,
+                    offset: Vector { x: 0.0, y: 2.0 },
+                    blur_radius: 5.0,
+                },
             })
             .into()
     }
