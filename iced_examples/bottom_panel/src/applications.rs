@@ -5,8 +5,10 @@ use gio::{AppLaunchContext, DesktopAppInfo};
 
 use crate::Message;
 use gio::prelude::*;
+use iced::border::Radius;
 use iced::widget::{button, image, row, svg};
-use iced::{Element, Length};
+use iced::Background::Color;
+use iced::{Background, Border, Element, Length, Shadow, Theme, Vector};
 
 static DEFAULT_ICON: &[u8] = include_bytes!("../misc/text-plain.svg");
 
@@ -52,12 +54,26 @@ impl App {
             .on_press(Message::Launch(index))
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(move |theme, status| {
-                if selected {
-                    button::primary(theme, status)
-                } else {
-                    button::secondary(theme, status)
-                }
+            .style(move |theme, status| button::Style {
+                background: Some(Background::Color(iced::Color::from_rgba(
+                    0.188, 0.192, 0.188, 0.65
+                ))),
+                text_color: iced::Color::WHITE,
+                border: Border {
+                    color: iced::Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: Radius {
+                        top_left: 0.0,
+                        top_right: 0.0,
+                        bottom_right: 0.0,
+                        bottom_left: 0.0,
+                    },
+                },
+                shadow: Shadow {
+                    color: iced::Color::TRANSPARENT,
+                    offset: Vector { x: 0.0, y: 2.0 },
+                    blur_radius: 5.0,
+                },
             })
             .into()
     }
