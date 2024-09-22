@@ -1,7 +1,7 @@
 mod applications;
 use applications::{all_apps, App};
-use iced::widget::row;
-use iced::{Element, Task as Command, Theme};
+use iced::widget::{container, row};
+use iced::{Color, Element, Task as Command, Theme};
 
 use iced_layershell::actions::LayershellCustomActionsWithInfo;
 use iced_layershell::reexport::{Anchor, Layer};
@@ -13,7 +13,6 @@ fn main() -> Result<(), iced_layershell::Error> {
         layer_settings: LayerShellSettings {
             size: Some((600, 50)),
             anchor: Anchor::Bottom,
-            layer: Layer::Overlay,
             margin: (0, 0, 10, 0),
             ..Default::default()
         },
@@ -67,6 +66,15 @@ impl Application for Panel {
             .map(|(index, app)| app.view(index, false))
             .collect();
 
-        row(bottom_vec).into()
+        let row = row(bottom_vec);
+        container(row).into()
+    }
+
+    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
+        use iced_layershell::Appearance;
+        Appearance {
+            background_color: Color::TRANSPARENT,
+            text_color: theme.palette().text,
+        }
     }
 }
