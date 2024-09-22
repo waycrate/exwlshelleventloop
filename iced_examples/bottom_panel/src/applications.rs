@@ -7,8 +7,7 @@ use crate::Message;
 use gio::prelude::*;
 use iced::border::Radius;
 use iced::widget::{button, image, row, svg};
-use iced::Background::Color;
-use iced::{Background, Border, Element, Length, Shadow, Theme, Vector};
+use iced::{Background, Border, Element, Length, Shadow, Vector};
 
 static DEFAULT_ICON: &[u8] = include_bytes!("../misc/text-plain.svg");
 
@@ -49,12 +48,12 @@ impl App {
         }
     }
 
-    pub fn view(&self, index: usize, selected: bool) -> Element<Message> {
+    pub fn view(&self, index: usize, _selected: bool) -> Element<Message> {
         button(row![self.icon(),].spacing(10))
             .on_press(Message::Launch(index))
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(move |theme, status| button::Style {
+            .style(move |_theme, _status| button::Style {
                 background: Some(Background::Color(iced::Color::from_rgba(
                     0.188, 0.192, 0.188, 0.65
                 ))),

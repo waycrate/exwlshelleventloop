@@ -4,7 +4,7 @@ use iced::widget::{container, row};
 use iced::{Color, Element, Task as Command, Theme};
 
 use iced_layershell::actions::LayershellCustomActionsWithInfo;
-use iced_layershell::reexport::{Anchor, Layer};
+use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::Application;
 
