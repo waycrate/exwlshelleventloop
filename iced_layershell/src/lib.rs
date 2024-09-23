@@ -448,3 +448,98 @@ where
         self.0.remove_id(id)
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use iced::widget::text;
+
+    struct TestApp {
+        counter: i32,
+        scale_factor: f64,
+        namespace: String,
+    }
+
+    #[derive(Debug)]
+    enum TestMessage {
+        Increment,
+        Decrement,
+    }
+
+    impl Application for TestApp {
+        type Executor = iced::executor::Default;
+        type Message = TestMessage;
+        type Theme = Theme;
+        type Flags = (i32, f64, String);
+
+        fn new(flags: Self::Flags) -> (Self, Task<Self::Message>) {
+            let (counter, scale_factor, namespace) = flags;
+            (
+                Self {
+                    counter,
+                    scale_factor,
+                    namespace,
+                },
+                Task::none(),
+            )
+        }
+
+        fn namespace(&self) -> String {
+            self.namespace.clone()
+        }
+
+        fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
+            match message {
+                TestMessage::Increment => self.counter += 1,
+                TestMessage::Decrement => self.counter -= 1,
+            }
+            Task::none()
+        }
+
+        fn view(&self) -> Element<'_, Self::Message, Self::Theme, iced::Renderer> {
+            text("Test").into()
+        }
+
+        fn scale_factor(&self) -> f64 {
+            self.scale_factor
+        }
+    }
+
+    // Test default appearance
+    #[test]
+    fn test_default_appearance() {
+        let theme = Theme::default();
+        let appearance = theme.default_style();
+        assert_eq!(appearance.background_color, Color::WHITE);
+        assert_eq!(appearance.text_color, Color::BLACK);
+    }
+
+    // Test namespace
+    #[test]
+    fn test_namespace() {
+        let app = TestApp::new((0, 1.0, "Test namespace".into())).0;
+        assert_eq!(app.namespace(), "Test namespace");
+    }
+
+    // Test scale factor
+    #[test]
+    fn test_scale_factor() {
+        let app = TestApp::new((0, 2.0, "Test scale factor".into())).0;
+        assert_eq!(app.scale_factor(), 2.0);
+    }
+
+    // Test update increment
+    #[test]
+    fn test_update_increment() {
+        let mut app = TestApp::new((0, 1.0, "Test Update".into())).0;
+        app.update(TestMessage::Increment);
+        assert_eq!(app.counter, 1);
+    }
+
+    // Test update decrement
+    #[test]
+    fn test_update_decrement() {
+        let mut app = TestApp::new((5, 1.0, "Test Update".into())).0;
+        app.update(TestMessage::Decrement);
+        assert_eq!(app.counter, 4);
+    }
+}
