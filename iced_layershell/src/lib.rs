@@ -531,7 +531,7 @@ mod tests {
     #[test]
     fn test_update_increment() {
         let mut app = TestApp::new((0, 1.0, "Test Update".into())).0;
-        app.update(TestMessage::Increment);
+        let _ = app.update(TestMessage::Increment);
         assert_eq!(app.counter, 1);
     }
 
@@ -539,7 +539,7 @@ mod tests {
     #[test]
     fn test_update_decrement() {
         let mut app = TestApp::new((5, 1.0, "Test Update".into())).0;
-        app.update(TestMessage::Decrement);
+        let _ = app.update(TestMessage::Decrement);
         assert_eq!(app.counter, 4);
     }
 }
