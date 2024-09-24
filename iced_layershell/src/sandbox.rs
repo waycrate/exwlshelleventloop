@@ -123,3 +123,71 @@ where
         T::scale_factor(self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockSandbox {
+        counter: i32,
+    }
+
+    #[derive(Debug)]
+    enum MockMessage {
+        Increment,
+        Decrement,
+    }
+
+    impl LayerShellSandbox for MockSandbox {
+        type Message = MockMessage;
+
+        fn new() -> Self {
+            Self { counter: 0 }
+        }
+
+        fn namespace(&self) -> String {
+            "MockSandbox".into()
+        }
+
+        fn scale_factor(&self) -> f64 {
+            2.0
+        }
+
+        fn update(&mut self, message: Self::Message) {
+            match message {
+                MockMessage::Increment => self.counter += 1,
+                MockMessage::Decrement => self.counter -= 1,
+            }
+        }
+
+        fn view(&self) -> Element<'_, Self::Message> {
+            iced::widget::text("Mock view").into()
+        }
+    }
+
+    #[test]
+    fn test_namespace() {
+        let app = <MockSandbox as LayerShellSandbox>::new();
+        let _ = assert_eq!(LayerShellSandbox::namespace(&app), "MockSandbox");
+    }
+
+    #[test]
+    fn test_scale_factor() {
+        let app = <MockSandbox as LayerShellSandbox>::new();
+        let _ = assert_eq!(LayerShellSandbox::scale_factor(&app), 2.0);
+    }
+
+    #[test]
+    fn test_update_increment() {
+        let mut app = <MockSandbox as LayerShellSandbox>::new();
+        LayerShellSandbox::update(&mut app, MockMessage::Increment);
+        assert_eq!(app.counter, 1);
+    }
+
+    #[test]
+    fn test_update_decrement() {
+        let mut app = <MockSandbox as LayerShellSandbox>::new();
+        LayerShellSandbox::update(&mut app, MockMessage::Decrement);
+        assert_eq!(app.counter, -1);
+    }
+}
