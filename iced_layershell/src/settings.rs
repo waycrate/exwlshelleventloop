@@ -113,12 +113,18 @@ mod tests {
         assert!(settings.virtual_keyboard_support.is_none());
 
         // Test default layershellv settings
-        assert_eq!(settings.layer_settings.anchor, Anchor::Bottom | Anchor::Left | Anchor::Right);
+        assert_eq!(
+            settings.layer_settings.anchor,
+            Anchor::Bottom | Anchor::Left | Anchor::Right
+        );
         assert_eq!(settings.layer_settings.layer, Layer::Top);
         assert_eq!(settings.layer_settings.exclusive_zone, -1);
         assert_eq!(settings.layer_settings.size, None);
         assert_eq!(settings.layer_settings.margin, (0, 0, 0, 0));
-        assert_eq!(settings.layer_settings.keyboard_interactivity, KeyboardInteractivity::OnDemand);
+        assert_eq!(
+            settings.layer_settings.keyboard_interactivity,
+            KeyboardInteractivity::OnDemand
+        );
         assert!(settings.layer_settings.binded_output_name.is_none());
     }
 
@@ -155,8 +161,13 @@ mod tests {
         assert_eq!(layer_settings.exclusive_zone, 0);
         assert_eq!(layer_settings.size, Some((1920, 1080)));
         assert_eq!(layer_settings.margin, (10, 10, 10, 10));
-        assert_eq!(layer_settings.keyboard_interactivity, KeyboardInteractivity::None);
-        assert_eq!(layer_settings.binded_output_name, Some("HDMI-1".to_string()));
+        assert_eq!(
+            layer_settings.keyboard_interactivity,
+            KeyboardInteractivity::None
+        );
+        assert_eq!(
+            layer_settings.binded_output_name,
+            Some("HDMI-1".to_string())
+        );
     }
 }
-
