@@ -58,7 +58,10 @@ enum WindowDirection {
 
 // Because new iced delete the custom command, so now we make a macro crate to generate
 // the Command
-#[to_layer_message(derives = "Debug Clone")]
+#[to_layer_message(attrs = "
+    derive(Debug, Clone)
+    | doc(\"Some docs\")
+")]
 enum Message {
     IncrementPressed,
     DecrementPressed,
