@@ -37,6 +37,7 @@ pub fn to_layer_message(attr: TokenStream, input: TokenStream) -> TokenStream {
         }
     }
     // Extract the enum name
+    let enum_vis = &input_enum.vis;
     let enum_name = &input_enum.ident;
     let variants = &input_enum.variants;
     let new_varents = if is_multi {
@@ -45,7 +46,7 @@ pub fn to_layer_message(attr: TokenStream, input: TokenStream) -> TokenStream {
 
         quote! {
             #(#derive_part)*
-            enum #enum_name {
+            #enum_vis enum #enum_name {
                 #variants
                 AnchorChange{id: iced::window::Id, anchor: iced_layershell::reexport::Anchor},
                 LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
@@ -104,7 +105,7 @@ pub fn to_layer_message(attr: TokenStream, input: TokenStream) -> TokenStream {
     } else {
         quote! {
             #(#derive_part)*
-            enum #enum_name {
+            #enum_vis enum #enum_name {
                 #variants
                 AnchorChange(iced_layershell::reexport::Anchor),
                 LayerChange(iced_layershell::reexport::Layer),
