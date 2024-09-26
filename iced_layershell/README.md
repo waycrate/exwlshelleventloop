@@ -60,7 +60,7 @@ enum WindowDirection {
 // the Command
 #[to_layer_message(attrs = "
     derive(Debug, Clone)
-    | doc(\"Some docs\")
+    | doc = \"Some docs\"
 ")]
 enum Message {
     IncrementPressed,
