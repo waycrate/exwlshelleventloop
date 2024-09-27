@@ -38,7 +38,8 @@ enum WindowDirection {
     Bottom,
 }
 
-#[to_layer_message(attrs = "derive(Debug, Clone)")]
+#[to_layer_message]
+#[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
     DecrementPressed,

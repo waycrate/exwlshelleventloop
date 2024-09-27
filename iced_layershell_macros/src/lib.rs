@@ -4,9 +4,7 @@ use darling::{
     FromDeriveInput, FromMeta,
 };
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use syn::{
-    punctuated::Punctuated, DeriveInput, Generics, Ident, LitStr, Meta, Token, Variant, Visibility,
-};
+use syn::{DeriveInput, Generics, Ident, LitStr, Variant, Visibility};
 
 use quote::quote;
 
@@ -15,16 +13,12 @@ use quote::quote;
 pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Result<TokenStream2> {
     let meta = NestedMeta::parse_meta_list(attr)?;
 
-    let ToLayerMessageAttr {
-        multi,
-        info_name,
-        attrs,
-    } = ToLayerMessageAttr::from_list(&meta)?;
+    let ToLayerMessageAttr { multi, info_name } = ToLayerMessageAttr::from_list(&meta)?;
 
     let is_multi = multi.is_present();
-    let attrs = attrs.into_iter().map(|meta| quote!(#[#meta]));
 
     let derive_input = syn::parse2::<DeriveInput>(input)?;
+    let attrs = &derive_input.attrs;
     let MessageEnum {
         vis,
         ident,
@@ -138,9 +132,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 struct ToLayerMessageAttr {
     multi: Flag,
     info_name: Option<LitStr>,
-
-    #[darling(default)]
-    attrs: Punctuated<Meta, Token![|]>,
 }
 
 #[derive(FromDeriveInput)]
