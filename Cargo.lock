@@ -1829,6 +1829,7 @@ name = "iced_layershell_macros"
 version = "0.7.1"
 dependencies = [
  "darling",
+ "iced_layershell",
  "manyhow",
  "proc-macro2",
  "quote",
