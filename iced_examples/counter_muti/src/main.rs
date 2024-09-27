@@ -44,7 +44,8 @@ enum WindowDirection {
     Bottom(Id),
 }
 
-#[to_layer_message(multi, info_name = "WindowInfo", derives = "Debug Clone")]
+#[to_layer_message(multi, info_name = "WindowInfo")]
+#[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
     DecrementPressed,
