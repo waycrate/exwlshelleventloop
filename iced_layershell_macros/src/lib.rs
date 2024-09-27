@@ -142,4 +142,3 @@ struct MessageEnum {
     generics: Generics,
     data: Data<Variant, Ignored>,
 }
-
