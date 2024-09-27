@@ -130,7 +130,8 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
     use mouse::Interaction;
     use sessionlockev::reexport::wp_cursor_shape_device_v1::{Shape, ShapeName};
     match interaction {
-        Interaction::Idle => Shape::Default.name().to_owned(),
+        Interaction::None => Shape::Default.name().to_owned(),
+        Interaction::Idle => Shape::Wait.name().to_owned(),
         Interaction::Pointer => Shape::Pointer.name().to_owned(),
         Interaction::Working => Shape::Pointer.name().to_owned(),
         Interaction::Grab => Shape::Grab.name().to_owned(),
@@ -141,7 +142,6 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::NotAllowed => Shape::NotAllowed.name().to_owned(),
         Interaction::ResizingVertically => Shape::NsResize.name().to_owned(),
         Interaction::ResizingHorizontally => Shape::EwResize.name().to_owned(),
-        Interaction::None => Shape::Pointer.name().to_owned(),
         Interaction::Cell => Shape::Cell.name().to_owned(),
         Interaction::Move => Shape::Move.name().to_owned(),
         Interaction::Copy => Shape::Copy.name().to_owned(),
