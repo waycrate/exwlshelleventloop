@@ -221,6 +221,10 @@ pub mod reexport {
             QueueHandle, WEnum,
         };
     }
+    pub mod wp_cursor_shape_device_v1 {
+        pub use crate::strtoshape::ShapeName;
+        pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
+    }
 }
 
 #[derive(Debug)]

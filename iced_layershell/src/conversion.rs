@@ -126,20 +126,28 @@ pub fn window_event(
 }
 
 pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
+    use layershellev::reexport::wp_cursor_shape_device_v1::{Shape, ShapeName};
     use mouse::Interaction;
     match interaction {
-        Interaction::Idle => "default".to_owned(),
-        Interaction::Pointer => "pointer".to_owned(),
-        Interaction::Working => "progress".to_owned(),
-        Interaction::Grab => "grab".to_owned(),
-        Interaction::Text => "text".to_owned(),
-        Interaction::ZoomIn => "zoom_in".to_owned(),
-        Interaction::Grabbing => "grabbing".to_owned(),
-        Interaction::Crosshair => "crosshair".to_owned(),
-        Interaction::NotAllowed => "not_allowed".to_owned(),
-        Interaction::ResizingVertically => "ns_resize".to_owned(),
-        Interaction::ResizingHorizontally => "ew_resize".to_owned(),
-        _ => "default".to_owned(),
+        Interaction::Idle => Shape::Default.name().to_owned(),
+        Interaction::Pointer => Shape::Pointer.name().to_owned(),
+        Interaction::Working => Shape::Pointer.name().to_owned(),
+        Interaction::Grab => Shape::Grab.name().to_owned(),
+        Interaction::Text => Shape::Text.name().to_owned(),
+        Interaction::ZoomIn => Shape::ZoomIn.name().to_owned(),
+        Interaction::Grabbing => Shape::Grabbing.name().to_owned(),
+        Interaction::Crosshair => Shape::Crosshair.name().to_owned(),
+        Interaction::NotAllowed => Shape::NotAllowed.name().to_owned(),
+        Interaction::ResizingVertically => Shape::NsResize.name().to_owned(),
+        Interaction::ResizingHorizontally => Shape::EwResize.name().to_owned(),
+        Interaction::None => Shape::Pointer.name().to_owned(),
+        Interaction::Cell => Shape::Cell.name().to_owned(),
+        Interaction::Move => Shape::Move.name().to_owned(),
+        Interaction::Copy => Shape::Copy.name().to_owned(),
+        Interaction::Help => Shape::Help.name().to_owned(),
+        Interaction::ZoomOut => Shape::ZoomOut.name().to_owned(),
+        Interaction::ResizingDiagonallyUp => Shape::NwseResize.name().to_owned(),
+        Interaction::ResizingDiagonallyDown => Shape::NwseResize.name().to_owned(),
     }
 }
 

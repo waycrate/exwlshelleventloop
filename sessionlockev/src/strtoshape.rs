@@ -39,3 +39,48 @@ pub(crate) fn str_to_shape(shape_name: &str) -> Option<Shape> {
         _ => None,
     }
 }
+
+pub trait ShapeName {
+    fn name(&self) -> &str;
+}
+
+impl ShapeName for Shape {
+    fn name(&self) -> &str {
+        match self {
+            Self::Default => "default",
+            Self::ContextMenu => "contenx_menu",
+            Self::Help => "help",
+            Self::Pointer => "pointer",
+            Self::Progress => "progress",
+            Self::Wait => "wait",
+            Self::Cell => "cell",
+            Self::Crosshair => "crosshair",
+            Self::Text => "text",
+            Self::VerticalText => "vertical_text",
+            Self::Alias => "alias",
+            Self::Copy => "copy",
+            Self::Move => "move",
+            Self::NoDrop => "no_drop",
+            Self::NotAllowed => "not_allowed",
+            Self::Grab => "grab",
+            Self::Grabbing => "grabbing",
+            Self::EResize => "e_resize",
+            Self::NResize => "n_resize",
+            Self::EwResize => "ew_resize",
+            Self::NwResize => "nw_resize",
+            Self::SResize => "s_resize",
+            Self::SeResize => "se_resize",
+            Self::SwResize => "sw_resize",
+            Self::WResize => "w_resize",
+            Self::NsResize => "ns_resize",
+            Self::NeswResize => "nesw_resize",
+            Self::NwseResize => "nesw_resize",
+            Self::ColResize => "col_resize",
+            Self::RowResize => "row_resize",
+            Self::AllScroll => "all_scroll",
+            Self::ZoomIn => "zoom_in",
+            Self::ZoomOut => "zoom_out",
+            _ => "default",
+        }
+    }
+}

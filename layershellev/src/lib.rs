@@ -128,6 +128,7 @@ pub mod id;
 pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use strtoshape::str_to_shape;
+
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
 use wayland_client::{
@@ -242,6 +243,10 @@ pub mod reexport {
             },
             QueueHandle, WEnum,
         };
+    }
+    pub mod wp_cursor_shape_device_v1 {
+        pub use crate::strtoshape::ShapeName;
+        pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
     }
 }
 
