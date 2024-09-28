@@ -1,21 +1,23 @@
 pub mod actions;
+pub mod multi_window;
+pub mod settings;
+
 mod clipboard;
 mod conversion;
 mod error;
 mod event;
-pub mod multi_window;
 mod proxy;
-
-pub mod settings;
-
-use actions::UnLockAction;
-use settings::Settings;
-
-pub use error::Error;
 
 use iced::{Color, Element, Theme};
 use iced_futures::Subscription;
 use iced_runtime::Task;
+
+pub use iced_sessionlock_macros::to_session_message;
+
+pub use error::Error;
+
+use actions::UnLockAction;
+use settings::Settings;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Appearance {
@@ -111,7 +113,6 @@ pub trait MultiApplication: Sized {
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-
     fn style(&self, theme: &Self::Theme) -> Appearance {
         theme.default_style()
     }

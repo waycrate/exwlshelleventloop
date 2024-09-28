@@ -1,5 +1,5 @@
 [package]
-name = "iced_layershell_macros"
+name = "iced_sessionlock_macros"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true
@@ -25,4 +25,4 @@ quote.workspace = true
 syn.workspace = true
 
 [dev-dependencies]
-iced_layershell.workspace = true
+iced_sessionlock.workspace = true
