@@ -109,7 +109,7 @@ mod tests {
         assert!(settings.fonts.is_empty());
         assert_eq!(settings.default_font, Font::default());
         assert_eq!(settings.default_text_size, Pixels(16.0));
-        assert_eq!(settings.antialiasing, false);
+        assert!(!settings.antialiasing);
         assert!(settings.virtual_keyboard_support.is_none());
 
         // Test default layershellv settings

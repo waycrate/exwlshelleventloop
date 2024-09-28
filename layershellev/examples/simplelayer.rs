@@ -41,7 +41,7 @@ fn main() {
                 // surface outside region becomes transparent for input events
                 // To ignore all input events use region with (0,0) size
                 for x in ev.get_unit_iter() {
-                    let region = compositor.create_region(&qh, ());
+                    let region = compositor.create_region(qh, ());
                     region.add(0, 0, 0, 0);
                     x.get_wlsurface().set_input_region(Some(&region));
                 }

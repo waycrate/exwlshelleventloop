@@ -108,6 +108,8 @@ impl Default for NewLayerShellSettings {
         }
     }
 }
+
+#[allow(clippy::too_long_first_doc_paragraph)]
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
