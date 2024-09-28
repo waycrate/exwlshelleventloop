@@ -1,20 +1,21 @@
 [workspace]
 resolver = "2"
 members = [
-	"layershellev",
-	"iced_layershell",
-	"iced_layershell_macros",
-	"iced_sessionlock",
-	"starcolorkeyboard",
-	"sessionlockev",
-	"waycrate_xkbkeycode",
-	"iced_examples/*",
+  "layershellev",
+  "iced_layershell",
+  "iced_layershell_macros",
+  "iced_sessionlock",
+  "iced_sessionlock_macros",
+  "starcolorkeyboard",
+  "sessionlockev",
+  "waycrate_xkbkeycode",
+  "iced_examples/*",
 ]
 
 [workspace.package]
 authors = [
-	"Decodertalkers <aakari@tutanota.com>",
-	"Aakash Sen Sharma <aakashsensharma@gmail.com>",
+  "Decodertalkers <aakari@tutanota.com>",
+  "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2021"
 version = "0.8.0"
@@ -38,28 +39,28 @@ thiserror = "1.0.63"
 wayland-client = { version = "0.31.5" }
 
 wayland-protocols = { version = "0.32.3", default-features = false, features = [
-	"unstable",
-	"staging",
-	"client",
+  "unstable",
+  "staging",
+  "client",
 ] }
 
 wayland-cursor = "0.31.5"
 
 wayland-protocols-wlr = { version = "0.3.3", default-features = false, features = [
-	"client",
+  "client",
 ] }
 
 wayland-protocols-misc = { version = "0.3.3", features = ["client"] }
 wayland-backend = { version = "0.3.6", features = ["client_system"] }
 
 sctk = { package = "smithay-client-toolkit", version = "0.18.1", features = [
-	"calloop",
+  "calloop",
 ] }
 
 calloop = "0.14.0"
 
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
-	"std",
+  "std",
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
@@ -81,3 +82,9 @@ memmap2 = "0.9.4"
 
 tracing = "0.1.40"
 futures = "0.3.30"
+
+darling = { version = "0.20.10", features = ["suggestions"] }
+manyhow = { version = "0.11.4", features = ["darling"] }
+proc-macro2 = "1.0.86"
+quote = "1.0.37"
+syn = { version = "2.0.77", features = ["full"] }

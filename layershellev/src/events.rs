@@ -108,6 +108,7 @@ impl Default for NewLayerShellSettings {
         }
     }
 }
+
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you

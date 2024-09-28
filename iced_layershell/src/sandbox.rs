@@ -168,13 +168,13 @@ mod tests {
     #[test]
     fn test_namespace() {
         let app = <MockSandbox as LayerShellSandbox>::new();
-        let _ = assert_eq!(LayerShellSandbox::namespace(&app), "MockSandbox");
+        assert_eq!(LayerShellSandbox::namespace(&app), "MockSandbox");
     }
 
     #[test]
     fn test_scale_factor() {
         let app = <MockSandbox as LayerShellSandbox>::new();
-        let _ = assert_eq!(LayerShellSandbox::scale_factor(&app), 2.0);
+        assert_eq!(LayerShellSandbox::scale_factor(&app), 2.0);
     }
 
     #[test]

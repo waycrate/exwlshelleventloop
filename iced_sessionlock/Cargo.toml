@@ -11,6 +11,8 @@ description = "sessionlock binding for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+iced_sessionlock_macros = { path = "../iced_sessionlock_macros" }
+
 iced.workspace = true
 iced_renderer.workspace = true
 iced_runtime.workspace = true

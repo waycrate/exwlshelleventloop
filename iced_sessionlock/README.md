@@ -15,6 +15,7 @@ use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
 use iced_sessionlock::MultiApplication;
+use iced_sessionlock::to_session_message;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
     Counter::run(Settings::default())
@@ -25,24 +26,13 @@ struct Counter {
     text: String,
 }
 
+#[to_session_message]
 #[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
     DecrementPressed,
     TextInput(String),
     IcedEvent(Event),
-    UnLock,
-}
-
-// You need to impl the TryInto<UnLockAction, Error = Message> to tell the plugin which message is the platform message
-impl TryInto<UnLockAction> for Message {
-    type Error = Self;
-    fn try_into(self) -> Result<UnLockAction, Self::Error> {
-        if let Self::UnLock = self {
-            return Ok(UnLockAction);
-        }
-        Err(self)
-    }
 }
 
 impl MultiApplication for Counter {

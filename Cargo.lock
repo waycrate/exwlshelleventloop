@@ -1872,11 +1872,24 @@ dependencies = [
  "iced_graphics",
  "iced_renderer",
  "iced_runtime",
+ "iced_sessionlock_macros",
  "log",
  "sessionlockev",
  "thiserror",
  "tracing",
  "window_clipboard",
+]
+
+[[package]]
+name = "iced_sessionlock_macros"
+version = "0.8.0"
+dependencies = [
+ "darling",
+ "iced_sessionlock",
+ "manyhow",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
 ]
 
 [[package]]
