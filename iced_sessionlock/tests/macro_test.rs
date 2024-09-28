@@ -1,4 +1,4 @@
-use iced_sessionlock_macros::to_session_message;
+use iced_sessionlock::to_session_message;
 
 #[test]
 fn test_macro() {
