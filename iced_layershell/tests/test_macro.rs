@@ -1,4 +1,4 @@
-use iced_layershell_macros::to_layer_message;
+use iced_layershell::to_layer_message;
 
 #[test]
 fn test_macro() {
