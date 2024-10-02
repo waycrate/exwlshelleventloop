@@ -149,39 +149,26 @@ impl MultiApplication for Counter {
                 Command::none()
             }
             Message::Direction(direction) => match direction {
-                WindowDirection::Left(id) => Command::batch(vec![
-                    // HACK: direction change should once has both size
-                    Command::done(Message::SizeChange { id, size: (1, 1) }),
-                    Command::done(Message::AnchorChange {
-                        id,
-                        anchor: Anchor::Top | Anchor::Left | Anchor::Bottom,
-                    }),
-                    Command::done(Message::SizeChange { id, size: (400, 0) }),
-                ]),
-                WindowDirection::Right(id) => Command::batch(vec![
-                    Command::done(Message::SizeChange { id, size: (1, 1) }),
-                    Command::done(Message::AnchorChange {
-                        id,
-                        anchor: Anchor::Top | Anchor::Right | Anchor::Bottom,
-                    }),
-                    Command::done(Message::SizeChange { id, size: (400, 0) }),
-                ]),
-                WindowDirection::Bottom(id) => Command::batch(vec![
-                    Command::done(Message::SizeChange { id, size: (1, 1) }),
-                    Command::done(Message::AnchorChange {
-                        id,
-                        anchor: Anchor::Left | Anchor::Right | Anchor::Bottom,
-                    }),
-                    Command::done(Message::SizeChange { id, size: (0, 400) }),
-                ]),
-                WindowDirection::Top(id) => Command::batch(vec![
-                    Command::done(Message::SizeChange { id, size: (1, 1) }),
-                    Command::done(Message::AnchorChange {
-                        id,
-                        anchor: Anchor::Left | Anchor::Right | Anchor::Top,
-                    }),
-                    Command::done(Message::SizeChange { id, size: (0, 400) }),
-                ]),
+                WindowDirection::Left(id) => Command::done(Message::AnchorSizeChange {
+                    id,
+                    anchor: Anchor::Top | Anchor::Left | Anchor::Bottom,
+                    size: (400, 0),
+                }),
+                WindowDirection::Right(id) => Command::done(Message::AnchorSizeChange {
+                    id,
+                    anchor: Anchor::Top | Anchor::Right | Anchor::Bottom,
+                    size: (400, 0),
+                }),
+                WindowDirection::Bottom(id) => Command::done(Message::AnchorSizeChange {
+                    id,
+                    anchor: Anchor::Left | Anchor::Right | Anchor::Bottom,
+                    size: (0, 400),
+                }),
+                WindowDirection::Top(id) => Command::done(Message::AnchorSizeChange {
+                    id,
+                    anchor: Anchor::Left | Anchor::Right | Anchor::Top,
+                    size: (0, 400),
+                }),
             },
             Message::NewWindowLeft => Command::done(Message::NewLayerShell {
                 settings: NewLayerShellSettings {

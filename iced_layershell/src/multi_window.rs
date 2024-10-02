@@ -329,6 +329,15 @@ where
                         };
                         window.set_anchor(anchor);
                     }
+                    LayershellCustomActionsWithInfo::AnchorSizeChange(anchor, size) => {
+                        let Some(id) = id else {
+                            break 'out;
+                        };
+                        let Some(window) = ev.get_window_with_id(id) else {
+                            break 'out;
+                        };
+                        window.set_anchor_with_size(anchor, size);
+                    }
                     LayershellCustomActionsWithInfo::LayerChange(layer) => {
                         let Some(id) = id else {
                             break 'out;

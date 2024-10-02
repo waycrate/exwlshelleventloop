@@ -92,35 +92,22 @@ impl Application for Counter {
             }
 
             Message::Direction(direction) => match direction {
-                WindowDirection::Left => Command::batch(vec![
-                    // HACK: the size should not always contains a zero when changing direction
-                    Command::done(Message::SizeChange((1, 1))),
-                    Command::done(Message::AnchorChange(
-                        Anchor::Left | Anchor::Top | Anchor::Bottom,
-                    )),
-                    Command::done(Message::SizeChange((400, 0))),
-                ]),
-                WindowDirection::Right => Command::batch(vec![
-                    Command::done(Message::SizeChange((1, 1))),
-                    Command::done(Message::AnchorChange(
-                        Anchor::Right | Anchor::Top | Anchor::Bottom,
-                    )),
-                    Command::done(Message::SizeChange((400, 0))),
-                ]),
-                WindowDirection::Bottom => Command::batch(vec![
-                    Command::done(Message::SizeChange((1, 1))),
-                    Command::done(Message::AnchorChange(
-                        Anchor::Bottom | Anchor::Left | Anchor::Right,
-                    )),
-                    Command::done(Message::SizeChange((0, 400))),
-                ]),
-                WindowDirection::Top => Command::batch(vec![
-                    Command::done(Message::SizeChange((1, 1))),
-                    Command::done(Message::AnchorChange(
-                        Anchor::Top | Anchor::Left | Anchor::Right,
-                    )),
-                    Command::done(Message::SizeChange((0, 400))),
-                ]),
+                WindowDirection::Left => Command::done(Message::AnchorSizeChange(
+                    Anchor::Left | Anchor::Top | Anchor::Bottom,
+                    (400, 0),
+                )),
+                WindowDirection::Right => Command::done(Message::AnchorSizeChange(
+                    Anchor::Right | Anchor::Top | Anchor::Bottom,
+                    (400, 0),
+                )),
+                WindowDirection::Bottom => Command::done(Message::AnchorSizeChange(
+                    Anchor::Bottom | Anchor::Left | Anchor::Right,
+                    (0, 400),
+                )),
+                WindowDirection::Top => Command::done(Message::AnchorSizeChange(
+                    Anchor::Top | Anchor::Left | Anchor::Right,
+                    (0, 400),
+                )),
             },
             _ => unreachable!(),
         }

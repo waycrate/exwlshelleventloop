@@ -37,6 +37,7 @@ pub struct IcedNewMenuSettings {
 pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     AnchorChange(Anchor),
     LayerChange(Layer),
+    AnchorSizeChange(Anchor, (u32, u32)),
     MarginChange((i32, i32, i32, i32)),
     SizeChange((u32, u32)),
     VirtualKeyboardPressed {

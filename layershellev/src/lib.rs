@@ -472,9 +472,20 @@ impl<T> WindowStateUnit<T> {
         }
     }
 
+    /// set the layer
     pub fn set_layer(&self, layer: Layer) {
         if let Shell::LayerShell(layer_shell) = &self.shell {
             layer_shell.set_layer(layer);
+            self.wl_surface.commit();
+        }
+    }
+
+    /// set the anchor and set the size together
+    /// When you want to change layer from LEFT|RIGHT|BOTTOM to TOP|LEFT|BOTTOM, use it
+    pub fn set_anchor_with_size(&self, anchor: Anchor, (width, height): (u32, u32)) {
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_anchor(anchor);
+            layer_shell.set_size(width, height);
             self.wl_surface.commit();
         }
     }

@@ -256,6 +256,9 @@ where
                 LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
                     ev.main_window().set_anchor(anchor);
                 }
+                LayershellCustomActionsWithInfo::AnchorSizeChange(anchor, size) => {
+                    ev.main_window().set_anchor_with_size(anchor, size);
+                }
                 LayershellCustomActionsWithInfo::LayerChange(layer) => {
                     ev.main_window().set_layer(layer);
                 }

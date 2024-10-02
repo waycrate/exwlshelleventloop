@@ -36,6 +36,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
             let additional_variants = quote! {
                 AnchorChange{id: iced::window::Id, anchor: iced_layershell::reexport::Anchor},
+                AnchorSizeChange{id: iced::window::Id, anchor:iced_layershell::reexport::Anchor, size: (u32, u32)},
                 LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
                 MarginChange{id: iced::window::Id, margin: (i32, i32, i32, i32)},
                 SizeChange{id: iced::window::Id, size: (u32, u32)},
@@ -60,6 +61,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
                         match self {
                             Self::AnchorChange { id, anchor } => Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::AnchorChange(anchor))),
+                            Self::AnchorSizeChange { id, anchor, size } => Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::AnchorSizeChange(anchor, size))),
                             Self::LayerChange { id, layer } => Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::LayerChange(layer))),
                             Self::MarginChange { id, margin } => Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::MarginChange(margin))),
                             Self::SizeChange { id, size } => Ok(InnerLayerActionId::new(Some(id), InnerLayerAction::SizeChange(size))),
@@ -83,6 +85,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
         false => {
             let additional_variants = quote! {
                 AnchorChange(iced_layershell::reexport::Anchor),
+                AnchorSizeChange(iced_layershell::reexport::Anchor, (u32, u32)),
                 LayerChange(iced_layershell::reexport::Layer),
                 MarginChange((i32, i32, i32, i32)),
                 SizeChange((u32, u32)),
@@ -100,7 +103,9 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
                         match self {
                             Self::AnchorChange(anchor) => Ok(LayershellCustomActions::AnchorChange(anchor)),
+                            Self::AnchorSizeChange(anchor, size) => Ok(LayershellCustomActions::AnchorSizeChange(anchor, size)),
                             Self::LayerChange(layer) => Ok(LayershellCustomActions::LayerChange(layer)),
+
                             Self::MarginChange(margin) => Ok(LayershellCustomActions::MarginChange(margin)),
                             Self::SizeChange(size) => Ok(LayershellCustomActions::SizeChange(size)),
                             Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActions::VirtualKeyboardPressed {
