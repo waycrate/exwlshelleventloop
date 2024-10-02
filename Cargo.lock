@@ -1885,7 +1885,6 @@ name = "iced_sessionlock_macros"
 version = "0.8.2"
 dependencies = [
  "darling",
- "iced_sessionlock",
  "manyhow",
  "proc-macro2",
  "quote",
