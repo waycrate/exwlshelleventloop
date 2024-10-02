@@ -43,6 +43,7 @@ jobs:
             - name: Publish to crate
               run: |
                 cargo publish -p iced_layershell_macros --token ${{ secrets.CRATES_TOKEN }}
+                cargo publish -p iced_sessionlock_macros --token ${{ secrets.CRATES_TOKEN }}
                 cargo publish -p waycrate_xkbkeycode --token ${{ secrets.CRATES_TOKEN }}
                 cargo publish -p layershellev --token ${{ secrets.CRATES_TOKEN }}
                 cargo publish -p sessionlockev --token ${{ secrets.CRATES_TOKEN }}
