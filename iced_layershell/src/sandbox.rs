@@ -45,9 +45,9 @@ pub trait LayerShellSandbox {
         Theme::default()
     }
 
-    /// Returns the current style variant of [`theme::Application`].
+    /// Returns the current style variant of [`Appearance`].
     ///
-    /// By default, it returns [`theme::Application::default`].
+    /// By default, it returns [`Theme::default_style()`].
     fn style(&self, theme: &Theme) -> Appearance {
         theme.default_style()
     }

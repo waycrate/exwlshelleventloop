@@ -37,7 +37,7 @@ use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 /// its own window.
 ///
 /// An [`Application`] can execute asynchronous actions by returning a
-/// [`Command`] in some of its methods.
+/// [`Task`] in some of its methods.
 ///
 /// When using an [`Application`] with the `debug` feature enabled, a debug view
 /// can be toggled by pressing `F12`.
@@ -53,7 +53,7 @@ where
     ///
     /// Here is where you should return the initial state of your app.
     ///
-    /// Additionally, you can return a [`Command`] if you need to perform some
+    /// Additionally, you can return a [`Task`] if you need to perform some
     /// async action in the background on startup. This is useful if you want to
     /// load state from a file, perform an initial HTTP request, etc.
     fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
@@ -572,7 +572,7 @@ where
 }
 
 /// Updates an [`Application`] by feeding it the provided messages, spawning any
-/// resulting [`Command`], and tracking its [`Subscription`].
+/// tracking its [`Subscription`].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,

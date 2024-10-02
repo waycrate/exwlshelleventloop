@@ -28,9 +28,9 @@ pub struct Appearance {
     pub text_color: Color,
 }
 
-/// The default style of a [`Program`].
+/// The default style of a [`MultiApplication`].
 pub trait DefaultStyle {
-    /// Returns the default style of a [`Program`].
+    /// Returns the default style of a [`MultiApplication`].
     fn default_style(&self) -> Appearance;
 }
 
@@ -40,7 +40,7 @@ impl DefaultStyle for Theme {
     }
 }
 
-/// The default [`Appearance`] of a [`Program`] with the built-in [`Theme`].
+/// The default [`Appearance`] of a [`MultiApplication`] with the built-in [`Theme`].
 pub fn default(theme: &Theme) -> Appearance {
     let palette = theme.extended_palette();
 
@@ -72,7 +72,7 @@ pub trait MultiApplication: Sized {
     ///
     /// Here is where you should return the initial state of your app.
     ///
-    /// Additionally, you can return a [`Command`] if you need to perform some
+    /// Additionally, you can return a [`Task`] if you need to perform some
     /// async action in the background on startup. This is useful if you want to
     /// load state from a file, perform an initial HTTP request, etc.
     ///
@@ -91,7 +91,7 @@ pub trait MultiApplication: Sized {
     /// produced by either user interactions or commands, will be handled by
     /// this method.
     ///
-    /// Any [`Command`] returned will be executed immediately in the background.
+    /// Any [`Task`] returned will be executed immediately in the background.
     fn update(&mut self, message: Self::Message) -> Task<Self::Message>;
 
     /// Returns the widgets to display in the `window` of the [`MultiApplication`].
