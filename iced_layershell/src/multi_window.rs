@@ -656,8 +656,11 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 window.state.update(&event);
-                if let Some(event) = conversion::window_event(id, &event, window.state.modifiers())
-                {
+                if let Some(event) = conversion::window_event(
+                    &event,
+                    window.state.scale_factor(),
+                    window.state.modifiers(),
+                ) {
                     events.push((Some(id), event));
                 }
             }

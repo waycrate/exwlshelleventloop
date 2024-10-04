@@ -468,7 +468,9 @@ async fn run_instance<A, E, C>(
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
 
-                if let Some(event) = conversion::window_event(main_id, &event, state.modifiers()) {
+                if let Some(event) =
+                    conversion::window_event(&event, state.scale_factor(), state.modifiers())
+                {
                     events.push(event);
                 }
             }

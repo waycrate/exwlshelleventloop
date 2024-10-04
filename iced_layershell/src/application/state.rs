@@ -11,8 +11,7 @@ where
     A::Theme: DefaultStyle,
 {
     scale_factor: f64,
-    window_size: iced::Size<u32>,
-    window_scale_factor: u32,
+    window_scale_factor: f64,
     viewport: Viewport,
     viewport_version: usize,
     theme: A::Theme,
@@ -30,22 +29,13 @@ where
         let theme = application.theme();
         let appearance = application.style(&theme);
 
-        let window_scale_factor = 120;
-        let (window_size, viewport) = {
-            let (width, height) = window.main_window().get_size();
-
-            let realscale = window_scale_factor as f64 / 120.;
-            (
-                iced::Size::new(width, height),
-                Viewport::with_physical_size(
-                    iced_core::Size::new(width, height),
-                    realscale * scale_factor,
-                ),
-            )
+        let window_scale_factor = 1.;
+        let (width, height) = window.main_window().get_size();
+        let viewport = {
+            Viewport::with_physical_size(iced_core::Size::new(width, height), window_scale_factor)
         };
         Self {
             scale_factor,
-            window_size,
             window_scale_factor,
             viewport,
             viewport_version: 0,
@@ -60,24 +50,20 @@ where
         self.modifiers
     }
 
+    pub fn scale_factor(&self) -> f64 {
+        self.viewport.scale_factor()
+    }
+
     pub fn current_wayland_scale(&self) -> f64 {
-        self.window_scale_factor as f64 / 120.
+        self.window_scale_factor
     }
 
     pub fn update_view_port(&mut self, width: u32, height: u32) {
-        self.window_size = iced::Size::new(width, height);
         self.viewport = Viewport::with_physical_size(
-            self.window_size(),
+            iced::Size::new(width, height),
             self.current_wayland_scale() * self.scale_factor,
         );
         self.viewport_version = self.viewport_version.wrapping_add(1);
-    }
-
-    fn window_size(&self) -> iced::Size<u32> {
-        let mut window_size = self.window_size;
-        window_size.width = window_size.width * 140 / self.window_scale_factor;
-        window_size.height = window_size.height * 140 / self.window_scale_factor;
-        window_size
     }
 
     pub fn viewport(&self) -> &Viewport {
@@ -106,6 +92,10 @@ where
 
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
+            .map(|point| Point {
+                x: point.x / self.scale_factor() as f32,
+                y: point.y / self.scale_factor() as f32,
+            })
             .map(IcedMouse::Cursor::Available)
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }
@@ -123,15 +113,13 @@ where
             }
             WindowEvent::ScaleFactorChanged {
                 scale_float,
-                scale_u32,
+                scale_u32: _,
             } => {
-                self.viewport = Viewport::with_physical_size(
-                    self.window_size(),
-                    self.scale_factor * scale_float,
-                );
+                let size = self.physical_size();
+                self.viewport = Viewport::with_physical_size(size, self.scale_factor * scale_float);
 
                 self.viewport_version = self.viewport_version.wrapping_add(1);
-                self.window_scale_factor = *scale_u32;
+                self.window_scale_factor = *scale_float;
             }
             _ => {}
         }
@@ -141,7 +129,7 @@ where
         let new_scale_factor = application.scale_factor();
         if self.scale_factor != new_scale_factor {
             self.viewport = Viewport::with_physical_size(
-                self.window_size(),
+                self.physical_size(),
                 self.current_wayland_scale() * new_scale_factor,
             );
             self.viewport_version = self.viewport_version.wrapping_add(1);
