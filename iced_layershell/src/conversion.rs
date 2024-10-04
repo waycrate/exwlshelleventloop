@@ -19,8 +19,8 @@ where
     <T as TryFrom<f64>>::Error: std::fmt::Debug,
 {
     let (mut x, mut y): (f64, f64) = (x.try_into().unwrap(), y.try_into().unwrap());
-    x = x / scale_factor;
-    y = y / scale_factor;
+    x /= scale_factor;
+    y /= scale_factor;
     (x.try_into().unwrap(), y.try_into().unwrap())
 }
 
