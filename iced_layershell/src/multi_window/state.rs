@@ -102,6 +102,16 @@ where
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.modifiers = *modifiers;
             }
+            WindowEvent::ScaleFactorChanged {
+                scale_float,
+                scale_u32: _,
+            } => {
+                let size = self.viewport.physical_size();
+
+                self.viewport = Viewport::with_physical_size(size, scale_float * self.scale_factor);
+
+                self.viewport_version = self.viewport_version.wrapping_add(1);
+            }
             _ => {}
         }
     }

@@ -188,7 +188,6 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                     y: *y,
                 })
             }
-
             DispatchMessage::PreferredScale {
                 scale_u32,
                 scale_float,
