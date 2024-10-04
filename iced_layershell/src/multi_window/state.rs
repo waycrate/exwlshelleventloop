@@ -26,12 +26,16 @@ impl<A: Application> State<A>
 where
     A::Theme: DefaultStyle,
 {
-    pub fn new(id: window::Id, application: &A, (width, height): (u32, u32)) -> Self {
+    pub fn new(
+        id: window::Id,
+        application: &A,
+        (width, height): (u32, u32),
+        wayland_scale_factor: f64,
+    ) -> Self {
         let scale_factor = application.scale_factor(id);
         let theme = application.theme();
         let appearance = application.style(&theme);
 
-        let wayland_scale_factor = 1.0;
         let viewport = Viewport::with_physical_size(
             iced_core::Size::new(width, height),
             wayland_scale_factor * scale_factor,

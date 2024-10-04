@@ -239,8 +239,8 @@ pub(crate) enum DispatchMessageInner {
     RequestRefresh {
         width: u32,
         height: u32,
-        is_created: bool,
         scale_float: f64,
+        is_created: bool,
     },
     PreferredScale {
         scale_u32: u32,
@@ -323,8 +323,8 @@ pub enum DispatchMessage {
     RequestRefresh {
         width: u32,
         height: u32,
-        is_created: bool,
         scale_float: f64,
+        is_created: bool,
     },
     /// fractal scale handle
     PreferredScale { scale_u32: u32, scale_float: f64 },
@@ -401,13 +401,13 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::RequestRefresh {
                 width,
                 height,
-                is_created,
                 scale_float,
+                is_created,
             } => DispatchMessage::RequestRefresh {
                 width,
                 height,
-                is_created,
                 scale_float,
+                is_created,
             },
             DispatchMessageInner::Axis {
                 time,

@@ -256,6 +256,7 @@ where
                     DispatchMessage::RequestRefresh {
                         width,
                         height,
+                        scale_float,
                         is_created,
                         ..
                     } => {
@@ -268,6 +269,7 @@ where
                                 IcedLayerEvent::RequestRefreshWithWrapper {
                                     width: *width,
                                     height: *height,
+                                    fractal_scale: *scale_float,
                                     wrapper: unit.gen_wrapper(),
                                     is_created: *is_created,
                                     info: unit.get_binding().cloned(),
@@ -502,6 +504,7 @@ async fn run_instance<A, E, C>(
                 IcedLayerEvent::RequestRefreshWithWrapper {
                     width,
                     height,
+                    fractal_scale,
                     wrapper,
                     is_created,
                     info,
@@ -515,6 +518,7 @@ async fn run_instance<A, E, C>(
                     let window = window_manager.insert(
                         id,
                         (width, height),
+                        fractal_scale,
                         Arc::new(wrapper),
                         &application,
                         &mut compositor,

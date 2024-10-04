@@ -368,8 +368,12 @@ async fn run_instance<A, E, C>(
 
     while let Some(event) = event_receiver.next().await {
         match event {
-            IcedLayerEvent::RequestRefresh { width, height } => {
-                state.update_view_port(width, height);
+            IcedLayerEvent::RequestRefresh {
+                width,
+                height,
+                fractal_scale,
+            } => {
+                state.update_view_port(width, height, fractal_scale);
                 let ps = state.physical_size();
                 let width = ps.width;
                 let height = ps.height;

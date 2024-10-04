@@ -98,6 +98,7 @@ pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     RequestRefreshWithWrapper {
         width: u32,
         height: u32,
+        fractal_scale: f64,
         wrapper: WindowWrapper,
         is_created: bool,
         info: Option<INFO>,
@@ -105,6 +106,7 @@ pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     RequestRefresh {
         width: u32,
         height: u32,
+        fractal_scale: f64,
     },
     Window(WindowEvent),
     NormalUpdate,
@@ -131,12 +133,16 @@ impl<Message: 'static, INFO: Clone> From<(Option<Id>, IcedLayerEvent<Message, IN
 impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Message, INFO> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { width, height, .. } => {
-                IcedLayerEvent::RequestRefresh {
-                    width: *width,
-                    height: *height,
-                }
-            }
+            DispatchMessage::RequestRefresh {
+                width,
+                height,
+                scale_float,
+                ..
+            } => IcedLayerEvent::RequestRefresh {
+                width: *width,
+                height: *height,
+                fractal_scale: *scale_float,
+            },
             DispatchMessage::MouseEnter {
                 surface_x: x,
                 surface_y: y,

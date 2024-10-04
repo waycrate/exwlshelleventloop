@@ -2463,7 +2463,6 @@ impl<T: 'static> WindowState<T> {
                                 becreated: true,
                                 wl_output: None,
                                 binding: info,
-
                                 scale: 120,
                             });
                         }

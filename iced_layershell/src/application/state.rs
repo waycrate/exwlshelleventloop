@@ -58,7 +58,8 @@ where
         self.window_scale_factor
     }
 
-    pub fn update_view_port(&mut self, width: u32, height: u32) {
+    pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
+        self.window_scale_factor = scale;
         self.viewport = Viewport::with_physical_size(
             iced::Size::new(width, height),
             self.current_wayland_scale() * self.scale_factor,
