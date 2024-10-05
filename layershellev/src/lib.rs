@@ -658,6 +658,7 @@ pub enum StartMode {
 }
 
 impl StartMode {
+    #[allow(unused)]
     fn is_single(&self) -> bool {
         matches!(self, Self::Single)
     }
@@ -713,6 +714,7 @@ impl<T> WindowState<T> {
         }
         self.main_window().gen_wrapper()
     }
+    #[allow(unused)]
     fn is_single(&self) -> bool {
         self.start_mode.is_single()
     }
@@ -2006,7 +2008,7 @@ impl<T: 'static> WindowState<T> {
                         );
                     }
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if self.is_single() || self.is_background() {
+                        if !self.is_allscreen() {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
