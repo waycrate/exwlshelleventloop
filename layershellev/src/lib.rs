@@ -591,6 +591,7 @@ pub struct WindowState<T> {
     xdg_info_cache: Vec<(wl_output::WlOutput, ZxdgOutputInfo)>,
 
     start_mode: StartMode,
+    init_finished: bool,
 }
 
 impl<T> WindowState<T> {
@@ -940,6 +941,7 @@ impl<T> Default for WindowState<T> {
             xdg_info_cache: Vec::new(),
 
             start_mode: StartMode::Single,
+            init_finished: false,
         }
     }
 }
@@ -1563,7 +1565,7 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if state.is_with_target() {
+        if state.is_with_target() && !state.init_finished {
             let Some((_, xdg_info)) = state
                 .xdg_info_cache
                 .iter_mut()
@@ -1864,6 +1866,7 @@ impl<T: 'static> WindowState<T> {
             }
             self.message.clear();
         }
+        self.init_finished = true;
         self.event_queue = Some(event_queue);
         self.globals = Some(globals);
         self.wl_compositor = Some(wmcompositer);
