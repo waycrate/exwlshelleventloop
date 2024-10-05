@@ -543,8 +543,6 @@ impl<T> WindowStateUnit<T> {
 pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
     current_surface: Option<WlSurface>,
-    is_single: bool,
-    is_background: bool,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
@@ -590,8 +588,9 @@ pub struct WindowState<T> {
     last_touch_location: (f64, f64),
     last_touch_id: i32,
 
-    binded_output_name: Option<String>,
     xdg_info_cache: Vec<(wl_output::WlOutput, ZxdgOutputInfo)>,
+
+    start_mode: StartMode,
 }
 
 impl<T> WindowState<T> {
@@ -649,6 +648,29 @@ pub struct WindowWrapper {
     wl_surface: WlSurface,
 }
 
+#[derive(Debug, Clone)]
+pub enum StartMode {
+    Single,
+    Background,
+    AllScreen,
+    TargetScreen(String),
+}
+
+impl StartMode {
+    fn is_single(&self) -> bool {
+        matches!(self, Self::Single)
+    }
+    fn is_background(&self) -> bool {
+        matches!(self, Self::Background)
+    }
+    fn is_allscreen(&self) -> bool {
+        matches!(self, Self::AllScreen)
+    }
+    fn is_with_target(&self) -> bool {
+        matches!(self, Self::TargetScreen(_))
+    }
+}
+
 impl WindowWrapper {
     pub fn id(&self) -> id::Id {
         self.id
@@ -681,7 +703,7 @@ impl<T> WindowState<T> {
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
-        if self.is_background {
+        if self.is_background() {
             return WindowWrapper {
                 id: id::Id::MAIN,
                 display: self.display.as_ref().unwrap().clone(),
@@ -689,6 +711,18 @@ impl<T> WindowState<T> {
             };
         }
         self.main_window().gen_wrapper()
+    }
+    fn is_single(&self) -> bool {
+        self.start_mode.is_single()
+    }
+    fn is_background(&self) -> bool {
+        self.start_mode.is_background()
+    }
+    fn is_allscreen(&self) -> bool {
+        self.start_mode.is_allscreen()
+    }
+    fn is_with_target(&self) -> bool {
+        self.start_mode.is_with_target()
     }
 }
 
@@ -746,20 +780,59 @@ impl<T> WindowState<T> {
     /// suggest to bind to specific output
     /// if there is no such output , it will bind the output which now is focused,
     /// same with when binded_output_name is None
-    pub fn with_xdg_output_name(mut self, binded_output_name: Option<String>) -> Self {
-        self.binded_output_name = binded_output_name;
+    pub fn with_xdg_output_name(mut self, binded_output_name: String) -> Self {
+        self.start_mode = StartMode::TargetScreen(binded_output_name);
         self
     }
 
     /// if the shell is a single one, only display on one screen,
     /// fi true, the layer will binding to current screen
-    pub fn with_single(mut self, single: bool) -> Self {
-        self.is_single = single;
+    pub fn with_single(mut self) -> Self {
+        self.start_mode = StartMode::Single;
         self
     }
 
-    pub fn with_background(mut self, background: bool) -> Self {
-        self.is_background = background;
+    pub fn with_single_or_xdg_output_name(self, binded_output_name: Option<String>) -> Self {
+        match binded_output_name {
+            Some(binded_output_name) => self.with_xdg_output_name(binded_output_name),
+            None => self.with_single(),
+        }
+    }
+
+    pub fn with_allscreen_or_xdg_output_name(self, binded_output_name: Option<String>) -> Self {
+        match binded_output_name {
+            Some(binded_output_name) => self.with_xdg_output_name(binded_output_name),
+            None => self.with_allscreen(),
+        }
+    }
+    pub fn with_xdg_output_name_or_not(self, binded_output_name: Option<String>) -> Self {
+        let Some(binded_output_name) = binded_output_name else {
+            return self;
+        };
+        self.with_xdg_output_name(binded_output_name)
+    }
+    pub fn with_allscreen_or_single(mut self, allscreen: bool) -> Self {
+        if allscreen {
+            self.start_mode = StartMode::AllScreen;
+        } else {
+            self.start_mode = StartMode::Single;
+        }
+
+        self
+    }
+    pub fn with_allscreen(mut self) -> Self {
+        self.start_mode = StartMode::AllScreen;
+        self
+    }
+    pub fn with_background_or_not(self, background_mode: bool) -> Self {
+        if !background_mode {
+            return self;
+        }
+        self.with_background()
+    }
+
+    pub fn with_background(mut self) -> Self {
+        self.start_mode = StartMode::Background;
         self
     }
 
@@ -823,8 +896,6 @@ impl<T> Default for WindowState<T> {
         Self {
             outputs: Vec::new(),
             current_surface: None,
-            is_single: true,
-            is_background: false,
             units: Vec::new(),
             message: Vec::new(),
 
@@ -866,8 +937,9 @@ impl<T> Default for WindowState<T> {
             last_touch_id: 0,
             // NOTE: if is some, means it is to be binded, but not now it
             // is not binded
-            binded_output_name: None,
             xdg_info_cache: Vec::new(),
+
+            start_mode: StartMode::Single,
         }
     }
 }
@@ -1491,7 +1563,7 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if state.binded_output_name.is_some() {
+        if state.is_with_target() {
             let Some((_, xdg_info)) = state
                 .xdg_info_cache
                 .iter_mut()
@@ -1657,12 +1729,12 @@ impl<T: 'static> WindowState<T> {
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
-        if self.is_background {
+        if self.is_background() {
             self.background_surface = Some(wmcompositer.create_surface(&qh, ()));
-        } else if self.is_single {
+        } else if !self.is_allscreen() {
             let mut output = None;
 
-            if let Some(name) = self.binded_output_name.clone() {
+            if let StartMode::TargetScreen(name) = self.start_mode.clone() {
                 for (_, output_display) in &self.outputs {
                     let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
                     self.xdg_info_cache
@@ -1678,7 +1750,6 @@ impl<T: 'static> WindowState<T> {
                     output = Some(cache.clone());
                 }
                 // clear binded_output_name, it is not used anymore
-                self.binded_output_name.take();
             }
 
             self.xdg_info_cache.clear();
@@ -1932,7 +2003,7 @@ impl<T: 'static> WindowState<T> {
                         );
                     }
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if self.is_single || self.is_background {
+                        if self.is_single() || self.is_background() {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -2195,9 +2266,6 @@ impl<T: 'static> WindowState<T> {
                             },
                             info,
                         )) => {
-                            if self.is_single {
-                                continue;
-                            }
                             let pos = self.surface_pos();
 
                             let mut output = pos.and_then(|p| self.units[p].wl_output.as_ref());

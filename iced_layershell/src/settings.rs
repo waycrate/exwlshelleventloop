@@ -81,6 +81,7 @@ pub struct LayerShellSettings {
     pub margin: (i32, i32, i32, i32),
     pub keyboard_interactivity: KeyboardInteractivity,
     pub binded_output_name: Option<String>,
+    pub monitor_all_screen: bool,
 }
 
 impl Default for LayerShellSettings {
@@ -93,6 +94,7 @@ impl Default for LayerShellSettings {
             margin: (0, 0, 0, 0),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             binded_output_name: None,
+            monitor_all_screen: false,
         }
     }
 }
@@ -154,6 +156,7 @@ mod tests {
             margin: (10, 10, 10, 10),
             keyboard_interactivity: KeyboardInteractivity::None,
             binded_output_name: Some("HDMI-1".to_string()),
+            monitor_all_screen: false,
         };
 
         assert_eq!(layer_settings.anchor, Anchor::Top | Anchor::Left);

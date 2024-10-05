@@ -150,7 +150,6 @@ where
     };
 
     let ev = layershellev::WindowStateSimple::new(&application.namespace())
-        .with_single(true)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
@@ -158,7 +157,7 @@ where
         .with_exclusize_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-        .with_xdg_output_name(settings.layer_settings.binded_output_name)
+        .with_single_or_xdg_output_name(settings.layer_settings.binded_output_name)
         .build()
         .expect("Cannot create layershell");
 

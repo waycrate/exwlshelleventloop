@@ -188,8 +188,9 @@ where
     ));
 
     let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
-        .with_single(false)
-        .with_background(A::BACKGROUND_MODE)
+        .with_allscreen_or_single(settings.layer_settings.monitor_all_screen)
+        .with_xdg_output_name_or_not(settings.layer_settings.binded_output_name)
+        .with_background_or_not(A::BACKGROUND_MODE)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
