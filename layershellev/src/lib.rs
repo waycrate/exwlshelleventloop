@@ -12,7 +12,7 @@
 //!
 //! fn main() {
 //!     let mut ev: WindowState<()> = WindowState::new("Hello")
-//!         .with_single(false)
+//!         .with_allscreen()
 //!         .with_size((0, 400))
 //!         .with_layer(Layer::Top)
 //!         .with_margin((20, 20, 100, 20))
