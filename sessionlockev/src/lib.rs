@@ -134,11 +134,13 @@ use wayland_client::{
     },
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
-
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1,
     ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
     ext_session_lock_v1::ExtSessionLockV1,
+};
+use wayland_protocols::wp::viewporter::client::{
+    wp_viewport::WpViewport, wp_viewporter::WpViewporter,
 };
 
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
@@ -305,6 +307,7 @@ pub struct WindowStateUnit<T> {
     buffer: Option<WlBuffer>,
     session_shell: ExtSessionLockSurfaceV1,
     fractional_scale: Option<WpFractionalScaleV1>,
+    viewport: Option<WpViewport>,
     binding: Option<T>,
 
     scale: u32,
@@ -314,6 +317,18 @@ impl<T> WindowStateUnit<T> {
     pub fn id(&self) -> id::Id {
         self.id
     }
+    pub fn try_set_viewport_destination(&self, width: i32, height: i32) -> Option<()> {
+        let viewport = self.viewport.as_ref()?;
+        viewport.set_destination(width, height);
+        Some(())
+    }
+
+    pub fn try_set_viewport_source(&self, x: f64, y: f64, width: f64, height: f64) -> Option<()> {
+        let viewport = self.viewport.as_ref()?;
+        viewport.set_source(x, y, width, height);
+        Some(())
+    }
+
     pub fn gen_wrapper(&self) -> WindowWrapper {
         WindowWrapper {
             id: self.id,
@@ -400,6 +415,7 @@ pub struct WindowState<T> {
     wl_compositor: Option<WlCompositor>,
     shm: Option<WlShm>,
     cursor_manager: Option<WpCursorShapeManagerV1>,
+    viewporter: Option<WpViewporter>,
     lock: Option<ExtSessionLockV1>,
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     globals: Option<GlobalList>,
@@ -483,6 +499,7 @@ impl<T> Default for WindowState<T> {
             wl_compositor: None,
             shm: None,
             cursor_manager: None,
+            viewporter: None,
             fractional_scale_manager: None,
             lock: None,
             globals: None,
@@ -1074,6 +1091,9 @@ delegate_noop!(@<T>WindowState<T>: ignore ExtSessionLockManagerV1); // buffer sh
 delegate_noop!(@<T>WindowState<T>: ignore WpCursorShapeManagerV1);
 delegate_noop!(@<T>WindowState<T>: ignore WpCursorShapeDeviceV1);
 
+delegate_noop!(@<T> WindowState<T>: ignore WpViewporter);
+delegate_noop!(@<T> WindowState<T>: ignore WpViewport);
+
 delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
@@ -1107,6 +1127,7 @@ impl<T: 'static> WindowState<T> {
         let cursor_manager = globals
             .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
+        let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
 
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
@@ -1132,6 +1153,9 @@ impl<T: 'static> WindowState<T> {
                     Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
             }
 
+            let viewport = viewporter
+                .as_ref()
+                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
             self.units.push(WindowStateUnit {
                 id: id::Id::unique(),
                 display: connection.display(),
@@ -1139,6 +1163,7 @@ impl<T: 'static> WindowState<T> {
                 size: (0, 0),
                 buffer: None,
                 session_shell: session_lock_surface,
+                viewport,
                 fractional_scale,
                 binding: None,
                 scale: 120,
@@ -1197,6 +1222,7 @@ impl<T: 'static> WindowState<T> {
         let shm = self.shm.take().unwrap();
         let fractional_scale_manager = self.fractional_scale_manager.take();
         let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.take();
+        let viewporter = self.viewporter.take();
         let connection = self.connection.take().unwrap();
         let lock = self.lock.take().unwrap();
         let mut init_event = None;
@@ -1293,7 +1319,9 @@ impl<T: 'static> WindowState<T> {
                         // and if you need to reconfigure it, you need to commit the wl_surface again
                         // so because this is just an example, so we just commit it once
                         // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-
+                        let viewport = viewporter
+                            .as_ref()
+                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                         self.units.push(WindowStateUnit {
                             id: id::Id::unique(),
                             display: connection.display(),
@@ -1301,6 +1329,7 @@ impl<T: 'static> WindowState<T> {
                             size: (0, 0),
                             buffer: None,
                             session_shell: session_lock_surface,
+                            viewport,
                             fractional_scale,
                             binding: None,
                             scale: 120,

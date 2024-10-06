@@ -176,6 +176,10 @@ use wayland_protocols::{
     },
 };
 
+use wayland_protocols::wp::viewporter::client::{
+    wp_viewport::WpViewport, wp_viewporter::WpViewporter,
+};
+
 use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
     wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
@@ -357,6 +361,7 @@ pub struct WindowStateUnit<T> {
     shell: Shell,
     zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
+    viewport: Option<WpViewport>,
     wl_output: Option<WlOutput>,
     binding: Option<T>,
     becreated: bool,
@@ -374,6 +379,18 @@ impl<T> WindowStateUnit<T> {
     /// get the WindowState id
     pub fn id(&self) -> id::Id {
         self.id
+    }
+
+    pub fn try_set_viewport_destination(&self, width: i32, height: i32) -> Option<()> {
+        let viewport = self.viewport.as_ref()?;
+        viewport.set_destination(width, height);
+        Some(())
+    }
+
+    pub fn try_set_viewport_source(&self, x: f64, y: f64, width: f64, height: f64) -> Option<()> {
+        let viewport = self.viewport.as_ref()?;
+        viewport.set_source(x, y, width, height);
+        Some(())
     }
 
     /// gen the WindowState [WindowWrapper]
@@ -564,6 +581,7 @@ pub struct WindowState<T> {
     wmbase: Option<XdgWmBase>,
     shm: Option<WlShm>,
     cursor_manager: Option<WpCursorShapeManagerV1>,
+    viewporter: Option<WpViewporter>,
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     globals: Option<GlobalList>,
 
@@ -928,6 +946,7 @@ impl<T> Default for WindowState<T> {
             shm: None,
             wmbase: None,
             cursor_manager: None,
+            viewporter: None,
             xdg_output_manager: None,
             globals: None,
             fractional_scale_manager: None,
@@ -1693,6 +1712,9 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar w
 delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeDeviceV1);
 
+delegate_noop!(@<T> WindowState<T>: ignore WpViewporter);
+delegate_noop!(@<T> WindowState<T>: ignore WpViewport);
+
 delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
@@ -1733,6 +1755,7 @@ impl<T: 'static> WindowState<T> {
         let cursor_manager = globals
             .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
+        let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
 
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
                                                             // register this
@@ -1814,6 +1837,9 @@ impl<T: 'static> WindowState<T> {
                 fractional_scale =
                     Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
             }
+            let viewport = viewporter
+                .as_ref()
+                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
             // and if you need to reconfigure it, you need to commit the wl_surface again
             // so because this is just an example, so we just commit it once
@@ -1825,6 +1851,7 @@ impl<T: 'static> WindowState<T> {
                 size: (0, 0),
                 buffer: None,
                 shell: Shell::LayerShell(layer),
+                viewport,
                 zxdgoutput: binded_xdginfo.cloned(),
                 fractional_scale,
                 binding: None,
@@ -1869,6 +1896,9 @@ impl<T: 'static> WindowState<T> {
                     fractional_scale =
                         Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
                 }
+                let viewport = viewporter
+                    .as_ref()
+                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                 // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                 // and if you need to reconfigure it, you need to commit the wl_surface again
                 // so because this is just an example, so we just commit it once
@@ -1883,6 +1913,7 @@ impl<T: 'static> WindowState<T> {
                     shell: Shell::LayerShell(layer),
                     zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                     fractional_scale,
+                    viewport,
                     binding: None,
                     becreated: false,
                     wl_output: Some(output_display.clone()),
@@ -1892,6 +1923,7 @@ impl<T: 'static> WindowState<T> {
             self.message.clear();
         }
         self.init_finished = true;
+        self.viewporter = viewporter;
         self.event_queue = Some(event_queue);
         self.globals = Some(globals);
         self.wl_compositor = Some(wmcompositer);
@@ -1950,6 +1982,7 @@ impl<T: 'static> WindowState<T> {
         let connection = self.connection.take().unwrap();
         let mut init_event = None;
         let wmbase = self.wmbase.take().unwrap();
+        let viewporter = self.viewporter.take();
 
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
@@ -2072,6 +2105,9 @@ impl<T: 'static> WindowState<T> {
                                 (),
                             ));
                         }
+                        let viewport = viewporter
+                            .as_ref()
+                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                         // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                         // and if you need to reconfigure it, you need to commit the wl_surface again
                         // so because this is just an example, so we just commit it once
@@ -2086,6 +2122,7 @@ impl<T: 'static> WindowState<T> {
                             shell: Shell::LayerShell(layer),
                             zxdgoutput: Some(ZxdgOutputInfo::new(zxdgoutput)),
                             fractional_scale,
+                            viewport,
                             binding: None,
                             becreated: false,
                             wl_output: Some(output_display.clone()),
@@ -2352,6 +2389,9 @@ impl<T: 'static> WindowState<T> {
                                         (),
                                     ));
                             }
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                             // and if you need to reconfigure it, you need to commit the wl_surface again
                             // so because this is just an example, so we just commit it once
@@ -2366,6 +2406,7 @@ impl<T: 'static> WindowState<T> {
                                 shell: Shell::LayerShell(layer),
                                 zxdgoutput: None,
                                 fractional_scale,
+                                viewport,
                                 becreated: true,
                                 wl_output: output.cloned(),
                                 binding: info,
@@ -2410,6 +2451,9 @@ impl<T: 'static> WindowState<T> {
                             }
                             wl_surface.commit();
 
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                             self.units.push(WindowStateUnit {
                                 id: id::Id::unique(),
                                 display: connection.display(),
@@ -2419,6 +2463,7 @@ impl<T: 'static> WindowState<T> {
                                 shell: Shell::PopUp((popup, wl_xdg_surface)),
                                 zxdgoutput: None,
                                 fractional_scale,
+                                viewport,
                                 becreated: true,
                                 wl_output: None,
                                 binding: info,
