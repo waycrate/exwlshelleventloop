@@ -8,15 +8,17 @@ use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 use iced_layershell::MultiApplication;
+
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            start_mode: StartMode::AllScreens,
             ..Default::default()
         },
         ..Default::default()

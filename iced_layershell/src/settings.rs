@@ -4,6 +4,8 @@ use iced::{Font, Pixels};
 
 use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
+pub use layershellev::StartMode;
+
 use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
 
 #[derive(Debug)]
@@ -80,7 +82,7 @@ pub struct LayerShellSettings {
     pub size: Option<(u32, u32)>,
     pub margin: (i32, i32, i32, i32),
     pub keyboard_interactivity: KeyboardInteractivity,
-    pub binded_output_name: Option<String>,
+    pub start_mode: StartMode,
 }
 
 impl Default for LayerShellSettings {
@@ -92,7 +94,7 @@ impl Default for LayerShellSettings {
             size: None,
             margin: (0, 0, 0, 0),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
-            binded_output_name: None,
+            start_mode: StartMode::default(),
         }
     }
 }
@@ -125,7 +127,10 @@ mod tests {
             settings.layer_settings.keyboard_interactivity,
             KeyboardInteractivity::OnDemand
         );
-        assert!(settings.layer_settings.binded_output_name.is_none());
+        assert!(matches!(
+            settings.layer_settings.start_mode,
+            StartMode::Active
+        ));
     }
 
     #[test]
@@ -153,7 +158,7 @@ mod tests {
             size: Some((1920, 1080)),
             margin: (10, 10, 10, 10),
             keyboard_interactivity: KeyboardInteractivity::None,
-            binded_output_name: Some("HDMI-1".to_string()),
+            start_mode: StartMode::TargetScreen("HDMI-1".to_string()),
         };
 
         assert_eq!(layer_settings.anchor, Anchor::Top | Anchor::Left);
@@ -166,8 +171,8 @@ mod tests {
             KeyboardInteractivity::None
         );
         assert_eq!(
-            layer_settings.binded_output_name,
-            Some("HDMI-1".to_string())
+            layer_settings.start_mode,
+            StartMode::TargetScreen("HDMI-1".to_string())
         );
     }
 }

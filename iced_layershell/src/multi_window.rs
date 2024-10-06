@@ -63,8 +63,6 @@ where
 
     type WindowInfo;
 
-    const BACKGROUND_MODE: bool;
-
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -187,9 +185,9 @@ where
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
 
+    let is_background_mode = settings.layer_settings.start_mode.is_background();
     let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
-        .with_single(false)
-        .with_background(A::BACKGROUND_MODE)
+        .with_start_mode(settings.layer_settings.start_mode)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
@@ -215,6 +213,7 @@ where
         event_receiver,
         control_sender,
         window,
+        is_background_mode,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -461,6 +460,7 @@ async fn run_instance<A, E, C>(
     >,
     mut control_sender: mpsc::UnboundedSender<LayerShellActions<A::WindowInfo>>,
     window: Arc<WindowWrapper>,
+    is_background_mode: bool,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
@@ -746,7 +746,7 @@ async fn run_instance<A, E, C>(
                 // HACK: this logic is just from iced, but seems if there is no main window,
                 // any window will not get Outdated state.
                 // So here just check if there is window_events
-                if A::BACKGROUND_MODE && has_window_event {
+                if is_background_mode && has_window_event {
                     custom_actions.push(LayerShellActions::RedrawAll);
                 }
 
@@ -765,7 +765,7 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
-                    if !A::BACKGROUND_MODE {
+                    if !is_background_mode {
                         custom_actions.push(LayerShellActions::RedrawAll);
                     }
 

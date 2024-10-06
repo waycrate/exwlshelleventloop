@@ -7,7 +7,7 @@ use layershellev::*;
 
 fn main() {
     let ev: WindowState<()> = WindowState::new("Hello")
-        .with_single(false)
+        .with_allscreens()
         .with_size((0, 400))
         .with_layer(Layer::Top)
         .with_margin((20, 20, 100, 20))

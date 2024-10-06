@@ -1,7 +1,7 @@
 use iced::widget::{button, column, row, text, text_input};
 use iced::{event, Alignment, Color, Element, Event, Length, Task as Command, Theme};
 use iced_layershell::reexport::Anchor;
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 use iced_layershell::Application;
 
@@ -13,12 +13,17 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         binded_output_name = Some(args[1].to_string())
     }
 
+    let start_mode = match binded_output_name {
+        Some(output) => StartMode::TargetScreen(output),
+        None => StartMode::Active,
+    };
+
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
-            binded_output_name,
+            start_mode,
             ..Default::default()
         },
         ..Default::default()

@@ -9,7 +9,7 @@ use iced_runtime::window::Action as WindowAction;
 use iced_runtime::Action;
 
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::Settings;
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::MultiApplication;
 use zbus::{interface, ConnectionBuilder};
 
@@ -23,7 +23,13 @@ struct Counter {
     text: String,
 }
 pub fn main() -> Result<(), iced_layershell::Error> {
-    Counter::run(Settings::default())
+    Counter::run(Settings {
+        layer_settings: LayerShellSettings {
+            start_mode: StartMode::Background,
+            ..Default::default()
+        },
+        ..Default::default()
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -63,8 +69,6 @@ impl MultiApplication for Counter {
     type Theme = Theme;
     type Executor = iced::executor::Default;
     type WindowInfo = ();
-
-    const BACKGROUND_MODE: bool = true;
 
     fn set_id_info(&mut self, _id: iced_runtime::core::window::Id, _info: Self::WindowInfo) {
         self.window_shown = true;

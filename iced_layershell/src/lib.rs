@@ -260,8 +260,6 @@ pub trait MultiApplication: Sized {
 
     type Theme: Default + DefaultStyle;
 
-    const BACKGROUND_MODE: bool = false;
-
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -408,8 +406,6 @@ where
     type Flags = A::Flags;
 
     type WindowInfo = A::WindowInfo;
-
-    const BACKGROUND_MODE: bool = A::BACKGROUND_MODE;
 
     fn new(flags: Self::Flags) -> (Self, Task<A::Message>) {
         let (app, command) = A::new(flags);
