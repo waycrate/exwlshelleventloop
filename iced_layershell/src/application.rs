@@ -495,6 +495,9 @@ async fn run_instance<A, E, C>(
                     state.logical_size(),
                     &mut debug,
                 ));
+                if should_exit {
+                    break;
+                }
             }
             IcedLayerEvent::NormalUpdate => {
                 if events.is_empty() && messages.is_empty() {
@@ -537,9 +540,6 @@ async fn run_instance<A, E, C>(
                         state.logical_size(),
                         &mut debug,
                     ));
-                    if should_exit {
-                        break;
-                    }
                 }
                 custom_actions.push(LayerShellActions::RedrawAll);
             }

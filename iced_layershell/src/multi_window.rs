@@ -667,7 +667,7 @@ async fn run_instance<A, E, C>(
                         .drain()
                         .map(|(id, ui)| (id, ui.into_cache()))
                         .collect();
-                run_command(
+                run_action(
                     &application,
                     &mut compositor,
                     event,
@@ -917,7 +917,7 @@ pub(crate) fn update<A: Application, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_command<A, C>(
+pub(crate) fn run_action<A, C>(
     application: &A,
     compositor: &mut C,
     event: Action<A::Message>,
