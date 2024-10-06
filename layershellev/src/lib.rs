@@ -659,17 +659,16 @@ pub enum StartMode {
 }
 
 impl StartMode {
-    #[allow(unused)]
-    fn is_current_active(&self) -> bool {
+    pub fn is_current_active(&self) -> bool {
         matches!(self, Self::CurrentActive)
     }
-    fn is_background(&self) -> bool {
+    pub fn is_background(&self) -> bool {
         matches!(self, Self::Background)
     }
-    fn is_allscreen(&self) -> bool {
+    pub fn is_allscreen(&self) -> bool {
         matches!(self, Self::AllScreen)
     }
-    fn is_with_target(&self) -> bool {
+    pub fn is_with_target(&self) -> bool {
         matches!(self, Self::TargetScreen(_))
     }
 }
