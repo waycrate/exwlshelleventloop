@@ -1,4 +1,3 @@
-use crate::actions::LayerShellActions;
 use crate::application::Application;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
@@ -11,8 +10,8 @@ pub struct State<A: Application>
 where
     A::Theme: DefaultStyle,
 {
-    scale_factor: f64,
-    window_scale_factor: f64,
+    application_scale_factor: f64,
+    wayland_scale_factor: f64,
     viewport: Viewport,
     viewport_version: usize,
     theme: A::Theme,
@@ -30,14 +29,14 @@ where
         let theme = application.theme();
         let appearance = application.style(&theme);
 
-        let window_scale_factor = 1.;
+        let wayland_scale_factor = 1.;
         let (width, height) = window.main_window().get_size();
         let viewport = {
-            Viewport::with_physical_size(iced_core::Size::new(width, height), window_scale_factor)
+            Viewport::with_physical_size(iced_core::Size::new(width, height), wayland_scale_factor)
         };
         Self {
-            scale_factor,
-            window_scale_factor,
+            application_scale_factor: scale_factor,
+            wayland_scale_factor,
             viewport,
             viewport_version: 0,
             theme,
@@ -56,14 +55,14 @@ where
     }
 
     pub fn current_wayland_scale(&self) -> f64 {
-        self.window_scale_factor
+        self.wayland_scale_factor
     }
 
     pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
-        self.window_scale_factor = scale;
+        self.wayland_scale_factor = scale;
         self.viewport = Viewport::with_physical_size(
             iced::Size::new(width, height),
-            self.current_wayland_scale() * self.scale_factor,
+            self.current_wayland_scale() * self.application_scale_factor,
         );
         self.viewport_version = self.viewport_version.wrapping_add(1);
     }
@@ -102,7 +101,7 @@ where
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }
 
-    pub fn update(&mut self, event: &WindowEvent, custom_actions: &mut Vec<LayerShellActions<()>>) {
+    pub fn update(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CursorLeft => {
                 self.mouse_position = None;
@@ -118,15 +117,10 @@ where
                 scale_u32: _,
             } => {
                 let size = self.physical_size();
-                self.viewport = Viewport::with_physical_size(size, self.scale_factor * scale_float);
+                self.viewport = Viewport::with_physical_size(size, self.application_scale_factor * scale_float);
 
                 self.viewport_version = self.viewport_version.wrapping_add(1);
-                self.window_scale_factor = *scale_float;
-                let logical_size = self.logical_size();
-                custom_actions.push(LayerShellActions::SingleLayerViewportDestintion {
-                    width: logical_size.width.ceil() as i32,
-                    height: logical_size.height.ceil() as i32,
-                });
+                self.wayland_scale_factor = *scale_float;
             }
             _ => {}
         }
@@ -134,13 +128,13 @@ where
 
     pub fn synchronize(&mut self, application: &A) {
         let new_scale_factor = application.scale_factor();
-        if self.scale_factor != new_scale_factor {
+        if self.application_scale_factor != new_scale_factor {
             self.viewport = Viewport::with_physical_size(
                 self.physical_size(),
                 self.current_wayland_scale() * new_scale_factor,
             );
             self.viewport_version = self.viewport_version.wrapping_add(1);
-            self.scale_factor = new_scale_factor;
+            self.application_scale_factor = new_scale_factor;
         }
         self.theme = application.theme();
         self.appearance = application.style(&self.theme);

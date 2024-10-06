@@ -12,7 +12,7 @@ where
     A::Theme: DefaultStyle,
 {
     id: window::Id,
-    scale_factor: f64,
+    application_scale_factor: f64,
     wayland_scale_factor: f64,
     viewport: Viewport,
     viewport_version: usize,
@@ -32,17 +32,17 @@ where
         (width, height): (u32, u32),
         wayland_scale_factor: f64,
     ) -> Self {
-        let scale_factor = application.scale_factor(id);
+        let application_scale_factor = application.scale_factor(id);
         let theme = application.theme();
         let appearance = application.style(&theme);
 
         let viewport = Viewport::with_physical_size(
             iced_core::Size::new(width, height),
-            wayland_scale_factor * scale_factor,
+            wayland_scale_factor * application_scale_factor,
         );
         Self {
             id,
-            scale_factor,
+            application_scale_factor,
             wayland_scale_factor,
             viewport,
             viewport_version: 0,
@@ -55,10 +55,15 @@ where
     pub fn modifiers(&self) -> ModifiersState {
         self.modifiers
     }
-    pub fn update_view_port(&mut self, width: u32, height: u32) {
+
+    pub fn current_wayland_scale(&self) -> f64 {
+        self.wayland_scale_factor
+    }
+    pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
+        self.wayland_scale_factor = scale;
         self.viewport = Viewport::with_physical_size(
             iced_core::Size::new(width, height),
-            1. * self.scale_factor(),
+            self.current_wayland_scale() * self.application_scale_factor,
         );
         self.viewport_version = self.viewport_version.wrapping_add(1);
     }
@@ -120,12 +125,13 @@ where
                 scale_float,
                 scale_u32: _,
             } => {
-                self.wayland_scale_factor = *scale_float;
                 let size = self.viewport.physical_size();
 
-                self.viewport = Viewport::with_physical_size(size, scale_float * self.scale_factor);
+                self.viewport =
+                    Viewport::with_physical_size(size, scale_float * self.application_scale_factor);
 
                 self.viewport_version = self.viewport_version.wrapping_add(1);
+                self.wayland_scale_factor = *scale_float;
             }
             _ => {}
         }
@@ -133,11 +139,13 @@ where
 
     pub fn synchronize(&mut self, application: &A) {
         let new_scale_factor = application.scale_factor(self.id);
-        if self.scale_factor != new_scale_factor {
-            self.viewport =
-                Viewport::with_physical_size(self.physical_size(), 1. * new_scale_factor);
+        if self.application_scale_factor != new_scale_factor {
+            self.viewport = Viewport::with_physical_size(
+                self.physical_size(),
+                self.wayland_scale_factor * new_scale_factor,
+            );
             self.viewport_version = self.viewport_version.wrapping_add(1);
-            self.scale_factor = new_scale_factor;
+            self.application_scale_factor = new_scale_factor;
         }
         self.theme = application.theme();
         self.appearance = application.style(&self.theme);

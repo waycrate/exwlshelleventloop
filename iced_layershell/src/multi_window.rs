@@ -549,17 +549,11 @@ async fn run_instance<A, E, C>(
                 } else {
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
-                    window.state.update_view_port(width, height);
+                    window.state.update_view_port(width, height, fractal_scale);
 
                     let _ = user_interfaces.insert(
                         id,
-                        ui.relayout(
-                            Size {
-                                width: width as f32,
-                                height: height as f32,
-                            },
-                            &mut window.renderer,
-                        ),
+                        ui.relayout(window.state.logical_size(), &mut window.renderer),
                     );
                     (id, window)
                 };
