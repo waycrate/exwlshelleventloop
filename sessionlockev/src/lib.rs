@@ -1040,15 +1040,11 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
         _qhandle: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            let Some(unit) = state
-                .units
-                .iter_mut()
-                .find(|info| {
-                    info.fractional_scale
-                        .as_ref()
-                        .is_some_and(|fractional_scale| fractional_scale == proxy)
-                })
-            else {
+            let Some(unit) = state.units.iter_mut().find(|info| {
+                info.fractional_scale
+                    .as_ref()
+                    .is_some_and(|fractional_scale| fractional_scale == proxy)
+            }) else {
                 return;
             };
             unit.scale = scale;
@@ -1414,7 +1410,7 @@ impl<T: 'static> WindowState<T> {
                                             &DispatchMessage::RequestRefresh {
                                                 width: unit.size.0,
                                                 height: unit.size.1,
-                                                scale_float: unit.scale_float()
+                                                scale_float: unit.scale_float(),
                                             },
                                         ),
                                         &mut self,
@@ -1430,7 +1426,7 @@ impl<T: 'static> WindowState<T> {
                                         &DispatchMessage::RequestRefresh {
                                             width: unit.size.0,
                                             height: unit.size.1,
-                                            scale_float: unit.scale_float()
+                                            scale_float: unit.scale_float(),
                                         },
                                     ),
                                     &mut self,
