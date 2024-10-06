@@ -186,6 +186,7 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
+use std::f64;
 use std::time::Duration;
 
 use sctk::reexports::{
@@ -359,6 +360,8 @@ pub struct WindowStateUnit<T> {
     wl_output: Option<WlOutput>,
     binding: Option<T>,
     becreated: bool,
+
+    scale: u32,
 }
 
 impl<T> WindowStateUnit<T> {
@@ -535,6 +538,14 @@ impl<T> WindowStateUnit<T> {
         self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
         self.wl_surface.damage(0, 0, width, height);
         self.wl_surface.commit();
+    }
+
+    pub fn scale_u32(&self) -> u32 {
+        self.scale
+    }
+
+    pub fn scale_float(&self) -> f64 {
+        self.scale as f64 / 120.
     }
 }
 
@@ -1657,9 +1668,13 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
             else {
                 return;
             };
-            state
-                .message
-                .push((Some(id), DispatchMessageInner::PrefredScale(scale)));
+            state.message.push((
+                Some(id),
+                DispatchMessageInner::PreferredScale {
+                    scale_int: scale,
+                    scale_float: scale as f64 / 120.,
+                },
+            ));
         }
     }
 }
@@ -1815,6 +1830,7 @@ impl<T: 'static> WindowState<T> {
                 binding: None,
                 becreated: false,
                 wl_output: None,
+                scale: 120,
             });
         } else {
             let displays = self.outputs.clone();
@@ -1870,6 +1886,7 @@ impl<T: 'static> WindowState<T> {
                     binding: None,
                     becreated: false,
                     wl_output: Some(output_display.clone()),
+                    scale: 120,
                 });
             }
             self.message.clear();
@@ -1996,6 +2013,7 @@ impl<T: 'static> WindowState<T> {
                                     width: *width,
                                     height: *height,
                                     is_created: self.units[index].becreated,
+                                    scale_float: self.units[index].scale_float(),
                                 }),
                                 &mut self,
                                 Some(*unit_index),
@@ -2071,6 +2089,7 @@ impl<T: 'static> WindowState<T> {
                             binding: None,
                             becreated: false,
                             wl_output: Some(output_display.clone()),
+                            scale: 120,
                         });
                     }
                     _ => {
@@ -2095,6 +2114,7 @@ impl<T: 'static> WindowState<T> {
                                                     width: unit.size.0,
                                                     height: unit.size.1,
                                                     is_created: unit.becreated,
+                                                    scale_float: unit.scale_float(),
                                                 },
                                             ),
                                             &mut self,
@@ -2111,6 +2131,7 @@ impl<T: 'static> WindowState<T> {
                                                 width: unit.size.0,
                                                 height: unit.size.1,
                                                 is_created: unit.becreated,
+                                                scale_float: unit.scale_float(),
                                             },
                                         ),
                                         &mut self,
@@ -2212,6 +2233,7 @@ impl<T: 'static> WindowState<T> {
                                                 width: unit.size.0,
                                                 height: unit.size.1,
                                                 is_created: unit.becreated,
+                                                scale_float: unit.scale_float(),
                                             },
                                         ),
                                         &mut self,
@@ -2227,6 +2249,7 @@ impl<T: 'static> WindowState<T> {
                                         width: unit.size.0,
                                         height: unit.size.1,
                                         is_created: unit.becreated,
+                                        scale_float: unit.scale_float(),
                                     }),
                                     &mut self,
                                     Some(id),
@@ -2346,6 +2369,7 @@ impl<T: 'static> WindowState<T> {
                                 becreated: true,
                                 wl_output: output.cloned(),
                                 binding: info,
+                                scale: 120,
                             });
                         }
                         ReturnData::NewPopUp((
@@ -2398,6 +2422,8 @@ impl<T: 'static> WindowState<T> {
                                 becreated: true,
                                 wl_output: None,
                                 binding: info,
+
+                                scale: 120,
                             });
                         }
                         _ => {}

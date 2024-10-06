@@ -173,8 +173,12 @@ pub(crate) enum DispatchMessageInner {
     RequestRefresh {
         width: u32,
         height: u32,
+        scale_float: f64,
     },
-    PrefredScale(u32),
+    PreferredScale {
+        scale_float: f64,
+        scale_int: u32,
+    },
 }
 
 /// This tell the DispatchMessage by dispatch
@@ -259,9 +263,13 @@ pub enum DispatchMessage {
     RequestRefresh {
         width: u32,
         height: u32,
+        scale_float: f64,
     },
     /// fractal scale handle
-    PrefredScale(u32),
+    PreferredScale {
+        scale_float: f64,
+        scale_int: u32,
+    },
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
@@ -334,9 +342,15 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 DispatchMessage::TouchCancel { id, x, y }
             }
 
-            DispatchMessageInner::RequestRefresh { width, height } => {
-                DispatchMessage::RequestRefresh { width, height }
-            }
+            DispatchMessageInner::RequestRefresh {
+                width,
+                height,
+                scale_float,
+            } => DispatchMessage::RequestRefresh {
+                width,
+                height,
+                scale_float,
+            },
             DispatchMessageInner::Axis {
                 time,
                 horizontal,
@@ -358,7 +372,13 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 event,
                 is_synthetic,
             },
-            DispatchMessageInner::PrefredScale(scale) => DispatchMessage::PrefredScale(scale),
+            DispatchMessageInner::PreferredScale {
+                scale_float,
+                scale_int,
+            } => DispatchMessage::PreferredScale {
+                scale_float,
+                scale_int,
+            },
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
         }
     }

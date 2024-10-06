@@ -29,7 +29,10 @@ impl From<WEnum<KeyState>> for IcedKeyState {
 
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
-    ScaleChanged(u32),
+    ScaleChanged {
+        scale_int: u32,
+        scale_float: f64,
+    },
     CursorEnter {
         x: f64,
         y: f64,
@@ -114,7 +117,7 @@ impl<Message: 'static> From<(Option<Id>, IcedSessionLockEvent<Message>)>
 impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { width, height } => {
+            DispatchMessage::RequestRefresh { width, height, .. } => {
                 IcedSessionLockEvent::RequestRefresh {
                     width: *width,
                     height: *height,
@@ -168,9 +171,13 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                     y: *y,
                 })
             }
-            DispatchMessage::PrefredScale(scale) => {
-                IcedSessionLockEvent::Window(WindowEvent::ScaleChanged(*scale))
-            }
+            DispatchMessage::PreferredScale {
+                scale_float,
+                scale_int,
+            } => IcedSessionLockEvent::Window(WindowEvent::ScaleChanged {
+                scale_int: *scale_int,
+                scale_float: *scale_float,
+            }),
             DispatchMessage::KeyboardInput {
                 event,
                 is_synthetic,

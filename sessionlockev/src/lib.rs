@@ -306,6 +306,8 @@ pub struct WindowStateUnit<T> {
     session_shell: ExtSessionLockSurfaceV1,
     fractional_scale: Option<WpFractionalScaleV1>,
     binding: Option<T>,
+
+    scale: u32,
 }
 
 impl<T> WindowStateUnit<T> {
@@ -375,6 +377,14 @@ impl<T> WindowStateUnit<T> {
 
     pub fn get_size(&self) -> (u32, u32) {
         self.size
+    }
+
+    pub fn scale_u32(&self) -> u32 {
+        self.scale
+    }
+
+    pub fn scale_float(&self) -> f64 {
+        self.scale as f64 / 120.
     }
 }
 
@@ -1030,21 +1040,25 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
         _qhandle: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            let Some(id) = state
+            let Some(unit) = state
                 .units
-                .iter()
+                .iter_mut()
                 .find(|info| {
                     info.fractional_scale
                         .as_ref()
                         .is_some_and(|fractional_scale| fractional_scale == proxy)
                 })
-                .map(|unit| unit.id)
             else {
                 return;
             };
-            state
-                .message
-                .push((Some(id), DispatchMessageInner::PrefredScale(scale)));
+            unit.scale = scale;
+            state.message.push((
+                Some(unit.id),
+                DispatchMessageInner::PreferredScale {
+                    scale_float: scale as f64 / 120.,
+                    scale_int: scale,
+                },
+            ));
         }
     }
 }
@@ -1131,6 +1145,7 @@ impl<T: 'static> WindowState<T> {
                 session_shell: session_lock_surface,
                 fractional_scale,
                 binding: None,
+                scale: 120,
             });
         }
         self.connection = Some(connection);
@@ -1252,6 +1267,7 @@ impl<T: 'static> WindowState<T> {
                                     &DispatchMessage::RequestRefresh {
                                         width: *width,
                                         height: *height,
+                                        scale_float: self.units[index].scale_float(),
                                     },
                                 ),
                                 &mut self,
@@ -1291,6 +1307,7 @@ impl<T: 'static> WindowState<T> {
                             session_shell: session_lock_surface,
                             fractional_scale,
                             binding: None,
+                            scale: 120,
                         });
                     }
                     _ => {
@@ -1397,6 +1414,7 @@ impl<T: 'static> WindowState<T> {
                                             &DispatchMessage::RequestRefresh {
                                                 width: unit.size.0,
                                                 height: unit.size.1,
+                                                scale_float: unit.scale_float()
                                             },
                                         ),
                                         &mut self,
@@ -1412,6 +1430,7 @@ impl<T: 'static> WindowState<T> {
                                         &DispatchMessage::RequestRefresh {
                                             width: unit.size.0,
                                             height: unit.size.1,
+                                            scale_float: unit.scale_float()
                                         },
                                     ),
                                     &mut self,

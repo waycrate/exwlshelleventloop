@@ -257,6 +257,7 @@ where
                         width,
                         height,
                         is_created,
+                        ..
                     } => {
                         let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
                             break 'outside;

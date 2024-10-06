@@ -39,7 +39,10 @@ impl From<WEnum<KeyState>> for IcedKeyState {
 
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
-    ScaleChanged(u32),
+    ScaleChanged {
+        scale_int: u32,
+        scale_float: f64,
+    },
     CursorEnter {
         x: f64,
         y: f64,
@@ -186,9 +189,13 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                 })
             }
 
-            DispatchMessage::PrefredScale(scale) => {
-                IcedLayerEvent::Window(WindowEvent::ScaleChanged(*scale))
-            }
+            DispatchMessage::PreferredScale {
+                scale_int,
+                scale_float,
+            } => IcedLayerEvent::Window(WindowEvent::ScaleChanged {
+                scale_int: *scale_int,
+                scale_float: *scale_float,
+            }),
 
             DispatchMessage::KeyboardInput {
                 event,

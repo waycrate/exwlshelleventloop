@@ -188,7 +188,7 @@ where
             SessionLockEvent::BindProvide(_, _) => {}
             SessionLockEvent::RequestMessages(message) => 'outside: {
                 match message {
-                    DispatchMessage::RequestRefresh { width, height } => {
+                    DispatchMessage::RequestRefresh { width, height, .. } => {
                         event_sender
                             .start_send(MultiWindowIcedSessionLockEvent(
                                 id,

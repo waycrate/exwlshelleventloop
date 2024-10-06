@@ -240,8 +240,12 @@ pub(crate) enum DispatchMessageInner {
         width: u32,
         height: u32,
         is_created: bool,
+        scale_float: f64,
     },
-    PrefredScale(u32),
+    PreferredScale {
+        scale_int: u32,
+        scale_float: f64,
+    },
     XdgInfoChanged(XdgInfoChangedType),
 }
 
@@ -320,9 +324,10 @@ pub enum DispatchMessage {
         width: u32,
         height: u32,
         is_created: bool,
+        scale_float: f64,
     },
     /// fractal scale handle
-    PrefredScale(u32),
+    PreferredScale { scale_int: u32, scale_float: f64 },
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
@@ -397,10 +402,12 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 width,
                 height,
                 is_created,
+                scale_float,
             } => DispatchMessage::RequestRefresh {
                 width,
                 height,
                 is_created,
+                scale_float,
             },
             DispatchMessageInner::Axis {
                 time,
@@ -423,7 +430,13 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 event,
                 is_synthetic,
             },
-            DispatchMessageInner::PrefredScale(scale) => DispatchMessage::PrefredScale(scale),
+            DispatchMessageInner::PreferredScale {
+                scale_int,
+                scale_float,
+            } => DispatchMessage::PreferredScale {
+                scale_int,
+                scale_float,
+            },
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
             DispatchMessageInner::XdgInfoChanged(_) => unimplemented!(),
         }

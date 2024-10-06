@@ -44,8 +44,9 @@ fn main() {
             SessionLockEvent::RequestMessages(DispatchMessage::RequestRefresh {
                 width,
                 height,
+                scale_float,
             }) => {
-                println!("{width}, {height}");
+                println!("{width}, {height}, {scale_float}");
                 ReturnData::None
             }
             SessionLockEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => {
