@@ -652,21 +652,21 @@ pub struct WindowWrapper {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum StartMode {
     #[default]
-    CurrentActive,
+    Active,
     Background,
-    AllScreen,
+    AllScreens,
     TargetScreen(String),
 }
 
 impl StartMode {
-    pub fn is_current_active(&self) -> bool {
-        matches!(self, Self::CurrentActive)
+    pub fn is_active(&self) -> bool {
+        matches!(self, Self::Active)
     }
     pub fn is_background(&self) -> bool {
         matches!(self, Self::Background)
     }
     pub fn is_allscreen(&self) -> bool {
-        matches!(self, Self::AllScreen)
+        matches!(self, Self::AllScreens)
     }
     pub fn is_with_target(&self) -> bool {
         matches!(self, Self::TargetScreen(_))
@@ -714,17 +714,16 @@ impl<T> WindowState<T> {
         }
         self.main_window().gen_wrapper()
     }
-    #[allow(unused)]
-    fn is_current_active(&self) -> bool {
-        self.start_mode.is_current_active()
+    pub fn is_active(&self) -> bool {
+        self.start_mode.is_active()
     }
-    fn is_background(&self) -> bool {
+    pub fn is_background(&self) -> bool {
         self.start_mode.is_background()
     }
-    fn is_allscreen(&self) -> bool {
+    pub fn is_allscreen(&self) -> bool {
         self.start_mode.is_allscreen()
     }
-    fn is_with_target(&self) -> bool {
+    pub fn is_with_target(&self) -> bool {
         self.start_mode.is_with_target()
     }
 }
@@ -796,7 +795,7 @@ impl<T> WindowState<T> {
     /// if the shell is a single one, only display on one screen,
     /// fi true, the layer will binding to current screen
     pub fn with_active(mut self) -> Self {
-        self.start_mode = StartMode::CurrentActive;
+        self.start_mode = StartMode::Active;
         self
     }
 
@@ -822,15 +821,15 @@ impl<T> WindowState<T> {
 
     pub fn with_allscreen_or_active(mut self, allscreen: bool) -> Self {
         if allscreen {
-            self.start_mode = StartMode::AllScreen;
+            self.start_mode = StartMode::AllScreens;
         } else {
-            self.start_mode = StartMode::CurrentActive;
+            self.start_mode = StartMode::Active;
         }
         self
     }
 
     pub fn with_allscreen(mut self) -> Self {
-        self.start_mode = StartMode::AllScreen;
+        self.start_mode = StartMode::AllScreens;
         self
     }
 
@@ -949,7 +948,7 @@ impl<T> Default for WindowState<T> {
             // is not binded
             xdg_info_cache: Vec::new(),
 
-            start_mode: StartMode::CurrentActive,
+            start_mode: StartMode::Active,
             init_finished: false,
         }
     }

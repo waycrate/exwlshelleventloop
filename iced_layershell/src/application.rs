@@ -151,7 +151,7 @@ where
 
     assert!(!matches!(
         settings.layer_settings.start_mode,
-        StartMode::AllScreen | StartMode::Background
+        StartMode::AllScreens | StartMode::Background
     ));
 
     let ev = layershellev::WindowStateSimple::new(&application.namespace())

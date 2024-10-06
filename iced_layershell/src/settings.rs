@@ -129,7 +129,7 @@ mod tests {
         );
         assert!(matches!(
             settings.layer_settings.start_mode,
-            StartMode::CurrentActive
+            StartMode::Active
         ));
     }
 
