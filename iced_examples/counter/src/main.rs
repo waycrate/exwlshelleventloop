@@ -15,7 +15,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
 
     let start_mode = match binded_output_name {
         Some(output) => StartMode::TargetScreen(output),
-        None => StartMode::AllScreens,
+        None => StartMode::Active,
     };
 
     Counter::run(Settings {
