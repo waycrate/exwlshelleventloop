@@ -678,12 +678,17 @@ pub struct WindowWrapper {
     wl_surface: WlSurface,
 }
 
+/// Define the way layershell program is start
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum StartMode {
+    /// default is use the activated display, in layershell, the param is `None`
     #[default]
     Active,
+    /// be started as background program, be used with some programs like xdg-desktop-portal
     Background,
+    /// listen on the create event of display, always shown on all screens
     AllScreens,
+    /// only shown on target screen
     TargetScreen(String),
 }
 
