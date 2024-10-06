@@ -649,9 +649,10 @@ pub struct WindowWrapper {
     wl_surface: WlSurface,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum StartMode {
-    Single,
+    #[default]
+    CurrentActive,
     Background,
     AllScreen,
     TargetScreen(String),
@@ -659,8 +660,8 @@ pub enum StartMode {
 
 impl StartMode {
     #[allow(unused)]
-    fn is_single(&self) -> bool {
-        matches!(self, Self::Single)
+    fn is_current_active(&self) -> bool {
+        matches!(self, Self::CurrentActive)
     }
     fn is_background(&self) -> bool {
         matches!(self, Self::Background)
@@ -715,8 +716,8 @@ impl<T> WindowState<T> {
         self.main_window().gen_wrapper()
     }
     #[allow(unused)]
-    fn is_single(&self) -> bool {
-        self.start_mode.is_single()
+    fn is_current_active(&self) -> bool {
+        self.start_mode.is_current_active()
     }
     fn is_background(&self) -> bool {
         self.start_mode.is_background()
@@ -788,17 +789,22 @@ impl<T> WindowState<T> {
         self
     }
 
-    /// if the shell is a single one, only display on one screen,
-    /// fi true, the layer will binding to current screen
-    pub fn with_single(mut self) -> Self {
-        self.start_mode = StartMode::Single;
+    pub fn with_start_mode(mut self, mode: StartMode) -> Self {
+        self.start_mode = mode;
         self
     }
 
-    pub fn with_single_or_xdg_output_name(self, binded_output_name: Option<String>) -> Self {
+    /// if the shell is a single one, only display on one screen,
+    /// fi true, the layer will binding to current screen
+    pub fn with_active(mut self) -> Self {
+        self.start_mode = StartMode::CurrentActive;
+        self
+    }
+
+    pub fn with_active_or_xdg_output_name(self, binded_output_name: Option<String>) -> Self {
         match binded_output_name {
             Some(binded_output_name) => self.with_xdg_output_name(binded_output_name),
-            None => self.with_single(),
+            None => self.with_active(),
         }
     }
 
@@ -814,19 +820,21 @@ impl<T> WindowState<T> {
         };
         self.with_xdg_output_name(binded_output_name)
     }
-    pub fn with_allscreen_or_single(mut self, allscreen: bool) -> Self {
+
+    pub fn with_allscreen_or_active(mut self, allscreen: bool) -> Self {
         if allscreen {
             self.start_mode = StartMode::AllScreen;
         } else {
-            self.start_mode = StartMode::Single;
+            self.start_mode = StartMode::CurrentActive;
         }
-
         self
     }
+
     pub fn with_allscreen(mut self) -> Self {
         self.start_mode = StartMode::AllScreen;
         self
     }
+
     pub fn with_background_or_not(self, background_mode: bool) -> Self {
         if !background_mode {
             return self;
@@ -942,7 +950,7 @@ impl<T> Default for WindowState<T> {
             // is not binded
             xdg_info_cache: Vec::new(),
 
-            start_mode: StartMode::Single,
+            start_mode: StartMode::CurrentActive,
             init_finished: false,
         }
     }

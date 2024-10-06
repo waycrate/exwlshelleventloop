@@ -23,7 +23,7 @@ use iced_futures::{Executor, Runtime, Subscription};
 use layershellev::{
     calloop::timer::{TimeoutAction, Timer},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, ReturnData, WindowWrapper,
+    LayerEvent, ReturnData, StartMode, WindowWrapper,
 };
 
 use futures::{channel::mpsc, StreamExt};
@@ -149,6 +149,11 @@ where
         runtime.enter(|| A::new(flags))
     };
 
+    assert!(!matches!(
+        settings.layer_settings.start_mode,
+        StartMode::AllScreen | StartMode::Background
+    ));
+
     let ev = layershellev::WindowStateSimple::new(&application.namespace())
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
@@ -157,7 +162,7 @@ where
         .with_exclusize_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-        .with_single_or_xdg_output_name(settings.layer_settings.binded_output_name)
+        .with_start_mode(settings.layer_settings.start_mode)
         .build()
         .expect("Cannot create layershell");
 
