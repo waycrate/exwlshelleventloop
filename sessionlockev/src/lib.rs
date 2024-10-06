@@ -48,8 +48,8 @@
 //!                     (),
 //!                 ))
 //!             }
-//!             SessionLockEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
-//!                 println!("{width}, {height}");
+//!             SessionLockEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height,scale_float }) => {
+//!                 println!("{width}, {height}, {scale_float}");
 //!                 ReturnData::None
 //!             }
 //!             SessionLockEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
