@@ -1675,20 +1675,16 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
         _qhandle: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            let Some(id) = state
-                .units
-                .iter()
-                .find(|info| {
-                    info.fractional_scale
-                        .as_ref()
-                        .is_some_and(|fractional_scale| fractional_scale == proxy)
-                })
-                .map(|unit| unit.id)
-            else {
+            let Some(unit) = state.units.iter_mut().find(|info| {
+                info.fractional_scale
+                    .as_ref()
+                    .is_some_and(|fractional_scale| fractional_scale == proxy)
+            }) else {
                 return;
             };
+            unit.scale = scale;
             state.message.push((
-                Some(id),
+                Some(unit.id),
                 DispatchMessageInner::PreferredScale {
                     scale_u32: scale,
                     scale_float: scale as f64 / 120.,
