@@ -1,3 +1,4 @@
+use crate::actions::LayerShellActions;
 use crate::application::Application;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
@@ -101,7 +102,7 @@ where
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }
 
-    pub fn update(&mut self, event: &WindowEvent) {
+    pub fn update(&mut self, event: &WindowEvent, custom_actions: &mut Vec<LayerShellActions<()>>) {
         match event {
             WindowEvent::CursorLeft => {
                 self.mouse_position = None;
@@ -121,6 +122,11 @@ where
 
                 self.viewport_version = self.viewport_version.wrapping_add(1);
                 self.window_scale_factor = *scale_float;
+                let logical_size = self.logical_size();
+                custom_actions.push(LayerShellActions::SingleLayerViewportDestintion {
+                    width: logical_size.width.ceil() as i32,
+                    height: logical_size.height.ceil() as i32,
+                });
             }
             _ => {}
         }

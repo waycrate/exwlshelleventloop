@@ -13,6 +13,7 @@ pub(crate) enum LayerShellActions<INFO: Clone> {
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
     NewMenu((IcedNewPopupSettings, INFO)),
+    SingleLayerViewportDestintion { width: i32, height: i32 },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

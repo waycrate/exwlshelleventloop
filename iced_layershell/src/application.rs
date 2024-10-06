@@ -308,6 +308,9 @@ where
             LayerShellActions::RedrawWindow(index) => {
                 ev.append_return_data(ReturnData::RedrawIndexRequest(index));
             }
+            LayerShellActions::SingleLayerViewportDestintion { width, height } => {
+                ev.main_window().try_set_viewport_destination(width, height);
+            }
             _ => {}
         }
         def_returndata
@@ -374,10 +377,14 @@ async fn run_instance<A, E, C>(
                 fractal_scale,
             } => {
                 state.update_view_port(width, height, fractal_scale);
-                let ps = state.physical_size();
-                let width = ps.width;
-                let height = ps.height;
-                //state.update_view_port(width, height);
+                let physical_size = state.physical_size();
+                let width = physical_size.width;
+                let height = physical_size.height;
+                let logical_size = state.logical_size();
+                custom_actions.push(LayerShellActions::SingleLayerViewportDestintion {
+                    width: logical_size.width.ceil() as i32,
+                    height: logical_size.height.ceil() as i32,
+                });
                 debug.layout_started();
                 user_interface =
                     ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
@@ -470,7 +477,7 @@ async fn run_instance<A, E, C>(
                 }
             }
             IcedLayerEvent::Window(event) => {
-                state.update(&event);
+                state.update(&event, &mut custom_actions);
 
                 if let Some(event) =
                     conversion::window_event(&event, state.scale_factor(), state.modifiers())
