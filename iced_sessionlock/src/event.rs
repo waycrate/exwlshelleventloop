@@ -29,7 +29,7 @@ impl From<WEnum<KeyState>> for IcedKeyState {
 
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
-    ScaleChanged {
+    ScaleFactorChanged {
         scale_int: u32,
         scale_float: f64,
     },
@@ -174,7 +174,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
             DispatchMessage::PreferredScale {
                 scale_float,
                 scale_int,
-            } => IcedSessionLockEvent::Window(WindowEvent::ScaleChanged {
+            } => IcedSessionLockEvent::Window(WindowEvent::ScaleFactorChanged {
                 scale_int: *scale_int,
                 scale_float: *scale_float,
             }),
