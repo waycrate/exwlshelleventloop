@@ -12,7 +12,7 @@
 //!
 //! fn main() {
 //!     let mut ev: WindowState<()> = WindowState::new("Hello")
-//!         .with_allscreen()
+//!         .with_allscreens()
 //!         .with_size((0, 400))
 //!         .with_layer(Layer::Top)
 //!         .with_margin((20, 20, 100, 20))
@@ -665,7 +665,7 @@ impl StartMode {
     pub fn is_background(&self) -> bool {
         matches!(self, Self::Background)
     }
-    pub fn is_allscreen(&self) -> bool {
+    pub fn is_allscreens(&self) -> bool {
         matches!(self, Self::AllScreens)
     }
     pub fn is_with_target(&self) -> bool {
@@ -720,8 +720,8 @@ impl<T> WindowState<T> {
     pub fn is_background(&self) -> bool {
         self.start_mode.is_background()
     }
-    pub fn is_allscreen(&self) -> bool {
-        self.start_mode.is_allscreen()
+    pub fn is_allscreens(&self) -> bool {
+        self.start_mode.is_allscreens()
     }
     pub fn is_with_target(&self) -> bool {
         self.start_mode.is_with_target()
@@ -806,10 +806,10 @@ impl<T> WindowState<T> {
         }
     }
 
-    pub fn with_allscreen_or_xdg_output_name(self, binded_output_name: Option<String>) -> Self {
+    pub fn with_allscreens_or_xdg_output_name(self, binded_output_name: Option<String>) -> Self {
         match binded_output_name {
             Some(binded_output_name) => self.with_xdg_output_name(binded_output_name),
-            None => self.with_allscreen(),
+            None => self.with_allscreens(),
         }
     }
     pub fn with_xdg_output_name_or_not(self, binded_output_name: Option<String>) -> Self {
@@ -819,7 +819,7 @@ impl<T> WindowState<T> {
         self.with_xdg_output_name(binded_output_name)
     }
 
-    pub fn with_allscreen_or_active(mut self, allscreen: bool) -> Self {
+    pub fn with_allscreens_or_active(mut self, allscreen: bool) -> Self {
         if allscreen {
             self.start_mode = StartMode::AllScreens;
         } else {
@@ -828,7 +828,7 @@ impl<T> WindowState<T> {
         self
     }
 
-    pub fn with_allscreen(mut self) -> Self {
+    pub fn with_allscreens(mut self) -> Self {
         self.start_mode = StartMode::AllScreens;
         self
     }
@@ -1741,7 +1741,7 @@ impl<T: 'static> WindowState<T> {
         // this example is ok for both xdg_surface and layer_shell
         if self.is_background() {
             self.background_surface = Some(wmcompositer.create_surface(&qh, ()));
-        } else if !self.is_allscreen() {
+        } else if !self.is_allscreens() {
             let mut output = None;
 
             if let StartMode::TargetScreen(name) = self.start_mode.clone() {
@@ -2014,7 +2014,7 @@ impl<T: 'static> WindowState<T> {
                         );
                     }
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if !self.is_allscreen() {
+                        if !self.is_allscreens() {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
