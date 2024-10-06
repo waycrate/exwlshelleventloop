@@ -1056,7 +1056,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
                 Some(unit.id),
                 DispatchMessageInner::PreferredScale {
                     scale_float: scale as f64 / 120.,
-                    scale_int: scale,
+                    scale_u32: scale,
                 },
             ));
         }

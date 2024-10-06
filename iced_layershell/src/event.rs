@@ -40,7 +40,7 @@ impl From<WEnum<KeyState>> for IcedKeyState {
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
     ScaleFactorChanged {
-        scale_int: u32,
+        scale_u32: u32,
         scale_float: f64,
     },
     CursorEnter {
@@ -190,10 +190,10 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
             }
 
             DispatchMessage::PreferredScale {
-                scale_int,
+                scale_u32,
                 scale_float,
             } => IcedLayerEvent::Window(WindowEvent::ScaleFactorChanged {
-                scale_int: *scale_int,
+                scale_u32: *scale_u32,
                 scale_float: *scale_float,
             }),
 

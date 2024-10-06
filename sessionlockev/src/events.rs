@@ -177,7 +177,7 @@ pub(crate) enum DispatchMessageInner {
     },
     PreferredScale {
         scale_float: f64,
-        scale_int: u32,
+        scale_u32: u32,
     },
 }
 
@@ -268,7 +268,7 @@ pub enum DispatchMessage {
     /// fractal scale handle
     PreferredScale {
         scale_float: f64,
-        scale_int: u32,
+        scale_u32: u32,
     },
 }
 
@@ -374,10 +374,10 @@ impl From<DispatchMessageInner> for DispatchMessage {
             },
             DispatchMessageInner::PreferredScale {
                 scale_float,
-                scale_int,
+                scale_u32,
             } => DispatchMessage::PreferredScale {
                 scale_float,
-                scale_int,
+                scale_u32,
             },
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
         }

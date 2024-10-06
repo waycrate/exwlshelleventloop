@@ -1671,7 +1671,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
             state.message.push((
                 Some(id),
                 DispatchMessageInner::PreferredScale {
-                    scale_int: scale,
+                    scale_u32: scale,
                     scale_float: scale as f64 / 120.,
                 },
             ));

@@ -30,7 +30,7 @@ impl From<WEnum<KeyState>> for IcedKeyState {
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
     ScaleFactorChanged {
-        scale_int: u32,
+        scale_u32: u32,
         scale_float: f64,
     },
     CursorEnter {
@@ -173,9 +173,9 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
             }
             DispatchMessage::PreferredScale {
                 scale_float,
-                scale_int,
+                scale_u32,
             } => IcedSessionLockEvent::Window(WindowEvent::ScaleFactorChanged {
-                scale_int: *scale_int,
+                scale_u32: *scale_u32,
                 scale_float: *scale_float,
             }),
             DispatchMessage::KeyboardInput {
