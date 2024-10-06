@@ -88,6 +88,7 @@ pub enum IcedSessionLockEvent<Message: 'static> {
     RequestRefreshWithWrapper {
         width: u32,
         height: u32,
+        scale_float: f64,
         wrapper: WindowWrapper,
     },
     #[allow(unused)]

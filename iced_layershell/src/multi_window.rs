@@ -256,6 +256,7 @@ where
                     DispatchMessage::RequestRefresh {
                         width,
                         height,
+                        scale_float,
                         is_created,
                         ..
                     } => {
@@ -268,6 +269,7 @@ where
                                 IcedLayerEvent::RequestRefreshWithWrapper {
                                     width: *width,
                                     height: *height,
+                                    fractal_scale: *scale_float,
                                     wrapper: unit.gen_wrapper(),
                                     is_created: *is_created,
                                     info: unit.get_binding().cloned(),
@@ -502,6 +504,7 @@ async fn run_instance<A, E, C>(
                 IcedLayerEvent::RequestRefreshWithWrapper {
                     width,
                     height,
+                    fractal_scale,
                     wrapper,
                     is_created,
                     info,
@@ -515,6 +518,7 @@ async fn run_instance<A, E, C>(
                     let window = window_manager.insert(
                         id,
                         (width, height),
+                        fractal_scale,
                         Arc::new(wrapper),
                         &application,
                         &mut compositor,
@@ -545,17 +549,11 @@ async fn run_instance<A, E, C>(
                 } else {
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
-                    window.state.update_view_port(width, height);
+                    window.state.update_view_port(width, height, fractal_scale);
 
                     let _ = user_interfaces.insert(
                         id,
-                        ui.relayout(
-                            Size {
-                                width: width as f32,
-                                height: height as f32,
-                            },
-                            &mut window.renderer,
-                        ),
+                        ui.relayout(window.state.logical_size(), &mut window.renderer),
                     );
                     (id, window)
                 };
@@ -656,8 +654,11 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 window.state.update(&event);
-                if let Some(event) = conversion::window_event(id, &event, window.state.modifiers())
-                {
+                if let Some(event) = conversion::window_event(
+                    &event,
+                    window.state.scale_factor(),
+                    window.state.modifiers(),
+                ) {
                     events.push((Some(id), event));
                 }
             }

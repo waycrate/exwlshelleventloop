@@ -368,24 +368,26 @@ async fn run_instance<A, E, C>(
 
     while let Some(event) = event_receiver.next().await {
         match event {
-            IcedLayerEvent::RequestRefresh { width, height } => {
-                state.update_view_port(width, height);
-                let ps = state.physical_size();
-                let width = ps.width;
-                let height = ps.height;
-                //state.update_view_port(width, height);
+            IcedLayerEvent::RequestRefresh {
+                width,
+                height,
+                fractal_scale,
+            } => {
+                state.update_view_port(width, height, fractal_scale);
+                let logical_size = state.logical_size();
+
                 debug.layout_started();
-                user_interface =
-                    ManuallyDrop::new(ManuallyDrop::into_inner(user_interface).relayout(
-                        Size {
-                            width: width as f32,
-                            height: height as f32,
-                        },
-                        &mut renderer,
-                    ));
+                user_interface = ManuallyDrop::new(
+                    ManuallyDrop::into_inner(user_interface).relayout(logical_size, &mut renderer),
+                );
                 debug.layout_finished();
 
-                compositor.configure_surface(&mut surface, width, height);
+                let physical_size = state.physical_size();
+                compositor.configure_surface(
+                    &mut surface,
+                    physical_size.width,
+                    physical_size.height,
+                );
                 let redraw_event =
                     IcedCoreEvent::Window(IcedCoreWindow::Event::RedrawRequested(Instant::now()));
 
@@ -468,7 +470,9 @@ async fn run_instance<A, E, C>(
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
 
-                if let Some(event) = conversion::window_event(main_id, &event, state.modifiers()) {
+                if let Some(event) =
+                    conversion::window_event(&event, state.scale_factor(), state.modifiers())
+                {
                     events.push(event);
                 }
             }
