@@ -103,10 +103,13 @@ where
 
     pub fn update(&mut self, event: &WindowEvent) {
         match event {
-            WindowEvent::CursorLeft => {
+            WindowEvent::CursorLeft | WindowEvent::TouchUp { .. } => {
                 self.mouse_position = None;
             }
-            WindowEvent::CursorMoved { x, y } => {
+            WindowEvent::CursorMoved { x, y }
+            | WindowEvent::CursorEnter { x, y }
+            | WindowEvent::TouchMotion { x, y, .. }
+            | WindowEvent::TouchDown { x, y, .. } => {
                 self.mouse_position = Some(Point::new(*x as f32, *y as f32));
             }
             WindowEvent::ModifiersChanged(modifiers) => {
@@ -117,7 +120,8 @@ where
                 scale_u32: _,
             } => {
                 let size = self.physical_size();
-                self.viewport = Viewport::with_physical_size(size, self.application_scale_factor * scale_float);
+                self.viewport =
+                    Viewport::with_physical_size(size, self.application_scale_factor * scale_float);
 
                 self.viewport_version = self.viewport_version.wrapping_add(1);
                 self.wayland_scale_factor = *scale_float;

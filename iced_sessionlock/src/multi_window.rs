@@ -188,13 +188,18 @@ where
             SessionLockEvent::BindProvide(_, _) => {}
             SessionLockEvent::RequestMessages(message) => 'outside: {
                 match message {
-                    DispatchMessage::RequestRefresh { width, height, .. } => {
+                    DispatchMessage::RequestRefresh {
+                        width,
+                        height,
+                        scale_float,
+                    } => {
                         event_sender
                             .start_send(MultiWindowIcedSessionLockEvent(
                                 id,
                                 IcedSessionLockEvent::RequestRefreshWithWrapper {
                                     width: *width,
                                     height: *height,
+                                    scale_float: *scale_float,
                                     wrapper: ev
                                         .get_unit_with_id(id.unwrap())
                                         .unwrap()
@@ -313,6 +318,7 @@ async fn run_instance<A, E, C>(
                     width,
                     height,
                     wrapper,
+                    scale_float,
                 },
             ) => {
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
@@ -321,6 +327,7 @@ async fn run_instance<A, E, C>(
                     let window = window_manager.insert(
                         id,
                         (width, height),
+                        scale_float,
                         Arc::new(wrapper),
                         &application,
                         &mut compositor,
@@ -351,16 +358,10 @@ async fn run_instance<A, E, C>(
                 } else {
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
                     let ui = user_interfaces.remove(&id).expect("Get User interface");
-                    window.state.update_view_port(width, height);
+                    window.state.update_view_port(width, height, scale_float);
                     let _ = user_interfaces.insert(
                         id,
-                        ui.relayout(
-                            Size {
-                                width: width as f32,
-                                height: height as f32,
-                            },
-                            &mut window.renderer,
-                        ),
+                        ui.relayout(window.state.logical_size(), &mut window.renderer),
                     );
                     (id, window)
                 };
@@ -430,8 +431,11 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 window.state.update(&event);
-                if let Some(event) = conversion::window_event(id, &event, window.state.modifiers())
-                {
+                if let Some(event) = conversion::window_event(
+                    &event,
+                    window.state.scale_factor(),
+                    window.state.modifiers(),
+                ) {
                     events.push((Some(id), event));
                 }
             }

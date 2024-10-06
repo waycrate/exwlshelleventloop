@@ -61,12 +61,13 @@ where
         &mut self,
         id: IcedId,
         size: (u32, u32),
+        fractal_scale: f64,
         window: Arc<WindowWrapper>,
         application: &A,
         compositor: &mut C,
     ) -> &mut Window<A, C> {
         let layerid = window.id();
-        let state = State::new(id, application, size);
+        let state = State::new(id, application, size, fractal_scale);
         let physical_size = state.physical_size();
         let surface = compositor.create_surface(window, physical_size.width, physical_size.height);
         let renderer = compositor.create_renderer();
