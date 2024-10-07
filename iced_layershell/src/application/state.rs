@@ -50,7 +50,7 @@ where
             wpviewport: window
                 .gen_main_wrapper()
                 .viewport
-                .expect("iced_layershell need viewport support to better render scale"),
+                .expect("iced_layershell need viewport support to better wayland dpi"),
         }
     }
 

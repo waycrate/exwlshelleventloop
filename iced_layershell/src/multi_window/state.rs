@@ -60,7 +60,7 @@ where
             wpviewport: window
                 .viewport
                 .clone()
-                .expect("iced_layershell need viewport support to better render scale"),
+                .expect("iced_layershell need viewport support to better wayland hidpi"),
         }
     }
     pub fn modifiers(&self) -> ModifiersState {

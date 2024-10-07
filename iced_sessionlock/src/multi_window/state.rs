@@ -60,7 +60,7 @@ where
             wpviewport: window
                 .viewport
                 .clone()
-                .expect("We need wpviewport support to better render scale"),
+                .expect("iced_sessionlock need wpviewport support to better wayland dpi"),
         }
     }
     pub fn modifiers(&self) -> ModifiersState {
