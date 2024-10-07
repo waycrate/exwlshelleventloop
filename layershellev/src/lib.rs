@@ -253,6 +253,9 @@ pub mod reexport {
         pub use crate::strtoshape::ShapeName;
         pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
     }
+    pub mod wp_viewport {
+        pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
+    }
 }
 
 #[derive(Debug)]
@@ -399,6 +402,7 @@ impl<T> WindowStateUnit<T> {
             id: self.id,
             display: self.display.clone(),
             wl_surface: self.wl_surface.clone(),
+            viewport: self.viewport.clone(),
         }
     }
 }
@@ -676,6 +680,7 @@ pub struct WindowWrapper {
     pub id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
+    pub viewport: Option<WpViewport>,
 }
 
 /// Define the way layershell program is start
@@ -744,6 +749,7 @@ impl<T> WindowState<T> {
                 id: id::Id::MAIN,
                 display: self.display.as_ref().unwrap().clone(),
                 wl_surface: self.background_surface.as_ref().unwrap().clone(),
+                viewport: None,
             };
         }
         self.main_window().gen_wrapper()

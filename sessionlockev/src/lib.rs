@@ -227,6 +227,9 @@ pub mod reexport {
         pub use crate::strtoshape::ShapeName;
         pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
     }
+    pub mod wp_viewport {
+        pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
+    }
 }
 
 #[derive(Debug)]
@@ -249,6 +252,7 @@ pub struct WindowWrapper {
     pub id: id::Id,
     display: WlDisplay,
     wl_surface: WlSurface,
+    pub viewport: Option<WpViewport>,
 }
 
 impl WindowWrapper {
@@ -334,6 +338,7 @@ impl<T> WindowStateUnit<T> {
             id: self.id,
             display: self.display.clone(),
             wl_surface: self.wl_surface.clone(),
+            viewport: self.viewport.clone(),
         }
     }
 }
