@@ -80,7 +80,6 @@ where
         );
         let logical_size = self.viewport.logical_size();
 
-        println!("viewport updated {:?}", self.adjusted_physical_size());
         self.wpviewport.set_destination(
             logical_size.width.ceil() as i32,
             logical_size.height.ceil() as i32,
