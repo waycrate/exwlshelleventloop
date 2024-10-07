@@ -106,8 +106,8 @@ where
         self.viewport.logical_size()
     }
 
-    pub fn application_scale_factor(&self) -> f64 {
-        self.application_scale_factor
+    pub fn scale_factor(&self) -> f64 {
+        1.
     }
 
     pub fn text_color(&self) -> Color {
@@ -124,10 +124,6 @@ where
 
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
-            .map(|point| Point {
-                x: point.x / self.application_scale_factor() as f32,
-                y: point.y / self.application_scale_factor() as f32,
-            })
             .map(IcedMouse::Cursor::Available)
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }

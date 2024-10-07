@@ -110,14 +110,10 @@ where
         &self.theme
     }
     pub fn application_scale_factor(&self) -> f64 {
-        self.application_scale_factor
+        1.
     }
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
-            .map(|point| Point {
-                x: point.x / self.application_scale_factor() as f32,
-                y: point.y / self.application_scale_factor() as f32,
-            })
             .map(IcedMouse::Cursor::Available)
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }

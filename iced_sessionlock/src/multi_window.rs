@@ -438,7 +438,7 @@ async fn run_instance<A, E, C>(
                 window.state.update(&event);
                 if let Some(event) = conversion::window_event(
                     &event,
-                    window.state.application_scale_factor(),
+                    window.state.scale_factor(),
                     window.state.modifiers(),
                 ) {
                     events.push((Some(id), event));
