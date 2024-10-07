@@ -3,6 +3,8 @@ use crate::{Appearance, DefaultStyle};
 use iced_core::{mouse as IcedMouse, Color, Point, Size};
 use iced_graphics::Viewport;
 use layershellev::keyboard::ModifiersState;
+use layershellev::reexport::wp_viewport::WpViewport;
+use layershellev::WindowWrapper;
 
 use crate::event::WindowEvent;
 use iced::window;
@@ -14,12 +16,14 @@ where
     id: window::Id,
     application_scale_factor: f64,
     wayland_scale_factor: f64,
+    real_window_size: Size<u32>,
     viewport: Viewport,
     viewport_version: usize,
     theme: A::Theme,
     appearance: Appearance,
     mouse_position: Option<Point>,
     modifiers: ModifiersState,
+    wpviewport: WpViewport,
 }
 
 impl<A: Application> State<A>
@@ -31,25 +35,32 @@ where
         application: &A,
         (width, height): (u32, u32),
         wayland_scale_factor: f64,
+        window: &WindowWrapper,
     ) -> Self {
         let application_scale_factor = application.scale_factor(id);
         let theme = application.theme();
         let appearance = application.style(&theme);
 
+        let real_window_size = Size::new(width, height);
         let viewport = Viewport::with_physical_size(
-            iced_core::Size::new(width, height),
+            real_window_size,
             wayland_scale_factor * application_scale_factor,
         );
         Self {
             id,
             application_scale_factor,
             wayland_scale_factor,
+            real_window_size,
             viewport,
             viewport_version: 0,
             theme,
             appearance,
             mouse_position: None,
             modifiers: ModifiersState::default(),
+            wpviewport: window
+                .viewport
+                .clone()
+                .expect("iced_layershell need viewport support to better render scale"),
         }
     }
     pub fn modifiers(&self) -> ModifiersState {
@@ -59,13 +70,30 @@ where
     pub fn current_wayland_scale(&self) -> f64 {
         self.wayland_scale_factor
     }
+
     pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
+        self.real_window_size = Size::new(width, height);
         self.wayland_scale_factor = scale;
         self.viewport = Viewport::with_physical_size(
-            iced_core::Size::new(width, height),
+            self.adjusted_physical_size(),
             self.current_wayland_scale() * self.application_scale_factor,
         );
+        let logical_size = self.viewport.logical_size();
+
+        println!("viewport updated {:?}", self.adjusted_physical_size());
+        self.wpviewport.set_destination(
+            logical_size.width.ceil() as i32,
+            logical_size.height.ceil() as i32,
+        );
         self.viewport_version = self.viewport_version.wrapping_add(1);
+    }
+
+    fn adjusted_physical_size(&self) -> Size<u32> {
+        let mut size = self.real_window_size;
+        let factor = self.wayland_scale_factor * self.application_scale_factor;
+        size.width = (size.width as f64 * factor).ceil() as u32;
+        size.height = (size.height as f64 * factor).ceil() as u32;
+        size
     }
 
     pub fn viewport(&self) -> &Viewport {
@@ -80,8 +108,8 @@ where
         self.viewport.logical_size()
     }
 
-    pub fn scale_factor(&self) -> f64 {
-        self.viewport.scale_factor()
+    pub fn application_scale_factor(&self) -> f64 {
+        self.application_scale_factor
     }
 
     pub fn text_color(&self) -> Color {
@@ -103,8 +131,8 @@ where
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
             .map(|point| Point {
-                x: point.x / self.scale_factor() as f32,
-                y: point.y / self.scale_factor() as f32,
+                x: point.x / self.application_scale_factor() as f32,
+                y: point.y / self.application_scale_factor() as f32,
             })
             .map(IcedMouse::Cursor::Available)
             .unwrap_or(IcedMouse::Cursor::Unavailable)
@@ -128,13 +156,19 @@ where
                 scale_float,
                 scale_u32: _,
             } => {
-                let size = self.viewport.physical_size();
-
-                self.viewport =
-                    Viewport::with_physical_size(size, scale_float * self.application_scale_factor);
+                self.wayland_scale_factor = *scale_float;
+                self.viewport = Viewport::with_physical_size(
+                    self.adjusted_physical_size(),
+                    self.application_scale_factor * scale_float,
+                );
 
                 self.viewport_version = self.viewport_version.wrapping_add(1);
-                self.wayland_scale_factor = *scale_float;
+                let logical_size = self.viewport.logical_size();
+
+                self.wpviewport.set_destination(
+                    logical_size.width.ceil() as i32,
+                    logical_size.height.ceil() as i32,
+                );
             }
             _ => {}
         }
@@ -143,12 +177,12 @@ where
     pub fn synchronize(&mut self, application: &A) {
         let new_scale_factor = application.scale_factor(self.id);
         if self.application_scale_factor != new_scale_factor {
+            self.application_scale_factor = new_scale_factor;
             self.viewport = Viewport::with_physical_size(
-                self.physical_size(),
-                self.wayland_scale_factor * new_scale_factor,
+                self.adjusted_physical_size(),
+                self.current_wayland_scale() * new_scale_factor,
             );
             self.viewport_version = self.viewport_version.wrapping_add(1);
-            self.application_scale_factor = new_scale_factor;
         }
         self.theme = application.theme();
         self.appearance = application.style(&self.theme);

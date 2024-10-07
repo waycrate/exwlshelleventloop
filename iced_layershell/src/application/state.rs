@@ -47,16 +47,15 @@ where
             appearance,
             mouse_position: None,
             modifiers: ModifiersState::default(),
-            wpviewport: window.gen_main_wrapper().viewport.unwrap(),
+            wpviewport: window
+                .gen_main_wrapper()
+                .viewport
+                .expect("iced_layershell need viewport support to better render scale"),
         }
     }
 
     pub fn modifiers(&self) -> ModifiersState {
         self.modifiers
-    }
-
-    pub fn scale_factor(&self) -> f64 {
-        self.viewport.scale_factor()
     }
 
     pub fn current_wayland_scale(&self) -> f64 {
@@ -110,12 +109,14 @@ where
     pub fn theme(&self) -> &A::Theme {
         &self.theme
     }
-
+    pub fn application_scale_factor(&self) -> f64 {
+        self.application_scale_factor
+    }
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
             .map(|point| Point {
-                x: point.x / self.scale_factor() as f32,
-                y: point.y / self.scale_factor() as f32,
+                x: point.x / self.application_scale_factor() as f32,
+                y: point.y / self.application_scale_factor() as f32,
             })
             .map(IcedMouse::Cursor::Available)
             .unwrap_or(IcedMouse::Cursor::Unavailable)
