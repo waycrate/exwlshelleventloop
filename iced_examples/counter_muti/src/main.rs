@@ -224,12 +224,12 @@ impl MultiApplication for Counter {
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),
             button("Decrement").on_press(Message::DecrementPressed),
-            text(self.value).size(50),
+            text(self.value).size(30),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
             button("newwindowRight").on_press(Message::NewWindowRight),
         ]
         .align_x(Alignment::Center)
-        .padding(20)
+        .padding(10)
         .width(Length::Fill)
         .height(Length::Fill);
         row![
@@ -253,7 +253,7 @@ impl MultiApplication for Counter {
                 .on_press(Message::Direction(WindowDirection::Right(id)))
                 .height(Length::Fill),
         ]
-        .padding(20)
+        .padding(10)
         .spacing(10)
         //.align_items(Alignment::Center)
         .width(Length::Fill)
