@@ -15,11 +15,11 @@ With this crate, you can use iced to build your kde-shell, notification applicat
 
 The smallest example is like
 
-```rust
+```rust, no_run
 use iced::widget::{button, column, row, text, text_input};
 use iced::{event, Alignment, Color, Element, Event, Length, Task as Command, Theme};
 use iced_layershell::reexport::Anchor;
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::Application;
 use iced_layershell::to_layer_message;
 

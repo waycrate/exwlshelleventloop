@@ -8,7 +8,7 @@ Session lock is the wayland protocol for lock. This protocol is supported in riv
 
 The smallest example is like
 
-```rust
+```rust, no_run
 use iced::widget::{button, column, text, text_input, Space};
 use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
 
