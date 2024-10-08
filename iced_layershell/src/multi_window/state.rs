@@ -72,7 +72,11 @@ where
     }
 
     pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
-        self.real_window_size = Size::new(width, height);
+        let real_window_size = Size::new(width, height);
+        if self.real_window_size == real_window_size && self.wayland_scale_factor == scale {
+            return;
+        }
+        self.real_window_size = real_window_size;
         self.wayland_scale_factor = scale;
         self.viewport = Viewport::with_physical_size(
             self.adjusted_physical_size(),

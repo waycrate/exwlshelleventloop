@@ -43,7 +43,7 @@ impl MultiApplication for Counter {
         (
             Self {
                 value: 0,
-                text: "eee".to_string(),
+                text: "lock".to_string(),
             },
             Command::none(),
         )
@@ -59,8 +59,7 @@ impl MultiApplication for Counter {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::IcedEvent(event) => {
-                println!("hello {event:?}");
+            Message::IcedEvent(_event) => {
                 Command::none()
             }
             Message::IncrementPressed => {
@@ -83,7 +82,7 @@ impl MultiApplication for Counter {
         column![
             Space::with_height(Length::Fill),
             button("Increment").on_press(Message::IncrementPressed),
-            button("Lock").on_press(Message::UnLock),
+            button("UnLock").on_press(Message::UnLock),
             text(self.value).size(50),
             text_input("hello", &self.text)
                 .on_input(Message::TextInput)
