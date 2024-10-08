@@ -1,6 +1,6 @@
-pub mod application;
-
+#![doc = include_str!("../README.md")]
 pub mod actions;
+pub mod application;
 mod clipboard;
 mod conversion;
 mod error;

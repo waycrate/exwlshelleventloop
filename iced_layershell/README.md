@@ -31,12 +31,17 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         binded_output_name = Some(args[1].to_string())
     }
 
+    let start_mode = match binded_output_name {
+        Some(output) => StartMode::TargetScreen(output),
+        None => StartMode::Active,
+    };
+
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
-            binded_output_name,
+            start_mode,
             ..Default::default()
         },
         ..Default::default()
