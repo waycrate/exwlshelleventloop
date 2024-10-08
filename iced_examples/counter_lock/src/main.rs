@@ -59,9 +59,7 @@ impl MultiApplication for Counter {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::IcedEvent(_event) => {
-                Command::none()
-            }
+            Message::IcedEvent(_event) => Command::none(),
             Message::IncrementPressed => {
                 self.value += 1;
                 Command::none()
