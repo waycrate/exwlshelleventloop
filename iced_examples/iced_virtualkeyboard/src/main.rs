@@ -8,7 +8,7 @@ use iced_layershell::actions::{LayershellCustomActions, LayershellCustomActionsW
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
-use iced_layershell::Application;
+use iced_layershell::{Appearance, Application};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
@@ -117,6 +117,13 @@ impl Application for KeyboardView {
         }
     }
 
+    fn style(&self, theme: &Self::Theme) -> Appearance {
+        use iced_layershell::Appearance;
+        Appearance {
+            background_color: Color::TRANSPARENT,
+            text_color: theme.palette().text,
+        }
+    }
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
         canvas(self).height(Length::Fill).width(Length::Fill).into()
     }
@@ -225,7 +232,7 @@ impl canvas::Program<Message> for KeyboardView {
                     height: keyboard_height,
                 },
             );
-            frame.fill(&keyboard, Color::from_rgb8(0xFF, 0xFF, 0xFF));
+            frame.fill(&keyboard, Color::TRANSPARENT);
 
             let mut key_y: f32 = keyboard_top_pad + 5.0;
 
