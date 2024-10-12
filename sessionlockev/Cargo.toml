@@ -30,7 +30,8 @@ bitflags.workspace = true
 
 rwh_06.workspace = true
 
-sctk.workspace = true
+calloop.workspace = true
+calloop-wayland-source.workspace = true
 log.workspace = true
 
 waycrate_xkbkeycode.workspace = true

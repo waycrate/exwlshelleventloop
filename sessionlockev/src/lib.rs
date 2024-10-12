@@ -161,13 +161,13 @@ use wayland_protocols::wp::fractional_scale::v1::client::{
 
 use std::time::Duration;
 
-use sctk::reexports::{
-    calloop::{
-        timer::{TimeoutAction, Timer},
-        Error as CallLoopError, EventLoop, LoopHandle,
-    },
-    calloop_wayland_source::WaylandSource,
+pub use calloop;
+
+use calloop::{
+    timer::{TimeoutAction, Timer},
+    Error as CallLoopError, EventLoop, LoopHandle,
 };
+use calloop_wayland_source::WaylandSource;
 
 use wayland_client::backend::WaylandError;
 

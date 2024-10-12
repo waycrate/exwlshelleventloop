@@ -116,8 +116,6 @@ pub use events::NewPopUpSettings;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
-pub use sctk::reexports::calloop;
-
 mod events;
 mod strtoshape;
 
@@ -190,16 +188,15 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
+pub use calloop;
+
+use calloop::{
+    timer::{TimeoutAction, Timer},
+    Error as CallLoopError, EventLoop, LoopHandle,
+};
+use calloop_wayland_source::WaylandSource;
 use std::f64;
 use std::time::Duration;
-
-use sctk::reexports::{
-    calloop::{
-        timer::{TimeoutAction, Timer},
-        Error as CallLoopError, EventLoop, LoopHandle,
-    },
-    calloop_wayland_source::WaylandSource,
-};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LayerEventError {

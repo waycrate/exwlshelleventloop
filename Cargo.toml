@@ -18,7 +18,7 @@ authors = [
   "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2021"
-version = "0.9.0"
+version = "0.9.1"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"
 description = "Wayland extra shell lib"
@@ -26,14 +26,14 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-layershellev = { version = "0.9.0", path = "./layershellev" }
-sessionlockev = { version = "0.9.0", path = "./sessionlockev" }
+layershellev = { version = "0.9.1", path = "./layershellev" }
+sessionlockev = { version = "0.9.1", path = "./sessionlockev" }
 
-iced_layershell = { version = "0.9.0", path = "./iced_layershell" }
-iced_layershell_macros = { version = "0.9.0", path = "./iced_layershell_macros" }
-iced_sessionlock = { version = "0.9.0", path = "./iced_sessionlock" }
-iced_sessionlock_macros = { version = "0.9.0", path = "./iced_sessionlock_macros" }
-waycrate_xkbkeycode = { version = "0.9.0", path = "./waycrate_xkbkeycode" }
+iced_layershell = { version = "0.9.1", path = "./iced_layershell" }
+iced_layershell_macros = { version = "0.9.1", path = "./iced_layershell_macros" }
+iced_sessionlock = { version = "0.9.1", path = "./iced_sessionlock" }
+iced_sessionlock_macros = { version = "0.9.1", path = "./iced_sessionlock_macros" }
+waycrate_xkbkeycode = { version = "0.9.1", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.13.0"
 thiserror = "1.0.63"
@@ -54,11 +54,12 @@ wayland-protocols-wlr = { version = "0.3.3", default-features = false, features 
 wayland-protocols-misc = { version = "0.3.3", features = ["client"] }
 wayland-backend = { version = "0.3.6", features = ["client_system"] }
 
-sctk = { package = "smithay-client-toolkit", version = "0.18.1", features = [
-  "calloop",
-] }
+#sctk = { package = "smithay-client-toolkit", version = "0.19.2", features = [
+#  "calloop",
+#] }
 
-calloop = "0.14.0"
+calloop = "0.14.1"
+calloop-wayland-source = "0.4.0"
 
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
   "std",
