@@ -1,9 +1,12 @@
 mod state;
-use crate::{actions::UnLockAction, multi_window::window_manager::WindowManager};
+use crate::{
+    actions::{SessionShellActionVec, UnLockAction},
+    multi_window::window_manager::WindowManager,
+};
 use std::{collections::HashMap, f64, mem::ManuallyDrop, sync::Arc};
 
 use crate::{
-    actions::SessionShellActions, clipboard::SessionLockClipboard, conversion, error::Error,
+    actions::SessionShellAction, clipboard::SessionLockClipboard, conversion, error::Error,
 };
 
 use super::{Appearance, DefaultStyle};
@@ -163,7 +166,7 @@ where
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<MultiWindowIcedSessionLockEvent<Action<A::Message>>>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<SessionShellActions>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<SessionShellActionVec>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -240,9 +243,14 @@ where
         let poll = instance.as_mut().poll(&mut context);
         match poll {
             task::Poll::Pending => 'peddingBlock: {
-                if let Ok(Some(flow)) = control_receiver.try_next() {
+                if let Some(flow) = control_receiver
+                    .try_next()
+                    .ok()
+                    .flatten()
+                    .and_then(|flows| flows.into_iter().next())
+                {
                     match flow {
-                        SessionShellActions::Mouse(mouse) => {
+                        SessionShellAction::Mouse(mouse) => {
                             let Some(pointer) = ev.get_pointer() else {
                                 break 'peddingBlock ReturnData::None;
                             };
@@ -253,10 +261,10 @@ where
                                 pointer_serial,
                             ));
                         }
-                        SessionShellActions::RedrawAll => {
+                        SessionShellAction::RedrawAll => {
                             break 'peddingBlock ReturnData::RedrawAllRequest;
                         }
-                        SessionShellActions::RedrawWindow(index) => {
+                        SessionShellAction::RedrawWindow(index) => {
                             break 'peddingBlock ReturnData::RedrawIndexRequest(index);
                         }
                     }
@@ -278,7 +286,7 @@ async fn run_instance<A, E, C>(
     mut event_receiver: mpsc::UnboundedReceiver<
         MultiWindowIcedSessionLockEvent<Action<A::Message>>,
     >,
-    mut control_sender: mpsc::UnboundedSender<SessionShellActions>,
+    mut control_sender: mpsc::UnboundedSender<SessionShellActionVec>,
     window: Arc<WindowWrapper>,
 ) where
     A: Application + 'static,
@@ -392,7 +400,7 @@ async fn run_instance<A, E, C>(
                 debug.draw_finished();
 
                 if new_mouse_interaction != window.mouse_interaction {
-                    custom_actions.push(SessionShellActions::Mouse(new_mouse_interaction));
+                    custom_actions.push(SessionShellAction::Mouse(new_mouse_interaction));
                     window.mouse_interaction = new_mouse_interaction;
                 }
 
@@ -536,7 +544,7 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
-                    custom_actions.push(SessionShellActions::RedrawAll);
+                    custom_actions.push(SessionShellAction::RedrawAll);
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
@@ -548,9 +556,10 @@ async fn run_instance<A, E, C>(
             }
             _ => {}
         }
-        for action in custom_actions.drain(..) {
-            control_sender.start_send(action).ok();
-        }
+
+        let mut copyactions = vec![];
+        std::mem::swap(&mut copyactions, &mut custom_actions);
+        control_sender.start_send(copyactions).ok();
     }
     let _ = ManuallyDrop::into_inner(user_interfaces);
 }

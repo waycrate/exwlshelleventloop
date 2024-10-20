@@ -4,9 +4,10 @@ use iced_core::mouse::Interaction;
 use layershellev::id::Id as LayerId;
 use layershellev::NewLayerShellSettings;
 
+pub(crate) type LayerShellActionVec<T> = Vec<LayerShellAction<T>>;
 #[allow(unused)]
 #[derive(Debug, Clone)]
-pub(crate) enum LayerShellActions<INFO: Clone> {
+pub(crate) enum LayerShellAction<INFO: Clone> {
     Mouse(Interaction),
     CustomActions(LayershellCustomActionsWithInfo<INFO>),
     CustomActionsWithId(LayershellCustomActionsWithIdInner<INFO>),

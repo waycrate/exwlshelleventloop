@@ -3,7 +3,10 @@ mod state;
 use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
 use crate::{
-    actions::{LayerShellActions, LayershellCustomActions, LayershellCustomActionsWithInfo},
+    actions::{
+        LayerShellAction, LayerShellActionVec, LayershellCustomActions,
+        LayershellCustomActionsWithInfo,
+    },
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
@@ -180,7 +183,7 @@ where
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<IcedLayerEvent<Action<A::Message>, ()>>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActions<()>>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec<()>>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -252,63 +255,65 @@ where
             return ReturnData::RequestExit;
         };
 
-        let Ok(Some(flow)) = control_receiver.try_next() else {
+        let Ok(Some(flows)) = control_receiver.try_next() else {
             return def_returndata;
         };
-        match flow {
-            LayerShellActions::CustomActions(action) => match action {
-                LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
-                    ev.main_window().set_anchor(anchor);
-                }
-                LayershellCustomActionsWithInfo::AnchorSizeChange(anchor, size) => {
-                    ev.main_window().set_anchor_with_size(anchor, size);
-                }
-                LayershellCustomActionsWithInfo::LayerChange(layer) => {
-                    ev.main_window().set_layer(layer);
-                }
-                LayershellCustomActionsWithInfo::MarginChange(margin) => {
-                    ev.main_window().set_margin(margin);
-                }
-                LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
-                    ev.main_window().set_size((width, height));
-                }
-                LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
-                    use layershellev::reexport::wayland_client::KeyState;
-                    let ky = ev.get_virtual_keyboard().unwrap();
-                    ky.key(time, key, KeyState::Pressed.into());
+        for flow in flows {
+            match flow {
+                LayerShellAction::CustomActions(action) => match action {
+                    LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                        ev.main_window().set_anchor(anchor);
+                    }
+                    LayershellCustomActionsWithInfo::AnchorSizeChange(anchor, size) => {
+                        ev.main_window().set_anchor_with_size(anchor, size);
+                    }
+                    LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                        ev.main_window().set_layer(layer);
+                    }
+                    LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                        ev.main_window().set_margin(margin);
+                    }
+                    LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
+                        ev.main_window().set_size((width, height));
+                    }
+                    LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
+                        use layershellev::reexport::wayland_client::KeyState;
+                        let ky = ev.get_virtual_keyboard().unwrap();
+                        ky.key(time, key, KeyState::Pressed.into());
 
-                    let eh = ev.get_loop_handler().unwrap();
-                    eh.insert_source(
-                        Timer::from_duration(Duration::from_micros(100)),
-                        move |_, _, state| {
-                            let ky = state.get_virtual_keyboard().unwrap();
+                        let eh = ev.get_loop_handler().unwrap();
+                        eh.insert_source(
+                            Timer::from_duration(Duration::from_micros(100)),
+                            move |_, _, state| {
+                                let ky = state.get_virtual_keyboard().unwrap();
 
-                            ky.key(time, key, KeyState::Released.into());
-                            TimeoutAction::Drop
-                        },
-                    )
-                    .ok();
+                                ky.key(time, key, KeyState::Released.into());
+                                TimeoutAction::Drop
+                            },
+                        )
+                        .ok();
+                    }
+                    _ => {}
+                },
+                LayerShellAction::Mouse(mouse) => {
+                    let Some(pointer) = ev.get_pointer() else {
+                        return ReturnData::None;
+                    };
+
+                    ev.append_return_data(ReturnData::RequestSetCursorShape((
+                        conversion::mouse_interaction(mouse),
+                        pointer.clone(),
+                        pointer_serial,
+                    )));
+                }
+                LayerShellAction::RedrawAll => {
+                    ev.append_return_data(ReturnData::RedrawAllRequest);
+                }
+                LayerShellAction::RedrawWindow(index) => {
+                    ev.append_return_data(ReturnData::RedrawIndexRequest(index));
                 }
                 _ => {}
-            },
-            LayerShellActions::Mouse(mouse) => {
-                let Some(pointer) = ev.get_pointer() else {
-                    return ReturnData::None;
-                };
-
-                ev.append_return_data(ReturnData::RequestSetCursorShape((
-                    conversion::mouse_interaction(mouse),
-                    pointer.clone(),
-                    pointer_serial,
-                )));
             }
-            LayerShellActions::RedrawAll => {
-                ev.append_return_data(ReturnData::RedrawAllRequest);
-            }
-            LayerShellActions::RedrawWindow(index) => {
-                ev.append_return_data(ReturnData::RedrawIndexRequest(index));
-            }
-            _ => {}
         }
         def_returndata
     });
@@ -322,7 +327,7 @@ async fn run_instance<A, E, C>(
     mut runtime: SingleRuntime<E, A::Message>,
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>, ()>>,
-    mut control_sender: mpsc::UnboundedSender<LayerShellActions<()>>,
+    mut control_sender: mpsc::UnboundedSender<LayerShellActionVec<()>>,
     mut state: State<A>,
     window: Arc<WindowWrapper>,
 ) where
@@ -416,7 +421,7 @@ async fn run_instance<A, E, C>(
                 debug.draw_finished();
 
                 if new_mouse_interaction != mouse_interaction {
-                    custom_actions.push(LayerShellActions::Mouse(new_mouse_interaction));
+                    custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
                     mouse_interaction = new_mouse_interaction;
                 }
                 // TODO: check mouse_interaction
@@ -462,7 +467,7 @@ async fn run_instance<A, E, C>(
                                 "Error {error:?} when \
                                         presenting surface."
                             );
-                            custom_actions.push(LayerShellActions::RedrawAll);
+                            custom_actions.push(LayerShellAction::RedrawAll);
                         }
                     },
                 }
@@ -547,13 +552,13 @@ async fn run_instance<A, E, C>(
                         &mut debug,
                     ));
                 }
-                custom_actions.push(LayerShellActions::RedrawAll);
+                custom_actions.push(LayerShellAction::RedrawAll);
             }
             _ => unreachable!(),
         }
-        for action in custom_actions.drain(..) {
-            control_sender.start_send(action).ok();
-        }
+        let mut copyactions = vec![];
+        std::mem::swap(&mut copyactions, &mut custom_actions);
+        control_sender.start_send(copyactions).ok();
     }
 
     drop(ManuallyDrop::into_inner(user_interface));
@@ -624,7 +629,7 @@ pub(crate) fn run_action<A, C>(
     event: Action<A::Message>,
     messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
-    custom_actions: &mut Vec<LayerShellActions<()>>,
+    custom_actions: &mut Vec<LayerShellAction<()>>,
     should_exit: &mut bool,
     debug: &mut Debug,
 ) where
@@ -640,7 +645,7 @@ pub(crate) fn run_action<A, C>(
     use iced_runtime::Action;
     match event {
         Action::Output(stream) => match stream.try_into() {
-            Ok(action) => custom_actions.push(LayerShellActions::CustomActions(action)),
+            Ok(action) => custom_actions.push(LayerShellAction::CustomActions(action)),
             Err(stream) => {
                 messages.push(stream);
             }
