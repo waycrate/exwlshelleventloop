@@ -741,6 +741,7 @@ async fn run_instance<A, E, C>(
                             &mut messages,
                         );
 
+                    custom_actions.push(LayerShellAction::RedrawWindow(window.id));
                     if !uis_stale {
                         uis_stale = matches!(ui_state, user_interface::State::Outdated);
                     }
