@@ -506,7 +506,7 @@ async fn run_instance<A, E, C>(
     while let Some(event) = event_receiver.next().await {
         match event {
             MultiWindowIcedLayerEvent(
-                _id,
+                id,
                 IcedLayerEvent::RequestRefreshWithWrapper {
                     width,
                     height,
@@ -516,6 +516,7 @@ async fn run_instance<A, E, C>(
                     info,
                 },
             ) => {
+                let layerid = id.expect("should make sure here be some");
                 let mut is_new_window = false;
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     is_new_window = true;
@@ -639,7 +640,7 @@ async fn run_instance<A, E, C>(
                                     "Error {error:?} when \
                                         presenting surface."
                                 );
-                                custom_actions.push(LayerShellAction::RedrawAll);
+                                custom_actions.push(LayerShellAction::RedrawWindow(layerid));
                             }
                         },
                     }
