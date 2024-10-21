@@ -195,7 +195,9 @@ use calloop::{
     Error as CallLoopError, EventLoop, LoopHandle,
 };
 use calloop_wayland_source::WaylandSource;
-use std::f64;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 #[derive(Debug, thiserror::Error)]
@@ -1950,6 +1952,7 @@ impl<T: 'static> WindowState<T> {
         event_handler: F,
     ) -> Result<(), LayerEventError>
     where
+        Message: std::marker::Send + 'static,
         F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
@@ -1973,6 +1976,7 @@ impl<T: 'static> WindowState<T> {
         mut event_handler: F,
     ) -> Result<(), LayerEventError>
     where
+        Message: std::marker::Send + 'static,
         F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
     {
         let globals = self.globals.take().unwrap();
@@ -2020,6 +2024,26 @@ impl<T: 'static> WindowState<T> {
 
         self.loop_handler = Some(event_loop.handle());
 
+        let to_exit = Arc::new(AtomicBool::new(false));
+
+        let events: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(Vec::new()));
+
+        let to_exit2 = to_exit.clone();
+        let events_2 = events.clone();
+        let thread = std::thread::spawn(move || {
+            let to_exit = to_exit2;
+            let events = events_2;
+            let Some(message_receiver) = message_receiver else {
+                return;
+            };
+            for message in message_receiver.iter() {
+                if to_exit.load(Ordering::Relaxed) {
+                    break;
+                }
+                let mut events_local = events.lock().unwrap();
+                events_local.push(message);
+            }
+        });
         'out: loop {
             event_loop.dispatch(Duration::from_millis(1), &mut self)?;
 
@@ -2217,7 +2241,12 @@ impl<T: 'static> WindowState<T> {
                     }
                 }
             }
-            if let Some(event) = message_receiver.as_ref().and_then(|rv| rv.try_recv().ok()) {
+
+            let mut local_events = events.lock().unwrap();
+            let mut swapped_events: Vec<Message> = vec![];
+            std::mem::swap(&mut *local_events, &mut swapped_events);
+            drop(local_events);
+            for event in swapped_events {
                 match event_handler(LayerEvent::UserEvent(event), &mut self, None) {
                     ReturnData::RequestExit => {
                         break 'out;
@@ -2485,6 +2514,8 @@ impl<T: 'static> WindowState<T> {
             }
             continue;
         }
+        to_exit.store(true, Ordering::Relaxed);
+        let _ = thread.join();
         Ok(())
     }
 }
