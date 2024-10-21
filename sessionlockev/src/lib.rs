@@ -1413,10 +1413,10 @@ impl<T: 'static> WindowState<T> {
                 }
             }
             let mut local_events = events.lock().unwrap();
-            let mut swaped_events: Vec<Message> = vec![];
-            std::mem::swap(&mut *local_events, &mut swaped_events);
+            let mut swapped_events: Vec<Message> = vec![];
+            std::mem::swap(&mut *local_events, &mut swapped_events);
             drop(local_events);
-            for event in swaped_events {
+            for event in swapped_events {
                 match event_handler(SessionLockEvent::UserEvent(event), &mut self, None) {
                     ReturnData::RequestUnlockAndExist => {
                         lock.unlock_and_destroy();
