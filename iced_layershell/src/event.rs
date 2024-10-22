@@ -227,7 +227,7 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                         y: -vertical.discrete as f32,
                     });
                 }
-                IcedLayerEvent::Window(WindowEvent::Axis {
+                IcedLayerEvent::Window(WindowEvent::PixelDelta {
                     x: -horizontal.absolute as f32,
                     y: -vertical.absolute as f32,
                 })

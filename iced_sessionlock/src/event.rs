@@ -204,7 +204,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                         y: -vertical.discrete as f32,
                     });
                 }
-                IcedSessionLockEvent::Window(WindowEvent::Axis {
+                IcedSessionLockEvent::Window(WindowEvent::PixelDelta {
                     x: -horizontal.absolute as f32,
                     y: -vertical.absolute as f32,
                 })
