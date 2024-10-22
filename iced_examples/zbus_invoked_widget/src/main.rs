@@ -11,7 +11,7 @@ use iced_runtime::Action;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::MultiApplication;
-use zbus::{interface, ConnectionBuilder};
+use zbus::{interface, connection};
 
 use futures::channel::mpsc::Sender;
 
@@ -116,7 +116,7 @@ impl MultiApplication for Counter {
         iced::Subscription::run(|| {
             iced::stream::channel(100, |sender| async move {
                 // setup the object server
-                let _connection = ConnectionBuilder::session()
+                let _connection = connection::Builder::session()
                     .unwrap()
                     .name("zbus.iced.MyGreeter1")
                     .unwrap()

@@ -13,9 +13,9 @@ tempfile.workspace = true
 
 xkbcommon = "0.8.0"
 
-cairo-rs = "0.20.0"
-pango = "0.20.0"
-pangocairo = "0.20.0"
+cairo-rs = "0.20.1"
+pango = "0.20.4"
+pangocairo = "0.20.4"
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

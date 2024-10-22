@@ -13,5 +13,5 @@ readme.workspace = true
 iced = { workspace = true, features = ["canvas"] }
 iced_runtime.workspace = true
 iced_layershell.workspace = true
-xkbcommon = "0.6.0"
+xkbcommon = "0.8.0"
 tempfile.workspace = true
