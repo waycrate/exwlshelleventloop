@@ -122,6 +122,7 @@ pub(crate) enum DispatchMessageInner {
     },
     Axis {
         time: u32,
+        scale: f64,
         horizontal: AxisScroll,
         vertical: AxisScroll,
         source: Option<wl_pointer::AxisSource>,
@@ -208,6 +209,7 @@ pub enum DispatchMessage {
     /// About the scroll
     Axis {
         time: u32,
+        scale: f64,
         horizontal: AxisScroll,
         vertical: AxisScroll,
         source: Option<wl_pointer::AxisSource>,
@@ -353,11 +355,13 @@ impl From<DispatchMessageInner> for DispatchMessage {
             },
             DispatchMessageInner::Axis {
                 time,
+                scale,
                 horizontal,
                 vertical,
                 source,
             } => DispatchMessage::Axis {
                 time,
+                scale,
                 horizontal,
                 vertical,
                 source,

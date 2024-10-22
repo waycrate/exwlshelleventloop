@@ -192,6 +192,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
             DispatchMessage::Axis {
                 horizontal,
                 vertical,
+                scale,
                 ..
             } => {
                 if horizontal.stop && vertical.stop {
@@ -200,13 +201,13 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                 let has_scroll = vertical.discrete != 0 || horizontal.discrete != 0;
                 if has_scroll {
                     return IcedSessionLockEvent::Window(WindowEvent::Axis {
-                        x: -horizontal.discrete as f32,
-                        y: -vertical.discrete as f32,
+                        x: (-horizontal.discrete as f64 * scale) as f32,
+                        y: (-vertical.discrete as f64 * scale) as f32,
                     });
                 }
                 IcedSessionLockEvent::Window(WindowEvent::PixelDelta {
-                    x: -horizontal.absolute as f32,
-                    y: -vertical.absolute as f32,
+                    x: (-horizontal.absolute * scale) as f32,
+                    y: (-vertical.absolute * scale) as f32,
                 })
             }
         }

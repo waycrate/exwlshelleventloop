@@ -861,6 +861,11 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
+        let scale = state
+            .surface_id()
+            .and_then(|id| state.get_unit_with_id(id))
+            .map(|unit| unit.scale_float())
+            .unwrap_or(1.0);
         match event {
             wl_pointer::Event::Axis { time, axis, value } => match axis {
                 WEnum::Value(axis) => {
@@ -879,6 +884,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         state.surface_id(),
                         DispatchMessageInner::Axis {
                             time,
+                            scale,
                             horizontal,
                             vertical,
                             source: None,
@@ -903,6 +909,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         state.surface_id(),
                         DispatchMessageInner::Axis {
                             time,
+                            scale,
                             horizontal,
                             vertical,
                             source: None,
@@ -922,6 +929,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         vertical: AxisScroll::default(),
                         source: Some(source),
                         time: 0,
+                        scale,
                     },
                 )),
                 WEnum::Unknown(unknown) => {
@@ -947,6 +955,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         state.surface_id(),
                         DispatchMessageInner::Axis {
                             time: 0,
+                            scale,
                             horizontal,
                             vertical,
                             source: None,
