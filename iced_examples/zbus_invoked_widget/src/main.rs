@@ -11,7 +11,7 @@ use iced_runtime::Action;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::MultiApplication;
-use zbus::{interface, connection};
+use zbus::{connection, interface};
 
 use futures::channel::mpsc::Sender;
 
