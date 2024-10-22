@@ -661,6 +661,19 @@ async fn run_instance<A, E, C>(
                     ));
                 }
             }
+            MultiWindowIcedLayerEvent(None, IcedLayerEvent::Window(event)) => {
+                let Some((_id, window)) = window_manager.first_window() else {
+                    continue;
+                };
+                // NOTE: just follow the other events
+                if let Some(event) = conversion::window_event(
+                    &event,
+                    window.state.scale_factor(),
+                    window.state.modifiers(),
+                ) {
+                    events.push((None, event));
+                }
+            }
             MultiWindowIcedLayerEvent(Some(id), IcedLayerEvent::Window(event)) => {
                 let Some((id, window)) = window_manager.get_mut_alias(id) else {
                     continue;

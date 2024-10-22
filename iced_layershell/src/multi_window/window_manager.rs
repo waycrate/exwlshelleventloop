@@ -110,6 +110,10 @@ where
         self.entries.iter_mut().map(|(k, v)| (*k, v))
     }
 
+    pub fn first_window(&self) -> Option<(&IcedId, &Window<A, C>)> {
+        self.entries.iter().next()
+    }
+
     pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<A, C>)> {
         let id = self.aliases.get(&id).copied()?;
 
