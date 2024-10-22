@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "application-launcher"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "gio",
  "iced",
@@ -411,7 +411,7 @@ dependencies = [
 
 [[package]]
 name = "bottom_panel"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "gio",
  "iced",
@@ -789,7 +789,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -798,7 +798,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "iced",
  "iced_runtime",
@@ -807,7 +807,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -1812,7 +1812,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "futures",
  "iced",
@@ -1831,7 +1831,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell_macros"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "darling",
  "manyhow",
@@ -1868,7 +1868,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "futures",
  "iced",
@@ -1887,7 +1887,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock_macros"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "darling",
  "manyhow",
@@ -1915,7 +1915,7 @@ dependencies = [
 
 [[package]]
 name = "iced_virtualkeyboard"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -2133,7 +2133,7 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "bitflags 2.6.0",
  "calloop 0.14.1",
@@ -3465,7 +3465,7 @@ dependencies = [
 
 [[package]]
 name = "sessionlockev"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "bitflags 2.6.0",
  "calloop 0.14.1",
@@ -3677,7 +3677,7 @@ dependencies = [
 
 [[package]]
 name = "starcolorkeyboard"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "bitflags 2.6.0",
  "cairo-rs",
@@ -4219,7 +4219,7 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "bitflags 2.6.0",
  "log",
@@ -5002,7 +5002,7 @@ dependencies = [
 
 [[package]]
 name = "zbus_invoked_widget"
-version = "0.9.4-rc1"
+version = "0.9.4-rc2"
 dependencies = [
  "futures",
  "iced",
