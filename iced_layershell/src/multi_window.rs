@@ -722,6 +722,7 @@ async fn run_instance<A, E, C>(
 
                 debug.event_processing_started();
 
+                let mut window_refresh_events = vec![];
                 let mut uis_stale = false;
                 let mut has_window_event = false;
                 for (id, window) in window_manager.iter_mut() {
@@ -755,7 +756,7 @@ async fn run_instance<A, E, C>(
                             &mut messages,
                         );
 
-                    custom_actions.push(LayerShellAction::RedrawWindow(window.id));
+                    window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
                     if !uis_stale {
                         uis_stale = matches!(ui_state, user_interface::State::Outdated);
                     }
@@ -771,11 +772,13 @@ async fn run_instance<A, E, C>(
                     }
                 }
 
+                let mut already_redraw_all = false;
                 // HACK: this logic is just from iced, but seems if there is no main window,
                 // any window will not get Outdated state.
                 // So here just check if there is window_events
                 if is_background_mode && has_window_event {
                     custom_actions.push(LayerShellAction::RedrawAll);
+                    already_redraw_all = true;
                 }
 
                 // TODO mw application update returns which window IDs to update
@@ -794,6 +797,7 @@ async fn run_instance<A, E, C>(
                     }
 
                     if !is_background_mode {
+                        already_redraw_all = true;
                         custom_actions.push(LayerShellAction::RedrawAll);
                     }
 
@@ -803,6 +807,12 @@ async fn run_instance<A, E, C>(
                         &mut window_manager,
                         cached_interfaces,
                     ));
+                }
+
+                // NOTE: only append the target window refresh event when not invoke the redrawAll
+                // event. This will make the events fewer.
+                if !already_redraw_all {
+                    custom_actions.append(&mut window_refresh_events);
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
