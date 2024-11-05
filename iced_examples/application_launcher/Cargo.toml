@@ -22,7 +22,7 @@ iced = { workspace = true, features = [
 ] }
 iced_runtime.workspace = true
 iced_layershell.workspace = true
-gio = "0.20.4"
-regex = "1.11.0"
+gio = "0.20.5"
+regex = "1.11.1"
 xdg = "2.5.2"
 tracing = "0.1.40"

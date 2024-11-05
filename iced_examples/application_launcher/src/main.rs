@@ -66,7 +66,7 @@ impl Application for Launcher {
     }
 
     fn namespace(&self) -> String {
-        String::from("iced_launcer")
+        String::from("iced_launcer2")
     }
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {

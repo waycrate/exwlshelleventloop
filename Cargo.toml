@@ -18,7 +18,7 @@ authors = [
   "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2021"
-version = "0.9.4"
+version = "0.9.5"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"
 description = "Wayland extra shell lib"
@@ -26,32 +26,32 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-layershellev = { version = "0.9.4", path = "./layershellev" }
-sessionlockev = { version = "0.9.4", path = "./sessionlockev" }
+layershellev = { version = "0.9.5", path = "./layershellev" }
+sessionlockev = { version = "0.9.5", path = "./sessionlockev" }
 
-iced_layershell = { version = "0.9.4", path = "./iced_layershell" }
-iced_layershell_macros = { version = "0.9.4", path = "./iced_layershell_macros" }
-iced_sessionlock = { version = "0.9.4", path = "./iced_sessionlock" }
-iced_sessionlock_macros = { version = "0.9.4", path = "./iced_sessionlock_macros" }
-waycrate_xkbkeycode = { version = "0.9.4", path = "./waycrate_xkbkeycode" }
+iced_layershell = { version = "0.9.5", path = "./iced_layershell" }
+iced_layershell_macros = { version = "0.9.5", path = "./iced_layershell_macros" }
+iced_sessionlock = { version = "0.9.5", path = "./iced_sessionlock" }
+iced_sessionlock_macros = { version = "0.9.5", path = "./iced_sessionlock_macros" }
+waycrate_xkbkeycode = { version = "0.9.5", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.13.0"
-thiserror = "1.0.64"
-wayland-client = { version = "0.31.6" }
+thiserror = "1.0.68"
+wayland-client = { version = "0.31.7" }
 
-wayland-protocols = { version = "0.32.4", default-features = false, features = [
+wayland-protocols = { version = "0.32.5", default-features = false, features = [
   "unstable",
   "staging",
   "client",
 ] }
 
-wayland-cursor = "0.31.6"
+wayland-cursor = "0.31.7"
 
-wayland-protocols-wlr = { version = "0.3.4", default-features = false, features = [
+wayland-protocols-wlr = { version = "0.3.5", default-features = false, features = [
   "client",
 ] }
 
-wayland-protocols-misc = { version = "0.3.4", features = ["client"] }
+wayland-protocols-misc = { version = "0.3.5", features = ["client"] }
 wayland-backend = { version = "0.3.7", features = ["client_system"] }
 
 #sctk = { package = "smithay-client-toolkit", version = "0.19.2", features = [
@@ -79,7 +79,7 @@ bitflags = "2.6.0"
 log = "0.4.22"
 
 xkbcommon-dl = "0.4.2"
-smol_str = "0.2.2" #NOTE: follwo iced
+smol_str = "0.2.2" #NOTE: follow iced
 memmap2 = "0.9.5"
 
 tracing = "0.1.40"
@@ -87,6 +87,6 @@ futures = "0.3.31"
 
 darling = { version = "0.20.10", features = ["suggestions"] }
 manyhow = { version = "0.11.4", features = ["darling"] }
-proc-macro2 = "1.0.88"
+proc-macro2 = "1.0.89"
 quote = "1.0.37"
-syn = { version = "2.0.82", features = ["full"] }
+syn = { version = "2.0.87", features = ["full"] }

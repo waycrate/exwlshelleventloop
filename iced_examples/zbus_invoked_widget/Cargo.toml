@@ -14,5 +14,5 @@ iced.workspace = true
 iced_runtime.workspace = true
 iced_layershell.workspace = true
 
-zbus = { version = "5.0.1", default-features = false, features = ["tokio"] }
+zbus = { version = "5.1.0", default-features = false, features = ["tokio"] }
 futures = "0.3.31"

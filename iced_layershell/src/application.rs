@@ -345,10 +345,13 @@ async fn run_instance<A, E, C>(
         .expect("Cannot create compositor");
     let mut renderer = compositor.create_renderer();
 
-    let physical_size = state.physical_size();
     let cache = user_interface::Cache::default();
+
+    // HACK: the surface size should not be set as 0, 0
+    // but it will changed later
+    // so here set it to 1, 1
     let mut surface =
-        compositor.create_surface(window.clone(), physical_size.width, physical_size.height);
+        compositor.create_surface(window.clone(), 1, 1);
 
     let mut should_exit = false;
 
