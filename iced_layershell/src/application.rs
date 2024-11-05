@@ -350,8 +350,7 @@ async fn run_instance<A, E, C>(
     // HACK: the surface size should not be set as 0, 0
     // but it will changed later
     // so here set it to 1, 1
-    let mut surface =
-        compositor.create_surface(window.clone(), 1, 1);
+    let mut surface = compositor.create_surface(window.clone(), 1, 1);
 
     let mut should_exit = false;
 
