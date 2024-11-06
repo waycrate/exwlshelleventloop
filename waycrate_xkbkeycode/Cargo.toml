@@ -17,3 +17,4 @@ bitflags.workspace = true
 wayland-client.workspace = true
 wayland-backend.workspace = true
 log.workspace = true
+calloop.workspace = true

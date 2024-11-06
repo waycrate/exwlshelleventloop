@@ -4188,6 +4188,7 @@ name = "waycrate_xkbkeycode"
 version = "0.9.5"
 dependencies = [
  "bitflags 2.6.0",
+ "calloop 0.14.1",
  "log",
  "memmap2",
  "smol_str",

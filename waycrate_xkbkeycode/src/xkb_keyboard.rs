@@ -28,6 +28,8 @@ use xkb::{
 
 use crate::keyboard::{Key, KeyLocation, PhysicalKey};
 
+use calloop::RegistrationToken;
+
 static RESET_DEAD_KEYS: AtomicBool = AtomicBool::new(false);
 
 pub static XKBH: LazyLock<&'static XkbCommon> = LazyLock::new(xkbcommon_handle);
@@ -66,6 +68,7 @@ pub struct KeyboardState {
 
     pub xkb_context: Context,
     pub repeat_info: RepeatInfo,
+    pub repeat_token: Option<RegistrationToken>,
     pub current_repeat: Option<u32>,
 }
 
@@ -76,6 +79,7 @@ impl KeyboardState {
             xkb_context: Context::new().unwrap(),
             repeat_info: RepeatInfo::default(),
             current_repeat: None,
+            repeat_token: None,
         }
     }
 }
