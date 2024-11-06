@@ -1151,12 +1151,26 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 }
                 _ => unreachable!(),
             },
+            wl_keyboard::Event::Enter { .. } => {
+                if let (Some(token), Some(loop_handle)) = (
+                    keyboard_state.repeat_token.take(),
+                    state.loop_handler.as_ref(),
+                ) {
+                    loop_handle.remove(token);
+                }
+            }
             wl_keyboard::Event::Leave { .. } => {
                 keyboard_state.current_repeat = None;
                 state.message.push((
                     surface_id,
                     DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
                 ));
+                if let (Some(token), Some(loop_handle)) = (
+                    keyboard_state.repeat_token.take(),
+                    state.loop_handler.as_ref(),
+                ) {
+                    loop_handle.remove(token);
+                }
             }
             wl_keyboard::Event::Key {
                 state: keystate,
@@ -1196,10 +1210,17 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         }
 
                         keyboard_state.current_repeat = Some(key);
+
+                        if let (Some(token), Some(loop_handle)) = (
+                            keyboard_state.repeat_token.take(),
+                            state.loop_handler.as_ref(),
+                        ) {
+                            loop_handle.remove(token);
+                        }
                         let timer = Timer::from_duration(delay);
 
                         if let Some(looph) = state.loop_handler.as_ref() {
-                            looph
+                            keyboard_state.repeat_token = looph
                                 .insert_source(timer, move |_, _, state| {
                                     let keyboard_state = match state.keyboard_state.as_mut() {
                                         Some(keyboard_state) => keyboard_state,
@@ -1247,6 +1268,12 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                             && Some(key) == keyboard_state.current_repeat
                         {
                             keyboard_state.current_repeat = None;
+                            if let (Some(token), Some(loop_handle)) = (
+                                keyboard_state.repeat_token.take(),
+                                state.loop_handler.as_ref(),
+                            ) {
+                                loop_handle.remove(token);
+                            }
                         }
                     }
                 }
@@ -1275,6 +1302,12 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 keyboard_state.repeat_info = if rate == 0 {
                     // Stop the repeat once we get a disable event.
                     keyboard_state.current_repeat = None;
+                    if let (Some(token), Some(loop_handle)) = (
+                        keyboard_state.repeat_token.take(),
+                        state.loop_handler.as_ref(),
+                    ) {
+                        loop_handle.remove(token);
+                    }
                     RepeatInfo::Disable
                 } else {
                     let gap = Duration::from_micros(1_000_000 / rate as u64);
