@@ -189,6 +189,7 @@ where
     let ev: WindowState<A::WindowInfo> = layershellev::WindowState::new(&application.namespace())
         .with_start_mode(settings.layer_settings.start_mode)
         .with_use_display_handle(true)
+        .with_events_transparent(settings.layer_settings.events_transparent)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
         .with_anchor(settings.layer_settings.anchor)

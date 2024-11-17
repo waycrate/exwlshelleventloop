@@ -624,6 +624,7 @@ pub struct WindowState<T> {
 
     start_mode: StartMode,
     init_finished: bool,
+    events_transparent: bool,
 }
 
 impl<T> WindowState<T> {
@@ -831,6 +832,11 @@ impl<T> WindowState<T> {
         self
     }
 
+    pub fn with_events_transparent(mut self, transparent: bool) -> Self {
+        self.events_transparent = transparent;
+        self
+    }
+
     /// if the shell is a single one, only display on one screen,
     /// fi true, the layer will binding to current screen
     pub fn with_active(mut self) -> Self {
@@ -990,6 +996,7 @@ impl<T> Default for WindowState<T> {
 
             start_mode: StartMode::Active,
             init_finished: false,
+            events_transparent: false,
         }
     }
 }
@@ -1826,7 +1833,11 @@ impl<T: 'static> WindowState<T> {
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
         if self.is_background() {
-            self.background_surface = Some(wmcompositer.create_surface(&qh, ()));
+            let background_surface = wmcompositer.create_surface(&qh, ());
+            if self.events_transparent {
+                background_surface.set_opaque_region(None);
+            }
+            self.background_surface = Some(background_surface);
         } else if !self.is_allscreens() {
             let mut output = None;
 
@@ -1876,6 +1887,10 @@ impl<T: 'static> WindowState<T> {
 
             if let Some((top, right, bottom, left)) = self.margin {
                 layer.set_margin(top, right, bottom, left);
+            }
+
+            if self.events_transparent {
+                wl_surface.set_opaque_region(None);
             }
 
             wl_surface.commit();
@@ -1936,6 +1951,9 @@ impl<T: 'static> WindowState<T> {
                     layer.set_margin(top, right, bottom, left);
                 }
 
+                if self.events_transparent {
+                    wl_surface.set_opaque_region(None);
+                }
                 wl_surface.commit();
 
                 let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
@@ -2164,6 +2182,9 @@ impl<T: 'static> WindowState<T> {
                             layer.set_margin(top, right, bottom, left);
                         }
 
+                        if self.events_transparent {
+                            wl_surface.set_opaque_region(None);
+                        }
                         wl_surface.commit();
 
                         let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
@@ -2409,6 +2430,7 @@ impl<T: 'static> WindowState<T> {
                                 margin,
                                 keyboard_interactivity,
                                 use_last_output,
+                                events_transparent,
                             },
                             info,
                         )) => {
@@ -2451,6 +2473,10 @@ impl<T: 'static> WindowState<T> {
 
                             if let Some((top, right, bottom, left)) = margin {
                                 layer.set_margin(top, right, bottom, left);
+                            }
+
+                            if events_transparent {
+                                wl_surface.set_opaque_region(None);
                             }
 
                             wl_surface.commit();

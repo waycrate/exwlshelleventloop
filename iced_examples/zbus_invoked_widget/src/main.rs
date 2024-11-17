@@ -54,6 +54,7 @@ impl TryInto<LaLaShellIdAction> for Message {
                         margin: Some((100, 100, 100, 100)),
                         keyboard_interactivity: KeyboardInteractivity::OnDemand,
                         use_last_output: false,
+                        ..Default::default()
                     },
                     (),
                 )),
