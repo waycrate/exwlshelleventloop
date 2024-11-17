@@ -3,7 +3,7 @@ use crate::{
     actions::{SessionShellActionVec, UnLockAction},
     multi_window::window_manager::WindowManager,
 };
-use std::{collections::HashMap, f64, mem::ManuallyDrop, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, f64, mem::ManuallyDrop, sync::Arc};
 
 use crate::{
     actions::SessionShellAction, clipboard::SessionLockClipboard, conversion, error::Error,
@@ -177,6 +177,7 @@ where
         control_sender,
         //state,
         window,
+        settings.fonts,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -288,6 +289,7 @@ async fn run_instance<A, E, C>(
     >,
     mut control_sender: mpsc::UnboundedSender<SessionShellActionVec>,
     window: Arc<WindowWrapper>,
+    fonts: Vec<Cow<'static, [u8]>>,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
@@ -300,7 +302,9 @@ async fn run_instance<A, E, C>(
     let mut compositor = C::new(compositor_settings, window.clone())
         .await
         .expect("Cannot create compositer");
-
+    for font in fonts {
+        compositor.load_font(font);
+    }
     let mut window_manager = WindowManager::new();
 
     let mut clipboard = SessionLockClipboard::connect(&window);

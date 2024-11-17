@@ -8,7 +8,10 @@ use crate::{
     settings::VirtualKeyboardSettings,
     DefaultStyle,
 };
-use std::{collections::HashMap, f64, mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
+use std::{
+    borrow::Cow, collections::HashMap, f64, mem::ManuallyDrop, os::fd::AsFd, sync::Arc,
+    time::Duration,
+};
 
 use crate::{
     actions::{LayerShellAction, LayershellCustomActionsWithInfo},
@@ -214,6 +217,7 @@ where
         event_receiver,
         control_sender,
         window,
+        settings.fonts,
         is_background_mode,
     ));
 
@@ -470,6 +474,7 @@ async fn run_instance<A, E, C>(
     >,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec<A::WindowInfo>>,
     window: Arc<WindowWrapper>,
+    fonts: Vec<Cow<'static, [u8]>>,
     is_background_mode: bool,
 ) where
     A: Application + 'static,
@@ -485,6 +490,9 @@ async fn run_instance<A, E, C>(
     let mut compositor = C::new(compositor_settings, window.clone())
         .await
         .expect("Cannot create compositer");
+    for font in fonts {
+        compositor.load_font(font);
+    }
 
     let mut window_manager = WindowManager::new();
 

@@ -1,6 +1,6 @@
 mod state;
 
-use std::{mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
+use std::{borrow::Cow, mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
 use crate::{
     actions::{
@@ -195,6 +195,7 @@ where
         control_sender,
         state,
         window,
+        settings.fonts,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -331,6 +332,7 @@ async fn run_instance<A, E, C>(
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec<()>>,
     mut state: State<A>,
     window: Arc<WindowWrapper>,
+    fonts: Vec<Cow<'static, [u8]>>,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
@@ -344,6 +346,10 @@ async fn run_instance<A, E, C>(
     let mut compositor = C::new(compositor_settings, window.clone())
         .await
         .expect("Cannot create compositor");
+    for font in fonts {
+        compositor.load_font(font);
+    }
+
     let mut renderer = compositor.create_renderer();
 
     let cache = user_interface::Cache::default();
