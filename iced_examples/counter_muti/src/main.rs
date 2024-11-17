@@ -181,6 +181,7 @@ impl MultiApplication for Counter {
                     margin: None,
                     keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     use_last_output: false,
+                    ..Default::default()
                 },
                 info: WindowInfo::Left,
             }),
@@ -193,6 +194,7 @@ impl MultiApplication for Counter {
                     margin: None,
                     keyboard_interactivity: KeyboardInteractivity::Exclusive,
                     use_last_output: false,
+                    ..Default::default()
                 },
                 info: WindowInfo::Right,
             }),

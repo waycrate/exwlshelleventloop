@@ -82,6 +82,7 @@ pub struct NewLayerShellSettings {
     /// will show on the same window, only when the notifications is cleared, it will change the
     /// wl_output.
     pub use_last_output: bool,
+    pub events_transparent: bool,
 }
 
 /// be used to create a new popup
@@ -105,6 +106,7 @@ impl Default for NewLayerShellSettings {
             margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             use_last_output: false,
+            events_transparent: false,
         }
     }
 }

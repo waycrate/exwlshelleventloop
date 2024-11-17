@@ -83,6 +83,7 @@ pub struct LayerShellSettings {
     pub margin: (i32, i32, i32, i32),
     pub keyboard_interactivity: KeyboardInteractivity,
     pub start_mode: StartMode,
+    pub events_transparent: bool,
 }
 
 impl Default for LayerShellSettings {
@@ -94,6 +95,7 @@ impl Default for LayerShellSettings {
             size: None,
             margin: (0, 0, 0, 0),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
+            events_transparent: false,
             start_mode: StartMode::default(),
         }
     }
@@ -159,6 +161,7 @@ mod tests {
             margin: (10, 10, 10, 10),
             keyboard_interactivity: KeyboardInteractivity::None,
             start_mode: StartMode::TargetScreen("HDMI-1".to_string()),
+            events_transparent: false,
         };
 
         assert_eq!(layer_settings.anchor, Anchor::Top | Anchor::Left);
