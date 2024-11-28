@@ -667,7 +667,7 @@ impl KeyEvent {
     }
 }
 
-impl<'a> KeyContext<'a> {
+impl KeyContext<'_> {
     pub fn process_key_event(
         &mut self,
         keycode: u32,
