@@ -49,7 +49,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     NewLayerShell {
         settings: NewLayerShellSettings,
         info: INFO,
-        single_tone: bool,
+        singleton: bool,
     },
     NewPopUp {
         settings: IcedNewPopupSettings,

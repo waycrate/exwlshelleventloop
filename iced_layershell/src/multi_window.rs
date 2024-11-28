@@ -1010,7 +1010,7 @@ pub(crate) fn run_action<A, C>(
                 let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
                 if let LayershellCustomActionsWithInfo::NewLayerShell {
                     info,
-                    single_tone: true,
+                    singleton: true,
                     ..
                 } = &action.1
                 {
