@@ -45,7 +45,7 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
         time: u32,
         key: u32,
     },
-    NewLayerShell((NewLayerShellSettings, INFO)),
+    NewLayerShell((NewLayerShellSettings, INFO, bool)),
     NewPopUp((IcedNewPopupSettings, INFO)),
     NewMenu((IcedNewMenuSettings, INFO)),
     /// is same with WindowAction::Close(id)

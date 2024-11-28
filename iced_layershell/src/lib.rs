@@ -354,7 +354,7 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
-        <Self as MultiApplication>::WindowInfo: Clone,
+        <Self as MultiApplication>::WindowInfo: Clone + PartialEq,
         Self::Message: 'static
             + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>, Error = Self::Message>,
     {

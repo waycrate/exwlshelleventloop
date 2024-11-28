@@ -156,7 +156,7 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    <A as Application>::WindowInfo: Clone,
+    <A as Application>::WindowInfo: Clone + PartialEq,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
@@ -388,7 +388,7 @@ where
                             )
                             .ok();
                         }
-                        LayershellCustomActionsWithInfo::NewLayerShell((settings, info)) => {
+                        LayershellCustomActionsWithInfo::NewLayerShell((settings, info, _)) => {
                             ev.append_return_data(ReturnData::NewLayerShell((
                                 settings,
                                 Some(info),
@@ -481,7 +481,7 @@ async fn run_instance<A, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::WindowInfo: Clone,
+    A::WindowInfo: Clone + PartialEq,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
@@ -511,6 +511,8 @@ async fn run_instance<A, E, C>(
 
     let mut should_exit = false;
     let mut messages = Vec::new();
+
+    let mut singleton_layers = vec![];
 
     while let Some(event) = event_receiver.next().await {
         match event {
@@ -709,6 +711,7 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                     &mut clipboard,
                     &mut custom_actions,
+                    &mut singleton_layers,
                     &mut should_exit,
                     &mut debug,
                     &mut window_manager,
@@ -830,6 +833,11 @@ async fn run_instance<A, E, C>(
                         .drain()
                         .map(|(id, ui)| (id, ui.into_cache()))
                         .collect();
+                if let Some(info) = application.id_info(id) {
+                    if let Some(index) = singleton_layers.iter().position(|layer| *layer == info) {
+                        singleton_layers.remove(index);
+                    }
+                }
                 application.remove_id(id);
                 window_manager.remove(id);
                 cached_interfaces.remove(&id);
@@ -970,6 +978,7 @@ pub(crate) fn run_action<A, C>(
     messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction<A::WindowInfo>>,
+    singleton_layers: &mut Vec<A::WindowInfo>,
     should_exit: &mut bool,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
@@ -980,7 +989,7 @@ pub(crate) fn run_action<A, C>(
     A::Theme: DefaultStyle,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
-    A::WindowInfo: Clone + 'static,
+    A::WindowInfo: Clone + 'static + PartialEq,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
@@ -991,6 +1000,12 @@ pub(crate) fn run_action<A, C>(
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
                 let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
+                if let LayershellCustomActionsWithInfo::NewLayerShell((_, info, true)) = &action.1 {
+                    if singleton_layers.contains(info) {
+                        return;
+                    }
+                    singleton_layers.push(info.clone());
+                }
                 let option_id = if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1
                 {
                     window_manager.get_layer_id(id)

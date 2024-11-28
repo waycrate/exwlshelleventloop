@@ -44,7 +44,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     time: u32,
                     key: u32,
                 },
-                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, info: #info },
+                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, info: #info, single_tone: bool },
                 NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, info: #info },
                 NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, info: #info },
                 RemoveWindow(iced::window::Id),
@@ -69,7 +69,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                                 None,
                                 InnerLayerAction::VirtualKeyboardPressed { time, key })
                             ),
-                            Self::NewLayerShell {settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell((settings, info)))),
+                            Self::NewLayerShell {settings, info, single_tone } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell((settings, info, single_tone)))),
                             Self::NewPopUp { settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp((settings, info)))),
                             Self::NewMenu { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu((settings, info)))),
                             Self::RemoveWindow(id) => Ok(InnerLayerActionId::new(None, InnerLayerAction::RemoveWindow(id))),

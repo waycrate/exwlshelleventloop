@@ -184,6 +184,7 @@ impl MultiApplication for Counter {
                     ..Default::default()
                 },
                 info: WindowInfo::Left,
+                single_tone: true,
             }),
             Message::NewWindowRight => Command::done(Message::NewLayerShell {
                 settings: NewLayerShellSettings {
@@ -197,6 +198,7 @@ impl MultiApplication for Counter {
                     ..Default::default()
                 },
                 info: WindowInfo::Right,
+                single_tone: true,
             }),
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),
