@@ -388,7 +388,9 @@ where
                             )
                             .ok();
                         }
-                        LayershellCustomActionsWithInfo::NewLayerShell((settings, info, _)) => {
+                        LayershellCustomActionsWithInfo::NewLayerShell {
+                            settings, info, ..
+                        } => {
                             ev.append_return_data(ReturnData::NewLayerShell((
                                 settings,
                                 Some(info),
@@ -403,7 +405,10 @@ where
                                 ))
                                 .ok();
                         }
-                        LayershellCustomActionsWithInfo::NewPopUp((menusettings, info)) => {
+                        LayershellCustomActionsWithInfo::NewPopUp {
+                            settings: menusettings,
+                            info,
+                        } => {
                             let IcedNewPopupSettings { size, position } = menusettings;
                             let Some(id) = ev.current_surface_id() else {
                                 break 'out;
@@ -414,7 +419,10 @@ where
                                 Some(info),
                             )));
                         }
-                        LayershellCustomActionsWithInfo::NewMenu((menusetting, info)) => {
+                        LayershellCustomActionsWithInfo::NewMenu {
+                            settings: menusetting,
+                            info,
+                        } => {
                             let Some(id) = ev.current_surface_id() else {
                                 break 'out;
                             };
@@ -1000,7 +1008,12 @@ pub(crate) fn run_action<A, C>(
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
                 let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
-                if let LayershellCustomActionsWithInfo::NewLayerShell((_, info, true)) = &action.1 {
+                if let LayershellCustomActionsWithInfo::NewLayerShell {
+                    info,
+                    single_tone: true,
+                    ..
+                } = &action.1
+                {
                     if singleton_layers.contains(info) {
                         return;
                     }

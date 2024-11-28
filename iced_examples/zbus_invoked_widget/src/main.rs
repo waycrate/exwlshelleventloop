@@ -45,8 +45,8 @@ impl TryInto<LaLaShellIdAction> for Message {
         match self {
             Self::NewWindow => Ok(LaLaShellIdAction::new(
                 None,
-                LalaShellAction::NewLayerShell((
-                    NewLayerShellSettings {
+                LalaShellAction::NewLayerShell {
+                    settings: NewLayerShellSettings {
                         size: None,
                         exclusive_zone: None,
                         anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
@@ -56,9 +56,9 @@ impl TryInto<LaLaShellIdAction> for Message {
                         use_last_output: false,
                         ..Default::default()
                     },
-                    (),
-                    false,
-                )),
+                    info: (),
+                    single_tone: false,
+                },
             )),
             _ => Err(self),
         }

@@ -69,9 +69,9 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                                 None,
                                 InnerLayerAction::VirtualKeyboardPressed { time, key })
                             ),
-                            Self::NewLayerShell {settings, info, single_tone } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell((settings, info, single_tone)))),
-                            Self::NewPopUp { settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp((settings, info)))),
-                            Self::NewMenu { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu((settings, info)))),
+                            Self::NewLayerShell {settings, info, single_tone } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell { settings, info, single_tone })),
+                            Self::NewPopUp { settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp { settings, info })),
+                            Self::NewMenu { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu {settings, info })),
                             Self::RemoveWindow(id) => Ok(InnerLayerActionId::new(None, InnerLayerAction::RemoveWindow(id))),
                             Self::ForgetLastOutput => Ok(InnerLayerActionId::new(None, InnerLayerAction::ForgetLastOutput)),
                             _ => Err(self)
