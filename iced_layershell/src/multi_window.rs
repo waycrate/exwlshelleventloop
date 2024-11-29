@@ -659,7 +659,6 @@ async fn run_instance<A, E, C>(
                                     "Error {error:?} when \
                                         presenting surface."
                                 );
-                                custom_actions.push(LayerShellAction::RedrawWindow(layerid));
                             }
                         },
                     }
