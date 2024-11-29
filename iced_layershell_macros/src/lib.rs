@@ -39,7 +39,7 @@ pub fn layer_singleton(input: TokenStream) -> TokenStream {
         let variant_name = &variant.ident;
 
         // Check if the variant has the `#[singleton]` attribute
-        let is_singleton = variant.attrs.iter().any(|attr| is_singleton_attr(attr));
+        let is_singleton = variant.attrs.iter().any(is_singleton_attr);
 
         quote! {
             Self::#variant_name => #is_singleton,
