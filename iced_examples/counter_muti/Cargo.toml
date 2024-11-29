@@ -15,5 +15,4 @@ readme.workspace = true
 iced.workspace = true
 iced_runtime.workspace = true
 iced_layershell.workspace = true
-tracing-journald.workspace = true
 tracing-subscriber.workspace = true

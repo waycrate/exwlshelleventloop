@@ -472,7 +472,7 @@ async fn run_instance<A, E, C>(
                         }
                         _ => {
                             debug.render_finished();
-                            log::error!(
+                            tracing::error!(
                                 "Error {error:?} when \
                                         presenting surface."
                             );
