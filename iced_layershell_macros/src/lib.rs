@@ -41,8 +41,10 @@ pub fn layer_singleton(input: TokenStream) -> TokenStream {
         // Check if the variant has the `#[singleton]` attribute
         let is_singleton = variant.attrs.iter().any(is_singleton_attr);
 
-        quote! {
-            Self::#variant_name => #is_singleton,
+        match &variant.fields {
+            syn::Fields::Unit => quote! { Self::#variant_name => #is_singleton, },
+            syn::Fields::Unnamed(_) => quote! { Self::#variant_name(..) => #is_singleton, },
+            syn::Fields::Named(_) => quote! { Self::#variant_name { .. } => #is_singleton, },
         }
     });
 
