@@ -9,8 +9,8 @@ use iced_runtime::{task, Action};
 
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_layershell::to_layer_message;
 use iced_layershell::MultiApplication;
+use iced_layershell::{to_layer_message, LayerSingleton};
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     Counter::run(Settings {
@@ -31,9 +31,11 @@ struct Counter {
     ids: HashMap<iced::window::Id, WindowInfo>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, LayerSingleton)]
 enum WindowInfo {
+    #[singleton]
     Left,
+    #[singleton]
     Right,
     PopUp,
 }
@@ -184,7 +186,6 @@ impl MultiApplication for Counter {
                     ..Default::default()
                 },
                 info: WindowInfo::Left,
-                singleton: true,
             }),
             Message::NewWindowRight => Command::done(Message::NewLayerShell {
                 settings: NewLayerShellSettings {
@@ -198,7 +199,6 @@ impl MultiApplication for Counter {
                     ..Default::default()
                 },
                 info: WindowInfo::Right,
-                singleton: true,
             }),
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),

@@ -19,12 +19,13 @@ pub mod reexport {
     pub use layershellev::NewLayerShellSettings;
 }
 
-use actions::{LayershellCustomActions, LayershellCustomActionsWithIdAndInfo};
+use actions::{IsSingleton, LayershellCustomActions, LayershellCustomActionsWithIdAndInfo};
 use settings::Settings;
 
 use iced_runtime::Task;
 
 pub use iced_layershell_macros::to_layer_message;
+pub use iced_layershell_macros::LayerSingleton;
 
 pub use error::Error;
 
@@ -354,7 +355,7 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
     where
         Self: 'static,
-        <Self as MultiApplication>::WindowInfo: Clone + PartialEq,
+        <Self as MultiApplication>::WindowInfo: Clone + PartialEq + IsSingleton,
         Self::Message: 'static
             + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>, Error = Self::Message>,
     {

@@ -16,6 +16,14 @@ pub(crate) enum LayerShellAction<INFO: Clone> {
     NewMenu((IcedNewPopupSettings, INFO)),
 }
 
+pub trait IsSingleton {
+    fn is_singleton(&self) -> bool {
+        false
+    }
+}
+
+impl IsSingleton for () {}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
@@ -49,7 +57,6 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     NewLayerShell {
         settings: NewLayerShellSettings,
         info: INFO,
-        singleton: bool,
     },
     NewPopUp {
         settings: IcedNewPopupSettings,

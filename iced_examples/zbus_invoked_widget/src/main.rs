@@ -57,7 +57,6 @@ impl TryInto<LaLaShellIdAction> for Message {
                         ..Default::default()
                     },
                     info: (),
-                    singleton: false,
                 },
             )),
             _ => Err(self),

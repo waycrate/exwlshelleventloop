@@ -3,10 +3,62 @@ use darling::{
     util::{Flag, Ignored},
     FromDeriveInput, FromMeta,
 };
+use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use syn::{DeriveInput, Generics, Ident, LitStr, Variant, Visibility};
+use syn::{
+    parse_macro_input, Attribute, Data as DataOrigin, DataEnum, DeriveInput, Generics, Ident,
+    LitStr, Variant, Visibility,
+};
 
 use quote::quote;
+
+#[inline]
+fn is_singleton_attr(attr: &Attribute) -> bool {
+    attr.path().is_ident("singleton")
+}
+
+#[proc_macro_derive(LayerSingleton, attributes(singleton))]
+pub fn layer_singleton(input: TokenStream) -> TokenStream {
+    // Parse the input as a DeriveInput
+    let input = parse_macro_input!(input as DeriveInput);
+
+    // Get the name of the enum
+    let name = input.ident.clone();
+
+    // Ensure the macro is applied to an enum
+    let variants = if let DataOrigin::Enum(DataEnum { variants, .. }) = input.data {
+        variants
+    } else {
+        return syn::Error::new_spanned(input, "Singleton macro can only be applied to enums")
+            .to_compile_error()
+            .into();
+    };
+
+    // Generate the implementation of `IsSingleton`
+    let is_singleton_arms = variants.iter().map(|variant| {
+        let variant_name = &variant.ident;
+
+        // Check if the variant has the `#[singleton]` attribute
+        let is_singleton = variant.attrs.iter().any(|attr| is_singleton_attr(attr));
+
+        quote! {
+            Self::#variant_name => #is_singleton,
+        }
+    });
+
+    // Generate the final implementation
+    let expanded = quote! {
+        impl iced_layershell::actions::IsSingleton for #name {
+            fn is_singleton(&self) -> bool {
+                match self {
+                    #(#is_singleton_arms)*
+                }
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
 
 #[manyhow::manyhow]
 #[proc_macro_attribute]
@@ -44,7 +96,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     time: u32,
                     key: u32,
                 },
-                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, info: #info, singleton: bool },
+                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, info: #info },
                 NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, info: #info },
                 NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, info: #info },
                 RemoveWindow(iced::window::Id),
@@ -69,7 +121,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                                 None,
                                 InnerLayerAction::VirtualKeyboardPressed { time, key })
                             ),
-                            Self::NewLayerShell {settings, info, singleton } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell { settings, info, singleton })),
+                            Self::NewLayerShell {settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewLayerShell { settings, info })),
                             Self::NewPopUp { settings, info } => Ok(InnerLayerActionId::new(None, InnerLayerAction::NewPopUp { settings, info })),
                             Self::NewMenu { settings, info } =>  Ok(InnerLayerActionId::new(None, InnerLayerAction::NewMenu {settings, info })),
                             Self::RemoveWindow(id) => Ok(InnerLayerActionId::new(None, InnerLayerAction::RemoveWindow(id))),

@@ -1,7 +1,7 @@
 mod state;
 use crate::{
     actions::{
-        IcedNewMenuSettings, IcedNewPopupSettings, LayerShellActionVec,
+        IcedNewMenuSettings, IcedNewPopupSettings, IsSingleton, LayerShellActionVec,
         LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithIdInner, MenuDirection,
     },
     multi_window::window_manager::WindowManager,
@@ -156,7 +156,7 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    <A as Application>::WindowInfo: Clone + PartialEq,
+    <A as Application>::WindowInfo: Clone + PartialEq + IsSingleton,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
@@ -489,7 +489,7 @@ async fn run_instance<A, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::WindowInfo: Clone + PartialEq,
+    A::WindowInfo: Clone + PartialEq + IsSingleton,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
@@ -997,7 +997,7 @@ pub(crate) fn run_action<A, C>(
     A::Theme: DefaultStyle,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
-    A::WindowInfo: Clone + 'static + PartialEq,
+    A::WindowInfo: Clone + 'static + PartialEq + IsSingleton,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
@@ -1008,13 +1008,8 @@ pub(crate) fn run_action<A, C>(
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
                 let action: LayershellCustomActionsWithIdAndInfo<A::WindowInfo> = action;
-                if let LayershellCustomActionsWithInfo::NewLayerShell {
-                    info,
-                    singleton: true,
-                    ..
-                } = &action.1
-                {
-                    if singleton_layers.contains(info) {
+                if let LayershellCustomActionsWithInfo::NewLayerShell { info, .. } = &action.1 {
+                    if info.is_singleton() && singleton_layers.contains(info) {
                         return;
                     }
                     singleton_layers.push(info.clone());
