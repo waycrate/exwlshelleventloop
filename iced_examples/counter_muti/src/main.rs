@@ -13,6 +13,7 @@ use iced_layershell::MultiApplication;
 use iced_layershell::{to_layer_message, LayerSingleton};
 
 pub fn main() -> Result<(), iced_layershell::Error> {
+    tracing_subscriber::fmt().init();
     Counter::run(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
