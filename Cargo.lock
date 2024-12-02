@@ -810,6 +810,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_multi_pattern"
+version = "0.11.0-rc3"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "counter_pattern"
+version = "0.11.0-rc3"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

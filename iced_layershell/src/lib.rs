@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 pub mod actions;
 pub mod application;
+pub mod build_pattern;
 mod clipboard;
 mod conversion;
 mod error;
@@ -33,6 +34,8 @@ use iced::{Color, Element, Theme};
 use iced_futures::Subscription;
 
 pub use sandbox::LayerShellSandbox;
+
+pub type Result = std::result::Result<(), error::Error>;
 
 /// The appearance of a program.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -165,7 +168,7 @@ pub trait Application: Sized {
     /// [`Error`] during startup.
     ///
     /// [`Error`]: crate::Error
-    fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
+    fn run(settings: Settings<Self::Flags>) -> Result
     where
         Self: 'static,
         Self::Message: 'static + TryInto<LayershellCustomActions, Error = Self::Message>,
@@ -352,7 +355,7 @@ pub trait MultiApplication: Sized {
     /// [`Error`] during startup.
     ///
     /// [`Error`]: crate::Error
-    fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
+    fn run(settings: Settings<Self::Flags>) -> Result
     where
         Self: 'static,
         <Self as MultiApplication>::WindowInfo: Clone + PartialEq + IsSingleton,
