@@ -6,7 +6,7 @@ use iced::{Font, Pixels};
 
 use crate::settings::{LayerShellSettings, VirtualKeyboardSettings};
 
-/// The renderer of some [`Program`].
+/// The renderer of some Program.
 pub trait Renderer: iced_core::text::Renderer + iced_graphics::compositor::Default {}
 
 impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compositor::Default {}
@@ -21,7 +21,7 @@ pub struct MainSettings {
 
     /// settings for layer shell
     pub layer_settings: LayerShellSettings,
-    /// The data needed to initialize an [`Application`].
+    /// The data needed to initialize an Application
     ///
     /// The fonts to load on boot.
     pub fonts: Vec<Cow<'static, [u8]>>,

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use iced::{Font, Pixels};
 
-/// The renderer of some [`Program`].
+/// The renderer of iced program.
 pub trait Renderer: iced_core::text::Renderer + iced_graphics::compositor::Default {}
 
 impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compositor::Default {}
@@ -15,7 +15,7 @@ pub struct MainSettings {
     /// communicate with it through the windowing system.
     pub id: Option<String>,
 
-    /// The data needed to initialize an [`Application`].
+    /// The data needed to initialize an Application.
     ///
     /// The fonts to load on boot.
     pub fonts: Vec<Cow<'static, [u8]>>,
@@ -87,7 +87,7 @@ mod pattern {
         type Theme: Default + DefaultStyle;
 
         /// Initializes the [`Application`] with the flags provided to
-        /// [`run`] as part of the [`Settings`].
+        /// run as part of the [`Settings`].
         ///
         /// Here is where you should return the initial state of your app.
         ///
@@ -133,14 +133,14 @@ mod pattern {
             theme.default_style()
         }
 
-        /// Returns the event [`Subscription`] for the current state of the
+        /// Returns the event [`iced::Subscription`] for the current state of the
         /// application.
         ///
-        /// A [`Subscription`] will be kept alive as long as you keep returning it,
+        /// A [`iced::Subscription`] will be kept alive as long as you keep returning it,
         /// and the __messages__ produced will be handled by
-        /// [`update`](#tymethod.update).
+        /// [`Program::update`](#tymethod.update).
         ///
-        /// By default, this method returns an empty [`Subscription`].
+        /// By default, this method returns an empty [`iced::Subscription`].
         fn subscription(&self, _state: &Self::State) -> iced::Subscription<Self::Message> {
             iced::Subscription::none()
         }
@@ -315,7 +315,7 @@ mod pattern {
         }
     }
     #[derive(Debug)]
-    pub struct SingleApplication<A: Program> {
+    pub struct Application<A: Program> {
         raw: A,
         settings: MainSettings,
     }
@@ -323,7 +323,7 @@ mod pattern {
     pub fn application<State, Message, Theme, Renderer>(
         update: impl Update<State, Message>,
         view: impl for<'a> self::View<'a, State, Message, Theme, Renderer>,
-    ) -> SingleApplication<impl Program<Message = Message, Theme = Theme, State = State>>
+    ) -> Application<impl Program<Message = Message, Theme = Theme, State = State>>
     where
         State: 'static,
         Message: 'static + TryInto<UnLockAction, Error = Message> + Send + std::fmt::Debug,
@@ -370,7 +370,7 @@ mod pattern {
                 self.view.view(state, window).into()
             }
         }
-        SingleApplication {
+        Application {
             raw: Instance {
                 update,
                 view,
@@ -688,7 +688,7 @@ mod pattern {
         }
     }
 
-    impl<P: Program> SingleApplication<P> {
+    impl<P: Program> Application<P> {
         pub fn run(self) -> Result
         where
             Self: 'static,
@@ -740,9 +740,9 @@ mod pattern {
         pub fn style(
             self,
             f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
-        ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
+        ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
-            SingleApplication {
+            Application {
                 raw: with_style(self.raw, f),
                 settings: self.settings,
             }
@@ -751,9 +751,9 @@ mod pattern {
         pub fn subscription(
             self,
             f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
-        ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
+        ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
-            SingleApplication {
+            Application {
                 raw: with_subscription(self.raw, f),
                 settings: self.settings,
             }
@@ -763,9 +763,9 @@ mod pattern {
         pub fn theme(
             self,
             f: impl Fn(&P::State) -> P::Theme,
-        ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
+        ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
-            SingleApplication {
+            Application {
                 raw: with_theme(self.raw, f),
                 settings: self.settings,
             }
@@ -775,9 +775,9 @@ mod pattern {
         pub fn scale_factor(
             self,
             f: impl Fn(&P::State, iced_core::window::Id) -> f64,
-        ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
+        ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
-            SingleApplication {
+            Application {
                 raw: with_scale_factor(self.raw, f),
                 settings: self.settings,
             }
@@ -785,11 +785,11 @@ mod pattern {
         /// Sets the executor of the [`Application`].
         pub fn executor<E>(
             self,
-        ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
+        ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         where
             E: iced_futures::Executor,
         {
-            SingleApplication {
+            Application {
                 raw: with_executor::<P, E>(self.raw),
                 settings: self.settings,
             }
