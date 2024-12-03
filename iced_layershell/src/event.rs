@@ -62,6 +62,7 @@ pub enum WindowEvent {
         event: LayerShellKeyEvent,
         is_synthetic: bool,
     },
+    Unfocus,
     ModifiersChanged(ModifiersState),
     Axis {
         x: f32,
@@ -209,6 +210,7 @@ impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Me
                 event: event.clone(),
                 is_synthetic: *is_synthetic,
             }),
+            DispatchMessage::Unfocus => IcedLayerEvent::Window(WindowEvent::Unfocus),
             DispatchMessage::ModifiersChanged(modifiers) => {
                 IcedLayerEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
             }

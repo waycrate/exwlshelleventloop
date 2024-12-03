@@ -221,6 +221,7 @@ pub(crate) enum DispatchMessageInner {
     },
 
     ModifiersChanged(ModifiersState),
+    Unfocus,
     KeyboardInput {
         event: KeyEvent,
 
@@ -305,6 +306,7 @@ pub enum DispatchMessage {
     TouchMotion { time: u32, id: i32, x: f64, y: f64 },
     /// TouchEvent is cancelled
     TouchCancel { id: i32, x: f64, y: f64 },
+    Unfocus,
     /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
     /// Keyboard Event about input.
@@ -426,6 +428,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 vertical,
                 source,
             },
+            DispatchMessageInner::Unfocus => DispatchMessage::Unfocus,
             DispatchMessageInner::ModifiersChanged(modifier) => {
                 DispatchMessage::ModifiersChanged(modifier)
             }

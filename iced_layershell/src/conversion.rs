@@ -139,6 +139,7 @@ pub fn window_event(
         LayerShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
             keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
         )),
+        LayerShellEvent::Unfocus => Some(IcedEvent::Window(iced::window::Event::Unfocused)),
         _ => None,
     }
 }
