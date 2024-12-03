@@ -303,9 +303,18 @@ pub enum DispatchMessage {
         y: f64,
     },
     /// forward the event of wayland-touch
-    TouchMotion { time: u32, id: i32, x: f64, y: f64 },
+    TouchMotion {
+        time: u32,
+        id: i32,
+        x: f64,
+        y: f64,
+    },
     /// TouchEvent is cancelled
-    TouchCancel { id: i32, x: f64, y: f64 },
+    TouchCancel {
+        id: i32,
+        x: f64,
+        y: f64,
+    },
     Unfocus,
     /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
@@ -333,7 +342,10 @@ pub enum DispatchMessage {
         is_created: bool,
     },
     /// fractal scale handle
-    PreferredScale { scale_u32: u32, scale_float: f64 },
+    PreferredScale {
+        scale_u32: u32,
+        scale_float: f64,
+    },
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {

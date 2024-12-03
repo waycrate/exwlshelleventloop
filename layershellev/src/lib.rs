@@ -1172,6 +1172,9 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                     surface_id,
                     DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
                 ));
+                state
+                    .message
+                    .push((surface_id, DispatchMessageInner::Unfocus));
                 if let (Some(token), Some(loop_handle)) = (
                     keyboard_state.repeat_token.take(),
                     state.loop_handler.as_ref(),
