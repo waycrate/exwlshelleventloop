@@ -800,6 +800,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_lock_pattern"
+version = "0.11.0-rc3"
+dependencies = [
+ "iced",
+ "iced_runtime",
+ "iced_sessionlock",
+]
+
+[[package]]
 name = "counter_multi"
 version = "0.11.0-rc3"
 dependencies = [
