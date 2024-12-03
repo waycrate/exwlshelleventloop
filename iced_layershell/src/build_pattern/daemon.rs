@@ -36,22 +36,16 @@ pub trait Program: Sized {
 
     /// The theme of your [`Application`].
     type Theme: Default + DefaultStyle;
-    fn id_info(
-        &self,
-        _state: &Self::State,
-        _id: iced_core::window::Id,
-    ) -> Option<Self::WindowInfo> {
-        None
-    }
+    fn id_info(&self, _state: &Self::State, _id: iced_core::window::Id)
+        -> Option<Self::WindowInfo>;
 
     fn set_id_info(
         &self,
         _state: &mut Self::State,
         _id: iced_core::window::Id,
         _info: Self::WindowInfo,
-    ) {
-    }
-    fn remove_id(&self, _state: &mut Self::State, _id: iced_core::window::Id) {}
+    );
+    fn remove_id(&self, _state: &mut Self::State, _id: iced_core::window::Id);
 
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
@@ -518,6 +512,27 @@ fn with_namespace<P: Program>(
             (self.namespace)(state)
         }
 
+        fn id_info(
+            &self,
+            state: &Self::State,
+            id: iced_core::window::Id,
+        ) -> Option<Self::WindowInfo> {
+            self.program.id_info(state, id)
+        }
+
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
+
+        fn set_id_info(
+            &self,
+            state: &mut Self::State,
+            id: iced_core::window::Id,
+            info: Self::WindowInfo,
+        ) {
+            self.program.set_id_info(state, id, info)
+        }
+
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -570,6 +585,26 @@ pub fn with_subscription<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
         type WindowInfo = P::WindowInfo;
+        fn id_info(
+            &self,
+            state: &Self::State,
+            id: iced_core::window::Id,
+        ) -> Option<Self::WindowInfo> {
+            self.program.id_info(state, id)
+        }
+
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
+
+        fn set_id_info(
+            &self,
+            state: &mut Self::State,
+            id: iced_core::window::Id,
+            info: Self::WindowInfo,
+        ) {
+            self.program.set_id_info(state, id, info)
+        }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             (self.subscription)(state)
@@ -630,6 +665,26 @@ pub fn with_theme<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
         type WindowInfo = P::WindowInfo;
+        fn id_info(
+            &self,
+            state: &Self::State,
+            id: iced_core::window::Id,
+        ) -> Option<Self::WindowInfo> {
+            self.program.id_info(state, id)
+        }
+
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
+
+        fn set_id_info(
+            &self,
+            state: &mut Self::State,
+            id: iced_core::window::Id,
+            info: Self::WindowInfo,
+        ) {
+            self.program.set_id_info(state, id, info)
+        }
 
         fn theme(&self, state: &Self::State) -> Self::Theme {
             (self.theme)(state)
@@ -687,6 +742,26 @@ pub fn with_style<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
         type WindowInfo = P::WindowInfo;
+        fn id_info(
+            &self,
+            state: &Self::State,
+            id: iced_core::window::Id,
+        ) -> Option<Self::WindowInfo> {
+            self.program.id_info(state, id)
+        }
+
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
+
+        fn set_id_info(
+            &self,
+            state: &mut Self::State,
+            id: iced_core::window::Id,
+            info: Self::WindowInfo,
+        ) {
+            self.program.set_id_info(state, id, info)
+        }
 
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
             (self.style)(state, theme)
@@ -744,6 +819,26 @@ pub fn with_scale_factor<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
         type WindowInfo = P::WindowInfo;
+        fn id_info(
+            &self,
+            state: &Self::State,
+            id: iced_core::window::Id,
+        ) -> Option<Self::WindowInfo> {
+            self.program.id_info(state, id)
+        }
+
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
+
+        fn set_id_info(
+            &self,
+            state: &mut Self::State,
+            id: iced_core::window::Id,
+            info: Self::WindowInfo,
+        ) {
+            self.program.set_id_info(state, id, info)
+        }
 
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
@@ -805,6 +900,27 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         type Renderer = P::Renderer;
         type Executor = E;
         type WindowInfo = P::WindowInfo;
+
+        fn id_info(
+            &self,
+            state: &Self::State,
+            id: iced_core::window::Id,
+        ) -> Option<Self::WindowInfo> {
+            self.program.id_info(state, id)
+        }
+
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
+
+        fn set_id_info(
+            &self,
+            state: &mut Self::State,
+            id: iced_core::window::Id,
+            info: Self::WindowInfo,
+        ) {
+            self.program.set_id_info(state, id, info)
+        }
 
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
