@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 pub mod actions;
+pub mod build_pattern;
 pub mod multi_window;
 pub mod settings;
 
@@ -20,6 +21,7 @@ pub use error::Error;
 use actions::UnLockAction;
 use settings::Settings;
 
+pub type Result = std::result::Result<(), error::Error>;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Appearance {
     /// The background [`Color`] of the application.
@@ -153,7 +155,7 @@ pub trait MultiApplication: Sized {
     /// [`Error`] during startup.
     ///
     /// [`Error`]: crate::Error
-    fn run(settings: Settings<Self::Flags>) -> Result<(), error::Error>
+    fn run(settings: Settings<Self::Flags>) -> Result
     where
         Self: 'static,
         Self::Message: 'static + TryInto<UnLockAction, Error = Self::Message>,
