@@ -1,60 +1,50 @@
 mod applications;
 use applications::{all_apps, App};
 use iced::widget::{container, row};
-use iced::{Color, Element, Task as Command, Theme};
+use iced::{Color, Element, Task};
 
-use iced_layershell::actions::LayershellCustomActionsWithInfo;
+use iced_layershell::build_pattern::application;
 use iced_layershell::reexport::Anchor;
-use iced_layershell::settings::{LayerShellSettings, Settings};
-use iced_layershell::Application;
+use iced_layershell::settings::LayerShellSettings;
+use iced_layershell::to_layer_message;
 
-fn main() -> Result<(), iced_layershell::Error> {
-    Panel::run(Settings {
-        layer_settings: LayerShellSettings {
+fn main() -> iced_layershell::Result {
+    application(Panel::namespace, Panel::update, Panel::view)
+        .layer_settings(LayerShellSettings {
             size: Some((600, 50)),
             anchor: Anchor::Bottom,
             margin: (0, 0, 10, 0),
             ..Default::default()
-        },
-        ..Default::default()
-    })
-}
-
-impl TryInto<LayershellCustomActionsWithInfo<()>> for Message {
-    type Error = Self;
-    fn try_into(self) -> Result<LayershellCustomActionsWithInfo<()>, Self::Error> {
-        Err(self)
-    }
+        })
+        .style(Panel::style)
+        .run_with(Panel::new)
 }
 
 struct Panel {
     apps: Vec<App>,
 }
 
+#[to_layer_message]
 #[derive(Debug, Clone)]
 enum Message {
     Launch(usize),
 }
 
-impl Application for Panel {
-    type Executor = iced::executor::Default;
-    type Message = Message;
-    type Theme = Theme;
-    type Flags = ();
-
-    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        (Self { apps: all_apps() }, Command::none())
+impl Panel {
+    fn new() -> (Self, Task<Message>) {
+        (Self { apps: all_apps() }, Task::none())
     }
     fn namespace(&self) -> String {
         String::from("bottom panel")
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Launch(index) => {
                 self.apps[index].launch();
-                Command::none()
+                Task::none()
             }
+            _ => unreachable!(),
         }
     }
 
@@ -70,7 +60,7 @@ impl Application for Panel {
         container(row).into()
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
+    fn style(&self, theme: &iced::Theme) -> iced_layershell::Appearance {
         use iced_layershell::Appearance;
         Appearance {
             background_color: Color::TRANSPARENT,
