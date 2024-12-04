@@ -734,6 +734,17 @@ impl<P: Program> SingleApplication<P> {
         self
     }
 
+    /// set the default_text_size
+    pub fn default_text_size(self, default_text_size: iced::Pixels) -> Self {
+        Self {
+            settings: MainSettings {
+                default_text_size,
+                ..self.settings
+            },
+            ..self
+        }
+    }
+
     pub fn namespace(
         self,
         namespace: impl NameSpace<P::State>,
