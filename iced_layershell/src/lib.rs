@@ -27,7 +27,7 @@ use settings::Settings;
 use iced_runtime::Task;
 
 pub use iced_layershell_macros::to_layer_message;
-pub use iced_layershell_macros::LayerSingleton;
+pub use iced_layershell_macros::WindowInfoMarker;
 
 pub use error::Error;
 

@@ -1,5 +1,5 @@
 use iced_layershell::actions::IsSingleton;
-use iced_layershell::{to_layer_message, LayerSingleton};
+use iced_layershell::{to_layer_message, windowinfo_marker};
 
 #[test]
 fn test_layer_message_macro() {
@@ -15,7 +15,7 @@ fn test_layer_message_macro() {
 #[test]
 fn test_layersingleton_derive() {
     #[allow(unused)]
-    #[derive(LayerSingleton)]
+    #[derive(windowinfo_marker)]
     enum SingleToneTest {
         #[singleton]
         SingleTon,

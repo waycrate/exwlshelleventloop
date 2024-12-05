@@ -22,8 +22,8 @@ fn is_mainwindow_attr(attr: &Attribute) -> bool {
     attr.path().is_ident("main")
 }
 
-#[proc_macro_derive(LayerSingleton, attributes(singleton, main))]
-pub fn layer_singleton(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(WindowInfoMarker, attributes(singleton, main))]
+pub fn window_info_marker(input: TokenStream) -> TokenStream {
     // Parse the input as a DeriveInput
     let input = parse_macro_input!(input as DeriveInput);
 

@@ -27,10 +27,7 @@ pub trait Program: Sized {
     type State;
     type Renderer: Renderer;
 
-    type WindowInfo: Clone
-        + PartialEq
-        + IsSingleton
-        + TryFrom<MainWindowInfo, Error = ()>;
+    type WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>;
     /// The type of __messages__ your [`Application`] will produce.
     type Message: std::fmt::Debug
         + Send
