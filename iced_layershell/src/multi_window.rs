@@ -2,7 +2,8 @@ mod state;
 use crate::{
     actions::{
         IcedNewMenuSettings, IcedNewPopupSettings, IsSingleton, LayerShellActionVec,
-        LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithIdInner, MenuDirection,
+        LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithIdInner, MainWindowInfo,
+        MenuDirection,
     },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -156,7 +157,8 @@ where
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    <A as Application>::WindowInfo: Clone + PartialEq + IsSingleton,
+    <A as Application>::WindowInfo:
+        Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
@@ -489,7 +491,7 @@ async fn run_instance<A, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
-    A::WindowInfo: Clone + PartialEq + IsSingleton,
+    A::WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
     A::Message:
         'static + TryInto<LayershellCustomActionsWithIdAndInfo<A::WindowInfo>, Error = A::Message>,
 {
@@ -663,19 +665,34 @@ async fn run_instance<A, E, C>(
                     }
                 }
 
-                if is_created && is_new_window {
-                    let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
-                        ManuallyDrop::into_inner(user_interfaces)
-                            .drain()
-                            .map(|(id, ui)| (id, ui.into_cache()))
-                            .collect();
-                    application.set_id_info(id, info.unwrap().clone());
-                    user_interfaces = ManuallyDrop::new(build_user_interfaces(
-                        &application,
-                        &mut debug,
-                        &mut window_manager,
-                        cached_interfaces,
-                    ));
+                if is_new_window {
+                    if is_created {
+                        let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                            ManuallyDrop::into_inner(user_interfaces)
+                                .drain()
+                                .map(|(id, ui)| (id, ui.into_cache()))
+                                .collect();
+                        application.set_id_info(id, info.unwrap().clone());
+                        user_interfaces = ManuallyDrop::new(build_user_interfaces(
+                            &application,
+                            &mut debug,
+                            &mut window_manager,
+                            cached_interfaces,
+                        ));
+                    } else if let Ok(info) = MainWindowInfo.try_into() {
+                        let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                            ManuallyDrop::into_inner(user_interfaces)
+                                .drain()
+                                .map(|(id, ui)| (id, ui.into_cache()))
+                                .collect();
+                        application.set_id_info(id, info);
+                        user_interfaces = ManuallyDrop::new(build_user_interfaces(
+                            &application,
+                            &mut debug,
+                            &mut window_manager,
+                            cached_interfaces,
+                        ));
+                    }
                 }
             }
             MultiWindowIcedLayerEvent(None, IcedLayerEvent::Window(event)) => {

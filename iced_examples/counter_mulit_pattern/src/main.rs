@@ -50,6 +50,8 @@ enum WindowInfo {
     #[singleton]
     Right,
     PopUp,
+    #[main]
+    Main,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -101,6 +103,10 @@ impl Counter {
     }
 
     fn set_id_info(&mut self, id: iced::window::Id, info: WindowInfo) {
+        if let WindowInfo::Main = info {
+            println!("it is main window: {id}");
+            return;
+        }
         self.ids.insert(id, info);
     }
 

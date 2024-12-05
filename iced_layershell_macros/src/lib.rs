@@ -17,7 +17,12 @@ fn is_singleton_attr(attr: &Attribute) -> bool {
     attr.path().is_ident("singleton")
 }
 
-#[proc_macro_derive(LayerSingleton, attributes(singleton))]
+#[inline]
+fn is_mainwindow_attr(attr: &Attribute) -> bool {
+    attr.path().is_ident("main")
+}
+
+#[proc_macro_derive(LayerSingleton, attributes(singleton, main))]
 pub fn layer_singleton(input: TokenStream) -> TokenStream {
     // Parse the input as a DeriveInput
     let input = parse_macro_input!(input as DeriveInput);
@@ -48,6 +53,29 @@ pub fn layer_singleton(input: TokenStream) -> TokenStream {
         }
     });
 
+    let try_from_mainwindow = variants
+        .iter()
+        .find(|variant| variant.attrs.iter().any(is_mainwindow_attr))
+        .map(|variant| {
+            let variant_name = &variant.ident;
+            quote! {
+                impl TryFrom<iced_layershell::actions::MainWindowInfo> for #name {
+                    type Error = ();
+                    fn try_from(_val: iced_layershell::actions::MainWindowInfo) -> Result<Self, ()> {
+                        Ok(Self::#variant_name)
+                    }
+                }
+            }
+        })
+        .unwrap_or(quote! {
+            impl TryFrom<iced_layershell::actions::MainWindowInfo> for #name {
+                type Error = ();
+                fn try_from(_val: iced_layershell::actions::MainWindowInfo) -> Result<Self, ()> {
+                    Err(())
+                }
+            }
+        });
+
     // Generate the final implementation
     let expanded = quote! {
         impl iced_layershell::actions::IsSingleton for #name {
@@ -57,6 +85,7 @@ pub fn layer_singleton(input: TokenStream) -> TokenStream {
                 }
             }
         }
+        #try_from_mainwindow
     };
 
     TokenStream::from(expanded)

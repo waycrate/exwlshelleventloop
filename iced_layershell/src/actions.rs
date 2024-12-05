@@ -22,6 +22,15 @@ pub trait IsSingleton {
     }
 }
 
+pub struct MainWindowInfo;
+
+impl TryFrom<MainWindowInfo> for () {
+    type Error = ();
+    fn try_from(_: MainWindowInfo) -> Result<(), Self::Error> {
+        Err(())
+    }
+}
+
 impl IsSingleton for () {}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
