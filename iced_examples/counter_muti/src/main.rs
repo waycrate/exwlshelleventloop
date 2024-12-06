@@ -10,7 +10,7 @@ use iced_runtime::{task, Action};
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::MultiApplication;
-use iced_layershell::{to_layer_message, LayerSingleton};
+use iced_layershell::{to_layer_message, WindowInfoMarker};
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
@@ -32,7 +32,7 @@ struct Counter {
     ids: HashMap<iced::window::Id, WindowInfo>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, LayerSingleton)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, WindowInfoMarker)]
 enum WindowInfo {
     #[singleton]
     Left,

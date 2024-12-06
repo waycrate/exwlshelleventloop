@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use iced::Font;
 use iced::{Element, Task};
 
-use crate::actions::{IsSingleton, LayershellCustomActionsWithIdAndInfo};
+use crate::actions::{IsSingleton, LayershellCustomActionsWithIdAndInfo, MainWindowInfo};
 
 use crate::settings::LayerShellSettings;
 use crate::DefaultStyle;
@@ -27,7 +27,7 @@ pub trait Program: Sized {
     type State;
     type Renderer: Renderer;
 
-    type WindowInfo: Clone + PartialEq + IsSingleton;
+    type WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>;
     /// The type of __messages__ your [`Application`] will produce.
     type Message: std::fmt::Debug
         + Send
@@ -361,7 +361,7 @@ pub fn daemon<State, Message, Theme, Renderer, WindowInfo>(
 ) -> Daemon<impl Program<Message = Message, Theme = Theme, State = State, WindowInfo = WindowInfo>>
 where
     State: 'static,
-    WindowInfo: Clone + PartialEq + IsSingleton,
+    WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
     Message: 'static
         + TryInto<LayershellCustomActionsWithIdAndInfo<WindowInfo>, Error = Message>
         + Send
@@ -418,7 +418,7 @@ where
             WindowInfo,
         >
     where
-        WindowInfo: Clone + PartialEq + IsSingleton,
+        WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
         Message: 'static
             + TryInto<LayershellCustomActionsWithIdAndInfo<WindowInfo>, Error = Message>
             + Send

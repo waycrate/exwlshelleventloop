@@ -17,8 +17,17 @@ fn is_singleton_attr(attr: &Attribute) -> bool {
     attr.path().is_ident("singleton")
 }
 
-#[proc_macro_derive(LayerSingleton, attributes(singleton))]
-pub fn layer_singleton(input: TokenStream) -> TokenStream {
+#[inline]
+fn is_mainwindow_attr(attr: &Attribute) -> bool {
+    attr.path().is_ident("main")
+}
+
+/// WindowInfoMarker, it is a derive to mark the WIndowInfo of MultiApplication.
+/// There are two attributes: singleton and main
+/// Singleton is used to mark the window can only exist once,
+/// main is used to get the id of the main window
+#[proc_macro_derive(WindowInfoMarker, attributes(singleton, main))]
+pub fn window_info_marker(input: TokenStream) -> TokenStream {
     // Parse the input as a DeriveInput
     let input = parse_macro_input!(input as DeriveInput);
 
@@ -48,6 +57,29 @@ pub fn layer_singleton(input: TokenStream) -> TokenStream {
         }
     });
 
+    let try_from_mainwindow = variants
+        .iter()
+        .find(|variant| variant.attrs.iter().any(is_mainwindow_attr))
+        .map(|variant| {
+            let variant_name = &variant.ident;
+            quote! {
+                impl TryFrom<iced_layershell::actions::MainWindowInfo> for #name {
+                    type Error = ();
+                    fn try_from(_val: iced_layershell::actions::MainWindowInfo) -> Result<Self, ()> {
+                        Ok(Self::#variant_name)
+                    }
+                }
+            }
+        })
+        .unwrap_or(quote! {
+            impl TryFrom<iced_layershell::actions::MainWindowInfo> for #name {
+                type Error = ();
+                fn try_from(_val: iced_layershell::actions::MainWindowInfo) -> Result<Self, ()> {
+                    Err(())
+                }
+            }
+        });
+
     // Generate the final implementation
     let expanded = quote! {
         impl iced_layershell::actions::IsSingleton for #name {
@@ -57,11 +89,17 @@ pub fn layer_singleton(input: TokenStream) -> TokenStream {
                 }
             }
         }
+        #try_from_mainwindow
     };
 
     TokenStream::from(expanded)
 }
 
+/// to_layer_message is to convert a normal enum to the enum usable in iced_layershell
+/// It impl the try_into trait for the enum and make it can be convert to the actions in
+/// layershell.
+///
+/// It will automatic add the fields which match the actions in iced_layershell
 #[manyhow::manyhow]
 #[proc_macro_attribute]
 pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Result<TokenStream2> {

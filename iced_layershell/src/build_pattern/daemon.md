@@ -1,3 +1,7 @@
+# the daemon function allows you to pass just the function to create the program.
+
+
+```rust, no_run
 use std::collections::HashMap;
 
 use iced::widget::{button, column, container, row, text, text_input};
@@ -13,7 +17,6 @@ use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::{to_layer_message, WindowInfoMarker};
 
 pub fn main() -> Result<(), iced_layershell::Error> {
-    tracing_subscriber::fmt().init();
     daemon(
         Counter::namespace,
         Counter::update,
@@ -277,3 +280,4 @@ impl Counter {
         .into()
     }
 }
+```
