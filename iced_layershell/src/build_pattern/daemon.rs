@@ -1,4 +1,3 @@
-#![doc = include_str!("./daemon.md")]
 use std::borrow::Cow;
 
 use iced::Font;

@@ -1,3 +1,6 @@
+//! The build_pattern allow you to create application just with callback functions.
+//! Similar with the one of origin iced.
+
 mod application;
 mod daemon;
 use std::borrow::Cow;
@@ -64,5 +67,8 @@ impl Default for MainSettings {
     }
 }
 
+#[doc = include_str!("./build_pattern/application.md")]
 pub use application::application;
+
+#[doc = include_str!("./build_pattern/daemon.md")]
 pub use daemon::daemon;
