@@ -1031,7 +1031,11 @@ pub(crate) fn run_action<A, C>(
                 }
                 let option_id = if let LayershellCustomActionsWithInfo::RemoveWindow(id) = action.1
                 {
-                    window_manager.get_layer_id(id)
+                    let option_id = window_manager.get_layer_id(id);
+                    if option_id.is_none() {
+                        return;
+                    }
+                    option_id
                 } else {
                     None
                 };
