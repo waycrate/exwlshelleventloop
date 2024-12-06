@@ -1,3 +1,4 @@
+#![doc = include_str!("./application.md")]
 use std::borrow::Cow;
 
 use iced::Font;

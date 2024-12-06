@@ -22,6 +22,10 @@ fn is_mainwindow_attr(attr: &Attribute) -> bool {
     attr.path().is_ident("main")
 }
 
+/// WindowInfoMarker, it is a derive to mark the WIndowInfo of MultiApplication.
+/// There are two attributes: singleton and main
+/// Singleton is used to mark the window can only exist once,
+/// main is used to get the id of the main window
 #[proc_macro_derive(WindowInfoMarker, attributes(singleton, main))]
 pub fn window_info_marker(input: TokenStream) -> TokenStream {
     // Parse the input as a DeriveInput
@@ -91,6 +95,11 @@ pub fn window_info_marker(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// to_layer_message is to convert a normal enum to the enum usable in iced_layershell
+/// It impl the try_into trait for the enum and make it can be convert to the actions in
+/// layershell.
+///
+/// It will automatic add the fields which match the actions in iced_layershell
 #[manyhow::manyhow]
 #[proc_macro_attribute]
 pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Result<TokenStream2> {
