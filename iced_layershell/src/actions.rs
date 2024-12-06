@@ -51,6 +51,8 @@ pub struct IcedNewMenuSettings {
     pub direction: MenuDirection,
 }
 
+/// NOTE: DO NOT USE THIS ENUM DIERCTLY
+/// use macro to_layer_message
 #[derive(Debug, Clone, Copy)]
 pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     AnchorChange(Anchor),
@@ -82,6 +84,8 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
 
 pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;
 
+/// Please do not use this struct directly
+/// Use macro to_layer_message instead
 #[derive(Debug, Clone, Copy)]
 pub struct LayershellCustomActionsWithIdAndInfo<INFO: Clone>(
     pub Option<IcedId>,
