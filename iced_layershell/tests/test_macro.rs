@@ -10,3 +10,15 @@ fn test_layer_message_macro() {
     let e = TestEnum::SizeChange((10, 10));
     let _ = e.clone();
 }
+
+#[test]
+fn test_layer_message_macro_multi() {
+    #[to_layer_message(multi)]
+    #[derive(Debug, Clone)]
+    enum TestEnum {
+        TestA,
+    }
+    use layershellev::*;
+    let (_id, message) = TestEnum::layershell_open(NewLayerShellSettings::default());
+    assert!(matches!(message, TestEnum::NewLayerShell { .. }))
+}

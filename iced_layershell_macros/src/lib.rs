@@ -79,6 +79,32 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         }
                     }
                 }
+                impl #ident #ty_gen #where_gen {
+                    fn layershell_open(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced::window::Id, Self) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            Self::NewLayerShell { settings, id }
+                        )
+
+                    }
+                    fn popup_open(settings: iced_layershell::actions::IcedNewPopupSettings) -> (iced::window::Id, Self) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            Self::NewPopUp { settings, id }
+                        )
+
+                    }
+                    fn menu_open(settings: iced_layershell::actions::IcedNewMenuSettings) -> (iced::window::Id, Self) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            Self::NewMenu { settings, id }
+                        )
+
+                    }
+                }
             };
             (additional_variants, try_into_impl)
         }
