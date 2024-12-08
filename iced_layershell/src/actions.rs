@@ -4,16 +4,16 @@ use iced_core::mouse::Interaction;
 use layershellev::id::Id as LayerId;
 use layershellev::NewLayerShellSettings;
 
-pub(crate) type LayerShellActionVec<T> = Vec<LayerShellAction<T>>;
+pub(crate) type LayerShellActionVec = Vec<LayerShellAction>;
 
 #[derive(Debug, Clone)]
-pub(crate) enum LayerShellAction<INFO: Clone> {
+pub(crate) enum LayerShellAction {
     Mouse(Interaction),
-    CustomActions(LayershellCustomActionsWithInfo<INFO>),
-    CustomActionsWithId(LayershellCustomActionsWithIdInner<INFO>),
+    CustomActions(LayershellCustomActions),
+    CustomActionsWithId(LayershellCustomActionsWithIdInner),
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
-    NewMenu((IcedNewPopupSettings, INFO)),
+    NewMenu((IcedNewPopupSettings, iced_core::window::Id)),
 }
 
 pub trait IsSingleton {
@@ -54,7 +54,7 @@ pub struct IcedNewMenuSettings {
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
 #[derive(Debug, Clone, Copy)]
-pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
+pub enum LayershellCustomActions {
     AnchorChange(Anchor),
     LayerChange(Layer),
     AnchorSizeChange(Anchor, (u32, u32)),
@@ -67,43 +67,36 @@ pub enum LayershellCustomActionsWithInfo<INFO: Clone> {
     // settings, info, single_tone
     NewLayerShell {
         settings: NewLayerShellSettings,
-        info: INFO,
+        id: IcedId,
     },
     NewPopUp {
         settings: IcedNewPopupSettings,
-        info: INFO,
+        id: IcedId,
     },
     NewMenu {
         settings: IcedNewMenuSettings,
-        info: INFO,
+        id: IcedId,
     },
     /// is same with WindowAction::Close(id)
     RemoveWindow(IcedId),
     ForgetLastOutput,
 }
 
-pub type LayershellCustomActions = LayershellCustomActionsWithInfo<()>;
-
 /// Please do not use this struct directly
 /// Use macro to_layer_message instead
 #[derive(Debug, Clone, Copy)]
-pub struct LayershellCustomActionsWithIdAndInfo<INFO: Clone>(
-    pub Option<IcedId>,
-    pub LayershellCustomActionsWithInfo<INFO>,
-);
+pub struct LayershellCustomActionsWithId(pub Option<IcedId>, pub LayershellCustomActions);
 
-impl<INFO: Clone> LayershellCustomActionsWithIdAndInfo<INFO> {
-    pub fn new(id: Option<IcedId>, actions: LayershellCustomActionsWithInfo<INFO>) -> Self {
+impl LayershellCustomActionsWithId {
+    pub fn new(id: Option<IcedId>, actions: LayershellCustomActions) -> Self {
         Self(id, actions)
     }
 }
 
-pub type LayershellCustomActionsWithId = LayershellCustomActionsWithIdAndInfo<()>;
-
 // first one means
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct LayershellCustomActionsWithIdInner<INFO: Clone>(
-    pub Option<LayerId>,                       // come from
-    pub Option<LayerId>,                       // target if has one
-    pub LayershellCustomActionsWithInfo<INFO>, // actions
+pub(crate) struct LayershellCustomActionsWithIdInner(
+    pub Option<LayerId>,         // come from
+    pub Option<LayerId>,         // target if has one
+    pub LayershellCustomActions, // actions
 );

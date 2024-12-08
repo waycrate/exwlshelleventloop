@@ -10,7 +10,7 @@ keywords.workspace = true
 readme.workspace = true
 
 [dependencies]
-iced.workspace = true
+iced = { workspace = true, features = ["tokio"] }
 iced_runtime.workspace = true
 iced_layershell.workspace = true
 
