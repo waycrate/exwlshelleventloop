@@ -208,9 +208,7 @@ impl Counter {
                     id,
                 })
             }
-            Message::Close(id) => {
-                task::effect(Action::Window(WindowAction::Close(id)))
-            }
+            Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),
         }
     }
