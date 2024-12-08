@@ -209,7 +209,6 @@ impl Counter {
                 })
             }
             Message::Close(id) => {
-                self.ids.remove(&id);
                 task::effect(Action::Window(WindowAction::Close(id)))
             }
             _ => unreachable!(),
