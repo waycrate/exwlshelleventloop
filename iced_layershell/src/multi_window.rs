@@ -980,7 +980,7 @@ pub(crate) fn run_action<A, C>(
                     LayershellCustomActionsWithIdInner(
                         action.0.and_then(|id| window_manager.get_layer_id(id)),
                         option_id,
-                        action.1.clone(),
+                        action.1,
                     ),
                 ));
             }
