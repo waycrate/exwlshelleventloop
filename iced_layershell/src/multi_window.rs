@@ -518,7 +518,6 @@ async fn run_instance<A, E, C>(
                     ..
                 },
             ) => {
-                println!("{info:?}");
                 let mut is_new_window = false;
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     is_new_window = true;
