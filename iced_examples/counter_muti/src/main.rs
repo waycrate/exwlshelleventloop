@@ -9,8 +9,8 @@ use iced_runtime::{task, Action};
 
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_layershell::to_layer_message;
 use iced_layershell::MultiApplication;
-use iced_layershell::{to_layer_message, WindowInfoMarker};
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
@@ -32,11 +32,9 @@ struct Counter {
     ids: HashMap<iced::window::Id, WindowInfo>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, WindowInfoMarker)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowInfo {
-    #[singleton]
     Left,
-    #[singleton]
     Right,
     PopUp,
 }
@@ -49,7 +47,7 @@ enum WindowDirection {
     Bottom(Id),
 }
 
-#[to_layer_message(multi, info_name = "WindowInfo")]
+#[to_layer_message(multi)]
 #[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
@@ -73,12 +71,17 @@ impl Counter {
     }
 }
 
+impl Counter {
+    fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
+        self.ids.get(&id).cloned()
+    }
+}
+
 impl MultiApplication for Counter {
     type Message = Message;
     type Flags = ();
     type Theme = Theme;
     type Executor = iced::executor::Default;
-    type WindowInfo = WindowInfo;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
@@ -90,19 +93,6 @@ impl MultiApplication for Counter {
             Command::none(),
         )
     }
-
-    fn id_info(&self, id: iced::window::Id) -> Option<Self::WindowInfo> {
-        self.ids.get(&id).cloned()
-    }
-
-    fn set_id_info(&mut self, id: iced::window::Id, info: Self::WindowInfo) {
-        self.ids.insert(id, info);
-    }
-
-    fn remove_id(&mut self, id: iced::window::Id) {
-        self.ids.remove(&id);
-    }
-
     fn namespace(&self) -> String {
         String::from("Counter - Iced")
     }
@@ -110,7 +100,9 @@ impl MultiApplication for Counter {
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         event::listen().map(Message::IcedEvent)
     }
-
+    fn remove_id(&mut self, id: iced::window::Id) {
+        self.ids.remove(&id);
+    }
     fn update(&mut self, message: Message) -> Command<Message> {
         use iced::keyboard;
         use iced::keyboard::key::Named;
@@ -129,12 +121,14 @@ impl MultiApplication for Counter {
                         }
                     }
                     Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
+                        let id = iced::window::Id::unique();
+                        self.ids.insert(id, WindowInfo::PopUp);
                         return Command::done(Message::NewMenu {
                             settings: IcedNewMenuSettings {
                                 size: (100, 100),
                                 direction: MenuDirection::Up,
                             },
-                            info: WindowInfo::PopUp,
+                            id,
                         });
                     }
                     _ => {}
@@ -175,32 +169,40 @@ impl MultiApplication for Counter {
                     size: (0, 400),
                 }),
             },
-            Message::NewWindowLeft => Command::done(Message::NewLayerShell {
-                settings: NewLayerShellSettings {
-                    size: Some((100, 100)),
-                    exclusive_zone: None,
-                    anchor: Anchor::Left | Anchor::Bottom,
-                    layer: Layer::Top,
-                    margin: None,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    use_last_output: false,
-                    ..Default::default()
-                },
-                info: WindowInfo::Left,
-            }),
-            Message::NewWindowRight => Command::done(Message::NewLayerShell {
-                settings: NewLayerShellSettings {
-                    size: Some((100, 100)),
-                    exclusive_zone: None,
-                    anchor: Anchor::Right | Anchor::Bottom,
-                    layer: Layer::Top,
-                    margin: None,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    use_last_output: false,
-                    ..Default::default()
-                },
-                info: WindowInfo::Right,
-            }),
+            Message::NewWindowLeft => {
+                let id = iced::window::Id::unique();
+                self.ids.insert(id, WindowInfo::Left);
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        size: Some((100, 100)),
+                        exclusive_zone: None,
+                        anchor: Anchor::Left | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: None,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        use_last_output: false,
+                        ..Default::default()
+                    },
+                    id,
+                })
+            }
+            Message::NewWindowRight => {
+                let id = iced::window::Id::unique();
+                self.ids.insert(id, WindowInfo::Right);
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        size: Some((100, 100)),
+                        exclusive_zone: None,
+                        anchor: Anchor::Right | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: None,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        use_last_output: false,
+                        ..Default::default()
+                    },
+                    id,
+                })
+            }
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),
         }
@@ -221,7 +223,6 @@ impl MultiApplication for Counter {
                     background: Some(iced::Color::new(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
-                //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();

@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use iced::Font;
 use iced::{Element, Task};
 
-use crate::actions::{IsSingleton, LayershellCustomActionsWithIdAndInfo, MainWindowInfo};
+use crate::actions::LayershellCustomActionsWithId;
 
 use crate::settings::LayerShellSettings;
 use crate::DefaultStyle;
@@ -27,26 +27,15 @@ pub trait Program: Sized {
     type State;
     type Renderer: Renderer;
 
-    type WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>;
     /// The type of __messages__ your [`Application`] will produce.
     type Message: std::fmt::Debug
         + Send
         + 'static
-        + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>, Error = Self::Message>;
+        + TryInto<LayershellCustomActionsWithId, Error = Self::Message>;
 
     /// The theme of your [`Application`].
     type Theme: Default + DefaultStyle;
-    fn id_info(&self, _state: &Self::State, _id: iced_core::window::Id)
-        -> Option<Self::WindowInfo>;
-
-    fn set_id_info(
-        &self,
-        _state: &mut Self::State,
-        _id: iced_core::window::Id,
-        _info: Self::WindowInfo,
-    );
     fn remove_id(&self, _state: &mut Self::State, _id: iced_core::window::Id);
-
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -154,7 +143,6 @@ pub trait Program: Sized {
             crate::multi_window::Application for Instance<P, I>
         {
             type Flags = (P, I);
-            type WindowInfo = P::WindowInfo;
 
             fn new((program, initialize): Self::Flags) -> (Self, Task<Self::Message>) {
                 let (state, task) = initialize();
@@ -169,17 +157,12 @@ pub trait Program: Sized {
                 )
             }
 
-            fn id_info(&self, id: iced_core::window::Id) -> Option<Self::WindowInfo> {
-                self.program.id_info(&self.state, id)
-            }
-            fn set_id_info(&mut self, id: iced_core::window::Id, info: Self::WindowInfo) {
-                self.program.set_id_info(&mut self.state, id, info)
-            }
-            fn remove_id(&mut self, id: iced_core::window::Id) {
-                self.program.remove_id(&mut self.state, id)
-            }
             fn namespace(&self) -> String {
                 self.program.namespace(&self.state)
+            }
+
+            fn remove_id(&mut self, id: iced_core::window::Id) {
+                self.program.remove_id(&mut self.state, id)
             }
 
             fn subscription(&self) -> iced::Subscription<Self::Message> {
@@ -270,30 +253,6 @@ impl<State, Message> Update<State, Message> for () {
     fn update(&self, _state: &mut State, _message: Message) -> impl Into<Task<Message>> {}
 }
 
-pub trait IdInfo<State, WindowInfo> {
-    fn id_info(&self, state: &State, id: iced_core::window::Id) -> Option<WindowInfo>;
-}
-
-impl<T, State, WindowInfo> IdInfo<State, WindowInfo> for T
-where
-    T: Fn(&State, iced_core::window::Id) -> Option<WindowInfo>,
-{
-    fn id_info(&self, state: &State, id: iced_core::window::Id) -> Option<WindowInfo> {
-        self(state, id)
-    }
-}
-pub trait SetIdInfo<State, WindowInfo> {
-    fn set_id_info(&self, state: &mut State, id: iced_core::window::Id, window_info: WindowInfo);
-}
-
-impl<T, State, WindowInfo> SetIdInfo<State, WindowInfo> for T
-where
-    T: Fn(&mut State, iced_core::window::Id, WindowInfo),
-{
-    fn set_id_info(&self, state: &mut State, id: iced_core::window::Id, window_info: WindowInfo) {
-        self(state, id, window_info)
-    }
-}
 pub trait RemoveId<State> {
     fn remove_id(&self, state: &mut State, id: iced_core::window::Id);
 }
@@ -351,115 +310,55 @@ pub struct Daemon<A: Program> {
     settings: MainSettings,
 }
 
-pub fn daemon<State, Message, Theme, Renderer, WindowInfo>(
+pub fn daemon<State, Message, Theme, Renderer>(
     namespace: impl NameSpace<State>,
     update: impl Update<State, Message>,
     view: impl for<'a> self::View<'a, State, Message, Theme, Renderer>,
-    id_info: impl IdInfo<State, WindowInfo>,
-    set_id_info: impl SetIdInfo<State, WindowInfo>,
     remove_id: impl RemoveId<State>,
-) -> Daemon<impl Program<Message = Message, Theme = Theme, State = State, WindowInfo = WindowInfo>>
+) -> Daemon<impl Program<Message = Message, Theme = Theme, State = State>>
 where
     State: 'static,
-    WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
-    Message: 'static
-        + TryInto<LayershellCustomActionsWithIdAndInfo<WindowInfo>, Error = Message>
-        + Send
-        + std::fmt::Debug,
+    Message:
+        'static + TryInto<LayershellCustomActionsWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: Default + DefaultStyle,
     Renderer: self::Renderer,
 {
     use std::marker::PhantomData;
-    struct Instance<
-        State,
-        Message,
-        Theme,
-        Renderer,
-        Update,
-        View,
-        IdInfo,
-        SetIdInfo,
-        RemoveId,
-        WindowInfo,
-    > {
+    struct Instance<State, Message, Theme, Renderer, Update, View, RemoveId> {
         update: Update,
         view: View,
-        id_info: IdInfo,
-        set_id_info: SetIdInfo,
         remove_id: RemoveId,
         _state: PhantomData<State>,
         _message: PhantomData<Message>,
         _theme: PhantomData<Theme>,
         _renderer: PhantomData<Renderer>,
-        _windowinfo: PhantomData<WindowInfo>,
     }
-    impl<
-            State,
-            Message,
-            Theme,
-            Renderer,
-            Update,
-            View,
-            WindowInfo,
-            IdInfo,
-            SetIdInfo,
-            RemoveId,
-        > Program
-        for Instance<
-            State,
-            Message,
-            Theme,
-            Renderer,
-            Update,
-            View,
-            IdInfo,
-            SetIdInfo,
-            RemoveId,
-            WindowInfo,
-        >
+    impl<State, Message, Theme, Renderer, Update, View, RemoveId> Program
+        for Instance<State, Message, Theme, Renderer, Update, View, RemoveId>
     where
-        WindowInfo: Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
         Message: 'static
-            + TryInto<LayershellCustomActionsWithIdAndInfo<WindowInfo>, Error = Message>
+            + TryInto<LayershellCustomActionsWithId, Error = Message>
             + Send
             + std::fmt::Debug,
         Theme: Default + DefaultStyle,
-        IdInfo: self::IdInfo<State, WindowInfo>,
-        SetIdInfo: self::SetIdInfo<State, WindowInfo>,
-        RemoveId: self::RemoveId<State>,
         Renderer: self::Renderer,
         Update: self::Update<State, Message>,
+        RemoveId: self::RemoveId<State>,
         View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
     {
         type State = State;
         type Renderer = Renderer;
         type Message = Message;
         type Theme = Theme;
-        type WindowInfo = WindowInfo;
         type Executor = iced_futures::backend::default::Executor;
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.update.update(state, message).into()
         }
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.id_info.id_info(state, id)
-        }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.remove_id.remove_id(state, id)
-        }
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.set_id_info.set_id_info(state, id, info)
-        }
 
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.remove_id.remove_id(state, id);
+        }
         fn view<'a>(
             &self,
             state: &'a Self::State,
@@ -472,15 +371,12 @@ where
         raw: Instance {
             update,
             view,
-            id_info,
-            set_id_info,
             remove_id,
 
             _state: PhantomData,
             _message: PhantomData,
             _theme: PhantomData,
             _renderer: PhantomData,
-            _windowinfo: PhantomData,
         },
         settings: MainSettings::default(),
     }
@@ -490,8 +386,7 @@ where
 fn with_namespace<P: Program>(
     program: P,
     namespace: impl Fn(&P::State) -> String,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme, WindowInfo = P::WindowInfo>
-{
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithNamespace<P, NameSpace> {
         program: P,
         namespace: NameSpace,
@@ -506,35 +401,16 @@ fn with_namespace<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-        type WindowInfo = P::WindowInfo;
-
         fn namespace(&self, state: &Self::State) -> String {
             (self.namespace)(state)
         }
 
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.program.id_info(state, id)
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            self.program.update(state, message)
         }
 
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
             self.program.remove_id(state, id)
-        }
-
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.program.set_id_info(state, id, info)
-        }
-
-        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
-            self.program.update(state, message)
         }
 
         fn view<'a>(
@@ -568,8 +444,7 @@ fn with_namespace<P: Program>(
 pub fn with_subscription<P: Program>(
     program: P,
     f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme, WindowInfo = P::WindowInfo>
-{
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithSubscription<P, F> {
         program: P,
         subscription: F,
@@ -584,32 +459,13 @@ pub fn with_subscription<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-        type WindowInfo = P::WindowInfo;
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.program.id_info(state, id)
-        }
-
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
-        }
-
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.program.set_id_info(state, id, info)
-        }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             (self.subscription)(state)
         }
-
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -648,8 +504,7 @@ pub fn with_subscription<P: Program>(
 pub fn with_theme<P: Program>(
     program: P,
     f: impl Fn(&P::State) -> P::Theme,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme, WindowInfo = P::WindowInfo>
-{
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithTheme<P, F> {
         program: P,
         theme: F,
@@ -664,32 +519,13 @@ pub fn with_theme<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-        type WindowInfo = P::WindowInfo;
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.program.id_info(state, id)
-        }
-
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
-        }
-
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.program.set_id_info(state, id, info)
-        }
 
         fn theme(&self, state: &Self::State) -> Self::Theme {
             (self.theme)(state)
         }
-
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
         }
@@ -725,8 +561,7 @@ pub fn with_theme<P: Program>(
 pub fn with_style<P: Program>(
     program: P,
     f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme, WindowInfo = P::WindowInfo>
-{
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithStyle<P, F> {
         program: P,
         style: F,
@@ -741,27 +576,6 @@ pub fn with_style<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-        type WindowInfo = P::WindowInfo;
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.program.id_info(state, id)
-        }
-
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
-        }
-
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.program.set_id_info(state, id, info)
-        }
 
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
             (self.style)(state, theme)
@@ -774,7 +588,9 @@ pub fn with_style<P: Program>(
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
-
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
         fn view<'a>(
             &self,
             state: &'a Self::State,
@@ -802,8 +618,7 @@ pub fn with_style<P: Program>(
 pub fn with_scale_factor<P: Program>(
     program: P,
     f: impl Fn(&P::State, iced_core::window::Id) -> f64,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme, WindowInfo = P::WindowInfo>
-{
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithScaleFactor<P, F> {
         program: P,
         scale_factor: F,
@@ -818,32 +633,13 @@ pub fn with_scale_factor<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-        type WindowInfo = P::WindowInfo;
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.program.id_info(state, id)
-        }
-
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
-        }
-
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.program.set_id_info(state, id, info)
-        }
 
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
         }
-
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -881,8 +677,7 @@ pub fn with_scale_factor<P: Program>(
 
 pub fn with_executor<P: Program, E: iced_futures::Executor>(
     program: P,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme, WindowInfo = P::WindowInfo>
-{
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     use std::marker::PhantomData;
 
     struct WithExecutor<P, E> {
@@ -899,28 +694,6 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = E;
-        type WindowInfo = P::WindowInfo;
-
-        fn id_info(
-            &self,
-            state: &Self::State,
-            id: iced_core::window::Id,
-        ) -> Option<Self::WindowInfo> {
-            self.program.id_info(state, id)
-        }
-
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
-        }
-
-        fn set_id_info(
-            &self,
-            state: &mut Self::State,
-            id: iced_core::window::Id,
-            info: Self::WindowInfo,
-        ) {
-            self.program.set_id_info(state, id, info)
-        }
 
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
@@ -929,7 +702,9 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
-
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.remove_id(state, id)
+        }
         fn view<'a>(
             &self,
             state: &'a Self::State,
@@ -1032,14 +807,7 @@ impl<P: Program> Daemon<P> {
     pub fn namespace(
         self,
         namespace: impl NameSpace<P::State>,
-    ) -> Daemon<
-        impl Program<
-            State = P::State,
-            Message = P::Message,
-            Theme = P::Theme,
-            WindowInfo = P::WindowInfo,
-        >,
-    > {
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_namespace(self.raw, move |state| namespace.namespace(state)),
             settings: self.settings,
@@ -1049,14 +817,7 @@ impl<P: Program> Daemon<P> {
     pub fn style(
         self,
         f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
-    ) -> Daemon<
-        impl Program<
-            State = P::State,
-            Message = P::Message,
-            Theme = P::Theme,
-            WindowInfo = P::WindowInfo,
-        >,
-    > {
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_style(self.raw, f),
             settings: self.settings,
@@ -1066,14 +827,7 @@ impl<P: Program> Daemon<P> {
     pub fn subscription(
         self,
         f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
-    ) -> Daemon<
-        impl Program<
-            State = P::State,
-            Message = P::Message,
-            Theme = P::Theme,
-            WindowInfo = P::WindowInfo,
-        >,
-    > {
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_subscription(self.raw, f),
             settings: self.settings,
@@ -1084,14 +838,7 @@ impl<P: Program> Daemon<P> {
     pub fn theme(
         self,
         f: impl Fn(&P::State) -> P::Theme,
-    ) -> Daemon<
-        impl Program<
-            State = P::State,
-            Message = P::Message,
-            Theme = P::Theme,
-            WindowInfo = P::WindowInfo,
-        >,
-    > {
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_theme(self.raw, f),
             settings: self.settings,
@@ -1102,14 +849,7 @@ impl<P: Program> Daemon<P> {
     pub fn scale_factor(
         self,
         f: impl Fn(&P::State, iced_core::window::Id) -> f64,
-    ) -> Daemon<
-        impl Program<
-            State = P::State,
-            Message = P::Message,
-            Theme = P::Theme,
-            WindowInfo = P::WindowInfo,
-        >,
-    > {
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_scale_factor(self.raw, f),
             settings: self.settings,
@@ -1118,14 +858,7 @@ impl<P: Program> Daemon<P> {
     /// Sets the executor of the [`Application`].
     pub fn executor<E>(
         self,
-    ) -> Daemon<
-        impl Program<
-            State = P::State,
-            Message = P::Message,
-            Theme = P::Theme,
-            WindowInfo = P::WindowInfo,
-        >,
-    >
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
     where
         E: iced_futures::Executor,
     {

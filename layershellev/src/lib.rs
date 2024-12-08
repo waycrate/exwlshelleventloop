@@ -2435,6 +2435,7 @@ impl<T: 'static> WindowState<T> {
                                 use_last_output,
                                 events_transparent,
                             },
+                            id,
                             info,
                         )) => {
                             let pos = self.surface_pos();
@@ -2502,7 +2503,7 @@ impl<T: 'static> WindowState<T> {
                             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                             self.units.push(WindowStateUnit {
-                                id: id::Id::unique(),
+                                id,
                                 display: connection.display(),
                                 wl_surface,
                                 size: (0, 0),
@@ -2523,6 +2524,7 @@ impl<T: 'static> WindowState<T> {
                                 position: (x, y),
                                 id,
                             },
+                            targetid,
                             info,
                         )) => {
                             let Some(index) = self
@@ -2559,7 +2561,7 @@ impl<T: 'static> WindowState<T> {
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                             self.units.push(WindowStateUnit {
-                                id: id::Id::unique(),
+                                id: targetid,
                                 display: connection.display(),
                                 wl_surface,
                                 size: (width, height),

@@ -20,14 +20,12 @@ pub mod reexport {
     pub use layershellev::NewLayerShellSettings;
 }
 
-use actions::MainWindowInfo;
-use actions::{IsSingleton, LayershellCustomActions, LayershellCustomActionsWithIdAndInfo};
+use actions::{LayershellCustomActions, LayershellCustomActionsWithId};
 use settings::Settings;
 
 use iced_runtime::Task;
 
 pub use iced_layershell_macros::to_layer_message;
-pub use iced_layershell_macros::WindowInfoMarker;
 
 pub use error::Error;
 
@@ -261,8 +259,6 @@ pub trait MultiApplication: Sized {
     /// The data needed to initialize your [`Application`].
     type Flags;
 
-    type WindowInfo;
-
     type Theme: Default + DefaultStyle;
 
     /// Initializes the [`Application`] with the flags provided to
@@ -283,11 +279,6 @@ pub trait MultiApplication: Sized {
     /// title of your window when necessary.
     fn namespace(&self) -> String;
 
-    fn id_info(&self, _id: iced_core::window::Id) -> Option<Self::WindowInfo> {
-        None
-    }
-
-    fn set_id_info(&mut self, _id: iced_core::window::Id, _info: Self::WindowInfo) {}
     fn remove_id(&mut self, _id: iced_core::window::Id) {}
     /// Handles a __message__ and updates the state of the [`Application`].
     ///
@@ -359,10 +350,7 @@ pub trait MultiApplication: Sized {
     fn run(settings: Settings<Self::Flags>) -> Result
     where
         Self: 'static,
-        <Self as MultiApplication>::WindowInfo:
-            Clone + PartialEq + IsSingleton + TryFrom<MainWindowInfo, Error = ()>,
-        Self::Message: 'static
-            + TryInto<LayershellCustomActionsWithIdAndInfo<Self::WindowInfo>, Error = Self::Message>,
+        Self::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = Self::Message>,
     {
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {
@@ -411,8 +399,6 @@ where
 {
     type Flags = A::Flags;
 
-    type WindowInfo = A::WindowInfo;
-
     fn new(flags: Self::Flags) -> (Self, Task<A::Message>) {
         let (app, command) = A::new(flags);
 
@@ -437,14 +423,6 @@ where
 
     fn scale_factor(&self, window: iced::window::Id) -> f64 {
         self.0.scale_factor(window)
-    }
-
-    fn id_info(&self, id: iced_core::window::Id) -> Option<Self::WindowInfo> {
-        self.0.id_info(id)
-    }
-
-    fn set_id_info(&mut self, id: iced_core::window::Id, info: Self::WindowInfo) {
-        self.0.set_id_info(id, info)
     }
     fn remove_id(&mut self, id: iced_core::window::Id) {
         self.0.remove_id(id)

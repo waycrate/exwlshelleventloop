@@ -10,7 +10,7 @@ use iced_runtime::{task, Action};
 use iced_layershell::build_pattern::{daemon, MainSettings};
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, StartMode};
-use iced_layershell::{to_layer_message, WindowInfoMarker};
+use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
@@ -18,8 +18,6 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::namespace,
         Counter::update,
         Counter::view,
-        Counter::id_info,
-        Counter::set_id_info,
         Counter::remove_id,
     )
     .subscription(Counter::subscription)
@@ -43,15 +41,11 @@ struct Counter {
     ids: HashMap<iced::window::Id, WindowInfo>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, WindowInfoMarker)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowInfo {
-    #[singleton]
     Left,
-    #[singleton]
     Right,
     PopUp,
-    #[main]
-    Main,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -62,7 +56,7 @@ enum WindowDirection {
     Bottom(Id),
 }
 
-#[to_layer_message(multi, info_name = "WindowInfo")]
+#[to_layer_message(multi)]
 #[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
@@ -102,14 +96,6 @@ impl Counter {
         self.ids.get(&id).cloned()
     }
 
-    fn set_id_info(&mut self, id: iced::window::Id, info: WindowInfo) {
-        if let WindowInfo::Main = info {
-            println!("it is main window: {id}");
-            return;
-        }
-        self.ids.insert(id, info);
-    }
-
     fn remove_id(&mut self, id: iced::window::Id) {
         self.ids.remove(&id);
     }
@@ -140,12 +126,14 @@ impl Counter {
                         }
                     }
                     Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
+                        let id = iced::window::Id::unique();
+                        self.ids.insert(id, WindowInfo::PopUp);
                         return Command::done(Message::NewMenu {
                             settings: IcedNewMenuSettings {
                                 size: (100, 100),
                                 direction: MenuDirection::Up,
                             },
-                            info: WindowInfo::PopUp,
+                            id,
                         });
                     }
                     _ => {}
@@ -186,33 +174,44 @@ impl Counter {
                     size: (0, 400),
                 }),
             },
-            Message::NewWindowLeft => Command::done(Message::NewLayerShell {
-                settings: NewLayerShellSettings {
-                    size: Some((100, 100)),
-                    exclusive_zone: None,
-                    anchor: Anchor::Left | Anchor::Bottom,
-                    layer: Layer::Top,
-                    margin: None,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    use_last_output: false,
-                    ..Default::default()
-                },
-                info: WindowInfo::Left,
-            }),
-            Message::NewWindowRight => Command::done(Message::NewLayerShell {
-                settings: NewLayerShellSettings {
-                    size: Some((100, 100)),
-                    exclusive_zone: None,
-                    anchor: Anchor::Right | Anchor::Bottom,
-                    layer: Layer::Top,
-                    margin: None,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    use_last_output: false,
-                    ..Default::default()
-                },
-                info: WindowInfo::Right,
-            }),
-            Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
+            Message::NewWindowLeft => {
+                let id = iced::window::Id::unique();
+                self.ids.insert(id, WindowInfo::Left);
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        size: Some((100, 100)),
+                        exclusive_zone: None,
+                        anchor: Anchor::Left | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: None,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        use_last_output: false,
+                        ..Default::default()
+                    },
+                    id,
+                })
+            }
+            Message::NewWindowRight => {
+                let id = iced::window::Id::unique();
+                self.ids.insert(id, WindowInfo::Right);
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        size: Some((100, 100)),
+                        exclusive_zone: None,
+                        anchor: Anchor::Right | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: None,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        use_last_output: false,
+                        ..Default::default()
+                    },
+                    id,
+                })
+            }
+            Message::Close(id) => {
+                self.ids.remove(&id);
+                task::effect(Action::Window(WindowAction::Close(id)))
+            }
             _ => unreachable!(),
         }
     }

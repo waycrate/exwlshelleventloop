@@ -95,14 +95,13 @@ pub enum WindowEvent {
 }
 
 #[derive(Debug)]
-pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
+pub enum IcedLayerEvent<Message: 'static> {
     RequestRefreshWithWrapper {
         width: u32,
         height: u32,
         fractal_scale: f64,
         wrapper: WindowWrapper,
-        is_created: bool,
-        info: Option<INFO>,
+        info: Option<iced_core::window::Id>,
     },
     RequestRefresh {
         width: u32,
@@ -113,25 +112,25 @@ pub enum IcedLayerEvent<Message: 'static, INFO: Clone> {
     NormalUpdate,
     UserEvent(Message),
     WindowRemoved(iced_core::window::Id),
-    NewMenu((IcedNewMenuSettings, INFO)),
+    NewMenu((IcedNewMenuSettings, iced_core::window::Id)),
 }
 
 #[allow(unused)]
 #[derive(Debug)]
-pub struct MultiWindowIcedLayerEvent<Message: 'static, INFO: Clone>(
+pub struct MultiWindowIcedLayerEvent<Message: 'static>(
     pub Option<Id>,
-    pub IcedLayerEvent<Message, INFO>,
+    pub IcedLayerEvent<Message>,
 );
 
-impl<Message: 'static, INFO: Clone> From<(Option<Id>, IcedLayerEvent<Message, INFO>)>
-    for MultiWindowIcedLayerEvent<Message, INFO>
+impl<Message: 'static> From<(Option<Id>, IcedLayerEvent<Message>)>
+    for MultiWindowIcedLayerEvent<Message>
 {
-    fn from((id, message): (Option<Id>, IcedLayerEvent<Message, INFO>)) -> Self {
+    fn from((id, message): (Option<Id>, IcedLayerEvent<Message>)) -> Self {
         MultiWindowIcedLayerEvent(id, message)
     }
 }
 
-impl<Message: 'static, INFO: Clone> From<&DispatchMessage> for IcedLayerEvent<Message, INFO> {
+impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
             DispatchMessage::RequestRefresh {

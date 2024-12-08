@@ -2,9 +2,7 @@ use futures::future::pending;
 use iced::widget::{button, column, container, text, text_input};
 use iced::window::Id;
 use iced::{Element, Length, Task as Command, Theme};
-use iced_layershell::actions::{
-    LayershellCustomActionsWithIdAndInfo, LayershellCustomActionsWithInfo,
-};
+use iced_layershell::to_layer_message;
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::Action;
 
@@ -14,9 +12,6 @@ use iced_layershell::MultiApplication;
 use zbus::{connection, interface};
 
 use futures::channel::mpsc::Sender;
-
-type LaLaShellIdAction = LayershellCustomActionsWithIdAndInfo<()>;
-type LalaShellAction = LayershellCustomActionsWithInfo<()>;
 
 struct Counter {
     window_shown: bool,
@@ -32,6 +27,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     })
 }
 
+#[to_layer_message(multi)]
 #[derive(Debug, Clone)]
 enum Message {
     NewWindow,
@@ -39,41 +35,11 @@ enum Message {
     CloseWindow(Id),
 }
 
-impl TryInto<LaLaShellIdAction> for Message {
-    type Error = Self;
-    fn try_into(self) -> Result<LayershellCustomActionsWithIdAndInfo<()>, Self::Error> {
-        match self {
-            Self::NewWindow => Ok(LaLaShellIdAction::new(
-                None,
-                LalaShellAction::NewLayerShell {
-                    settings: NewLayerShellSettings {
-                        size: None,
-                        exclusive_zone: None,
-                        anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
-                        layer: Layer::Top,
-                        margin: Some((100, 100, 100, 100)),
-                        keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                        use_last_output: false,
-                        ..Default::default()
-                    },
-                    info: (),
-                },
-            )),
-            _ => Err(self),
-        }
-    }
-}
-
 impl MultiApplication for Counter {
     type Message = Message;
     type Flags = ();
     type Theme = Theme;
     type Executor = iced::executor::Default;
-    type WindowInfo = ();
-
-    fn set_id_info(&mut self, _id: iced_runtime::core::window::Id, _info: Self::WindowInfo) {
-        self.window_shown = true;
-    }
 
     fn remove_id(&mut self, _id: iced_runtime::core::window::Id) {
         self.window_shown = false;
@@ -140,12 +106,27 @@ impl MultiApplication for Counter {
                 if self.window_shown {
                     return Command::none();
                 }
-                Command::done(message)
+
+                self.window_shown = true;
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        size: None,
+                        exclusive_zone: None,
+                        anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
+                        layer: Layer::Top,
+                        margin: Some((100, 100, 100, 100)),
+                        keyboard_interactivity: KeyboardInteractivity::OnDemand,
+                        use_last_output: false,
+                        ..Default::default()
+                    },
+                    id: iced::window::Id::unique(),
+                })
             }
             Message::TextInput(text) => {
                 self.text = text;
                 Command::none()
             }
+            _ => unreachable!(),
         }
     }
 }

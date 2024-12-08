@@ -3,10 +3,7 @@ mod state;
 use std::{borrow::Cow, mem::ManuallyDrop, os::fd::AsFd, sync::Arc, time::Duration};
 
 use crate::{
-    actions::{
-        LayerShellAction, LayerShellActionVec, LayershellCustomActions,
-        LayershellCustomActionsWithInfo,
-    },
+    actions::{LayerShellAction, LayerShellActionVec, LayershellCustomActions},
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
@@ -183,8 +180,8 @@ where
     let state = State::new(&application, &ev);
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<IcedLayerEvent<Action<A::Message>, ()>>();
-    let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec<()>>();
+        mpsc::unbounded::<IcedLayerEvent<Action<A::Message>>>();
+    let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec>();
 
     let mut instance = Box::pin(run_instance::<A, E, C>(
         application,
@@ -263,22 +260,22 @@ where
         for flow in flows {
             match flow {
                 LayerShellAction::CustomActions(action) => match action {
-                    LayershellCustomActionsWithInfo::AnchorChange(anchor) => {
+                    LayershellCustomActions::AnchorChange(anchor) => {
                         ev.main_window().set_anchor(anchor);
                     }
-                    LayershellCustomActionsWithInfo::AnchorSizeChange(anchor, size) => {
+                    LayershellCustomActions::AnchorSizeChange(anchor, size) => {
                         ev.main_window().set_anchor_with_size(anchor, size);
                     }
-                    LayershellCustomActionsWithInfo::LayerChange(layer) => {
+                    LayershellCustomActions::LayerChange(layer) => {
                         ev.main_window().set_layer(layer);
                     }
-                    LayershellCustomActionsWithInfo::MarginChange(margin) => {
+                    LayershellCustomActions::MarginChange(margin) => {
                         ev.main_window().set_margin(margin);
                     }
-                    LayershellCustomActionsWithInfo::SizeChange((width, height)) => {
+                    LayershellCustomActions::SizeChange((width, height)) => {
                         ev.main_window().set_size((width, height));
                     }
-                    LayershellCustomActionsWithInfo::VirtualKeyboardPressed { time, key } => {
+                    LayershellCustomActions::VirtualKeyboardPressed { time, key } => {
                         use layershellev::reexport::wayland_client::KeyState;
                         let ky = ev.get_virtual_keyboard().unwrap();
                         ky.key(time, key, KeyState::Pressed.into());
@@ -328,8 +325,8 @@ async fn run_instance<A, E, C>(
     compositor_settings: iced_graphics::Settings,
     mut runtime: SingleRuntime<E, A::Message>,
     mut debug: Debug,
-    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>, ()>>,
-    mut control_sender: mpsc::UnboundedSender<LayerShellActionVec<()>>,
+    mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>>>,
+    mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
     mut state: State<A>,
     window: Arc<WindowWrapper>,
     fonts: Vec<Cow<'static, [u8]>>,
@@ -637,7 +634,7 @@ pub(crate) fn run_action<A, C>(
     event: Action<A::Message>,
     messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
-    custom_actions: &mut Vec<LayerShellAction<()>>,
+    custom_actions: &mut Vec<LayerShellAction>,
     should_exit: &mut bool,
     debug: &mut Debug,
 ) where

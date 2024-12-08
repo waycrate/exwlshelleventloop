@@ -4,7 +4,7 @@ use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_layershell::actions::{LayershellCustomActions, LayershellCustomActionsWithInfo};
+use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
@@ -89,9 +89,9 @@ enum Message {
     InputKeyPressed(u32),
 }
 
-impl TryInto<LayershellCustomActionsWithInfo<()>> for Message {
+impl TryInto<LayershellCustomActions> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<LayershellCustomActionsWithInfo<()>, Self::Error> {
+    fn try_into(self) -> Result<LayershellCustomActions, Self::Error> {
         let Message::InputKeyPressed(key) = self;
         Ok(LayershellCustomActions::VirtualKeyboardPressed { time: 100, key })
     }
