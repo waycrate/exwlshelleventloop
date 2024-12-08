@@ -372,7 +372,9 @@ where
                             )
                             .ok();
                         }
-                        LayershellCustomActions::NewLayerShell { settings, info, .. } => {
+                        LayershellCustomActions::NewLayerShell {
+                            settings, id: info, ..
+                        } => {
                             let id = layershellev::id::Id::unique();
                             ev.append_return_data(ReturnData::NewLayerShell((
                                 settings,
@@ -391,7 +393,7 @@ where
                         }
                         LayershellCustomActions::NewPopUp {
                             settings: menusettings,
-                            info,
+                            id: info,
                         } => {
                             let IcedNewPopupSettings { size, position } = menusettings;
                             let Some(id) = ev.current_surface_id() else {
@@ -407,7 +409,7 @@ where
                         }
                         LayershellCustomActions::NewMenu {
                             settings: menusetting,
-                            info,
+                            id: info,
                         } => {
                             let Some(id) = ev.current_surface_id() else {
                                 break 'out;

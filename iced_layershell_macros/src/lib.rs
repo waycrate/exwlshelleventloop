@@ -4,10 +4,7 @@ use darling::{
     FromDeriveInput, FromMeta,
 };
 use proc_macro2::TokenStream as TokenStream2;
-use syn::{
-    DeriveInput, Generics, Ident,
-    Variant, Visibility,
-};
+use syn::{DeriveInput, Generics, Ident, Variant, Visibility};
 
 use quote::quote;
 
@@ -73,9 +70,9 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                                 None,
                                 LayershellCustomActions::VirtualKeyboardPressed { time, key })
                             ),
-                            Self::NewLayerShell {settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewLayerShell { settings, info: id })),
-                            Self::NewPopUp { settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewPopUp { settings, info: id })),
-                            Self::NewMenu { settings, id } =>  Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewMenu {settings, info:id })),
+                            Self::NewLayerShell {settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewLayerShell { settings, id })),
+                            Self::NewPopUp { settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewPopUp { settings, id })),
+                            Self::NewMenu { settings, id } =>  Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewMenu {settings, id })),
                             Self::RemoveWindow(id) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::RemoveWindow(id))),
                             Self::ForgetLastOutput => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::ForgetLastOutput)),
                             _ => Err(self)

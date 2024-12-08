@@ -67,15 +67,15 @@ pub enum LayershellCustomActions {
     // settings, info, single_tone
     NewLayerShell {
         settings: NewLayerShellSettings,
-        info: IcedId,
+        id: IcedId,
     },
     NewPopUp {
         settings: IcedNewPopupSettings,
-        info: IcedId,
+        id: IcedId,
     },
     NewMenu {
         settings: IcedNewMenuSettings,
-        info: IcedId,
+        id: IcedId,
     },
     /// is same with WindowAction::Close(id)
     RemoveWindow(IcedId),
