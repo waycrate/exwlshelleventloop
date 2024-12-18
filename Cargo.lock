@@ -5069,9 +5069,9 @@ dependencies = [
 
 [[package]]
 name = "zbus"
-version = "5.1.1"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1162094dc63b1629fcc44150bcceeaa80798cd28bcbe7fa987b65a034c258608"
+checksum = "fb67eadba43784b6fb14857eba0d8fc518686d3ee537066eb6086dc318e2c8a1"
 dependencies = [
  "async-broadcast",
  "async-recursion",
@@ -5092,7 +5092,7 @@ dependencies = [
  "windows-sys 0.59.0",
  "winnow",
  "xdg-home",
- "zbus_macros 5.1.1",
+ "zbus_macros 5.2.0",
  "zbus_names 4.1.0",
  "zvariant 5.1.0",
 ]
@@ -5105,7 +5105,7 @@ dependencies = [
  "iced",
  "iced_layershell",
  "iced_runtime",
- "zbus 5.1.1",
+ "zbus 5.2.0",
 ]
 
 [[package]]
@@ -5123,9 +5123,9 @@ dependencies = [
 
 [[package]]
 name = "zbus_macros"
-version = "5.1.1"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cd2dcdce3e2727f7d74b7e33b5a89539b3cc31049562137faf7ae4eb86cd16d"
+checksum = "2c9d49ebc960ceb660f2abe40a5904da975de6986f2af0d7884b39eec6528c57"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
