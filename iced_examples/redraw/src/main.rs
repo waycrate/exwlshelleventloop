@@ -197,4 +197,3 @@ where
         Self::new(spinner)
     }
 }
-
