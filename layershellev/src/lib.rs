@@ -1561,6 +1561,11 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         surface_y,
                     },
                 ));
+                if let Some(id) = surface_id {
+                    state
+                        .message
+                        .push((Some(id), DispatchMessageInner::Focused(id)));
+                }
             }
             wl_pointer::Event::Motion {
                 time,

@@ -384,6 +384,7 @@ async fn run_instance<A, E, C>(
                     iced_core::Event::Window(window::Event::RedrawRequested(Instant::now()));
                 let cursor = window.state.cursor();
 
+                events.push((Some(id), redraw_event.clone()));
                 ui.update(
                     &[redraw_event.clone()],
                     cursor,

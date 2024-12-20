@@ -221,6 +221,7 @@ pub(crate) enum DispatchMessageInner {
     },
 
     ModifiersChanged(ModifiersState),
+    Focused(Id),
     Unfocus,
     KeyboardInput {
         event: KeyEvent,
@@ -315,6 +316,7 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
+    Focused(Id),
     Unfocus,
     /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
@@ -440,6 +442,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 vertical,
                 source,
             },
+            DispatchMessageInner::Focused(id) => DispatchMessage::Focused(id),
             DispatchMessageInner::Unfocus => DispatchMessage::Unfocus,
             DispatchMessageInner::ModifiersChanged(modifier) => {
                 DispatchMessage::ModifiersChanged(modifier)

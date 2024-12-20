@@ -63,6 +63,7 @@ pub enum WindowEvent {
         is_synthetic: bool,
     },
     Unfocus,
+    Focused,
     ModifiersChanged(ModifiersState),
     Axis {
         x: f32,
@@ -207,6 +208,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
                 is_synthetic: *is_synthetic,
             }),
             DispatchMessage::Unfocus => IcedLayerEvent::Window(WindowEvent::Unfocus),
+            DispatchMessage::Focused(_) => IcedLayerEvent::Window(WindowEvent::Focused),
             DispatchMessage::ModifiersChanged(modifiers) => {
                 IcedLayerEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
             }
