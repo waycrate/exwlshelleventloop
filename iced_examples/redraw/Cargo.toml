@@ -1,0 +1,15 @@
+[package]
+name = "redraw"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[dependencies]
+
+iced = { workspace = true, features = ["image", "svg", "advanced"] }
+iced_layershell.workspace = true

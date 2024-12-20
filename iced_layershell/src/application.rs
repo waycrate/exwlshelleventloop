@@ -409,6 +409,7 @@ async fn run_instance<A, E, C>(
                     &mut clipboard,
                     &mut messages,
                 );
+                events.push(redraw_event.clone());
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: main_id,
                     event: redraw_event,

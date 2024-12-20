@@ -3277,6 +3277,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "redraw"
+version = "0.13.0"
+dependencies = [
+ "iced",
+ "iced_layershell",
+]
+
+[[package]]
 name = "regex"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

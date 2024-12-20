@@ -573,6 +573,7 @@ async fn run_instance<A, E, C>(
 
                 let cursor = window.state.cursor();
 
+                events.push(redraw_event.clone());
                 ui.update(
                     &[redraw_event.clone()],
                     cursor,
