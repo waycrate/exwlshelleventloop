@@ -83,7 +83,7 @@ fn is_visible(bounds: &Rectangle) -> bool {
     bounds.width > 0.0 && bounds.height > 0.0
 }
 
-impl<'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer> for LoadingBar
+impl<Message, Theme, Renderer> Widget<Message, Theme, Renderer> for LoadingBar
 where
     Renderer: renderer::Renderer,
 {
