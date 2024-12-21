@@ -1843,7 +1843,9 @@ impl<T: 'static> WindowState<T> {
         if self.is_background() {
             let background_surface = wmcompositer.create_surface(&qh, ());
             if self.events_transparent {
-                background_surface.set_opaque_region(None);
+                let region = wmcompositer.create_region(&qh, ());
+                background_surface.set_input_region(Some(&region));
+                region.destroy();
             }
             self.background_surface = Some(background_surface);
         } else if !self.is_allscreens() {
@@ -1898,7 +1900,9 @@ impl<T: 'static> WindowState<T> {
             }
 
             if self.events_transparent {
-                wl_surface.set_opaque_region(None);
+                let region = wmcompositer.create_region(&qh, ());
+                wl_surface.set_input_region(Some(&region));
+                region.destroy();
             }
 
             wl_surface.commit();
@@ -1960,7 +1964,9 @@ impl<T: 'static> WindowState<T> {
                 }
 
                 if self.events_transparent {
-                    wl_surface.set_opaque_region(None);
+                    let region = wmcompositer.create_region(&qh, ());
+                    wl_surface.set_input_region(Some(&region));
+                    region.destroy();
                 }
                 wl_surface.commit();
 
@@ -2191,7 +2197,9 @@ impl<T: 'static> WindowState<T> {
                         }
 
                         if self.events_transparent {
-                            wl_surface.set_opaque_region(None);
+                            let region = wmcompositer.create_region(&qh, ());
+                            wl_surface.set_input_region(Some(&region));
+                            region.destroy();
                         }
                         wl_surface.commit();
 
@@ -2485,7 +2493,9 @@ impl<T: 'static> WindowState<T> {
                             }
 
                             if events_transparent {
-                                wl_surface.set_opaque_region(None);
+                                let region = wmcompositer.create_region(&qh, ());
+                                wl_surface.set_input_region(Some(&region));
+                                region.destroy();
                             }
 
                             wl_surface.commit();
