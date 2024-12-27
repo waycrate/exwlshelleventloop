@@ -1,4 +1,4 @@
-use crate::reexport::{Anchor, Layer};
+use crate::reexport::{Anchor, Layer, WlRegion};
 use iced::window::Id as IcedId;
 use iced_core::mouse::Interaction;
 use layershellev::id::Id as LayerId;
@@ -69,6 +69,7 @@ pub enum LayershellCustomActions {
         settings: NewLayerShellSettings,
         id: IcedId,
     },
+    SetInputRegion(fn(&WlRegion)),
     NewPopUp {
         settings: IcedNewPopupSettings,
         id: IcedId,
