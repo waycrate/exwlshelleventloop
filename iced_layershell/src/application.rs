@@ -208,10 +208,10 @@ where
                 def_returndata = ReturnData::RequestBind;
             }
             LayerEvent::BindProvide(globals, qh) => {
-                let wl_compositor = globals.bind::<WlCompositor, _, _>(qh, 1..=1, ());
-                if let Ok(wl_compositor) = wl_compositor {
-                    wl_input_region = Some(wl_compositor.create_region(qh, ()));
-                }
+                let wl_compositor = globals
+                    .bind::<WlCompositor, _, _>(qh, 1..=1, ())
+                    .expect("could not bind wl_compositor");
+                wl_input_region = Some(wl_compositor.create_region(qh, ()));
 
                 if settings.virtual_keyboard_support.is_some() {
                     let virtual_keyboard_manager = globals
