@@ -278,18 +278,15 @@ where
                     LayershellCustomActions::SetInputRegion(set_region) => {
                         let window = ev.main_window();
 
-                        if let Some(region) = &wl_input_region {
-                            let window_size = window.get_size();
-                            let width: i32 = window_size.0.try_into().unwrap_or_default();
-                            let height: i32 = window_size.1.try_into().unwrap_or_default();
+                        let region = wl_input_region.as_ref().expect("region not found");
+                        let window_size = window.get_size();
+                        let width: i32 = window_size.0.try_into().unwrap_or_default();
+                        let height: i32 = window_size.1.try_into().unwrap_or_default();
 
-                            region.subtract(0, 0, width, height);
-                            set_region(region);
-                        }
+                        region.subtract(0, 0, width, height);
+                        set_region(&region);
 
-                        window
-                            .get_wlsurface()
-                            .set_input_region(wl_input_region.as_ref());
+                        window.get_wlsurface().set_input_region(Some(&region));
                     }
                     LayershellCustomActions::MarginChange(margin) => {
                         ev.main_window().set_margin(margin);
