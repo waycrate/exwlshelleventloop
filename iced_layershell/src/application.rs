@@ -284,9 +284,9 @@ where
                         let height: i32 = window_size.1.try_into().unwrap_or_default();
 
                         region.subtract(0, 0, width, height);
-                        set_region(&region);
+                        set_region(region);
 
-                        window.get_wlsurface().set_input_region(Some(&region));
+                        window.get_wlsurface().set_input_region(Some(region));
                     }
                     LayershellCustomActions::MarginChange(margin) => {
                         ev.main_window().set_margin(margin);
