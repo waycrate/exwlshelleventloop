@@ -27,6 +27,7 @@ use layershellev::{
     LayerEvent, ReturnData, StartMode, WindowWrapper,
 };
 
+use crate::actions::ActionCallback;
 use futures::{channel::mpsc, StreamExt};
 
 use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
@@ -275,7 +276,7 @@ where
                     LayershellCustomActions::LayerChange(layer) => {
                         ev.main_window().set_layer(layer);
                     }
-                    LayershellCustomActions::SetInputRegion(set_region) => {
+                    LayershellCustomActions::SetInputRegion(ActionCallback(set_region)) => {
                         let window = ev.main_window();
 
                         let region = wl_input_region.as_ref().expect("region not found");

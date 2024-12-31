@@ -38,7 +38,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
         true => {
             let additional_variants = quote! {
                 AnchorChange{id: iced::window::Id, anchor: iced_layershell::reexport::Anchor},
-                SetInputRegion{ id: iced::window::Id, set_region: fn(&iced_layershell::reexport::WlRegion) },
+                SetInputRegion{ id: iced::window::Id, callback: iced_layershell::actions::ActionCallback },
                 AnchorSizeChange{id: iced::window::Id, anchor:iced_layershell::reexport::Anchor, size: (u32, u32)},
                 LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
                 MarginChange{id: iced::window::Id, margin: (i32, i32, i32, i32)},
@@ -62,7 +62,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         use iced_layershell::actions::LayershellCustomActionsWithId;
 
                         match self {
-                            Self::SetInputRegion{ id, set_region } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::SetInputRegion(set_region))),
+                            Self::SetInputRegion{ id, callback } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::SetInputRegion(callback))),
                             Self::AnchorChange { id, anchor } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::AnchorChange(anchor))),
                             Self::AnchorSizeChange { id, anchor, size } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::AnchorSizeChange(anchor, size))),
                             Self::LayerChange { id, layer } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::LayerChange(layer))),
@@ -113,7 +113,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
         false => {
             let additional_variants = quote! {
                 AnchorChange(iced_layershell::reexport::Anchor),
-                SetInputRegion(fn(&iced_layershell::reexport::WlRegion)),
+                SetInputRegion(iced_layershell::actions::ActionCallback),
                 AnchorSizeChange(iced_layershell::reexport::Anchor, (u32, u32)),
                 LayerChange(iced_layershell::reexport::Layer),
                 MarginChange((i32, i32, i32, i32)),
@@ -131,7 +131,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         use iced_layershell::actions::LayershellCustomActions;
 
                         match self {
-                            Self::SetInputRegion(region) => Ok(LayershellCustomActions::SetInputRegion(region)),
+                            Self::SetInputRegion(callback) => Ok(LayershellCustomActions::SetInputRegion(callback)),
                             Self::AnchorChange(anchor) => Ok(LayershellCustomActions::AnchorChange(anchor)),
                             Self::AnchorSizeChange(anchor, size) => Ok(LayershellCustomActions::AnchorSizeChange(anchor, size)),
                             Self::LayerChange(layer) => Ok(LayershellCustomActions::LayerChange(layer)),

@@ -1,5 +1,6 @@
 use iced::widget::{button, row, Space};
 use iced::{Color, Element, Length, Task as Command, Theme};
+use iced_layershell::actions::ActionCallback;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::to_layer_message;
 use iced_layershell::Application;
@@ -14,7 +15,8 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     })
 }
 
-struct InputRegionExample;
+#[derive(Copy, Clone)]
+struct InputRegionExample(pub bool);
 
 #[to_layer_message]
 #[derive(Debug, Clone)]
@@ -31,7 +33,7 @@ impl Application for InputRegionExample {
     type Executor = iced::executor::Default;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        (Self, Command::none())
+        (Self(false), Command::none())
     }
 
     fn namespace(&self) -> String {
@@ -40,14 +42,21 @@ impl Application for InputRegionExample {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::SetRegion => Command::done(Message::SetInputRegion(|region| {
-                // Only the buttons!
-                region.add(0, 0, 400, 70);
-            })),
-            Message::UnsetRegion => Command::done(Message::SetInputRegion(|region| {
-                // Entire window!
-                region.add(0, 0, 400, 400);
-            })),
+            Message::SetRegion => {
+                self.0 = !self.0;
+                let val = self.0;
+                Command::done(Message::SetInputRegion(ActionCallback::new(
+                    move |region| {
+                        if val {
+                            // Only the buttons!
+                            region.add(0, 0, 400, 70);
+                        } else {
+                            // Entire Screen
+                            region.add(0, 0, 400, 400);
+                        }
+                    },
+                )))
+            }
             _ => unreachable!(),
         }
     }

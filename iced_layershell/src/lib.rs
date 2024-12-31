@@ -35,7 +35,6 @@ use iced_futures::Subscription;
 pub use sandbox::LayerShellSandbox;
 
 pub type Result = std::result::Result<(), error::Error>;
-
 /// The appearance of a program.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Appearance {

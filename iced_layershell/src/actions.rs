@@ -4,9 +4,10 @@ use iced_core::mouse::Interaction;
 use layershellev::id::Id as LayerId;
 use layershellev::NewLayerShellSettings;
 
+use std::sync::Arc;
+
 pub(crate) type LayerShellActionVec = Vec<LayerShellAction>;
 
-#[derive(Debug, Clone)]
 pub(crate) enum LayerShellAction {
     Mouse(Interaction),
     CustomActions(LayershellCustomActions),
@@ -51,9 +52,29 @@ pub struct IcedNewMenuSettings {
     pub direction: MenuDirection,
 }
 
+type Callback = Arc<dyn Fn(&WlRegion) + Send + Sync>;
+
+// Callback wrapper around dyn Fn(&WlRegion)
+#[derive(Clone)]
+pub struct ActionCallback(pub Callback);
+
+impl std::fmt::Debug for ActionCallback {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "callback function")
+    }
+}
+
+impl ActionCallback {
+    pub fn new<F>(callback: F) -> Self
+    where
+        F: Fn(&WlRegion) + Send + Sync + 'static,
+    {
+        ActionCallback(Arc::new(callback))
+    }
+}
+
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
-#[derive(Debug, Clone, Copy)]
 pub enum LayershellCustomActions {
     AnchorChange(Anchor),
     LayerChange(Layer),
@@ -69,7 +90,7 @@ pub enum LayershellCustomActions {
         settings: NewLayerShellSettings,
         id: IcedId,
     },
-    SetInputRegion(fn(&WlRegion)),
+    SetInputRegion(ActionCallback),
     NewPopUp {
         settings: IcedNewPopupSettings,
         id: IcedId,
@@ -83,9 +104,6 @@ pub enum LayershellCustomActions {
     ForgetLastOutput,
 }
 
-/// Please do not use this struct directly
-/// Use macro to_layer_message instead
-#[derive(Debug, Clone, Copy)]
 pub struct LayershellCustomActionsWithId(pub Option<IcedId>, pub LayershellCustomActions);
 
 impl LayershellCustomActionsWithId {
@@ -95,7 +113,6 @@ impl LayershellCustomActionsWithId {
 }
 
 // first one means
-#[derive(Debug, Clone, Copy)]
 pub(crate) struct LayershellCustomActionsWithIdInner(
     pub Option<LayerId>,         // come from
     pub Option<LayerId>,         // target if has one

@@ -363,6 +363,7 @@ where
                             window.set_size((width, height));
                         }
                         LayershellCustomActions::SetInputRegion(set_region) => {
+                            let set_region = set_region.0;
                             let Some(id) = id else {
                                 break 'out;
                             };
