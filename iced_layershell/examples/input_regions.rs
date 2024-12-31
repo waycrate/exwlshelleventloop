@@ -1,4 +1,4 @@
-use iced::widget::{button, row, Space};
+use iced::widget::{button, row};
 use iced::{Color, Element, Length, Task as Command, Theme};
 use iced_layershell::actions::ActionCallback;
 use iced_layershell::settings::{LayerShellSettings, Settings};
@@ -23,7 +23,6 @@ struct InputRegionExample(pub bool);
 #[doc = "Some docs"]
 enum Message {
     SetRegion,
-    UnsetRegion,
 }
 
 impl Application for InputRegionExample {
@@ -37,7 +36,7 @@ impl Application for InputRegionExample {
     }
 
     fn namespace(&self) -> String {
-        String::from("Counter - Iced")
+        String::from("Custom input regions")
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -48,7 +47,7 @@ impl Application for InputRegionExample {
                 Command::done(Message::SetInputRegion(ActionCallback::new(
                     move |region| {
                         if val {
-                            // Only the buttons!
+                            // Only the button
                             region.add(0, 0, 400, 70);
                         } else {
                             // Entire Screen
@@ -62,11 +61,9 @@ impl Application for InputRegionExample {
     }
 
     fn view(&self) -> Element<Message> {
-        // Create the top row with two buttons
         row![
-            button("Set region").on_press(Message::SetRegion),
-            Space::with_width(Length::Fill),
-            button("Reset region").on_press(Message::UnsetRegion),
+            button(if self.0 { "Set region" } else { "Reset region" })
+            .on_press(Message::SetRegion)
         ]
         .padding(20)
         .spacing(10)
