@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 pub(crate) type LayerShellActionVec = Vec<LayerShellAction>;
 
+#[derive(Debug, Clone)]
 pub(crate) enum LayerShellAction {
     Mouse(Interaction),
     CustomActions(LayershellCustomActions),
@@ -75,6 +76,7 @@ impl ActionCallback {
 
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
+#[derive(Debug, Clone)]
 pub enum LayershellCustomActions {
     AnchorChange(Anchor),
     LayerChange(Layer),
@@ -104,6 +106,9 @@ pub enum LayershellCustomActions {
     ForgetLastOutput,
 }
 
+/// Please do not use this struct directly
+/// Use macro to_layer_message instead
+#[derive(Debug, Clone)]
 pub struct LayershellCustomActionsWithId(pub Option<IcedId>, pub LayershellCustomActions);
 
 impl LayershellCustomActionsWithId {
@@ -113,6 +118,7 @@ impl LayershellCustomActionsWithId {
 }
 
 // first one means
+#[derive(Debug, Clone)]
 pub(crate) struct LayershellCustomActionsWithIdInner(
     pub Option<LayerId>,         // come from
     pub Option<LayerId>,         // target if has one

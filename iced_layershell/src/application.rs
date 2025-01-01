@@ -27,10 +27,9 @@ use layershellev::{
     LayerEvent, ReturnData, StartMode, WindowWrapper,
 };
 
-use crate::actions::ActionCallback;
 use futures::{channel::mpsc, StreamExt};
 
-use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
+use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
 /// An interactive, native cross-platform application.
 ///
