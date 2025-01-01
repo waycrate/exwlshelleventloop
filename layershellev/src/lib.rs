@@ -241,8 +241,10 @@ pub mod reexport {
         pub use wayland_client::{
             globals::GlobalList,
             protocol::{
+                wl_compositor::WlCompositor,
                 wl_keyboard::{self, KeyState},
                 wl_pointer::{self, ButtonState},
+                wl_region::WlRegion,
                 wl_seat::WlSeat,
             },
             QueueHandle, WEnum,

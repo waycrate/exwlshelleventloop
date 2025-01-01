@@ -22,13 +22,14 @@ use iced_futures::{Executor, Runtime, Subscription};
 
 use layershellev::{
     calloop::timer::{TimeoutAction, Timer},
+    reexport::wayland_client::{WlCompositor, WlRegion},
     reexport::zwp_virtual_keyboard_v1,
     LayerEvent, ReturnData, StartMode, WindowWrapper,
 };
 
 use futures::{channel::mpsc, StreamExt};
 
-use crate::{event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
+use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
 /// An interactive, native cross-platform application.
 ///
@@ -196,7 +197,7 @@ where
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
-
+    let mut wl_input_region: Option<WlRegion> = None;
     let mut pointer_serial: u32 = 0;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
@@ -204,28 +205,33 @@ where
         let mut def_returndata = ReturnData::None;
         match event {
             LayerEvent::InitRequest => {
-                if settings.virtual_keyboard_support.is_some() {
-                    def_returndata = ReturnData::RequestBind;
-                }
+                def_returndata = ReturnData::RequestBind;
             }
             LayerEvent::BindProvide(globals, qh) => {
-                let virtual_keyboard_manager = globals
-                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                        qh,
-                        1..=1,
-                        (),
-                    )
-                    .expect("no support virtual_keyboard");
-                let VirtualKeyboardSettings {
-                    file,
-                    keymap_size,
-                    keymap_format,
-                } = settings.virtual_keyboard_support.as_ref().unwrap();
-                let seat = ev.get_seat();
-                let virtual_keyboard_in =
-                    virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
-                virtual_keyboard_in.keymap((*keymap_format).into(), file.as_fd(), *keymap_size);
-                ev.set_virtual_keyboard(virtual_keyboard_in);
+                let wl_compositor = globals
+                    .bind::<WlCompositor, _, _>(qh, 1..=1, ())
+                    .expect("could not bind wl_compositor");
+                wl_input_region = Some(wl_compositor.create_region(qh, ()));
+
+                if settings.virtual_keyboard_support.is_some() {
+                    let virtual_keyboard_manager = globals
+                        .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                            qh,
+                            1..=1,
+                            (),
+                        )
+                        .expect("no support virtual_keyboard");
+                    let VirtualKeyboardSettings {
+                        file,
+                        keymap_size,
+                        keymap_format,
+                    } = settings.virtual_keyboard_support.as_ref().unwrap();
+                    let seat = ev.get_seat();
+                    let virtual_keyboard_in =
+                        virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
+                    virtual_keyboard_in.keymap((*keymap_format).into(), file.as_fd(), *keymap_size);
+                    ev.set_virtual_keyboard(virtual_keyboard_in);
+                }
             }
             LayerEvent::RequestMessages(message) => {
                 if let DispatchMessage::MouseEnter { serial, .. } = message {
@@ -268,6 +274,19 @@ where
                     }
                     LayershellCustomActions::LayerChange(layer) => {
                         ev.main_window().set_layer(layer);
+                    }
+                    LayershellCustomActions::SetInputRegion(ActionCallback(set_region)) => {
+                        let window = ev.main_window();
+
+                        let region = wl_input_region.as_ref().expect("region not found");
+                        let window_size = window.get_size();
+                        let width: i32 = window_size.0.try_into().unwrap_or_default();
+                        let height: i32 = window_size.1.try_into().unwrap_or_default();
+
+                        region.subtract(0, 0, width, height);
+                        set_region(region);
+
+                        window.get_wlsurface().set_input_region(Some(region));
                     }
                     LayershellCustomActions::MarginChange(margin) => {
                         ev.main_window().set_margin(margin);

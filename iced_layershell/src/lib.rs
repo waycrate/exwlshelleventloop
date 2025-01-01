@@ -13,7 +13,7 @@ mod sandbox;
 pub mod settings;
 
 pub mod reexport {
-    pub use layershellev::reexport::wayland_client::wl_keyboard;
+    pub use layershellev::reexport::wayland_client::{wl_keyboard, WlRegion};
     pub use layershellev::reexport::Anchor;
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
@@ -35,7 +35,6 @@ use iced_futures::Subscription;
 pub use sandbox::LayerShellSandbox;
 
 pub type Result = std::result::Result<(), error::Error>;
-
 /// The appearance of a program.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Appearance {

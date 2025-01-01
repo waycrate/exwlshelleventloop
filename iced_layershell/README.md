@@ -468,4 +468,14 @@ impl Counter {
 
 ```
 
+# Input Regions
+You can define which regions of your window receive input events and which parts are transparent to these events by using WlRegion in SetInputRegion message call.
+```rust, ignore
+Message::SetInputRegion(ActionCallback::new(|region| {
+        region.add(0, 0, 400, 400);
+        region.subtract(0, 0, 400, 60);
+}))
+```
+view the full example [here](https://github.com/waycrate/exwlshelleventloop/tree/master/iced_layershell/examples/input_regions.rs)
+
 For more example, please take a look at [exwlshelleventloop](https://github.com/waycrate/exwlshelleventloop)
