@@ -76,7 +76,7 @@ iced_futures = "0.13"
 iced_graphics = "0.13"
 window_clipboard = "0.4.1"
 
-bitflags = "2.6.0"
+bitflags = "2.7.0"
 log = "0.4.22"
 
 xkbcommon-dl = "0.4.2"
