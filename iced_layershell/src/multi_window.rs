@@ -735,6 +735,7 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
+                let message_empty = messages.is_empty();
 
                 debug.event_processing_started();
 
@@ -772,9 +773,12 @@ async fn run_instance<A, E, C>(
                             &mut messages,
                         );
 
-                    window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
+                    let uis_stale_oudated = matches!(ui_state, user_interface::State::Outdated);
+                    if uis_stale_oudated && !message_empty {
+                        window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
+                    }
                     if !uis_stale {
-                        uis_stale = matches!(ui_state, user_interface::State::Outdated);
+                        uis_stale = uis_stale_oudated;
                     }
 
                     debug.event_processing_finished();
@@ -788,17 +792,17 @@ async fn run_instance<A, E, C>(
                     }
                 }
 
-                let mut already_redraw_all = false;
+                let mut redraw_all = false;
                 // HACK: this logic is just from iced, but seems if there is no main window,
                 // any window will not get Outdated state.
                 // So here just check if there is window_events
                 if is_background_mode && has_window_event {
                     custom_actions.push(LayerShellAction::RedrawAll);
-                    already_redraw_all = true;
+                    redraw_all = true;
                 }
 
                 // TODO mw application update returns which window IDs to update
-                if !messages.is_empty() || uis_stale {
+                if !message_empty || uis_stale {
                     let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
                         ManuallyDrop::into_inner(user_interfaces)
                             .drain()
@@ -812,8 +816,8 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
-                    if !is_background_mode {
-                        already_redraw_all = true;
+                    if !is_background_mode || message_empty {
+                        redraw_all = true;
                         custom_actions.push(LayerShellAction::RedrawAll);
                     }
 
@@ -827,7 +831,7 @@ async fn run_instance<A, E, C>(
 
                 // NOTE: only append the target window refresh event when not invoke the redrawAll
                 // event. This will make the events fewer.
-                if !already_redraw_all {
+                if !redraw_all {
                     custom_actions.append(&mut window_refresh_events);
                 }
             }
