@@ -576,8 +576,8 @@ async fn run_instance<A, E, C>(
                         state.logical_size(),
                         &mut debug,
                     ));
-                    custom_actions.push(LayerShellAction::RedrawAll);
                 }
+                custom_actions.push(LayerShellAction::RedrawAll);
             }
             _ => unreachable!(),
         }
