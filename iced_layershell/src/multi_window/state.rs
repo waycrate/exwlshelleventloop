@@ -47,7 +47,9 @@ where
             .viewport
             .clone()
             .expect("iced_layershell need viewport support to better wayland hidpi");
-        wpviewport.set_destination(logical_size.width as i32, logical_size.height as i32);
+        if logical_size.width != 0 && logical_size.height != 0 {
+            wpviewport.set_destination(logical_size.width as i32, logical_size.height as i32);
+        }
         Self {
             id,
             application_scale_factor,
