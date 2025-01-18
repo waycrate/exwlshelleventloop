@@ -1087,7 +1087,7 @@ pub(crate) fn run_action<A, C>(
                 let _ = channel.send(window::Screenshot::new(
                     bytes,
                     window.state.physical_size(),
-                    window.state.viewport().scale_factor(),
+                    window.state.scale_factor(),
                 ));
             }
             _ => {}
