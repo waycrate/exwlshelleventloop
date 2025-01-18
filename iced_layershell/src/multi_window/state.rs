@@ -60,7 +60,7 @@ where
             appearance,
             mouse_position: None,
             modifiers: ModifiersState::default(),
-            wpviewport
+            wpviewport,
         }
     }
     pub fn modifiers(&self) -> ModifiersState {
