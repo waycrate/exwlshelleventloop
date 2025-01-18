@@ -87,7 +87,7 @@ fn main() {
         .with_layer(Layer::Top)
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
         .with_keyboard_interacivity(KeyboardInteractivity::None)
-        .with_exclusize_zone(300)
+        .with_exclusive_zone(300)
         .build()
         .unwrap();
 

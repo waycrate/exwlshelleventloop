@@ -687,7 +687,7 @@ pub(crate) fn run_action<A, C>(
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
     use iced_runtime::window;
-    use iced_runtime::window::Action as WinowAction;
+    use iced_runtime::window::Action as WindowAction;
     //let mut customactions = Vec::new();
     match action {
         Action::Output(message) => match message.try_into() {
@@ -740,10 +740,10 @@ pub(crate) fn run_action<A, C>(
         }
         Action::Window(action) => 'out: {
             match action {
-                WinowAction::Close(_) => {
+                WindowAction::Close(_) => {
                     *should_exit = true;
                 }
-                WinowAction::Screenshot(id, channel) => {
+                WindowAction::Screenshot(id, channel) => {
                     let Some(window) = window_manager.get_mut(id) else {
                         break 'out;
                     };
