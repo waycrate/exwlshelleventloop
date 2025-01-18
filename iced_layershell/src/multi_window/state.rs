@@ -47,9 +47,7 @@ where
             .viewport
             .clone()
             .expect("iced_layershell need viewport support to better wayland hidpi");
-        if logical_size.width != 0 && logical_size.height != 0 {
-            wpviewport.set_destination(logical_size.width as i32, logical_size.height as i32);
-        }
+        set_wpviewport_destination(&wpviewport, logical_size);
         Self {
             id,
             application_scale_factor,
@@ -158,9 +156,7 @@ where
 
         self.viewport_version = self.viewport_version.wrapping_add(1);
 
-        let logical_size = self.logical_size_u32();
-        self.wpviewport
-            .set_destination(logical_size.width as i32, logical_size.height as i32);
+        set_wpviewport_destination(&self.wpviewport, self.logical_size_u32());
     }
 
     fn logical_size_u32(&self) -> Size<u32> {
@@ -186,4 +182,11 @@ fn viewport(
         (logical_size.height as f64 * factor).ceil() as u32,
     );
     Viewport::with_physical_size(physical_size, factor)
+}
+
+fn set_wpviewport_destination(wpviewport: &WpViewport, logical_size: Size<u32>) {
+    if logical_size.width != 0 && logical_size.height != 0 {
+        // set_destination(0, 0) will panic
+        wpviewport.set_destination(logical_size.width as i32, logical_size.height as i32);
+    }
 }
