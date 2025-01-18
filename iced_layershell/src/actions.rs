@@ -66,6 +66,7 @@ pub enum LayershellCustomActions {
     AnchorSizeChange(Anchor, (u32, u32)),
     MarginChange((i32, i32, i32, i32)),
     SizeChange((u32, u32)),
+    ExclusiveZoneChange(i32),
     VirtualKeyboardPressed {
         time: u32,
         key: u32,

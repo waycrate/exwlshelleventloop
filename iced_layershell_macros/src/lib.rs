@@ -43,6 +43,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
                 MarginChange{id: iced::window::Id, margin: (i32, i32, i32, i32)},
                 SizeChange{id: iced::window::Id, size: (u32, u32)},
+                ExclusiveZoneChange{id: iced::window::Id, zone_size: i32},
                 VirtualKeyboardPressed {
                     time: u32,
                     key: u32,
@@ -68,6 +69,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::LayerChange { id, layer } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::LayerChange(layer))),
                             Self::MarginChange { id, margin } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::MarginChange(margin))),
                             Self::SizeChange { id, size } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::SizeChange(size))),
+                            Self::ExclusiveZoneChange { id, zone_size } => Ok(LayershellCustomActionsWithId::new(Some(id), LayershellCustomActions::ExclusiveZoneChange(zone_size))),
                             Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActionsWithId::new(
                                 None,
                                 LayershellCustomActions::VirtualKeyboardPressed { time, key })
@@ -118,6 +120,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 LayerChange(iced_layershell::reexport::Layer),
                 MarginChange((i32, i32, i32, i32)),
                 SizeChange((u32, u32)),
+                ExclusiveZoneChange(i32),
                 VirtualKeyboardPressed {
                     time: u32,
                     key: u32,
@@ -138,6 +141,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
                             Self::MarginChange(margin) => Ok(LayershellCustomActions::MarginChange(margin)),
                             Self::SizeChange(size) => Ok(LayershellCustomActions::SizeChange(size)),
+                            Self::ExclusiveZoneChange(zone_size) => Ok(LayershellCustomActions::ExclusiveZoneChange(zone_size)),
                             Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActions::VirtualKeyboardPressed {
                                 time,
                                 key

@@ -362,6 +362,15 @@ where
                             };
                             window.set_size((width, height));
                         }
+                        LayershellCustomActions::ExclusiveZoneChange(zone_size) => {
+                            let Some(id) = id else {
+                                break 'out;
+                            };
+                            let Some(window) = ev.get_window_with_id(id) else {
+                                break 'out;
+                            };
+                            window.set_exclusive_zone(zone_size);
+                        }
                         LayershellCustomActions::SetInputRegion(set_region) => {
                             let set_region = set_region.0;
                             let Some(id) = id else {
