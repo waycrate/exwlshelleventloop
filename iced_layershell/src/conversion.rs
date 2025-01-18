@@ -11,12 +11,7 @@ use layershellev::keyboard::ModifiersState;
 use layershellev::xkb_keyboard::ElementState;
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 
-// x and y coordinates should be logical. There is no need to use scale_factor.
-pub fn window_event(
-    layerevent: &LayerShellEvent,
-    _scale_factor: f64,
-    modifiers: ModifiersState,
-) -> Option<IcedEvent> {
+pub fn window_event(layerevent: &LayerShellEvent, modifiers: ModifiersState) -> Option<IcedEvent> {
     match layerevent {
         LayerShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
         LayerShellEvent::CursorMoved { x, y } => {
