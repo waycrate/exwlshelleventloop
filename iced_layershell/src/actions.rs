@@ -18,23 +18,6 @@ pub(crate) enum LayerShellAction {
     NewMenu((IcedNewPopupSettings, iced_core::window::Id)),
 }
 
-pub trait IsSingleton {
-    fn is_singleton(&self) -> bool {
-        false
-    }
-}
-
-pub struct MainWindowInfo;
-
-impl TryFrom<MainWindowInfo> for () {
-    type Error = ();
-    fn try_from(_: MainWindowInfo) -> Result<(), Self::Error> {
-        Err(())
-    }
-}
-
-impl IsSingleton for () {}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
