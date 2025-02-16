@@ -545,12 +545,14 @@ async fn run_instance<A, E, C>(
     while let Some(event) = event_receiver.next().await {
         waiting_actions.retain(|(id, custom_action)| {
             let Some(layerid) = window_manager.get_layer_id(*id) else {
+                // NOTE: here, the layershell or popup has not been created
+                // Still need to wait for sometime
                 return true;
             };
             let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
                 let option_id = window_manager.get_layer_id(*id);
                 if option_id.is_none() {
-                    // Note drop it
+                    // NOTE: drop it
                     return false;
                 }
                 option_id
