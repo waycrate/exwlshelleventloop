@@ -2534,24 +2534,6 @@ impl<T: 'static> WindowState<T> {
                                 binding: info,
                                 scale: 120,
                             });
-                            // NOTE: make sure layershell is created
-                            while self
-                                .message
-                                .iter()
-                                .find(|&(id, message)| {
-                                    let Some(id) = id else {
-                                        return false;
-                                    };
-                                    id == id
-                                        && matches!(
-                                            message,
-                                            DispatchMessageInner::RefreshSurface { .. }
-                                        )
-                                })
-                                .is_none()
-                            {
-                                event_loop.dispatch(Duration::from_millis(1), &mut self)?;
-                            }
                         }
                         ReturnData::NewPopUp((
                             NewPopUpSettings {

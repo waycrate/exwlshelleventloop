@@ -534,11 +534,31 @@ async fn run_instance<A, E, C>(
 
     let mut events = Vec::new();
     let mut custom_actions = Vec::new();
+    let mut waiting_actions = Vec::new();
 
     let mut should_exit = false;
     let mut messages = Vec::new();
 
     while let Some(event) = event_receiver.next().await {
+        waiting_actions.retain(|(id, custom_action)| {
+            let Some(layerid) = window_manager.get_layer_id(*id) else {
+                return true;
+            };
+            let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
+                let option_id = window_manager.get_layer_id(*id);
+                if option_id.is_none() {
+                    // Note drop it
+                    return false;
+                }
+                option_id
+            } else {
+                None
+            };
+            custom_actions.push(LayerShellAction::CustomActionsWithId(
+                LayershellCustomActionsWithIdInner(Some(layerid), option_id, custom_action.clone()),
+            ));
+            false
+        });
         match event {
             MultiWindowIcedLayerEvent(
                 _id,
@@ -712,6 +732,7 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                     &mut clipboard,
                     &mut custom_actions,
+                    &mut waiting_actions,
                     &mut should_exit,
                     &mut debug,
                     &mut window_manager,
@@ -973,6 +994,7 @@ pub(crate) fn run_action<A, C>(
     messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction>,
+    waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomActions)>,
     should_exit: &mut bool,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
@@ -994,7 +1016,10 @@ pub(crate) fn run_action<A, C>(
                 let LayershellCustomActionsWithId(id, custom_action) = action;
 
                 if let Some(id) = id {
-                    tracing::info!("{id:?}, {:?}", window_manager.get_layer_id(id));
+                    if window_manager.get_layer_id(id).is_none() {
+                        waiting_actions.push((id, custom_action));
+                        return;
+                    }
                 }
 
                 let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
