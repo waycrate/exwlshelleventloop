@@ -555,6 +555,7 @@ async fn run_instance<A, E, C>(
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     is_new_window = true;
                     let id = info.unwrap_or_else(window::Id::unique);
+                    tracing::info!("id: {id:?} created");
 
                     let window = window_manager.insert(
                         id,
