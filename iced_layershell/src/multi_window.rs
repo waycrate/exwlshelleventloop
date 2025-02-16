@@ -319,6 +319,7 @@ where
                     match action {
                         LayershellCustomActions::AnchorChange(anchor) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -328,6 +329,7 @@ where
                         }
                         LayershellCustomActions::AnchorSizeChange(anchor, size) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -337,6 +339,7 @@ where
                         }
                         LayershellCustomActions::LayerChange(layer) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -345,19 +348,18 @@ where
                             window.set_layer(layer);
                         }
                         LayershellCustomActions::MarginChange(margin) => {
-                            tracing::info!("margin is {margin:?}");
                             let Some(id) = id else {
-                                tracing::info!("no id");
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
-                                tracing::info!("cannot get id with {id:?}");
                                 break 'out;
                             };
                             window.set_margin(margin);
                         }
                         LayershellCustomActions::SizeChange((width, height)) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -368,6 +370,7 @@ where
                         LayershellCustomActions::SetInputRegion(set_region) => {
                             let set_region = set_region.0;
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -575,7 +578,6 @@ async fn run_instance<A, E, C>(
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
                     is_new_window = true;
                     let id = info.unwrap_or_else(window::Id::unique);
-                    tracing::info!("id: {id:?} created");
 
                     let window = window_manager.insert(
                         id,
