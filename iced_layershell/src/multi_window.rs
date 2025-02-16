@@ -990,9 +990,9 @@ pub(crate) fn run_action<A, C>(
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
-                let action: LayershellCustomActionsWithId = action;
+                let LayershellCustomActionsWithId(id, custom_action) = action;
 
-                let option_id = if let LayershellCustomActions::RemoveWindow(id) = action.1 {
+                let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
                     let option_id = window_manager.get_layer_id(id);
                     if option_id.is_none() {
                         return;
@@ -1003,9 +1003,9 @@ pub(crate) fn run_action<A, C>(
                 };
                 custom_actions.push(LayerShellAction::CustomActionsWithId(
                     LayershellCustomActionsWithIdInner(
-                        action.0.and_then(|id| window_manager.get_layer_id(id)),
+                        id.and_then(|id| window_manager.get_layer_id(id)),
                         option_id,
-                        action.1,
+                        custom_action,
                     ),
                 ));
             }

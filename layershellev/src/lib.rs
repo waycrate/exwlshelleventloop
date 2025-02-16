@@ -2534,6 +2534,7 @@ impl<T: 'static> WindowState<T> {
                                 binding: info,
                                 scale: 120,
                             });
+                            event_loop.dispatch(Duration::from_millis(1), &mut self)?;
                         }
                         ReturnData::NewPopUp((
                             NewPopUpSettings {
