@@ -18,7 +18,7 @@ authors = [
   "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2021"
-version = "0.13.3"
+version = "0.13.4"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"
 description = "Wayland extra shell lib"
@@ -26,14 +26,14 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-layershellev = { version = "0.13.3", path = "./layershellev" }
-sessionlockev = { version = "0.13.3", path = "./sessionlockev" }
+layershellev = { version = "0.13.4", path = "./layershellev" }
+sessionlockev = { version = "0.13.4", path = "./sessionlockev" }
 
-iced_layershell = { version = "0.13.3", path = "./iced_layershell" }
-iced_layershell_macros = { version = "0.13.3", path = "./iced_layershell_macros" }
-iced_sessionlock = { version = "0.13.3", path = "./iced_sessionlock" }
-iced_sessionlock_macros = { version = "0.13.3", path = "./iced_sessionlock_macros" }
-waycrate_xkbkeycode = { version = "0.13.3", path = "./waycrate_xkbkeycode" }
+iced_layershell = { version = "0.13.4", path = "./iced_layershell" }
+iced_layershell_macros = { version = "0.13.4", path = "./iced_layershell_macros" }
+iced_sessionlock = { version = "0.13.4", path = "./iced_sessionlock" }
+iced_sessionlock_macros = { version = "0.13.4", path = "./iced_sessionlock_macros" }
+waycrate_xkbkeycode = { version = "0.13.4", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.16.0"
 thiserror = "1.0.69"
