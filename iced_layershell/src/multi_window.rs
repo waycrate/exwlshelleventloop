@@ -993,6 +993,10 @@ pub(crate) fn run_action<A, C>(
             Ok(action) => {
                 let LayershellCustomActionsWithId(id, custom_action) = action;
 
+                if let Some(id) = id {
+                    tracing::info!("{id:?}, {:?}", window_manager.get_layer_id(id));
+                }
+
                 let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
                     let option_id = window_manager.get_layer_id(id);
                     if option_id.is_none() {
