@@ -319,6 +319,7 @@ where
                     match action {
                         LayershellCustomActions::AnchorChange(anchor) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -328,6 +329,7 @@ where
                         }
                         LayershellCustomActions::AnchorSizeChange(anchor, size) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -337,6 +339,7 @@ where
                         }
                         LayershellCustomActions::LayerChange(layer) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -346,6 +349,7 @@ where
                         }
                         LayershellCustomActions::MarginChange(margin) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -355,6 +359,7 @@ where
                         }
                         LayershellCustomActions::SizeChange((width, height)) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -365,6 +370,7 @@ where
                         LayershellCustomActions::SetInputRegion(set_region) => {
                             let set_region = set_region.0;
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
@@ -531,11 +537,33 @@ async fn run_instance<A, E, C>(
 
     let mut events = Vec::new();
     let mut custom_actions = Vec::new();
+    let mut waiting_actions = Vec::new();
 
     let mut should_exit = false;
     let mut messages = Vec::new();
 
     while let Some(event) = event_receiver.next().await {
+        waiting_actions.retain(|(id, custom_action)| {
+            let Some(layerid) = window_manager.get_layer_id(*id) else {
+                // NOTE: here, the layershell or popup has not been created
+                // Still need to wait for sometime
+                return true;
+            };
+            let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
+                let option_id = window_manager.get_layer_id(*id);
+                if option_id.is_none() {
+                    // NOTE: drop it
+                    return false;
+                }
+                option_id
+            } else {
+                None
+            };
+            custom_actions.push(LayerShellAction::CustomActionsWithId(
+                LayershellCustomActionsWithIdInner(Some(layerid), option_id, custom_action.clone()),
+            ));
+            false
+        });
         match event {
             MultiWindowIcedLayerEvent(
                 _id,
@@ -708,6 +736,7 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                     &mut clipboard,
                     &mut custom_actions,
+                    &mut waiting_actions,
                     &mut should_exit,
                     &mut debug,
                     &mut window_manager,
@@ -969,6 +998,7 @@ pub(crate) fn run_action<A, C>(
     messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction>,
+    waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomActions)>,
     should_exit: &mut bool,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
@@ -987,9 +1017,16 @@ pub(crate) fn run_action<A, C>(
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
-                let action: LayershellCustomActionsWithId = action;
+                let LayershellCustomActionsWithId(id, custom_action) = action;
 
-                let option_id = if let LayershellCustomActions::RemoveWindow(id) = action.1 {
+                if let Some(id) = id {
+                    if window_manager.get_layer_id(id).is_none() {
+                        waiting_actions.push((id, custom_action));
+                        return;
+                    }
+                }
+
+                let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
                     let option_id = window_manager.get_layer_id(id);
                     if option_id.is_none() {
                         return;
@@ -1000,9 +1037,9 @@ pub(crate) fn run_action<A, C>(
                 };
                 custom_actions.push(LayerShellAction::CustomActionsWithId(
                     LayershellCustomActionsWithIdInner(
-                        action.0.and_then(|id| window_manager.get_layer_id(id)),
+                        id.and_then(|id| window_manager.get_layer_id(id)),
                         option_id,
-                        action.1,
+                        custom_action,
                     ),
                 ));
             }
