@@ -345,10 +345,13 @@ where
                             window.set_layer(layer);
                         }
                         LayershellCustomActions::MarginChange(margin) => {
+                            tracing::info!("margin is {margin:?}");
                             let Some(id) = id else {
+                                tracing::info!("no id");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
+                                tracing::info!("cannot get id with {id:?}");
                                 break 'out;
                             };
                             window.set_margin(margin);
