@@ -20,7 +20,6 @@ where
     pub surface: C::Surface,
     pub state: State<A>,
     pub mouse_interaction: mouse::Interaction,
-    pub wrapper: Arc<WindowWrapper>,
 }
 
 pub struct WindowManager<A: Application, C: Compositor>
@@ -83,8 +82,7 @@ where
         let layerid = window.id();
         let state = State::new(id, application, size, fractal_scale, &window);
         let physical_size = state.physical_size();
-        let surface =
-            compositor.create_surface(window.clone(), physical_size.width, physical_size.height);
+        let surface = compositor.create_surface(window, physical_size.width, physical_size.height);
         let renderer = compositor.create_renderer();
         let _ = self.aliases.insert(layerid, id);
         let _ = self.back_aliases.insert(id, layerid);
@@ -97,7 +95,6 @@ where
                 surface,
                 state,
                 mouse_interaction: mouse::Interaction::Idle,
-                wrapper: window,
             },
         );
         self.entries
