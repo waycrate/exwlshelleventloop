@@ -168,7 +168,7 @@ where
         .build()
         .expect("Cannot create layershell");
 
-    let window = Arc::new(ev.gen_main_wrapper());
+    let window = Arc::new(ev.gen_mainwindow_wrapper());
 
     if let Some(stream) = iced_runtime::task::into_stream(task) {
         runtime.run(stream);

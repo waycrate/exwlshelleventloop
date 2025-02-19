@@ -38,7 +38,7 @@ where
         let viewport = viewport(logical_size, wayland_scale_factor, application_scale_factor);
 
         let wpviewport = window
-            .gen_main_wrapper()
+            .gen_mainwindow_wrapper()
             .viewport
             .expect("iced_layershell need viewport support to better wayland dpi");
         set_wpviewport_destination(&wpviewport, logical_size);

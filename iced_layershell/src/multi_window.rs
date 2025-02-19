@@ -34,7 +34,7 @@ use layershellev::{
     calloop::timer::{TimeoutAction, Timer},
     reexport::wayland_client::{WlCompositor, WlRegion},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, NewPopUpSettings, ReturnData, WindowState, WindowWrapper,
+    LayerEvent, NewPopUpSettings, ReturnData, WindowState,
 };
 
 use futures::{channel::mpsc, StreamExt};
@@ -175,7 +175,6 @@ where
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
 
-    let is_background_mode = settings.layer_settings.start_mode.is_background();
     let ev: WindowState<iced::window::Id> =
         layershellev::WindowState::new(&application.namespace())
             .with_start_mode(settings.layer_settings.start_mode)
@@ -190,8 +189,6 @@ where
             .build()
             .expect("Cannot create layershell");
 
-    let window = Arc::new(ev.gen_main_wrapper());
-
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<MultiWindowIcedLayerEvent<Action<A::Message>>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec>();
@@ -203,9 +200,7 @@ where
         debug,
         event_receiver,
         control_sender,
-        window,
         settings.fonts,
-        is_background_mode,
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
@@ -504,9 +499,7 @@ async fn run_instance<A, E, C>(
     mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<Action<A::Message>>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
-    window: Arc<WindowWrapper>,
     fonts: Vec<Cow<'static, [u8]>>,
-    is_background_mode: bool,
 ) where
     A: Application + 'static,
     E: Executor + 'static,
@@ -516,16 +509,23 @@ async fn run_instance<A, E, C>(
 {
     use iced::window;
     use iced_core::Event;
-    let mut compositor = C::new(compositor_settings, window.clone())
-        .await
-        .expect("Cannot create compositer");
-    for font in fonts {
-        compositor.load_font(font);
+    let mut compositor: Option<C> = None;
+    let default_fonts = fonts;
+    macro_rules! replace_compositor {
+        ($window:expr) => {
+            let mut new_compositor = C::new(compositor_settings, $window.clone())
+                .await
+                .expect("Cannot create compositer");
+            let fonts = default_fonts.clone();
+            for font in fonts {
+                new_compositor.load_font(font);
+            }
+            compositor.replace(new_compositor);
+        };
     }
+    let mut window_manager: WindowManager<A, C> = WindowManager::new();
 
-    let mut window_manager = WindowManager::new();
-
-    let mut clipboard = LayerShellClipboard::connect(&window);
+    let mut clipboard = LayerShellClipboard::unconnected();
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
@@ -578,16 +578,21 @@ async fn run_instance<A, E, C>(
             ) => {
                 let mut is_new_window = false;
                 let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
+                    let wrapper = Arc::new(wrapper);
                     is_new_window = true;
                     let id = info.unwrap_or_else(window::Id::unique);
+                    if compositor.is_none() {
+                        replace_compositor!(wrapper);
+                        clipboard = LayerShellClipboard::connect(&wrapper);
+                    }
 
                     let window = window_manager.insert(
                         id,
                         (width, height),
                         fractal_scale,
-                        Arc::new(wrapper),
+                        wrapper,
                         &application,
-                        &mut compositor,
+                        compositor.as_mut().expect("It should have been created"),
                     );
                     let logical_size = window.state.logical_size();
 
@@ -623,6 +628,9 @@ async fn run_instance<A, E, C>(
                     );
                     (id, window)
                 };
+                let compositor = compositor
+                    .as_mut()
+                    .expect("The compositor should have been created");
 
                 let ui = user_interfaces.get_mut(&id).expect("Get User interface");
 
@@ -724,7 +732,7 @@ async fn run_instance<A, E, C>(
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::UserEvent(event)) => {
-                let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                let mut cached_user_interfaces: HashMap<window::Id, user_interface::Cache> =
                     ManuallyDrop::into_inner(user_interfaces)
                         .drain()
                         .map(|(id, ui)| (id, ui.into_cache()))
@@ -740,13 +748,13 @@ async fn run_instance<A, E, C>(
                     &mut should_exit,
                     &mut debug,
                     &mut window_manager,
-                    &mut cached_interfaces,
+                    &mut cached_user_interfaces,
                 );
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
                     &mut debug,
                     &mut window_manager,
-                    cached_interfaces,
+                    cached_user_interfaces,
                 ));
                 if should_exit {
                     break;
@@ -810,17 +818,14 @@ async fn run_instance<A, E, C>(
                 }
 
                 let mut already_redraw_all = false;
-                // HACK: this logic is just from iced, but seems if there is no main window,
-                // any window will not get Outdated state.
-                // So here just check if there is window_events
-                if is_background_mode && has_window_event {
+                if has_window_event {
                     custom_actions.push(LayerShellAction::RedrawAll);
                     already_redraw_all = true;
                 }
 
                 // TODO mw application update returns which window IDs to update
                 if !messages.is_empty() || uis_stale {
-                    let cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                    let cached_user_interfaces: HashMap<window::Id, user_interface::Cache> =
                         ManuallyDrop::into_inner(user_interfaces)
                             .drain()
                             .map(|(id, ui)| (id, ui.into_cache()))
@@ -833,16 +838,11 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
-                    if !is_background_mode {
-                        already_redraw_all = true;
-                        custom_actions.push(LayerShellAction::RedrawAll);
-                    }
-
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
                         &mut debug,
                         &mut window_manager,
-                        cached_interfaces,
+                        cached_user_interfaces,
                     ));
                 }
 
@@ -853,7 +853,7 @@ async fn run_instance<A, E, C>(
                 }
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
-                let mut cached_interfaces: HashMap<window::Id, user_interface::Cache> =
+                let mut cached_user_interfaces: HashMap<window::Id, user_interface::Cache> =
                     ManuallyDrop::into_inner(user_interfaces)
                         .drain()
                         .map(|(id, ui)| (id, ui.into_cache()))
@@ -861,13 +861,18 @@ async fn run_instance<A, E, C>(
 
                 application.remove_id(id);
                 window_manager.remove(id);
-                cached_interfaces.remove(&id);
+                cached_user_interfaces.remove(&id);
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
                     &mut debug,
                     &mut window_manager,
-                    cached_interfaces,
+                    cached_user_interfaces,
                 ));
+                // if now there is no windows now, then break the compositor, and unlink the clipboard
+                if window_manager.is_empty() {
+                    compositor = None;
+                    clipboard = LayerShellClipboard::unconnected();
+                }
             }
             MultiWindowIcedLayerEvent(
                 Some(id),
@@ -993,7 +998,7 @@ pub(crate) fn update<A: Application, E: Executor>(
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_action<A, C>(
     application: &A,
-    compositor: &mut C,
+    compositor: &mut Option<C>,
     event: Action<A::Message>,
     messages: &mut Vec<A::Message>,
     clipboard: &mut LayerShellClipboard,
@@ -1002,7 +1007,7 @@ pub(crate) fn run_action<A, C>(
     should_exit: &mut bool,
     debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
-    ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
+    cached_user_interfaces: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
     A: Application,
     C: Compositor<Renderer = A::Renderer> + 'static,
@@ -1063,7 +1068,7 @@ pub(crate) fn run_action<A, C>(
                 application,
                 debug,
                 window_manager,
-                std::mem::take(ui_caches),
+                std::mem::take(cached_user_interfaces),
             );
 
             'operate: while let Some(mut operation) = current_operation.take() {
@@ -1087,7 +1092,7 @@ pub(crate) fn run_action<A, C>(
                 }
             }
 
-            *ui_caches = uis.drain().map(|(id, ui)| (id, ui.into_cache())).collect();
+            *cached_user_interfaces = uis.drain().map(|(id, ui)| (id, ui.into_cache())).collect();
         }
         Action::Window(action) => match action {
             WinowAction::Close(id) => {
@@ -1103,6 +1108,9 @@ pub(crate) fn run_action<A, C>(
             }
             WinowAction::Screenshot(id, channel) => 'out: {
                 let Some(window) = window_manager.get_mut(id) else {
+                    break 'out;
+                };
+                let Some(compositor) = compositor else {
                     break 'out;
                 };
                 let bytes = compositor.screenshot(
@@ -1125,10 +1133,12 @@ pub(crate) fn run_action<A, C>(
             *should_exit = true;
         }
         Action::LoadFont { bytes, channel } => {
-            // TODO: Error handling (?)
-            compositor.load_font(bytes.clone());
+            if let Some(compositor) = compositor {
+                // TODO: Error handling (?)
+                compositor.load_font(bytes.clone());
 
-            let _ = channel.send(Ok(()));
+                let _ = channel.send(Ok(()));
+            }
         }
         _ => {}
     }

@@ -743,8 +743,11 @@ impl<T> WindowState<T> {
 }
 
 impl<T> WindowState<T> {
-    /// gen the wrapper to the main window
+    /// gen the wrapper for the main window
+    /// if there is none, it will create a fake wrapper
     /// used to get display and etc
+    /// It is not suggested to use this one, We will remove this one in next version
+    #[deprecated(note = "use gen_mainwindow_wrapper instead")]
     pub fn gen_main_wrapper(&self) -> WindowWrapper {
         if self.is_background() {
             return WindowWrapper {
@@ -754,6 +757,11 @@ impl<T> WindowState<T> {
                 viewport: None,
             };
         }
+        self.main_window().gen_wrapper()
+    }
+    /// gen the wrapper to the main window
+    /// used to get display and etc
+    pub fn gen_mainwindow_wrapper(&self) -> WindowWrapper {
         self.main_window().gen_wrapper()
     }
     pub fn is_active(&self) -> bool {
