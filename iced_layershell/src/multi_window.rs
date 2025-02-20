@@ -542,6 +542,13 @@ async fn run_instance<A, E, C>(
     let mut should_exit = false;
     let mut messages = Vec::new();
 
+    // recore the last window id, when window is removed, we compare the id with the last id, to
+    // find out if the current surface binding with the compositor is dead, if so, update the
+    // compositor with the alive one
+    let mut last_id = None;
+    // mark if compositor needs to be updated
+    let mut compositor_to_be_updated = true;
+
     while let Some(event) = event_receiver.next().await {
         waiting_actions.retain(|(id, custom_action)| {
             let Some(layerid) = window_manager.get_layer_id(*id) else {
@@ -584,6 +591,8 @@ async fn run_instance<A, E, C>(
                     if compositor.is_none() {
                         replace_compositor!(wrapper);
                         clipboard = LayerShellClipboard::connect(&wrapper);
+                        compositor_to_be_updated = false;
+                        last_id = Some(id);
                     }
 
                     let window = window_manager.insert(
@@ -626,6 +635,15 @@ async fn run_instance<A, E, C>(
                         id,
                         ui.relayout(window.state.logical_size(), &mut window.renderer),
                     );
+                    // NOTE: if compositor need to be updated, use the first be refreshed one to
+                    // update it
+                    if compositor_to_be_updated {
+                        let wrapper = Arc::new(wrapper);
+                        replace_compositor!(wrapper);
+                        clipboard = LayerShellClipboard::connect(&wrapper);
+                        last_id = Some(id);
+                        compositor_to_be_updated = false;
+                    }
                     (id, window)
                 };
                 let compositor = compositor
@@ -872,7 +890,18 @@ async fn run_instance<A, E, C>(
                 if window_manager.is_empty() {
                     compositor = None;
                     clipboard = LayerShellClipboard::unconnected();
+                    compositor_to_be_updated = true;
+                    continue;
                 }
+
+                // NOTE: if current binding surface is still alive, we do not need to update the
+                // compositor
+                if let Some(last_id) = last_id {
+                    if last_id != id {
+                        continue;
+                    }
+                }
+                compositor_to_be_updated = true;
             }
             MultiWindowIcedLayerEvent(
                 Some(id),
