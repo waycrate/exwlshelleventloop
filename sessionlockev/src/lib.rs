@@ -116,8 +116,9 @@ use events::{AxisScroll, DispatchMessageInner};
 pub use events::{DispatchMessage, ReturnData, SessionLockEvent};
 
 use wayland_client::{
+    ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
     delegate_noop,
-    globals::{registry_queue_init, BindError, GlobalError, GlobalList, GlobalListContents},
+    globals::{BindError, GlobalError, GlobalList, GlobalListContents, registry_queue_init},
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
@@ -132,7 +133,6 @@ use wayland_client::{
         wl_surface::WlSurface,
         wl_touch::{self, WlTouch},
     },
-    ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
 };
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1,
@@ -159,17 +159,17 @@ use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_v1::{self, WpFractionalScaleV1},
 };
 
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 pub use calloop;
 
 use calloop::{
-    timer::{TimeoutAction, Timer},
     Error as CallLoopError, EventLoop, LoopHandle,
+    timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
 
@@ -218,13 +218,13 @@ pub mod reexport {
     }
     pub mod wayland_client {
         pub use wayland_client::{
+            QueueHandle, WEnum,
             globals::GlobalList,
             protocol::{
                 wl_keyboard::{self, KeyState},
                 wl_pointer::{self, ButtonState},
                 wl_seat::WlSeat,
             },
-            QueueHandle, WEnum,
         };
     }
     pub mod wp_cursor_shape_device_v1 {
@@ -1130,11 +1130,11 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
 delegate_noop!(@<T>WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T>WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T>WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
-                                                     // it is not used
+// it is not used
 delegate_noop!(@<T>WindowState<T>: ignore WlShm); // shm is used to create buffer pool
 delegate_noop!(@<T>WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(@<T>WindowState<T>: ignore WlBuffer); // buffer show the picture
-                                                     //
+//
 
 delegate_noop!(@<T>WindowState<T>: ignore ExtSessionLockV1); // buffer show the picture
 delegate_noop!(@<T>WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
@@ -1155,19 +1155,19 @@ impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, SessonLockEventError> {
         let connection = Connection::connect_to_env()?;
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
-                                                                           // global, the
-                                                                           // event_queue is
-                                                                           // not needed, we
-                                                                           // do not need
-                                                                           // BaseState after
-                                                                           // this anymore
+        // global, the
+        // event_queue is
+        // not needed, we
+        // do not need
+        // BaseState after
+        // this anymore
 
         let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
-                                                                                // thing is to
-                                                                                // get WlCompositor
+        // thing is to
+        // get WlCompositor
 
         // we need to create more
 
@@ -1181,7 +1181,7 @@ impl<T: 'static> WindowState<T> {
         let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
 
         let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
-                                                            // register this
+        // register this
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
@@ -1374,7 +1374,7 @@ impl<T: 'static> WindowState<T> {
                     }
                     (_, DispatchMessageInner::NewDisplay(display)) => {
                         let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                                                               //
+                        //
                         wl_surface.commit();
                         let session_lock_surface =
                             lock.get_lock_surface(&wl_surface, display, &qh, ());

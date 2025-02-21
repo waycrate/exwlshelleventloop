@@ -1,7 +1,7 @@
 use futures::{
+    Sink,
     channel::mpsc,
     task::{Context, Poll},
-    Sink,
 };
 use std::pin::Pin;
 

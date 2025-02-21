@@ -5,8 +5,8 @@ use iced::{Element, Task};
 
 use crate::actions::LayershellCustomActions;
 
-use crate::settings::LayerShellSettings;
 use crate::DefaultStyle;
+use crate::settings::LayerShellSettings;
 
 use super::Renderer;
 use crate::Settings;

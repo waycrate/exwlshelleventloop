@@ -11,7 +11,7 @@ use keyboardlayouts::Layouts;
 use layershellev::reexport::wayland_client::KeyState;
 use xkbcommon::xkb;
 
-use layershellev::reexport::wayland_client::{wl_keyboard::KeymapFormat, ButtonState, WEnum};
+use layershellev::reexport::wayland_client::{ButtonState, WEnum, wl_keyboard::KeymapFormat};
 use layershellev::reexport::*;
 use layershellev::*;
 use pangoui::PangoUi;

@@ -1,10 +1,10 @@
 use crate::multi_window::Application;
 use crate::{Appearance, DefaultStyle};
-use iced_core::{mouse as IcedMouse, Color, Point, Size};
+use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
+use sessionlockev::WindowWrapper;
 use sessionlockev::keyboard::ModifiersState;
 use sessionlockev::reexport::wp_viewport::WpViewport;
-use sessionlockev::WindowWrapper;
 
 use crate::event::WindowEvent;
 use iced::window;

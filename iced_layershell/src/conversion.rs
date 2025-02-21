@@ -4,7 +4,7 @@ use crate::event::IcedButtonState;
 use crate::event::WindowEvent as LayerShellEvent;
 use iced::touch;
 use iced_core::SmolStr;
-use iced_core::{keyboard, mouse, Event as IcedEvent};
+use iced_core::{Event as IcedEvent, keyboard, mouse};
 use keymap::{key, physical_key};
 use layershellev::keyboard::KeyLocation;
 use layershellev::keyboard::ModifiersState;

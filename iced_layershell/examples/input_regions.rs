@@ -1,9 +1,9 @@
 use iced::widget::{button, row};
 use iced::{Color, Element, Length, Task as Command, Theme};
+use iced_layershell::Application;
 use iced_layershell::actions::ActionCallback;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::to_layer_message;
-use iced_layershell::Application;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     InputRegionExample::run(Settings {
@@ -62,8 +62,7 @@ impl Application for InputRegionExample {
 
     fn view(&self) -> Element<Message> {
         row![
-            button(if self.0 { "Set region" } else { "Reset region" })
-            .on_press(Message::SetRegion)
+            button(if self.0 { "Set region" } else { "Reset region" }).on_press(Message::SetRegion)
         ]
         .padding(20)
         .spacing(10)

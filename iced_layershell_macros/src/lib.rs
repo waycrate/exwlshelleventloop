@@ -1,7 +1,7 @@
 use darling::{
+    FromDeriveInput, FromMeta,
     ast::{Data, NestedMeta},
     util::{Flag, Ignored},
-    FromDeriveInput, FromMeta,
 };
 use proc_macro2::TokenStream as TokenStream2;
 use syn::{DeriveInput, Generics, Ident, Variant, Visibility};

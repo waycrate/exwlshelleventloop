@@ -1,10 +1,10 @@
 use crate::multi_window::Application;
 use crate::{Appearance, DefaultStyle};
-use iced_core::{mouse as IcedMouse, Color, Point, Size};
+use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
+use layershellev::WindowWrapper;
 use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wp_viewport::WpViewport;
-use layershellev::WindowWrapper;
 
 use crate::event::WindowEvent;
 use iced::window;

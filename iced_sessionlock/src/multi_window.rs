@@ -13,15 +13,15 @@ use super::{Appearance, DefaultStyle};
 use iced::Task;
 use iced_graphics::Compositor;
 
-use iced_core::{time::Instant, Size};
+use iced_core::{Size, time::Instant};
 
-use iced_runtime::{multi_window::Program, user_interface, Action, Debug, UserInterface};
+use iced_runtime::{Action, Debug, UserInterface, multi_window::Program, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 
-use futures::{channel::mpsc, StreamExt};
+use futures::{StreamExt, channel::mpsc};
 
 use crate::{
     event::{IcedSessionLockEvent, MultiWindowIcedSessionLockEvent},
@@ -129,8 +129,8 @@ where
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
 {
-    use futures::task;
     use futures::Future;
+    use futures::task;
 
     let mut debug = Debug::new();
     debug.startup_started();

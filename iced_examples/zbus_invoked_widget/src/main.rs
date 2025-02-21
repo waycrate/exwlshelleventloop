@@ -3,12 +3,12 @@ use iced::widget::{button, column, container, text, text_input};
 use iced::window::Id;
 use iced::{Element, Length, Task as Command, Theme};
 use iced_layershell::to_layer_message;
-use iced_runtime::window::Action as WindowAction;
 use iced_runtime::Action;
+use iced_runtime::window::Action as WindowAction;
 
+use iced_layershell::MultiApplication;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_layershell::MultiApplication;
 use zbus::{connection, interface};
 
 use futures::channel::mpsc::Sender;

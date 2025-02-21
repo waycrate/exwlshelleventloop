@@ -1,9 +1,9 @@
-use iced::widget::{button, column, text, text_input, Space};
-use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
+use iced::widget::{Space, button, column, text, text_input};
+use iced::{Alignment, Element, Event, Length, Task as Command, Theme, event};
 
+use iced_sessionlock::MultiApplication;
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::settings::Settings;
-use iced_sessionlock::MultiApplication;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
     Counter::run(Settings::default())

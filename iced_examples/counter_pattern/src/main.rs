@@ -1,6 +1,6 @@
 use iced::widget::{button, column, row, text, text_input};
-use iced::{event, Alignment, Color, Element, Event, Length, Task as Command};
-use iced_layershell::build_pattern::{application, MainSettings};
+use iced::{Alignment, Color, Element, Event, Length, Task as Command, event};
+use iced_layershell::build_pattern::{MainSettings, application};
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;

@@ -246,7 +246,7 @@ impl PartialEq<KeyCode> for PhysicalKey {
     #[inline]
     fn eq(&self, rhs: &KeyCode) -> bool {
         match self {
-            PhysicalKey::Code(ref code) => code == rhs,
+            PhysicalKey::Code(code) => code == rhs,
             _ => false,
         }
     }
@@ -263,7 +263,7 @@ impl PartialEq<NativeKeyCode> for PhysicalKey {
     #[inline]
     fn eq(&self, rhs: &NativeKeyCode) -> bool {
         match self {
-            PhysicalKey::Unidentified(ref code) => code == rhs,
+            PhysicalKey::Unidentified(code) => code == rhs,
             _ => false,
         }
     }
@@ -1502,7 +1502,7 @@ impl<Str> PartialEq<NamedKey> for Key<Str> {
     #[inline]
     fn eq(&self, rhs: &NamedKey) -> bool {
         match self {
-            Key::Named(ref a) => a == rhs,
+            Key::Named(a) => a == rhs,
             _ => false,
         }
     }
@@ -1512,7 +1512,7 @@ impl<Str: PartialEq<str>> PartialEq<str> for Key<Str> {
     #[inline]
     fn eq(&self, rhs: &str) -> bool {
         match self {
-            Key::Character(ref s) => s == rhs,
+            Key::Character(s) => s == rhs,
             _ => false,
         }
     }
@@ -1529,7 +1529,7 @@ impl<Str> PartialEq<NativeKey> for Key<Str> {
     #[inline]
     fn eq(&self, rhs: &NativeKey) -> bool {
         match self {
-            Key::Unidentified(ref code) => code == rhs,
+            Key::Unidentified(code) => code == rhs,
             _ => false,
         }
     }

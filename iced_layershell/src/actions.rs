@@ -1,8 +1,8 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
 use iced::window::Id as IcedId;
 use iced_core::mouse::Interaction;
-use layershellev::id::Id as LayerId;
 use layershellev::NewLayerShellSettings;
+use layershellev::id::Id as LayerId;
 
 use std::sync::Arc;
 

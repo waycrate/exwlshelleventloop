@@ -9,7 +9,7 @@ use sessionlockev::keyboard::KeyLocation;
 use sessionlockev::xkb_keyboard::ElementState;
 use sessionlockev::xkb_keyboard::KeyEvent as SessionLockKeyEvent;
 
-use iced_core::{keyboard, mouse, Event as IcedEvent};
+use iced_core::{Event as IcedEvent, keyboard, mouse};
 use sessionlockev::keyboard::ModifiersState;
 
 pub fn window_event(layerevent: &SessionLockEvent, modifiers: ModifiersState) -> Option<IcedEvent> {

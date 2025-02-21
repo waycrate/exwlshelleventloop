@@ -1,5 +1,5 @@
 mod applications;
-use applications::{all_apps, App};
+use applications::{App, all_apps};
 use iced::widget::{container, row};
 use iced::{Color, Element, Task};
 

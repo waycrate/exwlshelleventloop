@@ -1,4 +1,5 @@
 use wayland_client::{
+    QueueHandle, WEnum,
     globals::GlobalList,
     protocol::{
         wl_buffer::WlBuffer,
@@ -6,7 +7,6 @@ use wayland_client::{
         wl_pointer::{self, ButtonState, WlPointer},
         wl_shm::WlShm,
     },
-    QueueHandle, WEnum,
 };
 
 use crate::id::Id;

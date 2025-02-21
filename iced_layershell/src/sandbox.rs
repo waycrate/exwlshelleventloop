@@ -4,10 +4,10 @@ use iced::theme::Theme;
 use iced::{Element, Task};
 use iced_futures::Subscription;
 
+use crate::Application;
 use crate::actions::LayershellCustomActions;
 use crate::error;
 use crate::settings::Settings;
-use crate::Application;
 
 pub trait LayerShellSandbox {
     /// The type of __messages__ your [`LayerShellSandbox`] will produce.

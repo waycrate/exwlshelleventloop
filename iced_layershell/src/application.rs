@@ -11,23 +11,23 @@ use crate::{
 };
 
 use super::{Appearance, DefaultStyle};
-use iced_graphics::{compositor, Compositor};
+use iced_graphics::{Compositor, compositor};
 use state::State;
 
-use iced_core::{time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
+use iced_core::{Event as IcedCoreEvent, Size, time::Instant, window as IcedCoreWindow};
 
-use iced_runtime::{task::Task, user_interface, Action, Debug, Program, UserInterface};
+use iced_runtime::{Action, Debug, Program, UserInterface, task::Task, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
 use layershellev::{
+    LayerEvent, ReturnData, StartMode, WindowWrapper,
     calloop::timer::{TimeoutAction, Timer},
     reexport::wayland_client::{WlCompositor, WlRegion},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, ReturnData, StartMode, WindowWrapper,
 };
 
-use futures::{channel::mpsc, StreamExt};
+use futures::{StreamExt, channel::mpsc};
 
 use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
@@ -129,8 +129,8 @@ where
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
-    use futures::task;
     use futures::Future;
+    use futures::task;
 
     let mut debug = Debug::new();
     debug.startup_started();
@@ -356,8 +356,8 @@ async fn run_instance<A, E, C>(
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
-    use iced_core::mouse;
     use iced_core::Event;
+    use iced_core::mouse;
 
     let mut compositor = C::new(compositor_settings, window.clone())
         .await
@@ -660,10 +660,10 @@ pub(crate) fn run_action<A, C>(
     A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use iced_core::widget::operation;
+    use iced_runtime::Action;
     use iced_runtime::clipboard;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
-    use iced_runtime::Action;
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => custom_actions.push(LayerShellAction::CustomActions(action)),

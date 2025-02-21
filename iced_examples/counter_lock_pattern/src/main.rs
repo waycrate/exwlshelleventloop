@@ -1,5 +1,5 @@
-use iced::widget::{button, column, text, text_input, Space};
-use iced::{event, Alignment, Element, Event, Length, Task as Command};
+use iced::widget::{Space, button, column, text, text_input};
+use iced::{Alignment, Element, Event, Length, Task as Command, event};
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::build_pattern::application;
 pub fn main() -> Result<(), iced_sessionlock::Error> {

@@ -17,7 +17,7 @@ authors = [
   "Decodertalkers <aakari@tutanota.com>",
   "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
-edition = "2021"
+edition = "2024"
 version = "0.13.4"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"

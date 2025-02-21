@@ -1,23 +1,23 @@
 use memmap2::MmapOptions;
 use smol_str::SmolStr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     env,
-    ffi::{c_char, CString},
+    ffi::{CString, c_char},
     ops::Deref,
     os::{fd::OwnedFd, unix::ffi::OsStringExt},
     ptr::{self, NonNull},
     time::Duration,
 };
-use wayland_client::{protocol::wl_keyboard::WlKeyboard, Proxy};
+use wayland_client::{Proxy, protocol::wl_keyboard::WlKeyboard};
 
 use crate::keymap;
 
 use xkbcommon_dl::{
-    self as xkb, xkb_compose_compile_flags, xkb_compose_feed_result, xkb_compose_state,
-    xkb_compose_state_flags, xkb_compose_status, xkb_compose_table, xkb_keycode_t, xkb_keysym_t,
-    xkb_layout_index_t, xkbcommon_compose_handle, xkbcommon_handle, XkbCommon, XkbCommonCompose,
+    self as xkb, XkbCommon, XkbCommonCompose, xkb_compose_compile_flags, xkb_compose_feed_result,
+    xkb_compose_state, xkb_compose_state_flags, xkb_compose_status, xkb_compose_table,
+    xkb_keycode_t, xkb_keysym_t, xkb_layout_index_t, xkbcommon_compose_handle, xkbcommon_handle,
 };
 
 use crate::keyboard::ModifiersState;
@@ -209,11 +209,7 @@ impl XkbKeymap {
                 &mut keysyms,
             );
 
-            if count == 1 {
-                *keysyms
-            } else {
-                0
-            }
+            if count == 1 { *keysyms } else { 0 }
         }
     }
     /// Check whether the given key repeats.

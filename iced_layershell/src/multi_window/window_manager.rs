@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
-use crate::multi_window::Application;
 use crate::DefaultStyle;
+use crate::multi_window::Application;
 use iced_graphics::Compositor;
-use layershellev::{id::Id as LayerId, WindowWrapper};
+use layershellev::{WindowWrapper, id::Id as LayerId};
 
 use iced::mouse;
 use iced::window::Id as IcedId;

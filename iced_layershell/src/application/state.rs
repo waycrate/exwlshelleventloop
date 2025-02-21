@@ -1,6 +1,6 @@
 use crate::application::Application;
 use crate::{Appearance, DefaultStyle};
-use iced_core::{mouse as IcedMouse, Color, Point, Size};
+use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
 use layershellev::keyboard::ModifiersState;
 

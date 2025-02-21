@@ -1,5 +1,5 @@
-use iced_core::clipboard::Kind;
 use iced_core::Clipboard;
+use iced_core::clipboard::Kind;
 use sessionlockev::WindowWrapper;
 
 pub struct SessionLockClipboard {

@@ -1,12 +1,12 @@
 mod state;
 use crate::{
+    DefaultStyle,
     actions::{
         IcedNewMenuSettings, IcedNewPopupSettings, LayerShellActionVec,
         LayershellCustomActionsWithId, LayershellCustomActionsWithIdInner, MenuDirection,
     },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
-    DefaultStyle,
 };
 use std::{
     borrow::Cow, collections::HashMap, f64, mem::ManuallyDrop, os::fd::AsFd, sync::Arc,
@@ -21,23 +21,23 @@ use crate::{
 };
 
 use super::Appearance;
-use iced_graphics::{compositor, Compositor};
+use iced_graphics::{Compositor, compositor};
 use iced_runtime::{Action, Task};
 
-use iced_core::{time::Instant, Size};
+use iced_core::{Size, time::Instant};
 
-use iced_runtime::{multi_window::Program, user_interface, Debug, UserInterface};
+use iced_runtime::{Debug, UserInterface, multi_window::Program, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
 use layershellev::{
+    LayerEvent, NewPopUpSettings, ReturnData, WindowState,
     calloop::timer::{TimeoutAction, Timer},
     reexport::wayland_client::{WlCompositor, WlRegion},
     reexport::zwp_virtual_keyboard_v1,
-    LayerEvent, NewPopUpSettings, ReturnData, WindowState,
 };
 
-use futures::{channel::mpsc, StreamExt};
+use futures::{StreamExt, channel::mpsc};
 
 use crate::{
     event::{IcedLayerEvent, MultiWindowIcedLayerEvent},
@@ -147,8 +147,8 @@ where
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
 {
-    use futures::task;
     use futures::Future;
+    use futures::task;
 
     let mut debug = Debug::new();
     debug.startup_started();
@@ -1044,10 +1044,10 @@ pub(crate) fn run_action<A, C>(
     A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
 {
     use iced_core::widget::operation;
+    use iced_runtime::Action;
     use iced_runtime::clipboard;
     use iced_runtime::window;
     use iced_runtime::window::Action as WinowAction;
-    use iced_runtime::Action;
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {

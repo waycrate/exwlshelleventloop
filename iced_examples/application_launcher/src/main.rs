@@ -1,11 +1,11 @@
-use applications::{all_apps, App};
+use applications::{App, all_apps};
 use iced::widget::{column, scrollable, text_input};
-use iced::{event, Element, Event, Length, Task as Command, Theme};
+use iced::{Element, Event, Length, Task as Command, Theme, event};
 mod applications;
+use iced_layershell::Application;
 use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings};
-use iced_layershell::Application;
 use iced_runtime::Action;
 
 use std::sync::LazyLock;
@@ -141,7 +141,7 @@ impl Application for Launcher {
                             self.scrollpos += 1;
                         }
                         keyboard::Key::Named(Named::Escape) => {
-                            return iced_runtime::task::effect(Action::Exit)
+                            return iced_runtime::task::effect(Action::Exit);
                         }
                         _ => {}
                     }

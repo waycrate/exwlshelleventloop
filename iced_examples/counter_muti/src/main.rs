@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
-use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
+use iced::{Alignment, Element, Event, Length, Task as Command, Theme, event};
 use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
-use iced_runtime::{task, Action};
+use iced_runtime::{Action, task};
 
+use iced_layershell::MultiApplication;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
-use iced_layershell::MultiApplication;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
@@ -104,9 +104,9 @@ impl MultiApplication for Counter {
         self.ids.remove(&id);
     }
     fn update(&mut self, message: Message) -> Command<Message> {
+        use iced::Event;
         use iced::keyboard;
         use iced::keyboard::key::Named;
-        use iced::Event;
         match message {
             Message::IcedEvent(event) => {
                 match event {

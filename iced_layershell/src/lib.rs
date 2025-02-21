@@ -13,11 +13,11 @@ mod sandbox;
 pub mod settings;
 
 pub mod reexport {
-    pub use layershellev::reexport::wayland_client::{wl_keyboard, WlRegion};
+    pub use layershellev::NewLayerShellSettings;
     pub use layershellev::reexport::Anchor;
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
-    pub use layershellev::NewLayerShellSettings;
+    pub use layershellev::reexport::wayland_client::{WlRegion, wl_keyboard};
 }
 
 use actions::{LayershellCustomActions, LayershellCustomActionsWithId};
