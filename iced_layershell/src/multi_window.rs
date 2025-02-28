@@ -524,7 +524,8 @@ async fn run_instance<A, E, C>(
         };
     }
     let mut window_manager: WindowManager<A, C> = WindowManager::new();
-    let mut sizes: HashMap<iced_core::window::Id, iced_core::Size<u32>> = HashMap::new();
+    let mut cached_layer_dimensions: HashMap<iced_core::window::Id, (iced_core::Size<u32>, f64)> =
+        HashMap::new();
 
     let mut clipboard = LayerShellClipboard::unconnected();
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
@@ -685,13 +686,14 @@ async fn run_instance<A, E, C>(
 
                 let physical_size = window.state.physical_size();
 
-                if match sizes.get(&id) {
+                if match cached_layer_dimensions.get(&id) {
                     None => true,
-                    Some(size) => {
-                        size.height != physical_size.height || size.width != physical_size.width
+                    Some((size, scale)) => {
+                        *size != physical_size || *scale != window.state.scale_factor()
                     }
                 } {
-                    sizes.insert(id, physical_size);
+                    cached_layer_dimensions
+                        .insert(id, (physical_size, window.state.scale_factor()));
 
                     compositor.configure_surface(
                         &mut window.surface,
@@ -889,7 +891,7 @@ async fn run_instance<A, E, C>(
                         .collect();
 
                 application.remove_id(id);
-                sizes.remove(&id);
+                cached_layer_dimensions.remove(&id);
                 window_manager.remove(id);
                 cached_user_interfaces.remove(&id);
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
