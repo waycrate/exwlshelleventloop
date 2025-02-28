@@ -524,6 +524,8 @@ async fn run_instance<A, E, C>(
         };
     }
     let mut window_manager: WindowManager<A, C> = WindowManager::new();
+    let mut cached_layer_dimensions: HashMap<iced_core::window::Id, (iced_core::Size<u32>, f64)> =
+        HashMap::new();
 
     let mut clipboard = LayerShellClipboard::unconnected();
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
@@ -628,13 +630,21 @@ async fn run_instance<A, E, C>(
                     (id, window)
                 } else {
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
-                    let ui = user_interfaces.remove(&id).expect("Get User interface");
-                    window.state.update_view_port(width, height, fractal_scale);
 
-                    let _ = user_interfaces.insert(
-                        id,
-                        ui.relayout(window.state.logical_size(), &mut window.renderer),
-                    );
+                    let logical_size = window.state.logical_size();
+
+                    if logical_size.width != width as f32
+                        || logical_size.height != height as f32
+                        || window.state.scale_factor() != fractal_scale
+                    {
+                        let ui = user_interfaces.remove(&id).expect("Get User interface");
+                        window.state.update_view_port(width, height, fractal_scale);
+
+                        let _ = user_interfaces.insert(
+                            id,
+                            ui.relayout(window.state.logical_size(), &mut window.renderer),
+                        );
+                    }
                     // NOTE: if compositor need to be updated, use the first be refreshed one to
                     // update it
                     if compositor_to_be_updated {
@@ -683,11 +693,23 @@ async fn run_instance<A, E, C>(
                 }
 
                 let physical_size = window.state.physical_size();
-                compositor.configure_surface(
-                    &mut window.surface,
-                    physical_size.width,
-                    physical_size.height,
-                );
+
+                if cached_layer_dimensions
+                    .get(&id)
+                    .is_none_or(|(size, scale)| {
+                        *size != physical_size || *scale != window.state.scale_factor()
+                    })
+                {
+                    cached_layer_dimensions
+                        .insert(id, (physical_size, window.state.scale_factor()));
+
+                    compositor.configure_surface(
+                        &mut window.surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
+                }
+
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: id,
                     event: redraw_event.clone(),
@@ -878,6 +900,7 @@ async fn run_instance<A, E, C>(
                         .collect();
 
                 application.remove_id(id);
+                cached_layer_dimensions.remove(&id);
                 window_manager.remove(id);
                 cached_user_interfaces.remove(&id);
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(

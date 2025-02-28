@@ -395,6 +395,9 @@ async fn run_instance<A, E, C>(
     debug.startup_finished();
 
     let main_id = IcedCoreWindow::Id::unique();
+    let mut p_width: u32 = 0;
+    let mut p_height: u32 = 0;
+    let mut p_fractal_scale: f64 = 0.;
 
     while let Some(event) = event_receiver.next().await {
         match event {
@@ -403,21 +406,29 @@ async fn run_instance<A, E, C>(
                 height,
                 fractal_scale,
             } => {
-                state.update_view_port(width, height, fractal_scale);
-                let logical_size = state.logical_size();
+                if p_width != width || p_height != height || p_fractal_scale != fractal_scale {
+                    p_width = width;
+                    p_height = height;
+                    p_fractal_scale = fractal_scale;
 
-                debug.layout_started();
-                user_interface = ManuallyDrop::new(
-                    ManuallyDrop::into_inner(user_interface).relayout(logical_size, &mut renderer),
-                );
-                debug.layout_finished();
+                    state.update_view_port(width, height, fractal_scale);
+                    let logical_size = state.logical_size();
 
-                let physical_size = state.physical_size();
-                compositor.configure_surface(
-                    &mut surface,
-                    physical_size.width,
-                    physical_size.height,
-                );
+                    debug.layout_started();
+                    user_interface = ManuallyDrop::new(
+                        ManuallyDrop::into_inner(user_interface)
+                            .relayout(logical_size, &mut renderer),
+                    );
+                    debug.layout_finished();
+
+                    let physical_size = state.physical_size();
+                    compositor.configure_surface(
+                        &mut surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
+                }
+
                 let redraw_event =
                     IcedCoreEvent::Window(IcedCoreWindow::Event::RedrawRequested(Instant::now()));
 
@@ -464,15 +475,7 @@ async fn run_instance<A, E, C>(
                     state.cursor(),
                 );
                 debug.draw_finished();
-                compositor
-                    .present(
-                        &mut renderer,
-                        &mut surface,
-                        state.viewport(),
-                        state.background_color(),
-                        &debug.overlay(),
-                    )
-                    .ok();
+
                 match compositor.present(
                     &mut renderer,
                     &mut surface,
