@@ -630,13 +630,21 @@ async fn run_instance<A, E, C>(
                     (id, window)
                 } else {
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
-                    let ui = user_interfaces.remove(&id).expect("Get User interface");
-                    window.state.update_view_port(width, height, fractal_scale);
 
-                    let _ = user_interfaces.insert(
-                        id,
-                        ui.relayout(window.state.logical_size(), &mut window.renderer),
-                    );
+                    let logical_size = window.state.logical_size();
+
+                    if logical_size.width != width as f32
+                        || logical_size.height != height as f32
+                        || window.state.scale_factor() != fractal_scale
+                    {
+                        let ui = user_interfaces.remove(&id).expect("Get User interface");
+                        window.state.update_view_port(width, height, fractal_scale);
+
+                        let _ = user_interfaces.insert(
+                            id,
+                            ui.relayout(window.state.logical_size(), &mut window.renderer),
+                        );
+                    }
                     // NOTE: if compositor need to be updated, use the first be refreshed one to
                     // update it
                     if compositor_to_be_updated {
@@ -686,12 +694,12 @@ async fn run_instance<A, E, C>(
 
                 let physical_size = window.state.physical_size();
 
-                if match cached_layer_dimensions.get(&id) {
-                    None => true,
-                    Some((size, scale)) => {
+                if cached_layer_dimensions
+                    .get(&id)
+                    .is_none_or(|(size, scale)| {
                         *size != physical_size || *scale != window.state.scale_factor()
-                    }
-                } {
+                    })
+                {
                     cached_layer_dimensions
                         .insert(id, (physical_size, window.state.scale_factor()));
 
@@ -701,6 +709,7 @@ async fn run_instance<A, E, C>(
                         physical_size.height,
                     );
                 }
+
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: id,
                     event: redraw_event.clone(),
