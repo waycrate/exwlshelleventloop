@@ -307,6 +307,9 @@ async fn run_instance<A, E, C>(
     }
     let mut window_manager = WindowManager::new();
 
+    let mut cached_layer_dimensions: HashMap<iced_core::window::Id, (iced_core::Size<u32>, f64)> =
+        HashMap::new();
+
     let mut clipboard = SessionLockClipboard::connect(&window);
     let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
@@ -369,12 +372,19 @@ async fn run_instance<A, E, C>(
                     (id, window)
                 } else {
                     let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
-                    let ui = user_interfaces.remove(&id).expect("Get User interface");
-                    window.state.update_view_port(width, height, scale_float);
-                    let _ = user_interfaces.insert(
-                        id,
-                        ui.relayout(window.state.logical_size(), &mut window.renderer),
-                    );
+                    let logical_size = window.state.logical_size();
+
+                    if logical_size.width != width as f32
+                        || logical_size.height != height as f32
+                        || window.state.scale_factor() != scale_float
+                    {
+                        let ui = user_interfaces.remove(&id).expect("Get User interface");
+                        window.state.update_view_port(width, height, scale_float);
+                        let _ = user_interfaces.insert(
+                            id,
+                            ui.relayout(window.state.logical_size(), &mut window.renderer),
+                        );
+                    }
                     (id, window)
                 };
 
@@ -410,11 +420,21 @@ async fn run_instance<A, E, C>(
                 }
 
                 let physical_size = window.state.physical_size();
-                compositor.configure_surface(
-                    &mut window.surface,
-                    physical_size.width,
-                    physical_size.height,
-                );
+                if cached_layer_dimensions
+                    .get(&id)
+                    .is_none_or(|(size, scale)| {
+                        *size != physical_size || *scale != window.state.scale_factor()
+                    })
+                {
+                    cached_layer_dimensions
+                        .insert(id, (physical_size, window.state.scale_factor()));
+
+                    compositor.configure_surface(
+                        &mut window.surface,
+                        physical_size.width,
+                        physical_size.height,
+                    );
+                }
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: id,
                     event: redraw_event.clone(),
