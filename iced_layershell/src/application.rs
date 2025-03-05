@@ -294,6 +294,9 @@ where
                     LayershellCustomActions::SizeChange((width, height)) => {
                         ev.main_window().set_size((width, height));
                     }
+                    LayershellCustomActions::ExclusiveZoneChange(zone_size) => {
+                        ev.main_window().set_exclusive_zone(zone_size);
+                    }
                     LayershellCustomActions::VirtualKeyboardPressed { time, key } => {
                         use layershellev::reexport::wayland_client::KeyState;
                         let ky = ev.get_virtual_keyboard().unwrap();
