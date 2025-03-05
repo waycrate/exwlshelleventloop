@@ -733,6 +733,9 @@ pub(crate) fn run_action<A, C>(
                     state.scale_factor(),
                 ));
             }
+            WindowAction::GetScaleFactor(_id, channel) => {
+                let _ = channel.send(state.scale_factor() as f32);
+            }
             _ => {}
         },
         Action::Exit => {
