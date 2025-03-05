@@ -364,6 +364,7 @@ where
                         }
                         LayershellCustomActions::ExclusiveZoneChange(zone_size) => {
                             let Some(id) = id else {
+                                tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
                             };
                             let Some(window) = ev.get_window_with_id(id) else {
