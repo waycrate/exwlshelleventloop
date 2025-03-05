@@ -544,7 +544,7 @@ async fn run_instance<A, E, C>(
     let mut should_exit = false;
     let mut messages = Vec::new();
 
-    // recore the last window id, when window is removed, we compare the id with the last id, to
+    // record the last window id, when window is removed, we compare the id with the last id, to
     // find out if the current surface binding with the compositor is dead, if so, update the
     // compositor with the alive one
     let mut last_id = None;
