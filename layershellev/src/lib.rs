@@ -18,7 +18,7 @@
 //!         .with_margin((20, 20, 100, 20))
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
 //!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
-//!         .with_exclusize_zone(-1)
+//!         .with_exclusive_zone(-1)
 //!         .build()
 //!         .unwrap();
 //!
@@ -943,7 +943,7 @@ impl<T> WindowState<T> {
     }
 
     /// exclusive_zone, please take look at [layer_shell](https://wayland.app/protocols/wlr-layer-shell-unstable-v1)
-    pub fn with_exclusize_zone(mut self, exclusive_zone: i32) -> Self {
+    pub fn with_exclusive_zone(mut self, exclusive_zone: i32) -> Self {
         self.exclusive_zone = Some(exclusive_zone);
         self
     }

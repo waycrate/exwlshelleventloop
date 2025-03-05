@@ -161,7 +161,7 @@ where
         .with_layer(settings.layer_settings.layer)
         .with_events_transparent(settings.layer_settings.events_transparent)
         .with_anchor(settings.layer_settings.anchor)
-        .with_exclusize_zone(settings.layer_settings.exclusive_zone)
+        .with_exclusive_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .with_start_mode(settings.layer_settings.start_mode)
@@ -666,7 +666,7 @@ pub(crate) fn run_action<A, C>(
     use iced_runtime::Action;
     use iced_runtime::clipboard;
     use iced_runtime::window;
-    use iced_runtime::window::Action as WinowAction;
+    use iced_runtime::window::Action as WindowAction;
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => custom_actions.push(LayerShellAction::CustomActions(action)),
@@ -713,10 +713,10 @@ pub(crate) fn run_action<A, C>(
             *cache = current_cache;
         }
         Action::Window(action) => match action {
-            WinowAction::Close(_) => {
+            WindowAction::Close(_) => {
                 *should_exit = true;
             }
-            WinowAction::Screenshot(_id, channel) => {
+            WindowAction::Screenshot(_id, channel) => {
                 let bytes = compositor.screenshot(
                     renderer,
                     surface,
