@@ -919,6 +919,11 @@ async fn run_instance<A, E, C>(
                     &mut window_manager,
                     cached_user_interfaces,
                 ));
+                runtime.broadcast(iced_futures::subscription::Event::Interaction {
+                    window: id,
+                    event: Event::Window(window::Event::Closed),
+                    status: iced_core::event::Status::Ignored,
+                });
                 // if now there is no windows now, then break the compositor, and unlink the clipboard
                 if window_manager.is_empty() {
                     compositor = None;
