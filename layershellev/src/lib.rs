@@ -2833,6 +2833,7 @@ impl<T: 'static> WindowState<T> {
                                         keyboard_interactivity,
                                         use_last_output,
                                         events_transparent,
+                                        namespace,
                                     },
                                     id,
                                     info,
@@ -2864,7 +2865,7 @@ impl<T: 'static> WindowState<T> {
                                         &wl_surface,
                                         output,
                                         layer,
-                                        window_state.namespace.clone(),
+                                        namespace.clone().unwrap_or_else(|| window_state.namespace.clone()),
                                         &qh,
                                         (),
                                     );

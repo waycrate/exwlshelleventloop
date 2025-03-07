@@ -69,7 +69,7 @@ pub enum LayerEvent<'a, T, Message> {
 }
 
 /// layershell settings to create a new layershell surface
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewLayerShellSettings {
     /// the size of the layershell, optional.
     pub size: Option<(u32, u32)>,
@@ -83,6 +83,7 @@ pub struct NewLayerShellSettings {
     /// wl_output.
     pub use_last_output: bool,
     pub events_transparent: bool,
+    pub namespace: Option<String>,
 }
 
 /// be used to create a new popup
@@ -119,6 +120,7 @@ impl Default for NewLayerShellSettings {
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             use_last_output: false,
             events_transparent: false,
+            namespace: None,
         }
     }
 }
