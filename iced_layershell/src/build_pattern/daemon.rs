@@ -73,14 +73,19 @@ pub trait Program: Sized {
     /// Returns the current [`Theme`] of the [`Application`].
     ///
     /// [`Theme`]: Self::Theme
-    fn theme(&self, _state: &Self::State) -> Self::Theme {
+    fn theme(&self, _state: &Self::State, _id: iced_core::window::Id) -> Self::Theme {
         Self::Theme::default()
     }
 
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-    fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
+    fn style(
+        &self,
+        _state: &Self::State,
+        theme: &Self::Theme,
+        _id: iced_core::window::Id,
+    ) -> crate::Appearance {
         theme.default_style()
     }
 
@@ -169,12 +174,12 @@ pub trait Program: Sized {
                 self.program.subscription(&self.state)
             }
 
-            fn theme(&self) -> Self::Theme {
-                self.program.theme(&self.state)
+            fn theme(&self, id: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(&self.state, id)
             }
 
-            fn style(&self, theme: &Self::Theme) -> crate::Appearance {
-                self.program.style(&self.state, theme)
+            fn style(&self, theme: &Self::Theme, id: iced_core::window::Id) -> crate::Appearance {
+                self.program.style(&self.state, theme, id)
             }
 
             fn scale_factor(&self, window: iced_core::window::Id) -> f64 {
@@ -421,16 +426,21 @@ fn with_namespace<P: Program>(
             self.program.view(state, window)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state, id)
         }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             self.program.subscription(state)
         }
 
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            self.program.style(state, theme)
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            self.program.style(state, theme, id)
         }
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -482,12 +492,17 @@ pub fn with_subscription<P: Program>(
             self.program.namespace(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state, id)
         }
 
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            self.program.style(state, theme)
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            self.program.style(state, theme, id)
         }
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -503,7 +518,7 @@ pub fn with_subscription<P: Program>(
 
 pub fn with_theme<P: Program>(
     program: P,
-    f: impl Fn(&P::State) -> P::Theme,
+    f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithTheme<P, F> {
         program: P,
@@ -512,7 +527,7 @@ pub fn with_theme<P: Program>(
 
     impl<P: Program, F> Program for WithTheme<P, F>
     where
-        F: Fn(&P::State) -> P::Theme,
+        F: Fn(&P::State, iced_core::window::Id) -> P::Theme,
     {
         type State = P::State;
         type Message = P::Message;
@@ -520,8 +535,8 @@ pub fn with_theme<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            (self.theme)(state)
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            (self.theme)(state, id)
         }
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
             self.program.remove_id(state, id)
@@ -546,8 +561,13 @@ pub fn with_theme<P: Program>(
             self.program.subscription(state)
         }
 
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            self.program.style(state, theme)
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            self.program.style(state, theme, id)
         }
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -560,7 +580,7 @@ pub fn with_theme<P: Program>(
 
 pub fn with_style<P: Program>(
     program: P,
-    f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
+    f: impl Fn(&P::State, &P::Theme, iced_core::window::Id) -> crate::Appearance,
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithStyle<P, F> {
         program: P,
@@ -569,7 +589,7 @@ pub fn with_style<P: Program>(
 
     impl<P: Program, F> Program for WithStyle<P, F>
     where
-        F: Fn(&P::State, &P::Theme) -> crate::Appearance,
+        F: Fn(&P::State, &P::Theme, iced_core::window::Id) -> crate::Appearance,
     {
         type State = P::State;
         type Message = P::Message;
@@ -577,8 +597,13 @@ pub fn with_style<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
 
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            (self.style)(state, theme)
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            (self.style)(state, theme, id)
         }
 
         fn namespace(&self, state: &Self::State) -> String {
@@ -603,8 +628,8 @@ pub fn with_style<P: Program>(
             self.program.subscription(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state, id)
         }
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -656,12 +681,17 @@ pub fn with_scale_factor<P: Program>(
             self.program.subscription(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state, id)
         }
 
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            self.program.style(state, theme)
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            self.program.style(state, theme, id)
         }
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -717,12 +747,17 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
             self.program.subscription(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state, id)
         }
 
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            self.program.style(state, theme)
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            self.program.style(state, theme, id)
         }
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -816,7 +851,7 @@ impl<P: Program> Daemon<P> {
     /// Sets the style logic of the [`Application`].
     pub fn style(
         self,
-        f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
+        f: impl Fn(&P::State, &P::Theme, iced_core::window::Id) -> crate::Appearance,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_style(self.raw, f),
@@ -837,7 +872,7 @@ impl<P: Program> Daemon<P> {
     /// Sets the theme logic of the [`Application`].
     pub fn theme(
         self,
-        f: impl Fn(&P::State) -> P::Theme,
+        f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_theme(self.raw, f),

@@ -81,16 +81,16 @@ where
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your application when necessary.
-    fn title(&self) -> String {
+    fn title(&self, _id: iced_core::window::Id) -> String {
         self.namespace()
     }
 
     fn remove_id(&mut self, _id: iced_core::window::Id);
     /// Returns the current `Theme` of the [`Application`].
-    fn theme(&self) -> Self::Theme;
+    fn theme(&self, id: iced_core::window::Id) -> Self::Theme;
 
     /// Returns the `Style` variation of the `Theme`.
-    fn style(&self, theme: &Self::Theme) -> Appearance {
+    fn style(&self, theme: &Self::Theme, _id: iced_core::window::Id) -> Appearance {
         theme.default_style()
     }
 
@@ -730,7 +730,7 @@ async fn run_instance<A, E, C>(
                 debug.draw_started();
                 ui.draw(
                     &mut window.renderer,
-                    &application.theme(),
+                    &application.theme(id),
                     &iced_core::renderer::Style {
                         text_color: window.state.text_color(),
                     },
