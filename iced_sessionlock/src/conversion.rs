@@ -130,9 +130,11 @@ pub fn window_event(
                     physical_key,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
+                    physical_key,
                     key,
                     location,
                     modifiers,
+                    modified_key,
                 },
             }
         })),
