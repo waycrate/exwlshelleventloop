@@ -1,4 +1,3 @@
-use iced::event::Status;
 use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
@@ -304,13 +303,14 @@ impl canvas::Program<Message> for KeyboardView {
     fn update(
         &self,
         state: &mut Self::State,
-        event: canvas::Event,
+        event: &iced::Event,
         bounds: Rectangle,
         cursor: Cursor,
-    ) -> (Status, Option<Message>) {
+    ) -> Option<iced::widget::Action<Message>> {
+        use iced::widget::Action;
         update_keyboard(state, bounds.width, bounds.height);
         let Event::Mouse(mouse_event) = event else {
-            return (Status::Ignored, None);
+            return None;
         };
         if let iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) = mouse_event {
             if let Some(click_position) = cursor.position_in(bounds) {
@@ -327,14 +327,13 @@ impl canvas::Program<Message> for KeyboardView {
                         // Clear the cache
                         self.draw_cache.clear();
                         if let Some(key_code) = get_key_code(label) {
-                            return (Status::Captured, Some(Message::InputKeyPressed(key_code)));
+                            return Some(Action::publish(Message::InputKeyPressed(key_code)));
                         }
                     }
                 }
             }
         }
-
-        (Status::Ignored, None)
+        None
     }
 }
 

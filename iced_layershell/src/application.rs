@@ -515,7 +515,6 @@ async fn run_instance<A, E, C>(
                 run_action(
                     &application,
                     &mut compositor,
-                    &mut surface,
                     &mut cache,
                     &state,
                     &mut renderer,
@@ -649,7 +648,6 @@ pub(crate) fn update<A: Application, E: Executor>(
 pub(crate) fn run_action<A, C>(
     application: &A,
     compositor: &mut C,
-    surface: &mut C::Surface,
     cache: &mut user_interface::Cache,
     state: &State<A>,
     renderer: &mut A::Renderer,
@@ -668,7 +666,7 @@ pub(crate) fn run_action<A, C>(
     use iced_core::widget::operation;
     use iced_runtime::Action;
     use iced_runtime::clipboard;
-    use iced_runtime::window;
+
     use iced_runtime::window::Action as WindowAction;
     match event {
         Action::Output(stream) => match stream.try_into() {
