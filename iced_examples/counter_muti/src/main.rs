@@ -220,7 +220,7 @@ impl MultiApplication for Counter {
                 .center_x(Length::Fill)
                 .center_y(Length::Fill)
                 .style(|_theme| container::Style {
-                    background: Some(iced::Color::new(0., 0.5, 0.7, 0.6).into()),
+                    background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
                 .width(Length::Fill)
