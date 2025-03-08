@@ -1153,13 +1153,12 @@ pub(crate) fn run_action<A, C>(
                 };
                 let bytes = compositor.screenshot(
                     &mut window.renderer,
-                    &mut window.surface,
                     window.state.viewport(),
                     window.state.background_color(),
                     &debug.overlay(),
                 );
 
-                let _ = channel.send(window::Screenshot::new(
+                let _ = channel.send(iced_core::window::Screenshot::new(
                     bytes,
                     window.state.physical_size(),
                     window.state.scale_factor(),
