@@ -75,6 +75,8 @@ pub fn window_event(layerevent: &LayerShellEvent, modifiers: ModifiersState) -> 
                     key,
                     location,
                     modifiers,
+                    physical_key,
+                    modified_key,
                 },
             }
         })),
