@@ -725,12 +725,11 @@ pub(crate) fn run_action<A, C>(
             WindowAction::Screenshot(_id, channel) => {
                 let bytes = compositor.screenshot(
                     renderer,
-                    surface,
                     state.viewport(),
                     state.background_color(),
                     &debug.overlay(),
                 );
-                let _ = channel.send(window::Screenshot::new(
+                let _ = channel.send(iced_core::window::Screenshot::new(
                     bytes,
                     state.viewport().physical_size(),
                     state.viewport().scale_factor(),
