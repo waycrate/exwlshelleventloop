@@ -107,9 +107,11 @@ pub fn window_event(layerevent: &SessionLockEvent, modifiers: ModifiersState) ->
                     physical_key,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
+                    physical_key,
                     key,
                     location,
                     modifiers,
+                    modified_key,
                 },
             }
         })),
