@@ -67,13 +67,13 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
-iced = "0.13"
-iced_runtime = { version = "0.13", features = ["multi-window"] }
+iced = { git = "https://github.com/iced-rs/iced.git" }
+iced_runtime = { git = "https://github.com/iced-rs/iced.git",  features = ["multi-window"] }
 #iced_style = "0.13"
-iced_core = "0.13"
-iced_renderer = "0.13"
-iced_futures = "0.13"
-iced_graphics = "0.13"
+iced_core = { git = "https://github.com/iced-rs/iced.git" }
+iced_renderer =  { git = "https://github.com/iced-rs/iced.git" }
+iced_futures =  { git = "https://github.com/iced-rs/iced.git" }
+iced_graphics =  { git = "https://github.com/iced-rs/iced.git" }
 window_clipboard = "0.4.1"
 
 bitflags = "2.8.0"
