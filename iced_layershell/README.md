@@ -178,9 +178,9 @@ impl Application for Counter {
         .into()
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }
@@ -417,7 +417,7 @@ impl Counter {
                 .center_x(Length::Fill)
                 .center_y(Length::Fill)
                 .style(|_theme| container::Style {
-                    background: Some(iced::Color::new(0., 0.5, 0.7, 0.6).into()),
+                    background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
                 //.style(Container::Custom(Box::new(BlackMenu)))
@@ -472,8 +472,8 @@ impl Counter {
 You can define which regions of your window receive input events and which parts are transparent to these events by using WlRegion in SetInputRegion message call.
 ```rust, ignore
 Message::SetInputRegion(ActionCallback::new(|region| {
-        region.add(0, 0, 400, 400);
-        region.subtract(0, 0, 400, 60);
+    region.add(0, 0, 400, 400);
+    region.subtract(0, 0, 400, 60);
 }))
 ```
 view the full example [here](https://github.com/waycrate/exwlshelleventloop/tree/master/iced_layershell/examples/input_regions.rs)
