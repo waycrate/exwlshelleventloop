@@ -91,7 +91,7 @@ where
 
     /// Returns the `Style` variation of the `Theme`.
     fn style(&self, theme: &Self::Theme, _id: iced_core::window::Id) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event `Subscription` for the current state of the

@@ -60,9 +60,9 @@ impl Panel {
         container(row).into()
     }
 
-    fn style(&self, theme: &iced::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &iced::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }

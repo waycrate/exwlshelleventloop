@@ -73,7 +73,7 @@ where
 
     /// Returns the `Style` variation of the `Theme`.
     fn style(&self, theme: &Self::Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event `Subscription` for the current state of the

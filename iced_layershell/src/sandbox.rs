@@ -49,7 +49,7 @@ pub trait LayerShellSandbox {
     ///
     /// By default, it returns [`Theme::default_style()`].
     fn style(&self, theme: &Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the scale factor of the [`LayerShellSandbox`].
