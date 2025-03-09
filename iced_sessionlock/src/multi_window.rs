@@ -73,7 +73,7 @@ where
 
     /// Returns the `Style` variation of the `Theme`.
     fn style(&self, theme: &Self::Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -692,7 +692,6 @@ pub(crate) fn run_action<A, C>(
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
-    use iced_runtime::window;
     use iced_runtime::window::Action as WindowAction;
     //let mut customactions = Vec::new();
     match action {

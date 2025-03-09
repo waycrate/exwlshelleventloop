@@ -3,11 +3,11 @@ use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
+use iced_layershell::Application;
 use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
-use iced_layershell::{Appearance, Application};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
@@ -116,9 +116,9 @@ impl Application for KeyboardView {
         }
     }
 
-    fn style(&self, theme: &Self::Theme) -> Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }

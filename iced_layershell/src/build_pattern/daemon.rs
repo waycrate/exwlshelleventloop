@@ -86,7 +86,7 @@ pub trait Program: Sized {
         theme: &Self::Theme,
         _id: iced_core::window::Id,
     ) -> crate::Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
