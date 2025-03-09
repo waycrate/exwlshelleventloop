@@ -188,6 +188,11 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
+use wayland_protocols::wp::text_input::zv3::client::{
+    zwp_text_input_manager_v3::ZwpTextInputManagerV3,
+    zwp_text_input_v3::{self, ContentHint, ContentPurpose, ZwpTextInputV3},
+};
+
 pub use calloop;
 
 use calloop::{
@@ -571,6 +576,18 @@ impl<T> WindowStateUnit<T> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum ImePurpose {
+    /// No special hints for the IME (default).
+    Normal,
+    /// The IME is used for password input.
+    Password,
+    /// The IME is used to input into a terminal.
+    ///
+    /// For example, that could alter OSK on Wayland to show extra buttons.
+    Terminal,
+}
+
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
@@ -627,6 +644,12 @@ pub struct WindowState<T> {
     start_mode: StartMode,
     init_finished: bool,
     events_transparent: bool,
+
+    text_input_manager: Option<ZwpTextInputManagerV3>,
+    text_input: Option<ZwpTextInputV3>,
+    text_inputs: Vec<ZwpTextInputV3>,
+    ime_purpose: ImePurpose,
+    ime_allowed: bool,
 }
 
 impl<T> WindowState<T> {
@@ -775,6 +798,44 @@ impl<T> WindowState<T> {
     }
     pub fn is_with_target(&self) -> bool {
         self.start_mode.is_with_target()
+    }
+    pub fn ime_allowed(&self) -> bool {
+        self.ime_allowed
+    }
+    pub fn set_ime_allowed(&mut self, ime_allowed: bool) {
+        self.ime_allowed = ime_allowed
+    }
+
+    #[inline]
+    pub fn text_input_entered(&mut self, text_input: &ZwpTextInputV3) {
+        if !self.text_inputs.iter().any(|t| t == text_input) {
+            self.text_inputs.push(text_input.clone());
+        }
+    }
+    #[inline]
+    pub fn text_input_left(&mut self, text_input: &ZwpTextInputV3) {
+        if let Some(position) = self.text_inputs.iter().position(|t| t == text_input) {
+            self.text_inputs.remove(position);
+        }
+    }
+
+    fn ime_purpose(&self) -> ImePurpose {
+        self.ime_purpose
+    }
+}
+
+pub trait ZwpTextInputV3Ext {
+    fn set_content_type_by_purpose(&self, purpose: ImePurpose);
+}
+
+impl ZwpTextInputV3Ext for ZwpTextInputV3 {
+    fn set_content_type_by_purpose(&self, purpose: ImePurpose) {
+        let (hint, purpose) = match purpose {
+            ImePurpose::Normal => (ContentHint::None, ContentPurpose::Normal),
+            ImePurpose::Password => (ContentHint::SensitiveData, ContentPurpose::Password),
+            ImePurpose::Terminal => (ContentHint::None, ContentPurpose::Terminal),
+        };
+        self.set_content_type(hint, purpose);
     }
 }
 
@@ -1007,6 +1068,12 @@ impl<T> Default for WindowState<T> {
             start_mode: StartMode::Active,
             init_finished: false,
             events_transparent: false,
+
+            text_input_manager: None,
+            text_input: None,
+            text_inputs: Vec::new(),
+            ime_purpose: ImePurpose::Normal,
+            ime_allowed: false,
         }
     }
 }
@@ -1771,6 +1838,55 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
     }
 }
 
+impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        text_input: &zwp_text_input_v3::ZwpTextInputV3,
+        event: <zwp_text_input_v3::ZwpTextInputV3 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_text_input_v3::Event;
+        match event {
+            Event::Enter { surface } => {
+                let Some(id) = state.get_id_from_surface(&surface) else {
+                    return;
+                };
+                if state.ime_allowed() {
+                    text_input.enable();
+                    text_input.set_content_type_by_purpose(state.ime_purpose());
+                    text_input.commit();
+                    state
+                        .message
+                        .push((Some(id), DispatchMessageInner::Ime(events::Ime::Enabled)));
+                }
+                state.text_input_entered(text_input);
+            }
+            Event::Leave { surface } => {
+                text_input.disable();
+                text_input.commit();
+                let Some(id) = state.get_id_from_surface(&surface) else {
+                    return;
+                };
+                state.text_input_left(text_input);
+                state
+                    .message
+                    .push((Some(id), DispatchMessageInner::Ime(events::Ime::Disabled)));
+            }
+            Event::CommitString { text } => {}
+            Event::DeleteSurroundingText { .. } => {}
+            Event::Done { serial } => {}
+            Event::PreeditString {
+                text,
+                cursor_begin,
+                cursor_end,
+            } => {}
+            _ => {}
+        }
+    }
+}
+
 delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T> WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
@@ -1795,6 +1911,8 @@ delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 delegate_noop!(@<T> WindowState<T>: ignore XdgWmBase);
+
+delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
 
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
@@ -1839,6 +1957,12 @@ impl<T: 'static> WindowState<T> {
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
+        let text_input_manager = globals
+            .bind::<ZwpTextInputManagerV3, _, _>(&qh, 1..=1, ())
+            .ok();
+        let text_input = text_input_manager
+            .as_ref()
+            .map(|manager| manager.get_text_input(self.get_seat(), &qh, ()));
 
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
@@ -2021,6 +2145,9 @@ impl<T: 'static> WindowState<T> {
         self.cursor_manager = cursor_manager;
         self.xdg_output_manager = Some(xdg_output_manager);
         self.connection = Some(connection);
+
+        self.text_input = text_input;
+        self.text_input_manager = text_input_manager;
 
         Ok(self)
     }
