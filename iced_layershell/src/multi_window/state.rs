@@ -37,8 +37,8 @@ where
         window: &WindowWrapper,
     ) -> Self {
         let application_scale_factor = application.scale_factor(id);
-        let theme = application.theme();
-        let appearance = application.style(&theme);
+        let theme = application.theme(id);
+        let appearance = application.style(&theme, id);
 
         let logical_size = Size::new(width, height);
         let viewport = viewport(logical_size, wayland_scale_factor, application_scale_factor);
@@ -143,8 +143,8 @@ where
             self.application_scale_factor = new_scale_factor;
             self.resize_viewport(self.logical_size_u32());
         }
-        self.theme = application.theme();
-        self.appearance = application.style(&self.theme);
+        self.theme = application.theme(self.id);
+        self.appearance = application.style(&self.theme, self.id);
     }
 
     fn resize_viewport(&mut self, logical_size: Size<u32>) {

@@ -300,14 +300,14 @@ pub trait MultiApplication: Sized {
     ///
     /// [`Theme`]: Self::Theme
     #[allow(unused_variables)]
-    fn theme(&self) -> Self::Theme {
+    fn theme(&self, _id: iced_core::window::Id) -> Self::Theme {
         Self::Theme::default()
     }
 
     /// Returns the current `Style` of the [`Theme`].
     ///
     /// [`Theme`]: Self::Theme
-    fn style(&self, theme: &Self::Theme) -> Appearance {
+    fn style(&self, theme: &Self::Theme, _id: iced_core::window::Id) -> Appearance {
         theme.default_style()
     }
 
@@ -408,12 +408,12 @@ where
         self.0.namespace()
     }
 
-    fn theme(&self) -> A::Theme {
-        self.0.theme()
+    fn theme(&self, id: iced_core::window::Id) -> A::Theme {
+        self.0.theme(id)
     }
 
-    fn style(&self, theme: &Self::Theme) -> Appearance {
-        self.0.style(theme)
+    fn style(&self, theme: &Self::Theme, id: iced_core::window::Id) -> Appearance {
+        self.0.style(theme, id)
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
