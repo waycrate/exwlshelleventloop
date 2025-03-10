@@ -1,0 +1,19 @@
+[package]
+name = "multi_window"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+iced = { workspace = true }
+iced_runtime.workspace = true
+iced_layershell.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
