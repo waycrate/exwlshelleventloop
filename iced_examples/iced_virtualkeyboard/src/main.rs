@@ -1,6 +1,6 @@
 use iced::mouse::{Cursor, Interaction};
-use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::widget::canvas;
+use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
 use iced_layershell::Application;
@@ -326,8 +326,9 @@ impl canvas::Program<Message> for KeyboardView {
                         // Clear the cache
                         self.draw_cache.clear();
                         if let Some(key_code) = get_key_code(label) {
-                            return 
-                                Some(canvas::Action::publish(Message::InputKeyPressed(key_code)));
+                            return Some(canvas::Action::publish(Message::InputKeyPressed(
+                                key_code,
+                            )));
                         }
                     }
                 }
