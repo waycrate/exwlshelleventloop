@@ -1,6 +1,6 @@
 use iced::mouse::{Cursor, Interaction};
-use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
+use iced::widget::canvas;
 use iced::{Color, Task as Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
 use iced_layershell::Application;
@@ -303,11 +303,10 @@ impl canvas::Program<Message> for KeyboardView {
     fn update(
         &self,
         state: &mut Self::State,
-        event: &iced::Event,
+        event: &canvas::Event,
         bounds: Rectangle,
         cursor: Cursor,
-    ) -> Option<iced::widget::Action<Message>> {
-        use iced::widget::Action;
+    ) -> Option<iced::widget::canvas::Action<Message>> {
         update_keyboard(state, bounds.width, bounds.height);
         let Event::Mouse(mouse_event) = event else {
             return None;
@@ -327,7 +326,8 @@ impl canvas::Program<Message> for KeyboardView {
                         // Clear the cache
                         self.draw_cache.clear();
                         if let Some(key_code) = get_key_code(label) {
-                            return Some(Action::publish(Message::InputKeyPressed(key_code)));
+                            return 
+                                Some(canvas::Action::publish(Message::InputKeyPressed(key_code)));
                         }
                     }
                 }
