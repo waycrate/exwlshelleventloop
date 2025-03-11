@@ -336,57 +336,59 @@ async fn run_instance<A, E, C>(
                     scale_float,
                 },
             ) => {
-                let (id, window) = if window_manager.get_mut_alias(wrapper.id()).is_none() {
-                    let id = window::Id::unique();
+                let (id, window) =
+                    if let Some((id, window)) = window_manager.get_mut_alias(wrapper.id()) {
+                        let window_size = window.state.window_size();
 
-                    let window = window_manager.insert(
-                        id,
-                        (width, height),
-                        scale_float,
-                        Arc::new(wrapper),
-                        &application,
-                        &mut compositor,
-                    );
-                    let logical_size = window.state.logical_size();
+                        if window_size.width != width
+                            || window_size.height != height
+                            || window.state.wayland_scale_factor() != scale_float
+                        {
+                            let ui = user_interfaces.remove(&id).expect("Get User interface");
+                            window.state.update_view_port(width, height, scale_float);
+                            let _ = user_interfaces.insert(
+                                id,
+                                ui.relayout(
+                                    window.state.viewport().logical_size(),
+                                    &mut window.renderer,
+                                ),
+                            );
+                        }
+                        (id, window)
+                    } else {
+                        let id = window::Id::unique();
 
-                    let _ = user_interfaces.insert(
-                        id,
-                        build_user_interface(
-                            &application,
-                            user_interface::Cache::default(),
-                            &mut window.renderer,
-                            logical_size,
-                            &mut debug,
+                        let window = window_manager.insert(
                             id,
-                        ),
-                    );
-                    let _ = ui_caches.insert(id, user_interface::Cache::default());
+                            (width, height),
+                            scale_float,
+                            Arc::new(wrapper),
+                            &application,
+                            &mut compositor,
+                        );
 
-                    events.push((
-                        Some(id),
-                        Event::Window(window::Event::Opened {
-                            position: None,
-                            size: window.state.logical_size(),
-                        }),
-                    ));
-                    (id, window)
-                } else {
-                    let (id, window) = window_manager.get_mut_alias(wrapper.id()).unwrap();
-                    let logical_size = window.state.logical_size();
-
-                    if logical_size.width != width as f32
-                        || logical_size.height != height as f32
-                        || window.state.scale_factor() != scale_float
-                    {
-                        let ui = user_interfaces.remove(&id).expect("Get User interface");
-                        window.state.update_view_port(width, height, scale_float);
                         let _ = user_interfaces.insert(
                             id,
-                            ui.relayout(window.state.logical_size(), &mut window.renderer),
+                            build_user_interface(
+                                &application,
+                                user_interface::Cache::default(),
+                                &mut window.renderer,
+                                window.state.viewport().logical_size(),
+                                &mut debug,
+                                id,
+                            ),
                         );
-                    }
-                    (id, window)
-                };
+                        let _ = ui_caches.insert(id, user_interface::Cache::default());
+
+                        events.push((
+                            Some(id),
+                            Event::Window(window::Event::Opened {
+                                position: None,
+                                size: window.state.window_size_f32(),
+                            }),
+                        ));
+                        (id, window)
+                    };
 
                 let ui = user_interfaces.get_mut(&id).expect("Get User interface");
 
@@ -419,15 +421,15 @@ async fn run_instance<A, E, C>(
                     window.mouse_interaction = new_mouse_interaction;
                 }
 
-                let physical_size = window.state.physical_size();
+                let physical_size = window.state.viewport().physical_size();
                 if cached_layer_dimensions
                     .get(&id)
                     .is_none_or(|(size, scale)| {
-                        *size != physical_size || *scale != window.state.scale_factor()
+                        *size != physical_size || *scale != window.state.viewport().scale_factor()
                     })
                 {
                     cached_layer_dimensions
-                        .insert(id, (physical_size, window.state.scale_factor()));
+                        .insert(id, (physical_size, window.state.viewport().scale_factor()));
 
                     compositor.configure_surface(
                         &mut window.surface,
@@ -469,7 +471,11 @@ async fn run_instance<A, E, C>(
                     continue;
                 };
                 window.state.update(&event);
-                if let Some(event) = conversion::window_event(&event, window.state.modifiers()) {
+                if let Some(event) = conversion::window_event(
+                    &event,
+                    window.state.application_scale_factor(),
+                    window.state.modifiers(),
+                ) {
                     events.push((Some(id), event));
                 }
             }
@@ -607,7 +613,7 @@ where
                     application,
                     cache,
                     &mut window.renderer,
-                    window.state.logical_size(),
+                    window.state.viewport().logical_size(),
                     debug,
                     id,
                 ),
@@ -756,7 +762,7 @@ pub(crate) fn run_action<A, C>(
                     );
                     let _ = channel.send(window::Screenshot::new(
                         bytes,
-                        window.state.physical_size(),
+                        window.state.viewport().physical_size(),
                         window.state.viewport().scale_factor(),
                     ));
                 }

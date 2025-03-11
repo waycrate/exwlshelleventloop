@@ -1,5 +1,7 @@
 mod keymap;
 
+use std::ops::Mul;
+
 use crate::event::IcedButtonState;
 use crate::event::WindowEvent as SessionLockEvent;
 use iced::touch;
@@ -12,14 +14,31 @@ use sessionlockev::xkb_keyboard::KeyEvent as SessionLockKeyEvent;
 use iced_core::{Event as IcedEvent, keyboard, mouse};
 use sessionlockev::keyboard::ModifiersState;
 
-pub fn window_event(layerevent: &SessionLockEvent, modifiers: ModifiersState) -> Option<IcedEvent> {
+fn scale_down<T>((x, y): (T, T), application_scale_factor: f64) -> (T, T)
+where
+    T: Mul + TryInto<f64> + TryFrom<f64>,
+    <T as TryInto<f64>>::Error: std::fmt::Debug,
+    <T as TryFrom<f64>>::Error: std::fmt::Debug,
+{
+    let (mut x, mut y): (f64, f64) = (x.try_into().unwrap(), y.try_into().unwrap());
+    x /= application_scale_factor;
+    y /= application_scale_factor;
+    (x.try_into().unwrap(), y.try_into().unwrap())
+}
+
+pub fn window_event(
+    layerevent: &SessionLockEvent,
+    application_scale_factor: f64,
+    modifiers: ModifiersState,
+) -> Option<IcedEvent> {
     match layerevent {
         SessionLockEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
         SessionLockEvent::CursorMoved { x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Mouse(mouse::Event::CursorMoved {
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
@@ -38,38 +57,42 @@ pub fn window_event(layerevent: &SessionLockEvent, modifiers: ModifiersState) ->
             }))
         }
         SessionLockEvent::TouchDown { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerPressed {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
         SessionLockEvent::TouchUp { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLifted {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
         SessionLockEvent::TouchMotion { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerMoved {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
         SessionLockEvent::TouchCancel { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLost {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
