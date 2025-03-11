@@ -10,15 +10,33 @@ use layershellev::keyboard::KeyLocation;
 use layershellev::keyboard::ModifiersState;
 use layershellev::xkb_keyboard::ElementState;
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
+use std::ops::Mul;
 
-pub fn window_event(layerevent: &LayerShellEvent, modifiers: ModifiersState) -> Option<IcedEvent> {
+fn scale_down<T>((x, y): (T, T), application_scale_factor: f64) -> (T, T)
+where
+    T: Mul + TryInto<f64> + TryFrom<f64>,
+    <T as TryInto<f64>>::Error: std::fmt::Debug,
+    <T as TryFrom<f64>>::Error: std::fmt::Debug,
+{
+    let (mut x, mut y): (f64, f64) = (x.try_into().unwrap(), y.try_into().unwrap());
+    x /= application_scale_factor;
+    y /= application_scale_factor;
+    (x.try_into().unwrap(), y.try_into().unwrap())
+}
+
+pub fn window_event(
+    layerevent: &LayerShellEvent,
+    application_scale_factor: f64,
+    modifiers: ModifiersState,
+) -> Option<IcedEvent> {
     match layerevent {
         LayerShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
         LayerShellEvent::CursorMoved { x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Mouse(mouse::Event::CursorMoved {
                 position: iced_core::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
@@ -79,38 +97,42 @@ pub fn window_event(layerevent: &LayerShellEvent, modifiers: ModifiersState) -> 
             }
         })),
         LayerShellEvent::TouchDown { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerPressed {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
         LayerShellEvent::TouchUp { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLifted {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
         LayerShellEvent::TouchMotion { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerMoved {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }
         LayerShellEvent::TouchCancel { id, x, y } => {
+            let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLost {
                 id: touch::Finger(*id as u64),
                 position: iced::Point {
-                    x: *x as f32,
-                    y: *y as f32,
+                    x: x as f32,
+                    y: y as f32,
                 },
             }))
         }

@@ -391,7 +391,7 @@ async fn run_instance<A, E, C>(
         &application,
         cache,
         &mut renderer,
-        state.logical_size(),
+        state.viewport().logical_size(),
         &mut debug,
     ));
 
@@ -415,16 +415,15 @@ async fn run_instance<A, E, C>(
                     p_fractal_scale = fractal_scale;
 
                     state.update_view_port(width, height, fractal_scale);
-                    let logical_size = state.logical_size();
 
                     debug.layout_started();
                     user_interface = ManuallyDrop::new(
                         ManuallyDrop::into_inner(user_interface)
-                            .relayout(logical_size, &mut renderer),
+                            .relayout(state.viewport().logical_size(), &mut renderer),
                     );
                     debug.layout_finished();
 
-                    let physical_size = state.physical_size();
+                    let physical_size = state.viewport().physical_size();
                     compositor.configure_surface(
                         &mut surface,
                         physical_size.width,
@@ -506,7 +505,11 @@ async fn run_instance<A, E, C>(
             IcedLayerEvent::Window(event) => {
                 state.update(&event);
 
-                if let Some(event) = conversion::window_event(&event, state.modifiers()) {
+                if let Some(event) = conversion::window_event(
+                    &event,
+                    state.application_scale_factor(),
+                    state.modifiers(),
+                ) {
                     events.push(event);
                 }
             }
@@ -530,7 +533,7 @@ async fn run_instance<A, E, C>(
                     &application,
                     cache,
                     &mut renderer,
-                    state.logical_size(),
+                    state.viewport().logical_size(),
                     &mut debug,
                 ));
                 if should_exit {
@@ -575,7 +578,7 @@ async fn run_instance<A, E, C>(
                         &application,
                         cache,
                         &mut renderer,
-                        state.logical_size(),
+                        state.viewport().logical_size(),
                         &mut debug,
                     ));
                 }
@@ -694,7 +697,7 @@ pub(crate) fn run_action<A, C>(
                 application,
                 current_cache,
                 renderer,
-                state.logical_size(),
+                state.viewport().logical_size(),
                 debug,
             );
 
@@ -729,12 +732,12 @@ pub(crate) fn run_action<A, C>(
                 );
                 let _ = channel.send(window::Screenshot::new(
                     bytes,
-                    state.physical_size(),
-                    state.scale_factor(),
+                    state.viewport().physical_size(),
+                    state.viewport().scale_factor(),
                 ));
             }
             WindowAction::GetScaleFactor(_id, channel) => {
-                let _ = channel.send(state.scale_factor() as f32);
+                let _ = channel.send(state.wayland_scale_factor() as f32);
             }
             _ => {}
         },
