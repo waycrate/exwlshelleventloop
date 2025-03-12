@@ -4,6 +4,7 @@ use crate::event::IcedButtonState;
 use crate::event::WindowEvent as LayerShellEvent;
 use iced::touch;
 use iced_core::SmolStr;
+use iced_core::input_method;
 use iced_core::{Event as IcedEvent, keyboard, mouse};
 use keymap::{key, physical_key};
 use layershellev::keyboard::KeyLocation;
@@ -121,7 +122,23 @@ pub fn window_event(layerevent: &LayerShellEvent, modifiers: ModifiersState) -> 
         )),
         LayerShellEvent::Unfocus => Some(IcedEvent::Window(iced::window::Event::Unfocused)),
         LayerShellEvent::Focused => Some(IcedEvent::Window(iced::window::Event::Focused)),
+        LayerShellEvent::Ime(event) => Some(IcedEvent::InputMethod(match event {
+            layershellev::Ime::Enabled => input_method::Event::Opened,
+            layershellev::Ime::Preedit(content, size) => {
+                input_method::Event::Preedit(content.clone(), size.map(|(start, end)| (start..end)))
+            }
+            layershellev::Ime::Commit(content) => input_method::Event::Commit(content.clone()),
+            layershellev::Ime::Disabled => input_method::Event::Closed,
+        })),
         _ => None,
+    }
+}
+
+pub fn ime_purpose(purpose: input_method::Purpose) -> layershellev::ImePurpose {
+    match purpose {
+        input_method::Purpose::Normal => layershellev::ImePurpose::Normal,
+        input_method::Purpose::Secure => layershellev::ImePurpose::Password,
+        input_method::Purpose::Terminal => layershellev::ImePurpose::Terminal,
     }
 }
 

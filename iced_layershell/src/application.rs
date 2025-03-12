@@ -14,7 +14,7 @@ use super::{Appearance, DefaultStyle};
 use iced_graphics::{Compositor, compositor};
 use state::State;
 
-use iced_core::{Event as IcedCoreEvent, Size, time::Instant, window as IcedCoreWindow};
+use iced_core::{input_method, time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
 
 use iced_runtime::{Action, Debug, Program, UserInterface, task::Task, user_interface};
 
@@ -333,6 +333,22 @@ where
                 LayerShellAction::RedrawWindow(index) => {
                     ev.append_return_data(ReturnData::RedrawIndexRequest(index));
                 }
+                LayerShellAction::Ime(ime) => match ime {
+                    iced_core::InputMethod::Disabled => {
+                        ev.set_ime_allowed(false);
+                    }
+                    iced_core::InputMethod::Enabled { position, .. } => {
+                        ev.set_ime_allowed(true);
+                        ev.set_ime_cursor_area(
+                            layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                            layershellev::dpi::LogicalSize {
+                                width: 10,
+                                height: 10,
+                            },
+                            ev.main_window().id(),
+                        );
+                    }
+                },
                 _ => {}
             }
         }
@@ -435,14 +451,23 @@ async fn run_instance<A, E, C>(
                 let redraw_event =
                     IcedCoreEvent::Window(IcedCoreWindow::Event::RedrawRequested(Instant::now()));
 
-                user_interface.update(
+                let (ui_state, _) = user_interface.update(
                     &[redraw_event.clone()],
                     state.cursor(),
                     &mut renderer,
                     &mut clipboard,
                     &mut messages,
                 );
-                events.push(redraw_event.clone());
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method,
+                } = ui_state
+                {
+                    events.push(redraw_event.clone());
+                    println!("ime: ?{input_method:?}");
+                    //   window.request_input_method(input_method);
+                }
+
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: main_id,
                     event: redraw_event,

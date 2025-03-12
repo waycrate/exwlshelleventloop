@@ -116,6 +116,7 @@ pub use events::NewPopUpSettings;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
+pub mod dpi;
 mod events;
 mod strtoshape;
 
@@ -804,6 +805,32 @@ impl<T> WindowState<T> {
     }
     pub fn set_ime_allowed(&mut self, ime_allowed: bool) {
         self.ime_allowed = ime_allowed
+    }
+
+    // TODO: maybe I should put text_inputs to unit
+    pub fn set_ime_cursor_area<P: Into<dpi::Position>, S: Into<dpi::Size>>(
+        &self,
+        position: P,
+        size: S,
+        id: id::Id,
+    ) {
+        if !self.ime_allowed() {
+            return;
+        }
+        let position: dpi::Position = position.into();
+        let size: dpi::Size = size.into();
+        let Some(unit) = self.get_window_with_id(id) else {
+            return;
+        };
+        let scale_factor = unit.scale_float();
+        let position: dpi::LogicalPosition<u32> = position.to_logical(scale_factor);
+        let size: dpi::LogicalSize<u32> = size.to_logical(scale_factor);
+        let (x, y) = (position.x as i32, position.y as i32);
+        let (width, height) = (size.width as i32, size.height as i32);
+        for text_input in self.text_inputs.iter() {
+            text_input.set_cursor_rectangle(x, y, width, height);
+            text_input.commit();
+        }
     }
 
     #[inline]
@@ -1838,21 +1865,47 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
     }
 }
 
-impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, ()> for WindowState<T> {
+#[derive(Default)]
+pub struct TextInputData {
+    inner: std::sync::Mutex<TextInputDataInner>,
+}
+
+#[derive(Default)]
+pub struct TextInputDataInner {
+    /// The `WlSurface` we're performing input to.
+    surface: Option<WlSurface>,
+
+    /// The commit to submit on `done`.
+    pending_commit: Option<String>,
+
+    /// The preedit to submit on `done`.
+    pending_preedit: Option<Preedit>,
+}
+/// The state of the preedit.
+struct Preedit {
+    text: String,
+    cursor_begin: Option<usize>,
+    cursor_end: Option<usize>,
+}
+impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowState<T> {
     fn event(
         state: &mut Self,
         text_input: &zwp_text_input_v3::ZwpTextInputV3,
         event: <zwp_text_input_v3::ZwpTextInputV3 as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
+        data: &TextInputData,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
     ) {
         use zwp_text_input_v3::Event;
+        let mut text_input_data = data.inner.lock().unwrap();
+
         match event {
             Event::Enter { surface } => {
                 let Some(id) = state.get_id_from_surface(&surface) else {
                     return;
                 };
+                text_input_data.surface = Some(surface);
+
                 if state.ime_allowed() {
                     text_input.enable();
                     text_input.set_content_type_by_purpose(state.ime_purpose());
@@ -1864,6 +1917,8 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, ()> for WindowState<T> {
                 state.text_input_entered(text_input);
             }
             Event::Leave { surface } => {
+                text_input_data.surface = None;
+
                 text_input.disable();
                 text_input.commit();
                 let Some(id) = state.get_id_from_surface(&surface) else {
@@ -1874,14 +1929,68 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, ()> for WindowState<T> {
                     .message
                     .push((Some(id), DispatchMessageInner::Ime(events::Ime::Disabled)));
             }
-            Event::CommitString { text } => {}
+            Event::CommitString { text } => {
+                text_input_data.pending_preedit = None;
+                text_input_data.pending_commit = text;
+            }
             Event::DeleteSurroundingText { .. } => {}
-            Event::Done { serial } => {}
+            Event::Done { .. } => {
+                let Some(id) = text_input_data
+                    .surface
+                    .as_ref()
+                    .and_then(|suface| state.get_id_from_surface(suface))
+                else {
+                    return;
+                };
+                // Clear preedit, unless all we'll be doing next is sending a new preedit.
+                if text_input_data.pending_commit.is_some()
+                    || text_input_data.pending_preedit.is_none()
+                {
+                    state.message.push((
+                        Some(id),
+                        DispatchMessageInner::Ime(Ime::Preedit(String::new(), None)),
+                    ));
+                }
+
+                // Send `Commit`.
+                if let Some(text) = text_input_data.pending_commit.take() {
+                    state
+                        .message
+                        .push((Some(id), DispatchMessageInner::Ime(Ime::Commit(text))));
+                }
+
+                // Send preedit.
+                if let Some(preedit) = text_input_data.pending_preedit.take() {
+                    let cursor_range = preedit
+                        .cursor_begin
+                        .map(|b| (b, preedit.cursor_end.unwrap_or(b)));
+
+                    state.message.push((
+                        Some(id),
+                        DispatchMessageInner::Ime(Ime::Preedit(preedit.text, cursor_range)),
+                    ));
+                }
+            }
             Event::PreeditString {
                 text,
                 cursor_begin,
                 cursor_end,
-            } => {}
+            } => {
+                let text = text.unwrap_or_default();
+                let cursor_begin = usize::try_from(cursor_begin)
+                    .ok()
+                    .and_then(|idx| text.is_char_boundary(idx).then_some(idx));
+                let cursor_end = usize::try_from(cursor_end)
+                    .ok()
+                    .and_then(|idx| text.is_char_boundary(idx).then_some(idx));
+
+                text_input_data.pending_preedit = Some(Preedit {
+                    text,
+                    cursor_begin,
+                    cursor_end,
+                })
+            }
+
             _ => {}
         }
     }
@@ -1962,7 +2071,7 @@ impl<T: 'static> WindowState<T> {
             .ok();
         let text_input = text_input_manager
             .as_ref()
-            .map(|manager| manager.get_text_input(self.get_seat(), &qh, ()));
+            .map(|manager| manager.get_text_input(self.get_seat(), &qh, TextInputData::default()));
 
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
