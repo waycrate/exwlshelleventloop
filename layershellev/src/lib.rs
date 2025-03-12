@@ -123,7 +123,7 @@ use events::DispatchMessageInner;
 
 pub mod id;
 
-pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
+pub use events::{AxisScroll, DispatchMessage, Ime, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use strtoshape::str_to_shape;
 
