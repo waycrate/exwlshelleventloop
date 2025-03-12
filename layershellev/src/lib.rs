@@ -1938,7 +1938,7 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                 let Some(id) = text_input_data
                     .surface
                     .as_ref()
-                    .and_then(|suface| state.get_id_from_surface(suface))
+                    .and_then(|surface| state.get_id_from_surface(surface))
                 else {
                     return;
                 };
