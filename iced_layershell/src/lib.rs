@@ -24,6 +24,7 @@ use actions::{LayershellCustomActions, LayershellCustomActionsWithId};
 use settings::Settings;
 
 use iced_runtime::Task;
+mod ime_preedit;
 
 pub use iced_layershell_macros::to_layer_message;
 

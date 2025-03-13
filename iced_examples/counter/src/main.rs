@@ -79,8 +79,8 @@ impl Application for Counter {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::IcedEvent(event) => {
-                println!("hello {event:?}");
+            Message::IcedEvent(_event) => {
+                //println!("hello {event:?}");
                 Command::none()
             }
             Message::IncrementPressed => {
