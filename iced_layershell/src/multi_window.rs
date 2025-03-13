@@ -693,7 +693,7 @@ async fn run_instance<A, E, C>(
                 {
                     events.push((Some(id), redraw_event.clone()));
                     custom_actions.push(LayerShellAction::ImeWithId(
-                        oid.unwrap(),
+                        oid.expect("id should exist when refreshing"),
                         input_method.clone(),
                     ));
                     window.request_input_method(input_method);
