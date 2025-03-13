@@ -7,6 +7,7 @@ use crate::{
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
+    ime_preedit::Preedit,
     settings::VirtualKeyboardSettings,
 };
 
@@ -14,7 +15,10 @@ use super::{Appearance, DefaultStyle};
 use iced_graphics::{Compositor, compositor};
 use state::State;
 
-use iced_core::{input_method, time::Instant, window as IcedCoreWindow, Event as IcedCoreEvent, Size};
+use iced_core::{
+    Event as IcedCoreEvent, InputMethod, Size, input_method, time::Instant,
+    window as IcedCoreWindow,
+};
 
 use iced_runtime::{Action, Debug, Program, UserInterface, task::Task, user_interface};
 
@@ -337,8 +341,11 @@ where
                     iced_core::InputMethod::Disabled => {
                         ev.set_ime_allowed(false);
                     }
-                    iced_core::InputMethod::Enabled { position, .. } => {
+                    iced_core::InputMethod::Enabled {
+                        position, purpose, ..
+                    } => {
                         ev.set_ime_allowed(true);
+                        ev.set_ime_purpose(conversion::ime_purpose(purpose));
                         ev.set_ime_cursor_area(
                             layershellev::dpi::LogicalPosition::new(position.x, position.y),
                             layershellev::dpi::LogicalSize {
@@ -355,6 +362,94 @@ where
         def_returndata
     });
     Ok(())
+}
+
+struct IMDrawer<A>
+where
+    A: Application,
+    A::Theme: iced_core::theme::Base,
+{
+    preedit: Option<Preedit<A::Renderer>>,
+    ime_state: Option<(iced_core::Point, input_method::Purpose)>,
+}
+
+impl<A> IMDrawer<A>
+where
+    A: Application,
+    A::Theme: iced_core::theme::Base,
+{
+    fn new() -> Self {
+        Self {
+            preedit: None,
+            ime_state: None,
+        }
+    }
+    pub fn request_input_method(
+        &mut self,
+        background_color: iced_core::Color,
+        input_method: InputMethod,
+        renderer: &A::Renderer,
+    ) {
+        match input_method {
+            InputMethod::Disabled => {
+                self.disable_ime();
+            }
+            InputMethod::Enabled {
+                position,
+                purpose,
+                preedit,
+            } => {
+                self.enable_ime(position, purpose);
+
+                if let Some(preedit) = preedit {
+                    if preedit.content.is_empty() {
+                        self.preedit = None;
+                    } else {
+                        let mut overlay = self.preedit.take().unwrap_or_else(Preedit::new);
+
+                        overlay.update(position, &preedit, background_color, renderer);
+
+                        self.preedit = Some(overlay);
+                    }
+                } else {
+                    self.preedit = None;
+                }
+            }
+        }
+    }
+
+    pub fn draw_preedit(
+        &mut self,
+        renderer: &mut A::Renderer,
+        text_color: iced_core::Color,
+        background_color: iced_core::Color,
+        logical_size: iced_core::Size,
+    ) {
+        use iced_core::Point;
+        use iced_core::Rectangle;
+        if let Some(preedit) = &self.preedit {
+            preedit.draw(
+                renderer,
+                text_color,
+                background_color,
+                &Rectangle::new(Point::ORIGIN, logical_size),
+            );
+        }
+    }
+
+    fn enable_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
+        if self.ime_state != Some((position, purpose)) {
+            self.ime_state = Some((position, purpose));
+        }
+    }
+
+    fn disable_ime(&mut self) {
+        if self.ime_state.is_some() {
+            self.ime_state = None;
+        }
+
+        self.preedit = None;
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -386,6 +481,7 @@ async fn run_instance<A, E, C>(
     }
 
     let mut renderer = compositor.create_renderer();
+    let mut im_drawer: IMDrawer<A> = IMDrawer::new();
 
     let cache = user_interface::Cache::default();
 
@@ -464,9 +560,19 @@ async fn run_instance<A, E, C>(
                 } = ui_state
                 {
                     events.push(redraw_event.clone());
-                    println!("ime: ?{input_method:?}");
-                    //   window.request_input_method(input_method);
+                    custom_actions.push(LayerShellAction::Ime(input_method.clone()));
+                    im_drawer.request_input_method(
+                        state.background_color(),
+                        input_method,
+                        &renderer,
+                    );
                 }
+                im_drawer.draw_preedit(
+                    &mut renderer,
+                    state.text_color(),
+                    state.background_color(),
+                    state.viewport().logical_size(),
+                );
 
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: main_id,

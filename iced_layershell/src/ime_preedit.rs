@@ -15,7 +15,7 @@ impl<Renderer> Preedit<Renderer>
 where
     Renderer: text::Renderer,
 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             position: Point::ORIGIN,
             spans: Vec::new(),
@@ -23,7 +23,7 @@ where
         }
     }
 
-    fn update(
+    pub fn update(
         &mut self,
         position: Point,
         preedit: &input_method::Preedit,
@@ -65,7 +65,13 @@ where
         }
     }
 
-    fn draw(&self, renderer: &mut Renderer, color: Color, background: Color, viewport: &Rectangle) {
+    pub fn draw(
+        &self,
+        renderer: &mut Renderer,
+        color: Color,
+        background: Color,
+        viewport: &Rectangle,
+    ) {
         use text::Paragraph as _;
 
         if self.content.min_width() < 1.0 {

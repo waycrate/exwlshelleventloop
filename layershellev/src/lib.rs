@@ -788,23 +788,38 @@ impl<T> WindowState<T> {
     pub fn gen_mainwindow_wrapper(&self) -> WindowWrapper {
         self.main_window().gen_wrapper()
     }
+
     pub fn is_active(&self) -> bool {
         self.start_mode.is_active()
     }
+
     pub fn is_background(&self) -> bool {
         self.start_mode.is_background()
     }
+
     pub fn is_allscreens(&self) -> bool {
         self.start_mode.is_allscreens()
     }
+
     pub fn is_with_target(&self) -> bool {
         self.start_mode.is_with_target()
     }
+
     pub fn ime_allowed(&self) -> bool {
         self.ime_allowed
     }
+
     pub fn set_ime_allowed(&mut self, ime_allowed: bool) {
-        self.ime_allowed = ime_allowed
+        self.ime_allowed = ime_allowed;
+        for text_input in &self.text_inputs {
+            if ime_allowed {
+                text_input.enable();
+                text_input.set_content_type_by_purpose(self.ime_purpose);
+            } else {
+                text_input.disable();
+            }
+            text_input.commit();
+        }
     }
 
     // TODO: maybe I should put text_inputs to unit
@@ -833,12 +848,21 @@ impl<T> WindowState<T> {
         }
     }
 
+    pub fn set_ime_purpose(&mut self, purpose: ImePurpose) {
+        self.ime_purpose = purpose;
+        self.text_input.iter().for_each(|text_input| {
+            text_input.set_content_type_by_purpose(purpose);
+            text_input.commit();
+        });
+    }
+
     #[inline]
     pub fn text_input_entered(&mut self, text_input: &ZwpTextInputV3) {
         if !self.text_inputs.iter().any(|t| t == text_input) {
             self.text_inputs.push(text_input.clone());
         }
     }
+
     #[inline]
     pub fn text_input_left(&mut self, text_input: &ZwpTextInputV3) {
         if let Some(position) = self.text_inputs.iter().position(|t| t == text_input) {
@@ -1234,6 +1258,11 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
             if capabilities.contains(wl_seat::Capability::Touch) {
                 state.touch = Some(seat.get_touch(qh, ()));
             }
+            let text_input = state
+                .text_input_manager
+                .as_ref()
+                .map(|manager| manager.get_text_input(seat, qh, TextInputData::default()));
+            state.text_input = text_input;
         }
     }
 }
@@ -1887,6 +1916,7 @@ struct Preedit {
     cursor_begin: Option<usize>,
     cursor_end: Option<usize>,
 }
+
 impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -2069,10 +2099,8 @@ impl<T: 'static> WindowState<T> {
         let text_input_manager = globals
             .bind::<ZwpTextInputManagerV3, _, _>(&qh, 1..=1, ())
             .ok();
-        let text_input = text_input_manager
-            .as_ref()
-            .map(|manager| manager.get_text_input(self.get_seat(), &qh, TextInputData::default()));
 
+        self.text_input_manager = text_input_manager;
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
         // do the step before, you get empty list
@@ -2254,9 +2282,6 @@ impl<T: 'static> WindowState<T> {
         self.cursor_manager = cursor_manager;
         self.xdg_output_manager = Some(xdg_output_manager);
         self.connection = Some(connection);
-
-        self.text_input = text_input;
-        self.text_input_manager = text_input_manager;
 
         Ok(self)
     }
