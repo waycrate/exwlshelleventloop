@@ -16,8 +16,9 @@ pub(crate) enum LayerShellAction {
     CustomActionsWithId(LayershellCustomActionsWithIdInner),
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
-    NewMenu((IcedNewPopupSettings, iced_core::window::Id)),
-    Ime(input_method::InputMethod)
+    NewMenu(IcedNewPopupSettings, iced_core::window::Id),
+    Ime(input_method::InputMethod),
+    ImeWithId(LayerId, input_method::InputMethod)
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
