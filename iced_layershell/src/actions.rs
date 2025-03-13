@@ -1,5 +1,6 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
 use iced::window::Id as IcedId;
+use iced_core::input_method;
 use iced_core::mouse::Interaction;
 use layershellev::NewLayerShellSettings;
 use layershellev::id::Id as LayerId;
@@ -15,7 +16,9 @@ pub(crate) enum LayerShellAction {
     CustomActionsWithId(LayershellCustomActionsWithIdInner),
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
-    NewMenu((IcedNewPopupSettings, iced_core::window::Id)),
+    NewMenu(IcedNewPopupSettings, iced_core::window::Id),
+    Ime(input_method::InputMethod),
+    ImeWithId(LayerId, input_method::InputMethod)
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

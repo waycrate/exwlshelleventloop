@@ -467,7 +467,26 @@ where
                         }
                     }
                 }
-                LayerShellAction::NewMenu((menusettings, info)) => 'out: {
+                LayerShellAction::ImeWithId(id, ime) => match ime{
+                    iced_core::InputMethod::Disabled => {
+                        ev.set_ime_allowed(false);
+                    }
+                    iced_core::InputMethod::Enabled {
+                        position, purpose, ..
+                    } => {
+                        ev.set_ime_allowed(true);
+                        ev.set_ime_purpose(conversion::ime_purpose(purpose));
+                        ev.set_ime_cursor_area(
+                            layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                            layershellev::dpi::LogicalSize {
+                                width: 10,
+                                height: 10,
+                            },
+                            id,
+                        );
+                    }
+                },
+                LayerShellAction::NewMenu(menusettings, info) => 'out: {
                     let IcedNewPopupSettings { size, position } = menusettings;
                     let Some(id) = ev.current_surface_id() else {
                         break 'out;
@@ -578,7 +597,7 @@ async fn run_instance<A, E, C>(
         });
         match event {
             MultiWindowIcedLayerEvent(
-                _id,
+                oid,
                 IcedLayerEvent::RequestRefreshWithWrapper {
                     width,
                     height,
@@ -661,14 +680,27 @@ async fn run_instance<A, E, C>(
                 let cursor = window.state.cursor();
 
                 events.push((Some(id), redraw_event.clone()));
-                ui.update(
+                let (ui_state, _) = ui.update(
                     &[redraw_event.clone()],
                     cursor,
                     &mut window.renderer,
                     &mut clipboard,
                     &mut messages,
                 );
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method,
+                } = ui_state
+                {
+                    events.push((Some(id), redraw_event.clone()));
+                    custom_actions.push(LayerShellAction::ImeWithId(
+                        oid.expect("id should exist when refreshing"),
+                        input_method.clone(),
+                    ));
+                    window.request_input_method(input_method);
+                }
 
+                window.draw_preedit();
                 debug.draw_started();
                 let new_mouse_interaction = ui.draw(
                     &mut window.renderer,
@@ -943,13 +975,13 @@ async fn run_instance<A, E, C>(
                 if let MenuDirection::Up = direction {
                     y -= height as i32;
                 }
-                custom_actions.push(LayerShellAction::NewMenu((
+                custom_actions.push(LayerShellAction::NewMenu(
                     IcedNewPopupSettings {
                         size: (width, height),
                         position: (x, y),
                     },
                     info,
-                )));
+                ));
             }
             _ => {}
         }

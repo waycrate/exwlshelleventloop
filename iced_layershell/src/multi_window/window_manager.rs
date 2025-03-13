@@ -2,7 +2,10 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::DefaultStyle;
+use crate::ime_preedit::Preedit;
 use crate::multi_window::Application;
+use iced_core::InputMethod;
+use iced_core::input_method;
 use iced_graphics::Compositor;
 use layershellev::{WindowWrapper, id::Id as LayerId};
 
@@ -20,6 +23,8 @@ where
     pub surface: C::Surface,
     pub state: State<A>,
     pub mouse_interaction: mouse::Interaction,
+    preedit: Option<Preedit<A::Renderer>>,
+    ime_state: Option<(iced_core::Point, input_method::Purpose)>,
 }
 
 pub struct WindowManager<A: Application, C: Compositor>
@@ -95,6 +100,8 @@ where
                 surface,
                 state,
                 mouse_interaction: mouse::Interaction::Idle,
+                preedit: None,
+                ime_state: None,
             },
         );
         self.entries
@@ -133,5 +140,73 @@ where
     }
     pub fn get(&self, id: IcedId) -> Option<&Window<A, C>> {
         self.entries.get(&id)
+    }
+}
+
+impl<A, C> Window<A, C>
+where
+    A: Application,
+    C: Compositor<Renderer = A::Renderer>,
+    A::Theme: DefaultStyle,
+{
+    pub fn request_input_method(&mut self, input_method: InputMethod) {
+        match input_method {
+            InputMethod::Disabled => {
+                self.disable_ime();
+            }
+            InputMethod::Enabled {
+                position,
+                purpose,
+                preedit,
+            } => {
+                self.enable_ime(position, purpose);
+
+                if let Some(preedit) = preedit {
+                    if preedit.content.is_empty() {
+                        self.preedit = None;
+                    } else {
+                        let mut overlay = self.preedit.take().unwrap_or_else(Preedit::new);
+
+                        overlay.update(
+                            position,
+                            &preedit,
+                            self.state.background_color(),
+                            &self.renderer,
+                        );
+
+                        self.preedit = Some(overlay);
+                    }
+                } else {
+                    self.preedit = None;
+                }
+            }
+        }
+    }
+
+    pub fn draw_preedit(&mut self) {
+        use iced_core::Point;
+        use iced_core::Rectangle;
+        if let Some(preedit) = &self.preedit {
+            preedit.draw(
+                &mut self.renderer,
+                self.state.text_color(),
+                self.state.background_color(),
+                &Rectangle::new(Point::ORIGIN, self.state.viewport().logical_size()),
+            );
+        }
+    }
+
+    fn enable_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
+        if self.ime_state != Some((position, purpose)) {
+            self.ime_state = Some((position, purpose));
+        }
+    }
+
+    fn disable_ime(&mut self) {
+        if self.ime_state.is_some() {
+            self.ime_state = None;
+        }
+
+        self.preedit = None;
     }
 }

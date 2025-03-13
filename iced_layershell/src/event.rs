@@ -93,6 +93,7 @@ pub enum WindowEvent {
         x: f64,
         y: f64,
     },
+    Ime(layershellev::Ime),
 }
 
 #[derive(Debug)]
@@ -212,6 +213,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
             DispatchMessage::ModifiersChanged(modifiers) => {
                 IcedLayerEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
             }
+            DispatchMessage::Ime(ime) => IcedLayerEvent::Window(WindowEvent::Ime(ime.clone())),
             DispatchMessage::Axis {
                 horizontal,
                 vertical,
