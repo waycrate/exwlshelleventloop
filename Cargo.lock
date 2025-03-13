@@ -2663,6 +2663,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi_window"
+version = "0.13.5"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "mutate_once"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
