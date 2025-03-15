@@ -1,4 +1,6 @@
+use crate::ime_preedit::ImeState;
 use crate::reexport::{Anchor, Layer, WlRegion};
+use enumflags2::BitFlags;
 use iced::window::Id as IcedId;
 use iced_core::input_method;
 use iced_core::mouse::Interaction;
@@ -18,7 +20,7 @@ pub(crate) enum LayerShellAction {
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
     NewMenu(IcedNewPopupSettings, iced_core::window::Id),
     Ime(input_method::InputMethod),
-    ImeWithId(LayerId, input_method::InputMethod),
+    ImeWithId(LayerId, input_method::InputMethod, BitFlags<ImeState>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

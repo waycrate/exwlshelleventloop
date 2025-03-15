@@ -2,8 +2,9 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::DefaultStyle;
-use crate::ime_preedit::Preedit;
+use crate::ime_preedit::{ImeState, Preedit};
 use crate::multi_window::Application;
+use enumflags2::{BitFlag, BitFlags};
 use iced_core::InputMethod;
 use iced_core::input_method;
 use iced_graphics::Compositor;
@@ -149,17 +150,25 @@ where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
-    pub fn request_input_method(&mut self, input_method: InputMethod) {
+    pub fn request_input_method(&mut self, input_method: InputMethod) -> BitFlags<ImeState> {
         match input_method {
             InputMethod::Disabled => {
                 self.disable_ime();
+                ImeState::empty()
             }
             InputMethod::Enabled {
                 position,
                 purpose,
                 preedit,
             } => {
-                self.enable_ime(position, purpose);
+                let mut flags = ImeState::empty();
+                if self.ime_state.is_none() {
+                    flags.insert(ImeState::ToBeAllowed);
+                }
+                if self.ime_state != Some((position, purpose)) {
+                    flags.insert(ImeState::ToBeUpdate);
+                }
+                self.update_ime(position, purpose);
 
                 if let Some(preedit) = preedit {
                     if preedit.content.is_empty() {
@@ -179,6 +188,8 @@ where
                 } else {
                     self.preedit = None;
                 }
+
+                flags
             }
         }
     }
@@ -196,7 +207,7 @@ where
         }
     }
 
-    fn enable_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
+    fn update_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
         if self.ime_state != Some((position, purpose)) {
             self.ime_state = Some((position, purpose));
         }

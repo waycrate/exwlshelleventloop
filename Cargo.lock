@@ -1867,6 +1867,7 @@ dependencies = [
 name = "iced_layershell"
 version = "0.13.5"
 dependencies = [
+ "enumflags2",
  "futures",
  "iced",
  "iced_core",
