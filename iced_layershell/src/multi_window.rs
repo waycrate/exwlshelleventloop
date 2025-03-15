@@ -694,21 +694,7 @@ async fn run_instance<A, E, C>(
                     &mut clipboard,
                     &mut messages,
                 );
-                if let user_interface::State::Updated {
-                    redraw_request: _, // NOTE: I do not know how to use it now
-                    input_method,
-                } = ui_state
-                {
-                    events.push((Some(id), redraw_event.clone()));
-                    let need_update_ime = window.request_input_method(input_method.clone());
-                    custom_actions.push(LayerShellAction::ImeWithId(
-                        oid.expect("id should exist when refreshing"),
-                        input_method,
-                        need_update_ime,
-                    ));
-                }
 
-                window.draw_preedit();
                 debug.draw_started();
                 let new_mouse_interaction = ui.draw(
                     &mut window.renderer,
@@ -748,7 +734,6 @@ async fn run_instance<A, E, C>(
                     event: redraw_event.clone(),
                     status: iced_core::event::Status::Ignored,
                 });
-                debug.render_started();
 
                 debug.draw_started();
                 ui.draw(
@@ -760,6 +745,21 @@ async fn run_instance<A, E, C>(
                     window.state.cursor(),
                 );
                 debug.draw_finished();
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method,
+                } = ui_state
+                {
+                    events.push((Some(id), redraw_event.clone()));
+                    let need_update_ime = window.request_input_method(input_method.clone());
+                    custom_actions.push(LayerShellAction::ImeWithId(
+                        oid.expect("id should exist when refreshing"),
+                        input_method,
+                        need_update_ime,
+                    ));
+                }
+                window.draw_preedit();
+                debug.render_started();
                 if !is_new_window {
                     match compositor.present(
                         &mut window.renderer,
