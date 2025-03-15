@@ -7,11 +7,12 @@ use crate::{
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
-    ime_preedit::Preedit,
+    ime_preedit::{ImeState, Preedit},
     settings::VirtualKeyboardSettings,
 };
 
 use super::{Appearance, DefaultStyle};
+use enumflags2::{BitFlag, BitFlags};
 use iced_graphics::{Compositor, compositor};
 use state::State;
 
@@ -337,23 +338,27 @@ where
                 LayerShellAction::RedrawWindow(index) => {
                     ev.append_return_data(ReturnData::RedrawIndexRequest(index));
                 }
-                LayerShellAction::Ime(ime) => match ime {
+                LayerShellAction::Ime(ime, ime_flags) => match ime {
                     iced_core::InputMethod::Disabled => {
                         ev.set_ime_allowed(false);
                     }
                     iced_core::InputMethod::Enabled {
                         position, purpose, ..
                     } => {
-                        ev.set_ime_allowed(true);
-                        ev.set_ime_purpose(conversion::ime_purpose(purpose));
-                        ev.set_ime_cursor_area(
-                            layershellev::dpi::LogicalPosition::new(position.x, position.y),
-                            layershellev::dpi::LogicalSize {
-                                width: 10,
-                                height: 10,
-                            },
-                            ev.main_window().id(),
-                        );
+                        if ime_flags.contains(ImeState::ToBeAllowed) {
+                            ev.set_ime_allowed(true);
+                        }
+                        if ime_flags.contains(ImeState::ToBeUpdate) {
+                            ev.set_ime_purpose(conversion::ime_purpose(purpose));
+                            ev.set_ime_cursor_area(
+                                layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                                layershellev::dpi::LogicalSize {
+                                    width: 10,
+                                    height: 10,
+                                },
+                                ev.main_window().id(),
+                            );
+                        }
                     }
                 },
                 _ => {}
@@ -389,17 +394,25 @@ where
         background_color: iced_core::Color,
         input_method: InputMethod,
         renderer: &A::Renderer,
-    ) {
+    ) -> BitFlags<ImeState> {
         match input_method {
             InputMethod::Disabled => {
                 self.disable_ime();
+                ImeState::empty()
             }
             InputMethod::Enabled {
                 position,
                 purpose,
                 preedit,
             } => {
-                self.enable_ime(position, purpose);
+                let mut flags = ImeState::empty();
+                if self.ime_state.is_none() {
+                    flags.insert(ImeState::ToBeAllowed);
+                }
+                if self.ime_state != Some((position, purpose)) {
+                    flags.insert(ImeState::ToBeUpdate);
+                }
+                self.update_ime(position, purpose);
 
                 if let Some(preedit) = preedit {
                     if preedit.content.is_empty() {
@@ -414,6 +427,7 @@ where
                 } else {
                     self.preedit = None;
                 }
+                flags
             }
         }
     }
@@ -437,7 +451,7 @@ where
         }
     }
 
-    fn enable_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
+    fn update_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
         if self.ime_state != Some((position, purpose)) {
             self.ime_state = Some((position, purpose));
         }
@@ -553,29 +567,10 @@ async fn run_instance<A, E, C>(
                     &mut clipboard,
                     &mut messages,
                 );
-                if let user_interface::State::Updated {
-                    redraw_request: _, // NOTE: I do not know how to use it now
-                    input_method,
-                } = ui_state
-                {
-                    events.push(redraw_event.clone());
-                    custom_actions.push(LayerShellAction::Ime(input_method.clone()));
-                    im_drawer.request_input_method(
-                        state.background_color(),
-                        input_method,
-                        &renderer,
-                    );
-                }
-                im_drawer.draw_preedit(
-                    &mut renderer,
-                    state.text_color(),
-                    state.background_color(),
-                    state.viewport().logical_size(),
-                );
 
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: main_id,
-                    event: redraw_event,
+                    event: redraw_event.clone(),
                     status: iced_core::event::Status::Ignored,
                 });
 
@@ -594,9 +589,6 @@ async fn run_instance<A, E, C>(
                     custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
                     mouse_interaction = new_mouse_interaction;
                 }
-                // TODO: check mouse_interaction
-
-                debug.render_started();
 
                 debug.draw_started();
                 user_interface.draw(
@@ -608,7 +600,27 @@ async fn run_instance<A, E, C>(
                     state.cursor(),
                 );
                 debug.draw_finished();
+                debug.render_started();
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method,
+                } = ui_state
+                {
+                    events.push(redraw_event);
 
+                    let ime_flags = im_drawer.request_input_method(
+                        state.background_color(),
+                        input_method.clone(),
+                        &renderer,
+                    );
+                    custom_actions.push(LayerShellAction::Ime(input_method, ime_flags));
+                }
+                im_drawer.draw_preedit(
+                    &mut renderer,
+                    state.text_color(),
+                    state.background_color(),
+                    state.viewport().logical_size(),
+                );
                 match compositor.present(
                     &mut renderer,
                     &mut surface,
