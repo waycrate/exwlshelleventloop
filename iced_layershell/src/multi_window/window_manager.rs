@@ -160,10 +160,10 @@ where
             } => {
                 let mut flags = ImeState::empty();
                 if self.ime_state.is_none() {
-                    flags.insert(ImeState::ToBeAllowed);
+                    flags.insert(ImeState::Allowed);
                 }
                 if self.ime_state != Some((position, purpose)) {
-                    flags.insert(ImeState::ToBeUpdate);
+                    flags.insert(ImeState::Update);
                 }
                 self.update_ime(position, purpose);
 
@@ -212,7 +212,7 @@ where
 
     fn disable_ime(&mut self) -> BitFlags<ImeState> {
         let flags = if self.ime_state.is_some() {
-            ImeState::ToBeDisabled.into()
+            ImeState::Disabled.into()
         } else {
             ImeState::empty()
         };

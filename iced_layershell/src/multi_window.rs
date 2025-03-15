@@ -470,7 +470,7 @@ where
                 LayerShellAction::ImeWithId(id, ime, ime_flags) => match ime{
                     iced_core::InputMethod::Disabled => {
                         use crate::ime_preedit::ImeState;
-                        if ime_flags.contains(ImeState::ToBeDisabled) {
+                        if ime_flags.contains(ImeState::Disabled) {
                             ev.set_ime_allowed(false);
                         }
                     }
@@ -478,11 +478,11 @@ where
                         position, purpose, ..
                     } => {
                         use crate::ime_preedit::ImeState;
-                        if ime_flags.contains(ImeState::ToBeAllowed) {
+                        if ime_flags.contains(ImeState::Allowed) {
                             ev.set_ime_allowed(true);
                         }
 
-                        if ime_flags.contains(ImeState::ToBeUpdate) {
+                        if ime_flags.contains(ImeState::Update) {
                             ev.set_ime_purpose(conversion::ime_purpose(purpose));
                             ev.set_ime_cursor_area(
                                 layershellev::dpi::LogicalPosition::new(position.x, position.y),
