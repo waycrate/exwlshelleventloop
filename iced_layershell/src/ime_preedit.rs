@@ -17,9 +17,9 @@ where
 #[derive(Debug, Clone, Copy)]
 #[repr(u64)]
 pub enum ImeState {
-    ToBeDisabled = 1,
-    ToBeAllowed = 2,
-    ToBeUpdate = 4,
+    Disabled = 1,
+    Allowed = 2,
+    Update = 4,
 }
 
 impl<Renderer> Preedit<Renderer>

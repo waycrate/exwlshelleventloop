@@ -340,17 +340,17 @@ where
                 }
                 LayerShellAction::Ime(ime, ime_flags) => match ime {
                     iced_core::InputMethod::Disabled => {
-                        if ime_flags.contains(ImeState::ToBeDisabled) {
+                        if ime_flags.contains(ImeState::Disabled) {
                             ev.set_ime_allowed(false);
                         }
                     }
                     iced_core::InputMethod::Enabled {
                         position, purpose, ..
                     } => {
-                        if ime_flags.contains(ImeState::ToBeAllowed) {
+                        if ime_flags.contains(ImeState::Allowed) {
                             ev.set_ime_allowed(true);
                         }
-                        if ime_flags.contains(ImeState::ToBeUpdate) {
+                        if ime_flags.contains(ImeState::Update) {
                             ev.set_ime_purpose(conversion::ime_purpose(purpose));
                             ev.set_ime_cursor_area(
                                 layershellev::dpi::LogicalPosition::new(position.x, position.y),
@@ -406,10 +406,10 @@ where
             } => {
                 let mut flags = ImeState::empty();
                 if self.ime_state.is_none() {
-                    flags.insert(ImeState::ToBeAllowed);
+                    flags.insert(ImeState::Allowed);
                 }
                 if self.ime_state != Some((position, purpose)) {
-                    flags.insert(ImeState::ToBeUpdate);
+                    flags.insert(ImeState::Update);
                 }
                 self.update_ime(position, purpose);
 
@@ -457,7 +457,7 @@ where
     }
     fn disable_ime(&mut self) -> BitFlags<ImeState> {
         let flags = if self.ime_state.is_some() {
-            ImeState::ToBeDisabled.into()
+            ImeState::Disabled.into()
         } else {
             ImeState::empty()
         };
