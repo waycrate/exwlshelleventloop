@@ -340,7 +340,9 @@ where
                 }
                 LayerShellAction::Ime(ime, ime_flags) => match ime {
                     iced_core::InputMethod::Disabled => {
-                        ev.set_ime_allowed(false);
+                        if ime_flags.contains(ImeState::ToBeDisabled) {
+                            ev.set_ime_allowed(false);
+                        }
                     }
                     iced_core::InputMethod::Enabled {
                         position, purpose, ..
@@ -396,10 +398,7 @@ where
         renderer: &A::Renderer,
     ) -> BitFlags<ImeState> {
         match input_method {
-            InputMethod::Disabled => {
-                self.disable_ime();
-                ImeState::empty()
-            }
+            InputMethod::Disabled => self.disable_ime(),
             InputMethod::Enabled {
                 position,
                 purpose,
@@ -456,13 +455,18 @@ where
             self.ime_state = Some((position, purpose));
         }
     }
-
-    fn disable_ime(&mut self) {
+    fn disable_ime(&mut self) -> BitFlags<ImeState> {
+        let flags = if self.ime_state.is_some() {
+            ImeState::ToBeDisabled.into()
+        } else {
+            ImeState::empty()
+        };
         if self.ime_state.is_some() {
             self.ime_state = None;
         }
 
         self.preedit = None;
+        flags
     }
 }
 
