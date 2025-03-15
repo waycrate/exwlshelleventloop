@@ -7,7 +7,7 @@ use iced::{Color, window};
 use iced_layershell::build_pattern::{self, MainSettings};
 use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, StartMode};
-use iced_layershell::{Appearance, DefaultStyle, to_layer_message};
+use iced_layershell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
@@ -178,8 +178,9 @@ impl Example {
         }
     }
 
-    fn style(&self, theme: &Theme, window: window::Id) -> Appearance {
-        let mut style = theme.default_style();
+    fn style(&self, theme: &Theme, window: window::Id) -> iced::theme::Style {
+        use iced::theme::Base;
+        let mut style = theme.base();
         if let Some(window) = self.windows.get(&window) {
             if window.transparent {
                 style.background_color = Color::TRANSPARENT;

@@ -70,9 +70,9 @@ impl Application for InputRegionExample {
         .into()
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::from_rgba(0.3, 0.3, 0.3, 0.3),
             text_color: theme.palette().text,
         }

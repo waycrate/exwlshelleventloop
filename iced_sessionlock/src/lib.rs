@@ -10,7 +10,7 @@ mod error;
 mod event;
 mod proxy;
 
-use iced::{Color, Element, Theme};
+use iced::Element;
 use iced_futures::Subscription;
 use iced_runtime::Task;
 
@@ -21,37 +21,10 @@ pub use error::Error;
 use actions::UnLockAction;
 use settings::Settings;
 
+use iced::theme::Base as DefaultStyle;
+use iced::theme::Style as Appearance;
+
 pub type Result = std::result::Result<(), error::Error>;
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Appearance {
-    /// The background [`Color`] of the application.
-    pub background_color: Color,
-
-    /// The default text [`Color`] of the application.
-    pub text_color: Color,
-}
-
-/// The default style of a [`MultiApplication`].
-pub trait DefaultStyle {
-    /// Returns the default style of a [`MultiApplication`].
-    fn default_style(&self) -> Appearance;
-}
-
-impl DefaultStyle for Theme {
-    fn default_style(&self) -> Appearance {
-        default(self)
-    }
-}
-
-/// The default [`Appearance`] of a [`MultiApplication`] with the built-in [`Theme`].
-pub fn default(theme: &Theme) -> Appearance {
-    let palette = theme.extended_palette();
-
-    Appearance {
-        background_color: palette.background.base.color,
-        text_color: palette.background.base.text,
-    }
-}
 
 pub trait MultiApplication: Sized {
     /// The [`Executor`] that will run commands and subscriptions.
@@ -117,7 +90,7 @@ pub trait MultiApplication: Sized {
     ///
     /// [`Theme`]: Self::Theme
     fn style(&self, theme: &Self::Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
