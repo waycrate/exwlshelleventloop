@@ -468,7 +468,6 @@ where
                     }
                 }
                 LayerShellAction::ImeWithId(id, ime, ime_flags) => match ime{
-
                     iced_core::InputMethod::Disabled => {
                         ev.set_ime_allowed_with_id(false, id);
                     }
@@ -477,7 +476,7 @@ where
                     } => {
                         use crate::ime_preedit::ImeState;
                         if ime_flags.contains(ImeState::ToBeAllowed) {
-                            ev.set_ime_allowed(true);
+                            ev.set_ime_allowed_with_id(true, id);
                         }
 
                         if ime_flags.contains(ImeState::ToBeUpdate) {
