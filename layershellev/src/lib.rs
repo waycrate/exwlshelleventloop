@@ -767,22 +767,6 @@ impl<T> WindowState<T> {
 }
 
 impl<T> WindowState<T> {
-    /// gen the wrapper for the main window
-    /// if there is none, it will create a fake wrapper
-    /// used to get display and etc
-    /// It is not suggested to use this one, We will remove this one in next version
-    #[deprecated(note = "use gen_mainwindow_wrapper instead")]
-    pub fn gen_main_wrapper(&self) -> WindowWrapper {
-        if self.is_background() {
-            return WindowWrapper {
-                id: id::Id::MAIN,
-                display: self.display.as_ref().unwrap().clone(),
-                wl_surface: self.background_surface.as_ref().unwrap().clone(),
-                viewport: None,
-            };
-        }
-        self.main_window().gen_wrapper()
-    }
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_mainwindow_wrapper(&self) -> WindowWrapper {
@@ -820,6 +804,15 @@ impl<T> WindowState<T> {
             }
             text_input.commit();
         }
+    }
+
+    /// In case when the focused surface is not the request surface, but it is still be disabled
+    /// So this time, we need to use a id to ensure this won't happen
+    pub fn set_ime_allowed_with_id(&mut self, ime_allowed: bool, id: id::Id) {
+        if self.current_surface_id().is_none_or(|cid| cid != id) {
+            return;
+        }
+        self.set_ime_allowed(ime_allowed);
     }
 
     // TODO: maybe I should put text_inputs to unit
@@ -1735,6 +1728,7 @@ impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
         }
     }
 }
+
 impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,

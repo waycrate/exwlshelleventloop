@@ -2,6 +2,8 @@ use iced_core::{
     Color, Padding, Point, Rectangle, Size, Text, Vector, alignment, input_method, renderer, text,
 };
 
+use enumflags2::bitflags;
+
 pub struct Preedit<Renderer>
 where
     Renderer: text::Renderer,
@@ -9,6 +11,14 @@ where
     position: Point,
     content: Renderer::Paragraph,
     spans: Vec<text::Span<'static, (), Renderer::Font>>,
+}
+
+#[bitflags]
+#[derive(Debug, Clone, Copy)]
+#[repr(u64)]
+pub enum ImeState {
+    ToBeAllowed = 1,
+    ToBeUpdate = 2,
 }
 
 impl<Renderer> Preedit<Renderer>

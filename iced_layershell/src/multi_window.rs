@@ -467,23 +467,30 @@ where
                         }
                     }
                 }
-                LayerShellAction::ImeWithId(id, ime) => match ime{
+                LayerShellAction::ImeWithId(id, ime, ime_flags) => match ime{
+
                     iced_core::InputMethod::Disabled => {
-                        ev.set_ime_allowed(false);
+                        ev.set_ime_allowed_with_id(false, id);
                     }
                     iced_core::InputMethod::Enabled {
                         position, purpose, ..
                     } => {
-                        ev.set_ime_allowed(true);
-                        ev.set_ime_purpose(conversion::ime_purpose(purpose));
-                        ev.set_ime_cursor_area(
-                            layershellev::dpi::LogicalPosition::new(position.x, position.y),
-                            layershellev::dpi::LogicalSize {
-                                width: 10,
-                                height: 10,
-                            },
-                            id,
-                        );
+                        use crate::ime_preedit::ImeState;
+                        if ime_flags.contains(ImeState::ToBeAllowed) {
+                            ev.set_ime_allowed(true);
+                        }
+
+                        if ime_flags.contains(ImeState::ToBeUpdate) {
+                            ev.set_ime_purpose(conversion::ime_purpose(purpose));
+                            ev.set_ime_cursor_area(
+                                layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                                layershellev::dpi::LogicalSize {
+                                    width: 10,
+                                    height: 10,
+                                },
+                                id,
+                            );
+                        }
                     }
                 },
                 LayerShellAction::NewMenu(menusettings, info) => 'out: {
@@ -693,11 +700,12 @@ async fn run_instance<A, E, C>(
                 } = ui_state
                 {
                     events.push((Some(id), redraw_event.clone()));
+                    let need_update_ime = window.request_input_method(input_method.clone());
                     custom_actions.push(LayerShellAction::ImeWithId(
                         oid.expect("id should exist when refreshing"),
-                        input_method.clone(),
+                        input_method,
+                        need_update_ime,
                     ));
-                    window.request_input_method(input_method);
                 }
 
                 window.draw_preedit();
