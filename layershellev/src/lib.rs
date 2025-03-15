@@ -794,9 +794,6 @@ impl<T> WindowState<T> {
     }
 
     pub fn set_ime_allowed(&mut self, ime_allowed: bool) {
-        if self.ime_allowed() == ime_allowed {
-            return;
-        }
         self.ime_allowed = ime_allowed;
         for text_input in &self.text_inputs {
             if ime_allowed {
@@ -809,16 +806,6 @@ impl<T> WindowState<T> {
         }
     }
 
-    /// In case when the focused surface is not the request surface, but it is still be disabled
-    /// So this time, we need to use a id to ensure this won't happen
-    pub fn set_ime_allowed_with_id(&mut self, ime_allowed: bool, id: id::Id) {
-        if self.current_surface_id().is_some_and(|cid| cid != id) {
-            return;
-        }
-        self.set_ime_allowed(ime_allowed);
-    }
-
-    // TODO: maybe I should put text_inputs to unit
     pub fn set_ime_cursor_area<P: Into<dpi::Position>, S: Into<dpi::Size>>(
         &self,
         position: P,

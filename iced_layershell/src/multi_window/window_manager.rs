@@ -152,10 +152,7 @@ where
 {
     pub fn request_input_method(&mut self, input_method: InputMethod) -> BitFlags<ImeState> {
         match input_method {
-            InputMethod::Disabled => {
-                self.disable_ime();
-                ImeState::empty()
-            }
+            InputMethod::Disabled => self.disable_ime(),
             InputMethod::Enabled {
                 position,
                 purpose,
@@ -213,11 +210,17 @@ where
         }
     }
 
-    fn disable_ime(&mut self) {
+    fn disable_ime(&mut self) -> BitFlags<ImeState> {
+        let flags = if self.ime_state.is_some() {
+            ImeState::ToBeDisabled.into()
+        } else {
+            ImeState::empty()
+        };
         if self.ime_state.is_some() {
             self.ime_state = None;
         }
 
         self.preedit = None;
+        flags
     }
 }
