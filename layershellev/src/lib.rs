@@ -1266,10 +1266,8 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                     .as_ref()
                     .map(|manager| manager.get_text_input(seat, qh, TextInputData::default()));
                 state.text_input = text_input;
-            } else {
-                if let Some(text_input) = state.text_input.take() {
-                    text_input.destroy();
-                }
+            } else if let Some(text_input) = state.text_input.take() {
+                text_input.destroy();
             }
         }
     }
