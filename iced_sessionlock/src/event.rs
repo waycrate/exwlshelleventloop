@@ -52,6 +52,8 @@ pub enum WindowEvent {
         event: SessionLockEvent,
         is_synthetic: bool,
     },
+    Unfocus,
+    Focused,
     ModifiersChanged(ModifiersState),
     Axis {
         x: f32,
@@ -186,6 +188,8 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                 event: event.clone(),
                 is_synthetic: *is_synthetic,
             }),
+            DispatchMessage::Unfocus => IcedSessionLockEvent::Window(WindowEvent::Unfocus),
+            DispatchMessage::Focused(_) => IcedSessionLockEvent::Window(WindowEvent::Focused),
             DispatchMessage::ModifiersChanged(modifiers) => {
                 IcedSessionLockEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
             }

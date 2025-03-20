@@ -152,6 +152,8 @@ pub(crate) enum DispatchMessageInner {
         x: f64,
         y: f64,
     },
+    Focused(Id),
+    UnFocused,
     ModifiersChanged(ModifiersState),
     KeyboardInput {
         event: KeyEvent,
@@ -243,6 +245,8 @@ pub enum DispatchMessage {
         x: f64,
         y: f64,
     },
+    Focused(Id),
+    Unfocus,
     /// Keyboard ModifiersChanged.
     ModifiersChanged(ModifiersState),
     /// Keyboard Event about input.
@@ -383,6 +387,8 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 scale_float,
                 scale_u32,
             },
+            DispatchMessageInner::UnFocused => DispatchMessage::Unfocus,
+            DispatchMessageInner::Focused(id) => DispatchMessage::Focused(id),
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
         }
     }
