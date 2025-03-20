@@ -141,6 +141,8 @@ pub fn window_event(
         SessionLockEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
             keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
         )),
+        SessionLockEvent::Unfocus => Some(IcedEvent::Window(iced::window::Event::Unfocused)),
+        SessionLockEvent::Focused => Some(IcedEvent::Window(iced::window::Event::Focused)),
         _ => None,
     }
 }
