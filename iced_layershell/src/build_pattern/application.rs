@@ -80,7 +80,7 @@ pub trait Program: Sized {
     ///
     /// [`Theme`]: Self::Theme
     fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the

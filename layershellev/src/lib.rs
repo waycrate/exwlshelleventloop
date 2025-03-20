@@ -116,6 +116,7 @@ pub use events::NewPopUpSettings;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
+pub mod dpi;
 mod events;
 mod strtoshape;
 
@@ -123,7 +124,7 @@ use events::DispatchMessageInner;
 
 pub mod id;
 
-pub use events::{AxisScroll, DispatchMessage, LayerEvent, ReturnData, XdgInfoChangedType};
+pub use events::{AxisScroll, DispatchMessage, Ime, LayerEvent, ReturnData, XdgInfoChangedType};
 
 use strtoshape::str_to_shape;
 
@@ -186,6 +187,11 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
 use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
+};
+
+use wayland_protocols::wp::text_input::zv3::client::{
+    zwp_text_input_manager_v3::ZwpTextInputManagerV3,
+    zwp_text_input_v3::{self, ContentHint, ContentPurpose, ZwpTextInputV3},
 };
 
 pub use calloop;
@@ -571,6 +577,18 @@ impl<T> WindowStateUnit<T> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum ImePurpose {
+    /// No special hints for the IME (default).
+    Normal,
+    /// The IME is used for password input.
+    Password,
+    /// The IME is used to input into a terminal.
+    ///
+    /// For example, that could alter OSK on Wayland to show extra buttons.
+    Terminal,
+}
+
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
@@ -627,6 +645,12 @@ pub struct WindowState<T> {
     start_mode: StartMode,
     init_finished: bool,
     events_transparent: bool,
+
+    text_input_manager: Option<ZwpTextInputManagerV3>,
+    text_input: Option<ZwpTextInputV3>,
+    text_inputs: Vec<ZwpTextInputV3>,
+    ime_purpose: ImePurpose,
+    ime_allowed: bool,
 }
 
 impl<T> WindowState<T> {
@@ -743,38 +767,109 @@ impl<T> WindowState<T> {
 }
 
 impl<T> WindowState<T> {
-    /// gen the wrapper for the main window
-    /// if there is none, it will create a fake wrapper
-    /// used to get display and etc
-    /// It is not suggested to use this one, We will remove this one in next version
-    #[deprecated(note = "use gen_mainwindow_wrapper instead")]
-    pub fn gen_main_wrapper(&self) -> WindowWrapper {
-        if self.is_background() {
-            return WindowWrapper {
-                id: id::Id::MAIN,
-                display: self.display.as_ref().unwrap().clone(),
-                wl_surface: self.background_surface.as_ref().unwrap().clone(),
-                viewport: None,
-            };
-        }
-        self.main_window().gen_wrapper()
-    }
     /// gen the wrapper to the main window
     /// used to get display and etc
     pub fn gen_mainwindow_wrapper(&self) -> WindowWrapper {
         self.main_window().gen_wrapper()
     }
+
     pub fn is_active(&self) -> bool {
         self.start_mode.is_active()
     }
+
     pub fn is_background(&self) -> bool {
         self.start_mode.is_background()
     }
+
     pub fn is_allscreens(&self) -> bool {
         self.start_mode.is_allscreens()
     }
+
     pub fn is_with_target(&self) -> bool {
         self.start_mode.is_with_target()
+    }
+
+    pub fn ime_allowed(&self) -> bool {
+        self.ime_allowed
+    }
+
+    pub fn set_ime_allowed(&mut self, ime_allowed: bool) {
+        self.ime_allowed = ime_allowed;
+        for text_input in &self.text_inputs {
+            if ime_allowed {
+                text_input.enable();
+                text_input.set_content_type_by_purpose(self.ime_purpose);
+            } else {
+                text_input.disable();
+            }
+            text_input.commit();
+        }
+    }
+
+    pub fn set_ime_cursor_area<P: Into<dpi::Position>, S: Into<dpi::Size>>(
+        &self,
+        position: P,
+        size: S,
+        id: id::Id,
+    ) {
+        if !self.ime_allowed() {
+            return;
+        }
+        let position: dpi::Position = position.into();
+        let size: dpi::Size = size.into();
+        let Some(unit) = self.get_window_with_id(id) else {
+            return;
+        };
+        let scale_factor = unit.scale_float();
+        let position: dpi::LogicalPosition<u32> = position.to_logical(scale_factor);
+        let size: dpi::LogicalSize<u32> = size.to_logical(scale_factor);
+        let (x, y) = (position.x as i32, position.y as i32);
+        let (width, height) = (size.width as i32, size.height as i32);
+        for text_input in self.text_inputs.iter() {
+            text_input.set_cursor_rectangle(x, y, width, height);
+            text_input.commit();
+        }
+    }
+
+    pub fn set_ime_purpose(&mut self, purpose: ImePurpose) {
+        self.ime_purpose = purpose;
+        self.text_input.iter().for_each(|text_input| {
+            text_input.set_content_type_by_purpose(purpose);
+            text_input.commit();
+        });
+    }
+
+    #[inline]
+    pub fn text_input_entered(&mut self, text_input: &ZwpTextInputV3) {
+        if !self.text_inputs.iter().any(|t| t == text_input) {
+            self.text_inputs.push(text_input.clone());
+        }
+    }
+
+    #[inline]
+    pub fn text_input_left(&mut self, text_input: &ZwpTextInputV3) {
+        if let Some(position) = self.text_inputs.iter().position(|t| t == text_input) {
+            self.text_inputs.remove(position);
+        }
+    }
+
+    fn ime_purpose(&self) -> ImePurpose {
+        self.ime_purpose
+    }
+}
+
+pub trait ZwpTextInputV3Ext {
+    fn set_content_type_by_purpose(&self, purpose: ImePurpose);
+}
+
+impl ZwpTextInputV3Ext for ZwpTextInputV3 {
+    fn set_content_type_by_purpose(&self, purpose: ImePurpose) {
+        let (hint, purpose) = match purpose {
+            ImePurpose::Normal => (ContentHint::None, ContentPurpose::Normal),
+            ImePurpose::Password => (ContentHint::SensitiveData, ContentPurpose::Password),
+            ImePurpose::Terminal => (ContentHint::None, ContentPurpose::Terminal),
+        };
+        self.set_content_type(hint, purpose);
     }
 }
 
@@ -1007,6 +1102,12 @@ impl<T> Default for WindowState<T> {
             start_mode: StartMode::Active,
             init_finished: false,
             events_transparent: false,
+
+            text_input_manager: None,
+            text_input: None,
+            text_inputs: Vec::new(),
+            ime_purpose: ImePurpose::Normal,
+            ime_allowed: false,
         }
     }
 }
@@ -1055,12 +1156,7 @@ impl<T> WindowState<T> {
             .iter()
             .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
     }
-    fn surface_id(&self) -> Option<id::Id> {
-        self.units
-            .iter()
-            .find(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
-            .map(|unit| unit.id())
-    }
+
     /// get the current focused surface id
     pub fn current_surface_id(&self) -> Option<id::Id> {
         self.units
@@ -1131,14 +1227,47 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
             capabilities: WEnum::Value(capabilities),
         } = event
         {
+            let mut keyboard_installing = true;
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
+                if state.keyboard_state.is_none() {
+                    state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
+                } else {
+                    keyboard_installing = false;
+                    let keyboard = state.keyboard_state.take().unwrap();
+                    drop(keyboard);
+                    if let Some(surface_id) = state.current_surface_id() {
+                        state
+                            .message
+                            .push((Some(surface_id), DispatchMessageInner::Unfocus));
+                    }
+                }
             }
             if capabilities.contains(wl_seat::Capability::Pointer) {
-                state.pointer = Some(seat.get_pointer(qh, ()));
+                if state.pointer.is_none() {
+                    state.pointer = Some(seat.get_pointer(qh, ()));
+                } else {
+                    let pointer = state.pointer.take().unwrap();
+                    pointer.release();
+                }
             }
             if capabilities.contains(wl_seat::Capability::Touch) {
-                state.touch = Some(seat.get_touch(qh, ()));
+                if state.touch.is_none() {
+                    state.touch = Some(seat.get_touch(qh, ()));
+                } else {
+                    let touch = state.touch.take().unwrap();
+                    if touch.version() >= 3 {
+                        touch.release();
+                    }
+                }
+            }
+            if keyboard_installing {
+                let text_input = state
+                    .text_input_manager
+                    .as_ref()
+                    .map(|manager| manager.get_text_input(seat, qh, TextInputData::default()));
+                state.text_input = text_input;
+            } else if let Some(text_input) = state.text_input.take() {
+                text_input.destroy();
             }
         }
     }
@@ -1155,7 +1284,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     ) {
         use keyboard::*;
         use xkb_keyboard::ElementState;
-        let surface_id = state.surface_id();
+        let surface_id = state.current_surface_id();
         let keyboard_state = state.keyboard_state.as_mut().unwrap();
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
@@ -1314,7 +1443,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 let modifiers = xkb_state.modifiers();
 
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::ModifiersChanged(modifiers.into()),
                 ))
             }
@@ -1411,7 +1540,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         let scale = state
-            .surface_id()
+            .current_surface_id()
             .and_then(|id| state.get_unit_with_id(id))
             .map(|unit| unit.scale_float())
             .unwrap_or(1.0);
@@ -1430,7 +1559,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     };
 
                     state.message.push((
-                        state.surface_id(),
+                        state.current_surface_id(),
                         DispatchMessageInner::Axis {
                             time,
                             scale,
@@ -1455,7 +1584,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     }
 
                     state.message.push((
-                        state.surface_id(),
+                        state.current_surface_id(),
                         DispatchMessageInner::Axis {
                             time,
                             scale,
@@ -1472,7 +1601,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             },
             wl_pointer::Event::AxisSource { axis_source } => match axis_source {
                 WEnum::Value(source) => state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::Axis {
                         horizontal: AxisScroll::default(),
                         vertical: AxisScroll::default(),
@@ -1501,7 +1630,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     };
 
                     state.message.push((
-                        state.surface_id(),
+                        state.current_surface_id(),
                         DispatchMessageInner::Axis {
                             time: 0,
                             scale,
@@ -1523,7 +1652,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 time,
             } => {
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::MouseButton {
                         state: btnstate,
                         serial,
@@ -1536,7 +1665,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 state.current_surface = None;
                 state
                     .message
-                    .push((state.surface_id(), DispatchMessageInner::MouseLeave));
+                    .push((state.current_surface_id(), DispatchMessageInner::MouseLeave));
                 if let Some(keyboard_state) = state.keyboard_state.as_mut() {
                     keyboard_state.current_repeat = None;
                 }
@@ -1548,7 +1677,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_y,
             } => {
                 state.current_surface = Some(surface.clone());
-                let surface_id = state.surface_id();
+                let surface_id = state.current_surface_id();
 
                 if let Some(unit) = surface_id.and_then(|id| state.get_unit_with_id(id)) {
                     state.last_unit_index = state
@@ -1583,7 +1712,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_y,
             } => {
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::MouseMotion {
                         time,
                         surface_x,
@@ -1612,6 +1741,7 @@ impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
         }
     }
 }
+
 impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -1771,6 +1901,138 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
     }
 }
 
+#[derive(Default)]
+pub struct TextInputData {
+    inner: std::sync::Mutex<TextInputDataInner>,
+}
+
+#[derive(Default)]
+pub struct TextInputDataInner {
+    /// The `WlSurface` we're performing input to.
+    surface: Option<WlSurface>,
+
+    /// The commit to submit on `done`.
+    pending_commit: Option<String>,
+
+    /// The preedit to submit on `done`.
+    pending_preedit: Option<Preedit>,
+}
+/// The state of the preedit.
+struct Preedit {
+    text: String,
+    cursor_begin: Option<usize>,
+    cursor_end: Option<usize>,
+}
+
+impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        text_input: &zwp_text_input_v3::ZwpTextInputV3,
+        event: <zwp_text_input_v3::ZwpTextInputV3 as Proxy>::Event,
+        data: &TextInputData,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_text_input_v3::Event;
+        let mut text_input_data = data.inner.lock().unwrap();
+
+        match event {
+            Event::Enter { surface } => {
+                let Some(id) = state.get_id_from_surface(&surface) else {
+                    return;
+                };
+                text_input_data.surface = Some(surface);
+
+                if state.ime_allowed() {
+                    text_input.enable();
+                    text_input.set_content_type_by_purpose(state.ime_purpose());
+                    text_input.commit();
+                    state
+                        .message
+                        .push((Some(id), DispatchMessageInner::Ime(events::Ime::Enabled)));
+                }
+                state.text_input_entered(text_input);
+            }
+            Event::Leave { surface } => {
+                text_input_data.surface = None;
+
+                text_input.disable();
+                text_input.commit();
+                let Some(id) = state.get_id_from_surface(&surface) else {
+                    return;
+                };
+                state.text_input_left(text_input);
+                state
+                    .message
+                    .push((Some(id), DispatchMessageInner::Ime(events::Ime::Disabled)));
+            }
+            Event::CommitString { text } => {
+                text_input_data.pending_preedit = None;
+                text_input_data.pending_commit = text;
+            }
+            Event::DeleteSurroundingText { .. } => {}
+            Event::Done { .. } => {
+                let Some(id) = text_input_data
+                    .surface
+                    .as_ref()
+                    .and_then(|surface| state.get_id_from_surface(surface))
+                else {
+                    return;
+                };
+                // Clear preedit, unless all we'll be doing next is sending a new preedit.
+                if text_input_data.pending_commit.is_some()
+                    || text_input_data.pending_preedit.is_none()
+                {
+                    state.message.push((
+                        Some(id),
+                        DispatchMessageInner::Ime(Ime::Preedit(String::new(), None)),
+                    ));
+                }
+
+                // Send `Commit`.
+                if let Some(text) = text_input_data.pending_commit.take() {
+                    state
+                        .message
+                        .push((Some(id), DispatchMessageInner::Ime(Ime::Commit(text))));
+                }
+
+                // Send preedit.
+                if let Some(preedit) = text_input_data.pending_preedit.take() {
+                    let cursor_range = preedit
+                        .cursor_begin
+                        .map(|b| (b, preedit.cursor_end.unwrap_or(b)));
+
+                    state.message.push((
+                        Some(id),
+                        DispatchMessageInner::Ime(Ime::Preedit(preedit.text, cursor_range)),
+                    ));
+                }
+            }
+            Event::PreeditString {
+                text,
+                cursor_begin,
+                cursor_end,
+            } => {
+                let text = text.unwrap_or_default();
+                let cursor_begin = usize::try_from(cursor_begin)
+                    .ok()
+                    .and_then(|idx| text.is_char_boundary(idx).then_some(idx));
+                let cursor_end = usize::try_from(cursor_end)
+                    .ok()
+                    .and_then(|idx| text.is_char_boundary(idx).then_some(idx));
+
+                text_input_data.pending_preedit = Some(Preedit {
+                    text,
+                    cursor_begin,
+                    cursor_end,
+                })
+            }
+
+            _ => {}
+        }
+    }
+}
+
 delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T> WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
@@ -1795,6 +2057,8 @@ delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 delegate_noop!(@<T> WindowState<T>: ignore XdgWmBase);
+
+delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
 
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
@@ -1839,7 +2103,11 @@ impl<T: 'static> WindowState<T> {
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
+        let text_input_manager = globals
+            .bind::<ZwpTextInputManagerV3, _, _>(&qh, 1..=1, ())
+            .ok();
 
+        self.text_input_manager = text_input_manager;
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
         // do the step before, you get empty list
