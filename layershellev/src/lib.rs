@@ -806,7 +806,6 @@ impl<T> WindowState<T> {
         }
     }
 
-    // TODO: maybe I should put text_inputs to unit
     pub fn set_ime_cursor_area<P: Into<dpi::Position>, S: Into<dpi::Size>>(
         &self,
         position: P,
