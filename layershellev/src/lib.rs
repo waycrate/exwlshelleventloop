@@ -139,7 +139,7 @@ use wayland_client::{
         wl_display::WlDisplay,
         wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_output::{self, WlOutput},
-        wl_pointer::{self, WlPointer},
+        wl_pointer::{self, ButtonState, WlPointer},
         wl_region::WlRegion,
         wl_registry,
         wl_seat::{self, WlSeat},
@@ -195,6 +195,7 @@ use calloop::{
     timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -619,8 +620,11 @@ pub struct WindowState<T> {
     last_wloutput: Option<WlOutput>,
 
     return_data: Vec<ReturnData<T>>,
-    last_touch_location: (f64, f64),
-    last_touch_id: i32,
+    // Used to record locations of each finger, and set current_surface to None
+    // only if it is empty and there is no mouse button which is pressed.
+    finger_locations: HashMap<i32, (f64, f64)>,
+    pressed_mouse_buttons: HashSet<u32>,
+    pointer_enter_state: Option<(u32, WlSurface)>,
 
     xdg_info_cache: Vec<(wl_output::WlOutput, ZxdgOutputInfo)>,
 
@@ -998,8 +1002,9 @@ impl<T> Default for WindowState<T> {
             last_unit_index: 0,
 
             return_data: Vec::new(),
-            last_touch_location: (0., 0.),
-            last_touch_id: 0,
+            finger_locations: HashMap::new(),
+            pressed_mouse_buttons: HashSet::new(),
+            pointer_enter_state: None,
             // NOTE: if is some, means it is to be binded, but not now it
             // is not binded
             xdg_info_cache: Vec::new(),
@@ -1069,11 +1074,49 @@ impl<T> WindowState<T> {
             .map(|unit| unit.id())
     }
 
-    fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
-        self.units
-            .iter()
-            .find(|unit| &unit.wl_surface == surface)
-            .map(|unit| unit.id())
+    /// I think we can keep current_surface when the pointer left or a touch is lift/lost, only update current_surface when the pointer enter/moved and a touch is pressed.
+    fn update_current_surface(&mut self, surface: &WlSurface, is_touch: bool) -> bool {
+        // when there is no finger or no mouse button pressed, we can change current_surface.
+        let new_current_surface = if is_touch {
+            if self.pressed_mouse_buttons.is_empty() && self.finger_locations.len() == 1 {
+                // no mouse button is pressed, and first finger touched
+                Some(surface.clone())
+            } else {
+                None
+            }
+        } else {
+            if self.pressed_mouse_buttons.is_empty() && self.finger_locations.is_empty() {
+                // no mouse button is pressed, and no touched
+                Some(surface.clone())
+            } else {
+                None
+            }
+        };
+        if new_current_surface.is_none() || new_current_surface == self.current_surface {
+            false
+        } else {
+            self.current_surface = new_current_surface;
+
+            // reset repeat when surface is changed
+            if let Some(keyboard_state) = self.keyboard_state.as_mut() {
+                keyboard_state.current_repeat = None;
+            }
+
+            let unit = self
+                .units
+                .iter()
+                .find(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref());
+            if let Some(unit) = unit {
+                self.message
+                    .push((Some(unit.id), DispatchMessageInner::Focused(unit.id)));
+                self.last_unit_index = self
+                    .outputs
+                    .iter()
+                    .position(|(_, output)| Some(output) == unit.wl_output.as_ref())
+                    .unwrap_or(0);
+            }
+            true
+        }
     }
 }
 
@@ -1358,9 +1401,10 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 x,
                 y,
             } => {
-                state.last_touch_location = (x, y);
+                state.finger_locations.insert(id, (x, y));
+                state.update_current_surface(&surface, true);
                 state.message.push((
-                    state.get_id_from_surface(&surface),
+                    state.surface_id(),
                     DispatchMessageInner::TouchDown {
                         serial,
                         time,
@@ -1371,16 +1415,23 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 ))
             }
             wl_touch::Event::Cancel => {
-                let (x, y) = state.last_touch_location;
-                let id = state.last_touch_id;
-                state
-                    .message
-                    .push((None, DispatchMessageInner::TouchCancel { id, x, y }))
+                // get surface id before removed.
+                let surface_id = state.surface_id();
+                for (id, (x, y)) in state.finger_locations.drain() {
+                    state
+                        .message
+                        .push((surface_id, DispatchMessageInner::TouchCancel { id, x, y }))
+                }
             }
             wl_touch::Event::Up { serial, time, id } => {
-                let (x, y) = state.last_touch_location;
+                // get surface id before removed.
+                let surface_id = state.surface_id();
+                let (x, y) = state.finger_locations.remove(&id).unwrap_or_else(|| {
+                    log::warn!("unable to find the last location of finger[{}]", id);
+                    (0., 0.)
+                });
                 state.message.push((
-                    None,
+                    surface_id,
                     DispatchMessageInner::TouchUp {
                         serial,
                         time,
@@ -1391,10 +1442,11 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 ));
             }
             wl_touch::Event::Motion { time, id, x, y } => {
-                state.last_touch_location = (x, y);
-                state
-                    .message
-                    .push((None, DispatchMessageInner::TouchMotion { time, id, x, y }));
+                state.finger_locations.insert(id, (x, y));
+                state.message.push((
+                    state.surface_id(),
+                    DispatchMessageInner::TouchMotion { time, id, x, y },
+                ));
             }
             _ => {}
         }
@@ -1522,6 +1574,15 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 button,
                 time,
             } => {
+                match btnstate {
+                    WEnum::Value(ButtonState::Pressed) => {
+                        state.pressed_mouse_buttons.insert(button);
+                    }
+                    WEnum::Value(ButtonState::Released) => {
+                        state.pressed_mouse_buttons.remove(&button);
+                    }
+                    _ => unreachable!("uknown wayland button state: {:?}", btnstate),
+                }
                 state.message.push((
                     state.surface_id(),
                     DispatchMessageInner::MouseButton {
@@ -1533,13 +1594,10 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 ));
             }
             wl_pointer::Event::Leave { .. } => {
-                state.current_surface = None;
+                state.pointer_enter_state = None;
                 state
                     .message
                     .push((state.surface_id(), DispatchMessageInner::MouseLeave));
-                if let Some(keyboard_state) = state.keyboard_state.as_mut() {
-                    keyboard_state.current_repeat = None;
-                }
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -1547,34 +1605,19 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_x,
                 surface_y,
             } => {
-                state.current_surface = Some(surface.clone());
-                let surface_id = state.surface_id();
-
-                if let Some(unit) = surface_id.and_then(|id| state.get_unit_with_id(id)) {
-                    state.last_unit_index = state
-                        .outputs
-                        .iter()
-                        .position(|(_, output)| {
-                            unit.wl_output
-                                .as_ref()
-                                .is_some_and(|uoutput| uoutput == output)
-                        })
-                        .unwrap_or(0);
-                }
-
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::MouseEnter {
-                        pointer: pointer.clone(),
-                        serial,
-                        surface_x,
-                        surface_y,
-                    },
-                ));
-                if let Some(id) = surface_id {
-                    state
-                        .message
-                        .push((Some(id), DispatchMessageInner::Focused(id)));
+                state.pointer_enter_state = Some((serial, surface.clone()));
+                if state.update_current_surface(&surface, false) {
+                    // send enter event only if current_surface is updated, otherwise, the cursor
+                    // is not entering current_surface.
+                    state.message.push((
+                        state.surface_id(),
+                        DispatchMessageInner::MouseEnter {
+                            pointer: pointer.clone(),
+                            serial,
+                            surface_x,
+                            surface_y,
+                        },
+                    ));
                 }
             }
             wl_pointer::Event::Motion {
@@ -1582,6 +1625,22 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_x,
                 surface_y,
             } => {
+                let pointer_enter_state = state.pointer_enter_state.take();
+                if let Some((serial, surface)) = &pointer_enter_state {
+                    if state.update_current_surface(surface, false) {
+                        // send enter event because current_surface is changed.
+                        state.message.push((
+                            state.surface_id(),
+                            DispatchMessageInner::MouseEnter {
+                                pointer: pointer.clone(),
+                                serial: *serial,
+                                surface_x,
+                                surface_y,
+                            },
+                        ));
+                    }
+                    state.pointer_enter_state = pointer_enter_state;
+                }
                 state.message.push((
                     state.surface_id(),
                     DispatchMessageInner::MouseMotion {
