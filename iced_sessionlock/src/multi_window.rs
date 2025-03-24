@@ -182,8 +182,6 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    let mut pointer_serial: u32 = 0;
-
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, id| {
         use sessionlockev::DispatchMessage;
         match event {
@@ -191,32 +189,24 @@ where
             // TODO: maybe use it later
             SessionLockEvent::BindProvide(_, _) => {}
             SessionLockEvent::RequestMessages(message) => 'outside: {
-                match message {
-                    DispatchMessage::RequestRefresh {
-                        width,
-                        height,
-                        scale_float,
-                    } => {
-                        event_sender
-                            .start_send(MultiWindowIcedSessionLockEvent(
-                                id,
-                                IcedSessionLockEvent::RequestRefreshWithWrapper {
-                                    width: *width,
-                                    height: *height,
-                                    scale_float: *scale_float,
-                                    wrapper: ev
-                                        .get_unit_with_id(id.unwrap())
-                                        .unwrap()
-                                        .gen_wrapper(),
-                                },
-                            ))
-                            .expect("Cannot send");
-                        break 'outside;
-                    }
-                    DispatchMessage::MouseEnter { serial, .. } => {
-                        pointer_serial = *serial;
-                    }
-                    _ => {}
+                if let DispatchMessage::RequestRefresh {
+                    width,
+                    height,
+                    scale_float,
+                } = message
+                {
+                    event_sender
+                        .start_send(MultiWindowIcedSessionLockEvent(
+                            id,
+                            IcedSessionLockEvent::RequestRefreshWithWrapper {
+                                width: *width,
+                                height: *height,
+                                scale_float: *scale_float,
+                                wrapper: ev.get_unit_with_id(id.unwrap()).unwrap().gen_wrapper(),
+                            },
+                        ))
+                        .expect("Cannot send");
+                    break 'outside;
                 }
 
                 event_sender
@@ -259,7 +249,6 @@ where
                             break 'peddingBlock ReturnData::RequestSetCursorShape((
                                 conversion::mouse_interaction(mouse),
                                 pointer.clone(),
-                                pointer_serial,
                             ));
                         }
                         SessionShellAction::RedrawAll => {
