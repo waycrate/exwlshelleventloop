@@ -1084,13 +1084,11 @@ impl<T> WindowState<T> {
             } else {
                 None
             }
+        } else if self.pressed_mouse_buttons.is_empty() && self.finger_locations.is_empty() {
+            // no mouse button is pressed, and no touched
+            Some(surface.clone())
         } else {
-            if self.pressed_mouse_buttons.is_empty() && self.finger_locations.is_empty() {
-                // no mouse button is pressed, and no touched
-                Some(surface.clone())
-            } else {
-                None
-            }
+            None
         };
         if new_current_surface.is_none() || new_current_surface == self.current_surface {
             false
