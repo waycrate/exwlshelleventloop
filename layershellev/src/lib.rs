@@ -1581,7 +1581,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     WEnum::Value(ButtonState::Released) => {
                         state.pressed_mouse_buttons.remove(&button);
                     }
-                    _ => unreachable!("uknown wayland button state: {:?}", btnstate),
+                    _ => unreachable!("unknown wayland button state: {:?}", btnstate),
                 }
                 state.message.push((
                     state.surface_id(),
