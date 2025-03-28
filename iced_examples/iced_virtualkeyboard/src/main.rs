@@ -1,14 +1,13 @@
-use iced::event::Status;
 use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
+use iced_layershell::Application;
 use iced_layershell::actions::LayershellCustomActions;
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
-use iced_layershell::{Appearance, Application};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
@@ -117,9 +116,9 @@ impl Application for KeyboardView {
         }
     }
 
-    fn style(&self, theme: &Self::Theme) -> Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }
@@ -304,13 +303,13 @@ impl canvas::Program<Message> for KeyboardView {
     fn update(
         &self,
         state: &mut Self::State,
-        event: canvas::Event,
+        event: &canvas::Event,
         bounds: Rectangle,
         cursor: Cursor,
-    ) -> (Status, Option<Message>) {
+    ) -> Option<iced::widget::canvas::Action<Message>> {
         update_keyboard(state, bounds.width, bounds.height);
         let Event::Mouse(mouse_event) = event else {
-            return (Status::Ignored, None);
+            return None;
         };
         if let iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) = mouse_event {
             if let Some(click_position) = cursor.position_in(bounds) {
@@ -327,14 +326,15 @@ impl canvas::Program<Message> for KeyboardView {
                         // Clear the cache
                         self.draw_cache.clear();
                         if let Some(key_code) = get_key_code(label) {
-                            return (Status::Captured, Some(Message::InputKeyPressed(key_code)));
+                            return Some(canvas::Action::publish(Message::InputKeyPressed(
+                                key_code,
+                            )));
                         }
                     }
                 }
             }
         }
-
-        (Status::Ignored, None)
+        None
     }
 }
 

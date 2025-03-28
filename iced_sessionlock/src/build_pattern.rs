@@ -130,7 +130,7 @@ mod pattern {
         ///
         /// [`Theme`]: Self::Theme
         fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            theme.default_style()
+            theme.base()
         }
 
         /// Returns the event [`iced::Subscription`] for the current state of the
