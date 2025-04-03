@@ -551,7 +551,7 @@ impl<T> WindowState<T> {
         self.units.iter().find(|unit| unit.id == id)
     }
 
-    fn surface_id(&self) -> Option<id::Id> {
+    fn current_surface_id(&self) -> Option<id::Id> {
         self.units
             .iter()
             .find(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
@@ -620,13 +620,35 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
         } = event
         {
             if capabilities.contains(wl_seat::Capability::Keyboard) {
-                state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
+                if state.keyboard_state.is_none() {
+                    state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
+                } else {
+                    let keyboard = state.keyboard_state.take().unwrap();
+                    drop(keyboard);
+                    if let Some(surface_id) = state.current_surface_id() {
+                        state
+                            .message
+                            .push((Some(surface_id), DispatchMessageInner::UnFocused));
+                    }
+                }
             }
             if capabilities.contains(wl_seat::Capability::Pointer) {
-                state.pointer = Some(seat.get_pointer(qh, ()));
+                if state.pointer.is_none() {
+                    state.pointer = Some(seat.get_pointer(qh, ()));
+                } else {
+                    let pointer = state.pointer.take().unwrap();
+                    pointer.release();
+                }
             }
             if capabilities.contains(wl_seat::Capability::Touch) {
-                state.touch = Some(seat.get_touch(qh, ()));
+                if state.touch.is_none() {
+                    state.touch = Some(seat.get_touch(qh, ()));
+                } else {
+                    let touch = state.touch.take().unwrap();
+                    if touch.version() >= 3 {
+                        touch.release();
+                    }
+                }
             }
         }
     }
@@ -643,7 +665,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     ) {
         use keyboard::*;
         use xkb_keyboard::ElementState;
-        let surface_id = state.surface_id();
+        let surface_id = state.current_surface_id();
         let keyboard_state = state.keyboard_state.as_mut().unwrap();
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
@@ -670,6 +692,9 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                     surface_id,
                     DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
                 ));
+                state
+                    .message
+                    .push((surface_id, DispatchMessageInner::UnFocused));
                 if let (Some(token), Some(loop_handle)) = (
                     keyboard_state.repeat_token.take(),
                     state.loop_handler.as_ref(),
@@ -798,7 +823,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 let modifiers = xkb_state.modifiers();
 
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::ModifiersChanged(modifiers.into()),
                 ))
             }
@@ -895,7 +920,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         let scale = state
-            .surface_id()
+            .current_surface_id()
             .and_then(|id| state.get_unit_with_id(id))
             .map(|unit| unit.scale_float())
             .unwrap_or(1.0);
@@ -914,7 +939,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     };
 
                     state.message.push((
-                        state.surface_id(),
+                        state.current_surface_id(),
                         DispatchMessageInner::Axis {
                             time,
                             scale,
@@ -939,7 +964,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     }
 
                     state.message.push((
-                        state.surface_id(),
+                        state.current_surface_id(),
                         DispatchMessageInner::Axis {
                             time,
                             scale,
@@ -956,7 +981,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             },
             wl_pointer::Event::AxisSource { axis_source } => match axis_source {
                 WEnum::Value(source) => state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::Axis {
                         horizontal: AxisScroll::default(),
                         vertical: AxisScroll::default(),
@@ -985,7 +1010,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     };
 
                     state.message.push((
-                        state.surface_id(),
+                        state.current_surface_id(),
                         DispatchMessageInner::Axis {
                             time: 0,
                             scale,
@@ -1008,7 +1033,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 time,
             } => {
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::MouseButton {
                         state: btnstate,
                         serial,
@@ -1025,7 +1050,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             } => {
                 state.current_surface = Some(surface.clone());
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::MouseEnter {
                         pointer: pointer.clone(),
                         serial,
@@ -1033,6 +1058,11 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         surface_y,
                     },
                 ));
+                if let Some(id) = state.current_surface_id() {
+                    state
+                        .message
+                        .push((Some(id), DispatchMessageInner::Focused(id)));
+                }
             }
             wl_pointer::Event::Motion {
                 time,
@@ -1040,7 +1070,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_y,
             } => {
                 state.message.push((
-                    state.surface_id(),
+                    state.current_surface_id(),
                     DispatchMessageInner::MouseMotion {
                         time,
                         surface_x,
@@ -1052,7 +1082,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 state.current_surface = None;
                 state
                     .message
-                    .push((state.surface_id(), DispatchMessageInner::MouseLeave));
+                    .push((state.current_surface_id(), DispatchMessageInner::MouseLeave));
                 if let Some(keyboard_state) = state.keyboard_state.as_mut() {
                     keyboard_state.current_repeat = None;
                 }

@@ -7,14 +7,19 @@ use crate::{
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
+    ime_preedit::{ImeState, Preedit},
     settings::VirtualKeyboardSettings,
 };
 
 use super::{Appearance, DefaultStyle};
+use enumflags2::{BitFlag, BitFlags};
 use iced_graphics::{Compositor, compositor};
 use state::State;
 
-use iced_core::{Event as IcedCoreEvent, Size, time::Instant, window as IcedCoreWindow};
+use iced_core::{
+    Event as IcedCoreEvent, InputMethod, Size, input_method, time::Instant,
+    window as IcedCoreWindow,
+};
 
 use iced_runtime::{Action, Debug, Program, UserInterface, task::Task, user_interface};
 
@@ -73,7 +78,7 @@ where
 
     /// Returns the `Style` variation of the `Theme`.
     fn style(&self, theme: &Self::Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -333,12 +338,136 @@ where
                 LayerShellAction::RedrawWindow(index) => {
                     ev.append_return_data(ReturnData::RedrawIndexRequest(index));
                 }
+                LayerShellAction::Ime(ime, ime_flags) => match ime {
+                    iced_core::InputMethod::Disabled => {
+                        if ime_flags.contains(ImeState::Disabled) {
+                            ev.set_ime_allowed(false);
+                        }
+                    }
+                    iced_core::InputMethod::Enabled {
+                        position, purpose, ..
+                    } => {
+                        if ime_flags.contains(ImeState::Allowed) {
+                            ev.set_ime_allowed(true);
+                        }
+                        if ime_flags.contains(ImeState::Update) {
+                            ev.set_ime_purpose(conversion::ime_purpose(purpose));
+                            ev.set_ime_cursor_area(
+                                layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                                layershellev::dpi::LogicalSize {
+                                    width: 10,
+                                    height: 10,
+                                },
+                                ev.main_window().id(),
+                            );
+                        }
+                    }
+                },
                 _ => {}
             }
         }
         def_returndata
     });
     Ok(())
+}
+
+struct IMDrawer<A>
+where
+    A: Application,
+    A::Theme: iced_core::theme::Base,
+{
+    preedit: Option<Preedit<A::Renderer>>,
+    ime_state: Option<(iced_core::Point, input_method::Purpose)>,
+}
+
+impl<A> IMDrawer<A>
+where
+    A: Application,
+    A::Theme: iced_core::theme::Base,
+{
+    fn new() -> Self {
+        Self {
+            preedit: None,
+            ime_state: None,
+        }
+    }
+    pub fn request_input_method(
+        &mut self,
+        background_color: iced_core::Color,
+        input_method: InputMethod,
+        renderer: &A::Renderer,
+    ) -> BitFlags<ImeState> {
+        match input_method {
+            InputMethod::Disabled => self.disable_ime(),
+            InputMethod::Enabled {
+                position,
+                purpose,
+                preedit,
+            } => {
+                let mut flags = ImeState::empty();
+                if self.ime_state.is_none() {
+                    flags.insert(ImeState::Allowed);
+                }
+                if self.ime_state != Some((position, purpose)) {
+                    flags.insert(ImeState::Update);
+                }
+                self.update_ime(position, purpose);
+
+                if let Some(preedit) = preedit {
+                    if preedit.content.is_empty() {
+                        self.preedit = None;
+                    } else {
+                        let mut overlay = self.preedit.take().unwrap_or_else(Preedit::new);
+
+                        overlay.update(position, &preedit, background_color, renderer);
+
+                        self.preedit = Some(overlay);
+                    }
+                } else {
+                    self.preedit = None;
+                }
+                flags
+            }
+        }
+    }
+
+    pub fn draw_preedit(
+        &mut self,
+        renderer: &mut A::Renderer,
+        text_color: iced_core::Color,
+        background_color: iced_core::Color,
+        logical_size: iced_core::Size,
+    ) {
+        use iced_core::Point;
+        use iced_core::Rectangle;
+        if let Some(preedit) = &self.preedit {
+            preedit.draw(
+                renderer,
+                text_color,
+                background_color,
+                &Rectangle::new(Point::ORIGIN, logical_size),
+            );
+        }
+    }
+
+    fn update_ime(&mut self, position: iced_core::Point, purpose: input_method::Purpose) {
+        if self.ime_state != Some((position, purpose)) {
+            self.ime_state = Some((position, purpose));
+        }
+    }
+    fn disable_ime(&mut self) -> BitFlags<ImeState> {
+        let flags = if self.ime_state.is_some() {
+            ImeState::Disabled.into()
+        } else {
+            ImeState::empty()
+        };
+        if self.ime_state.is_some() {
+            self.ime_state = None;
+        }
+
+        self.preedit = None;
+        flags
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -370,6 +499,7 @@ async fn run_instance<A, E, C>(
     }
 
     let mut renderer = compositor.create_renderer();
+    let mut im_drawer: IMDrawer<A> = IMDrawer::new();
 
     let cache = user_interface::Cache::default();
 
@@ -434,17 +564,17 @@ async fn run_instance<A, E, C>(
                 let redraw_event =
                     IcedCoreEvent::Window(IcedCoreWindow::Event::RedrawRequested(Instant::now()));
 
-                user_interface.update(
+                let (ui_state, _) = user_interface.update(
                     &[redraw_event.clone()],
                     state.cursor(),
                     &mut renderer,
                     &mut clipboard,
                     &mut messages,
                 );
-                events.push(redraw_event.clone());
+
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: main_id,
-                    event: redraw_event,
+                    event: redraw_event.clone(),
                     status: iced_core::event::Status::Ignored,
                 });
 
@@ -463,9 +593,6 @@ async fn run_instance<A, E, C>(
                     custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
                     mouse_interaction = new_mouse_interaction;
                 }
-                // TODO: check mouse_interaction
-
-                debug.render_started();
 
                 debug.draw_started();
                 user_interface.draw(
@@ -477,7 +604,27 @@ async fn run_instance<A, E, C>(
                     state.cursor(),
                 );
                 debug.draw_finished();
+                debug.render_started();
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method,
+                } = ui_state
+                {
+                    events.push(redraw_event);
 
+                    let ime_flags = im_drawer.request_input_method(
+                        state.background_color(),
+                        input_method.clone(),
+                        &renderer,
+                    );
+                    custom_actions.push(LayerShellAction::Ime(input_method, ime_flags));
+                }
+                im_drawer.draw_preedit(
+                    &mut renderer,
+                    state.text_color(),
+                    state.background_color(),
+                    state.viewport().logical_size(),
+                );
                 match compositor.present(
                     &mut renderer,
                     &mut surface,
@@ -518,7 +665,6 @@ async fn run_instance<A, E, C>(
                 run_action(
                     &application,
                     &mut compositor,
-                    &mut surface,
                     &mut cache,
                     &state,
                     &mut renderer,
@@ -652,7 +798,6 @@ pub(crate) fn update<A: Application, E: Executor>(
 pub(crate) fn run_action<A, C>(
     application: &A,
     compositor: &mut C,
-    surface: &mut C::Surface,
     cache: &mut user_interface::Cache,
     state: &State<A>,
     renderer: &mut A::Renderer,
@@ -671,7 +816,7 @@ pub(crate) fn run_action<A, C>(
     use iced_core::widget::operation;
     use iced_runtime::Action;
     use iced_runtime::clipboard;
-    use iced_runtime::window;
+
     use iced_runtime::window::Action as WindowAction;
     match event {
         Action::Output(stream) => match stream.try_into() {
@@ -725,12 +870,11 @@ pub(crate) fn run_action<A, C>(
             WindowAction::Screenshot(_id, channel) => {
                 let bytes = compositor.screenshot(
                     renderer,
-                    surface,
                     state.viewport(),
                     state.background_color(),
                     &debug.overlay(),
                 );
-                let _ = channel.send(window::Screenshot::new(
+                let _ = channel.send(iced_core::window::Screenshot::new(
                     bytes,
                     state.viewport().physical_size(),
                     state.viewport().scale_factor(),
