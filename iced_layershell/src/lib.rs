@@ -7,9 +7,9 @@ mod conversion;
 mod error;
 mod event;
 pub mod multi_window;
+mod program;
 mod proxy;
 mod sandbox;
-mod program;
 
 pub mod settings;
 
