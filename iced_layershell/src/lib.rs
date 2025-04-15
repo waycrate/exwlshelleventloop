@@ -9,6 +9,7 @@ mod event;
 pub mod multi_window;
 mod proxy;
 mod sandbox;
+mod program;
 
 pub mod settings;
 
@@ -165,7 +166,7 @@ pub trait Application: Sized {
 
 struct Instance<A: Application>(A);
 
-impl<A> iced_runtime::Program for Instance<A>
+impl<A> program::Program for Instance<A>
 where
     A: Application,
 {
@@ -345,7 +346,7 @@ pub trait MultiApplication: Sized {
 
 struct MultiInstance<A: MultiApplication>(A);
 
-impl<A> iced_runtime::multi_window::Program for MultiInstance<A>
+impl<A> program::multi_window::Program for MultiInstance<A>
 where
     A: MultiApplication,
 {

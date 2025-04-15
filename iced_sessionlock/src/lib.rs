@@ -10,6 +10,7 @@ mod error;
 mod event;
 mod proxy;
 
+mod program;
 use iced::Element;
 use iced_futures::Subscription;
 use iced_runtime::Task;
@@ -154,7 +155,7 @@ pub trait MultiApplication: Sized {
 
 struct MultiInstance<A: MultiApplication>(A);
 
-impl<A> iced_runtime::multi_window::Program for MultiInstance<A>
+impl<A> program::Program for MultiInstance<A>
 where
     A: MultiApplication,
 {

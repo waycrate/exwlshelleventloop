@@ -24,9 +24,9 @@ use super::Appearance;
 use iced_graphics::{Compositor, compositor};
 use iced_runtime::{Action, Task};
 
+use crate::program::multi_window::Program;
 use iced_core::{Size, mouse::Cursor, time::Instant};
-
-use iced_runtime::{Debug, UserInterface, multi_window::Program, user_interface};
+use iced_runtime::{UserInterface, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
@@ -150,9 +150,6 @@ where
     use futures::Future;
     use futures::task;
 
-    let mut debug = Debug::new();
-    debug.startup_started();
-
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
@@ -197,7 +194,6 @@ where
         application,
         compositor_settings,
         runtime,
-        debug,
         event_receiver,
         control_sender,
         settings.fonts,
@@ -527,7 +523,6 @@ async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
     mut runtime: MultiRuntime<E, A::Message>,
-    mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<Action<A::Message>>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
     fonts: Vec<Cow<'static, [u8]>>,
@@ -563,7 +558,6 @@ async fn run_instance<A, E, C>(
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
         &application,
-        &mut debug,
         &mut window_manager,
         HashMap::new(),
     ));
@@ -655,7 +649,6 @@ async fn run_instance<A, E, C>(
                                 user_interface::Cache::default(),
                                 &mut window.renderer,
                                 window.state.viewport().logical_size(),
-                                &mut debug,
                                 id,
                             ),
                         );
@@ -694,7 +687,6 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
-                debug.draw_started();
                 let new_mouse_interaction = ui.draw(
                     &mut window.renderer,
                     window.state.theme(),
@@ -703,7 +695,6 @@ async fn run_instance<A, E, C>(
                     },
                     cursor,
                 );
-                debug.draw_finished();
 
                 if new_mouse_interaction != window.mouse_interaction {
                     custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
@@ -734,7 +725,6 @@ async fn run_instance<A, E, C>(
                     status: iced_core::event::Status::Ignored,
                 });
 
-                debug.draw_started();
                 ui.draw(
                     &mut window.renderer,
                     &application.theme(id),
@@ -743,7 +733,6 @@ async fn run_instance<A, E, C>(
                     },
                     window.state.cursor(),
                 );
-                debug.draw_finished();
                 if let user_interface::State::Updated {
                     redraw_request: _, // NOTE: I do not know how to use it now
                     input_method,
@@ -758,24 +747,22 @@ async fn run_instance<A, E, C>(
                     ));
                 }
                 window.draw_preedit();
-                debug.render_started();
                 if !is_new_window {
                     match compositor.present(
                         &mut window.renderer,
                         &mut window.surface,
                         window.state.viewport(),
                         window.state.background_color(),
-                        &debug.overlay(),
+                        || {},
                     ) {
                         Ok(()) => {
-                            debug.render_finished();
+                            // TODO:
                         }
                         Err(error) => match error {
                             compositor::SurfaceError::OutOfMemory => {
                                 panic!("{:?}", error);
                             }
                             _ => {
-                                debug.render_finished();
                                 tracing::error!(
                                     "Error {error:?} when \
                                         presenting surface."
@@ -826,13 +813,11 @@ async fn run_instance<A, E, C>(
                     &mut custom_actions,
                     &mut waiting_actions,
                     &mut should_exit,
-                    &mut debug,
                     &mut window_manager,
                     &mut cached_user_interfaces,
                 );
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
-                    &mut debug,
                     &mut window_manager,
                     cached_user_interfaces,
                 ));
@@ -844,8 +829,6 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
-
-                debug.event_processing_started();
 
                 let mut window_refresh_events = vec![];
                 let mut uis_stale = false;
@@ -886,8 +869,6 @@ async fn run_instance<A, E, C>(
                         uis_stale = matches!(ui_state, user_interface::State::Outdated);
                     }
 
-                    debug.event_processing_finished();
-
                     for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
                         runtime.broadcast(iced_futures::subscription::Event::Interaction {
                             window: id,
@@ -912,7 +893,7 @@ async fn run_instance<A, E, C>(
                             .collect();
 
                     // Update application
-                    update(&mut application, &mut runtime, &mut debug, &mut messages);
+                    update(&mut application, &mut runtime, &mut messages);
 
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
@@ -920,7 +901,6 @@ async fn run_instance<A, E, C>(
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
-                        &mut debug,
                         &mut window_manager,
                         cached_user_interfaces,
                     ));
@@ -945,7 +925,6 @@ async fn run_instance<A, E, C>(
                 cached_user_interfaces.remove(&id);
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
-                    &mut debug,
                     &mut window_manager,
                     cached_user_interfaces,
                 ));
@@ -1002,7 +981,6 @@ async fn run_instance<A, E, C>(
 #[allow(clippy::type_complexity)]
 pub fn build_user_interfaces<'a, A: Application, C>(
     application: &'a A,
-    debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
 ) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
@@ -1022,7 +1000,6 @@ where
                     cache,
                     &mut window.renderer,
                     window.state.viewport().logical_size(),
-                    debug,
                     id,
                 ),
             ))
@@ -1037,19 +1014,14 @@ fn build_user_interface<'a, A: Application>(
     cache: user_interface::Cache,
     renderer: &mut A::Renderer,
     size: Size,
-    debug: &mut Debug,
     id: iced::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
     A::Theme: DefaultStyle,
 {
-    debug.view_started();
     let view = application.view(id);
-    debug.view_finished();
 
-    debug.layout_started();
     let user_interface = UserInterface::build(view, size, cache, renderer);
-    debug.layout_finished();
     user_interface
 }
 
@@ -1057,18 +1029,13 @@ where
 pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
     runtime: &mut MultiRuntime<E, A::Message>,
-    debug: &mut Debug,
     messages: &mut Vec<A::Message>,
 ) where
     A::Theme: DefaultStyle,
     A::Message: 'static,
 {
     for message in messages.drain(..) {
-        debug.log_message(&message);
-
-        debug.update_started();
         let task = runtime.enter(|| application.update(message));
-        debug.update_finished();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -1091,7 +1058,6 @@ pub(crate) fn run_action<A, C>(
     custom_actions: &mut Vec<LayerShellAction>,
     waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomActions)>,
     should_exit: &mut bool,
-    debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     cached_user_interfaces: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
@@ -1152,7 +1118,6 @@ pub(crate) fn run_action<A, C>(
 
             let mut uis = build_user_interfaces(
                 application,
-                debug,
                 window_manager,
                 std::mem::take(cached_user_interfaces),
             );
@@ -1203,7 +1168,6 @@ pub(crate) fn run_action<A, C>(
                     &mut window.renderer,
                     window.state.viewport(),
                     window.state.background_color(),
-                    &debug.overlay(),
                 );
 
                 let _ = channel.send(iced_core::window::Screenshot::new(
