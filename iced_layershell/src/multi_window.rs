@@ -24,7 +24,7 @@ use super::Appearance;
 use iced_graphics::{Compositor, compositor};
 use iced_runtime::{Action, Task};
 
-use iced_core::{Size, time::Instant};
+use iced_core::{Size, mouse::Cursor, time::Instant};
 
 use iced_runtime::{Debug, UserInterface, multi_window::Program, user_interface};
 
@@ -205,7 +205,6 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    let mut pointer_serial: u32 = 0;
     let mut wl_input_region: Option<WlRegion> = None;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
@@ -245,34 +244,29 @@ where
                 }
             }
             LayerEvent::RequestMessages(message) => 'outside: {
-                match message {
-                    DispatchMessage::RequestRefresh {
-                        width,
-                        height,
-                        scale_float,
-                        ..
-                    } => {
-                        let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
-                            break 'outside;
-                        };
-                        event_sender
-                            .start_send(MultiWindowIcedLayerEvent(
-                                sended_id,
-                                IcedLayerEvent::RequestRefreshWithWrapper {
-                                    width: *width,
-                                    height: *height,
-                                    fractal_scale: *scale_float,
-                                    wrapper: unit.gen_wrapper(),
-                                    info: unit.get_binding().cloned(),
-                                },
-                            ))
-                            .expect("Cannot send");
+                if let DispatchMessage::RequestRefresh {
+                    width,
+                    height,
+                    scale_float,
+                    ..
+                } = message {
+                    let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
                         break 'outside;
-                    }
-                    DispatchMessage::MouseEnter { serial, .. } => {
-                        pointer_serial = *serial;
-                    }
-                    _ => {}
+                    };
+                    event_sender
+                        .start_send(MultiWindowIcedLayerEvent(
+                            sended_id,
+                            IcedLayerEvent::RequestRefreshWithWrapper {
+                                width: *width,
+                                height: *height,
+                                fractal_scale: *scale_float,
+                                wrapper: unit.gen_wrapper(),
+                                info: unit.get_binding().cloned(),
+                                is_mouse_surface: sended_id.map(|id| ev.is_mouse_surface(id)).unwrap_or(false),
+                            },
+                        ))
+                        .expect("Cannot send");
+                    break 'outside;
                 }
 
                 event_sender
@@ -512,7 +506,6 @@ where
                     ev.append_return_data(ReturnData::RequestSetCursorShape((
                         conversion::mouse_interaction(mouse),
                         pointer.clone(),
-                        pointer_serial,
                     )));
                 }
                 LayerShellAction::RedrawAll => {
@@ -613,7 +606,7 @@ async fn run_instance<A, E, C>(
                     fractal_scale,
                     wrapper,
                     info,
-                    ..
+                    is_mouse_surface,
                 },
             ) => {
                 let mut is_new_window = false;
@@ -686,7 +679,11 @@ async fn run_instance<A, E, C>(
                 let redraw_event =
                     iced_core::Event::Window(window::Event::RedrawRequested(Instant::now()));
 
-                let cursor = window.state.cursor();
+                let cursor = if is_mouse_surface {
+                    window.state.cursor()
+                } else {
+                    Cursor::Unavailable
+                };
 
                 events.push((Some(id), redraw_event.clone()));
                 let (ui_state, _) = ui.update(

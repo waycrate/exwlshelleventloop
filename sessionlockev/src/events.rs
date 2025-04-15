@@ -77,7 +77,7 @@ pub enum ReturnData {
     RequestUnlockAndExist,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
-    RequestSetCursorShape((String, WlPointer, u32)),
+    RequestSetCursorShape((String, WlPointer)),
     None,
 }
 /// Describes a scroll along one axis

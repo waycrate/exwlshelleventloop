@@ -78,11 +78,10 @@ fn main() {
             }
             LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
             LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
-                serial, pointer, ..
+                pointer, ..
             }) => ReturnData::RequestSetCursorShape((
                 "crosshair".to_owned(),
                 pointer.clone(),
-                *serial,
             )),
             LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
