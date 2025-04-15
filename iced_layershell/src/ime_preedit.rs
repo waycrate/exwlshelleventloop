@@ -65,14 +65,18 @@ where
             self.content = Renderer::Paragraph::with_spans(Text {
                 content: &spans,
                 bounds: Size::INFINITY,
-                size: renderer.default_size(),
+                size: preedit.text_size.unwrap_or_else(|| renderer.default_size()),
                 line_height: text::LineHeight::default(),
                 font: renderer.default_font(),
-                horizontal_alignment: alignment::Horizontal::Left,
-                vertical_alignment: alignment::Vertical::Top,
+                align_x: text::Alignment::Default,
+                align_y: alignment::Vertical::Top,
                 shaping: text::Shaping::Advanced,
                 wrapping: text::Wrapping::None,
             });
+
+            self.spans.clear();
+            self.spans
+                .extend(spans.into_iter().map(text::Span::to_static));
         }
     }
 

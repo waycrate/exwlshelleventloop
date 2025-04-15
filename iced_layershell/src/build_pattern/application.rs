@@ -120,7 +120,7 @@ pub trait Program: Sized {
             _initialize: PhantomData<I>,
         }
 
-        impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)> iced_runtime::Program
+        impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)> crate::program::Program
             for Instance<P, I>
         {
             type Message = P::Message;
