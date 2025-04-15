@@ -78,7 +78,7 @@ impl Example {
             7 => Anchor::Left | Anchor::Bottom,
             _ => Anchor::Bottom,
         };
-        let size = (1024, 768);
+        let size = (480, 320);
         let id = window::Id::unique();
         (
             id,

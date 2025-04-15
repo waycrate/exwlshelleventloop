@@ -203,10 +203,8 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
     let mut wl_input_region: Option<WlRegion> = None;
-    let mut pointer_serial: u32 = 0;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
-        use layershellev::DispatchMessage;
         let mut def_returndata = ReturnData::None;
         match event {
             LayerEvent::InitRequest => {
@@ -239,10 +237,6 @@ where
                 }
             }
             LayerEvent::RequestMessages(message) => {
-                if let DispatchMessage::MouseEnter { serial, .. } = message {
-                    pointer_serial = *serial;
-                }
-
                 event_sender
                     .start_send(message.into())
                     .expect("Cannot send");
@@ -329,7 +323,6 @@ where
                     ev.append_return_data(ReturnData::RequestSetCursorShape((
                         conversion::mouse_interaction(mouse),
                         pointer.clone(),
-                        pointer_serial,
                     )));
                 }
                 LayerShellAction::RedrawAll => {

@@ -132,7 +132,7 @@ pub enum ReturnData<INFO> {
     RequestCompositor,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
-    RequestSetCursorShape((String, WlPointer, u32)),
+    RequestSetCursorShape((String, WlPointer)),
     NewLayerShell((NewLayerShellSettings, id::Id, Option<INFO>)),
     NewPopUp((NewPopUpSettings, id::Id, Option<INFO>)),
     None,
