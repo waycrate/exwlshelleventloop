@@ -126,13 +126,14 @@ where
 
     pub fn update(&mut self, event: &WindowEvent) {
         match event {
-            WindowEvent::CursorLeft | WindowEvent::TouchUp { .. } => {
+            WindowEvent::CursorLeft => {
                 self.mouse_position = None;
             }
             WindowEvent::CursorMoved { x, y }
             | WindowEvent::CursorEnter { x, y }
             | WindowEvent::TouchMotion { x, y, .. }
-            | WindowEvent::TouchDown { x, y, .. } => {
+            | WindowEvent::TouchDown { x, y, .. }
+            | WindowEvent::TouchUp { x, y, .. } => {
                 self.mouse_position = Some(Point::new(
                     (*x / self.application_scale_factor) as f32,
                     (*y / self.application_scale_factor) as f32,

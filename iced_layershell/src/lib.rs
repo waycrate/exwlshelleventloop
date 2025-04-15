@@ -7,6 +7,7 @@ mod conversion;
 mod error;
 mod event;
 pub mod multi_window;
+mod program;
 mod proxy;
 mod sandbox;
 
@@ -24,48 +25,21 @@ use actions::{LayershellCustomActions, LayershellCustomActionsWithId};
 use settings::Settings;
 
 use iced_runtime::Task;
+mod ime_preedit;
 
 pub use iced_layershell_macros::to_layer_message;
 
 pub use error::Error;
 
-use iced::{Color, Element, Theme};
+use iced::Element;
 use iced_futures::Subscription;
 
 pub use sandbox::LayerShellSandbox;
 
 pub type Result = std::result::Result<(), error::Error>;
-/// The appearance of a program.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Appearance {
-    /// The background [`Color`] of the application.
-    pub background_color: Color,
+use iced::theme::Style as Appearance;
 
-    /// The default text [`Color`] of the application.
-    pub text_color: Color,
-}
-
-/// The default style of a [`Application`].
-pub trait DefaultStyle {
-    /// Returns the default style of a [`Appearance`].
-    fn default_style(&self) -> Appearance;
-}
-
-impl DefaultStyle for Theme {
-    fn default_style(&self) -> Appearance {
-        default(self)
-    }
-}
-
-/// The default [`Appearance`] of a [`Application`] with the built-in [`Theme`].
-pub fn default(theme: &Theme) -> Appearance {
-    let palette = theme.extended_palette();
-
-    Appearance {
-        background_color: palette.background.base.color,
-        text_color: palette.background.base.text,
-    }
-}
+use iced::theme::Base as DefaultStyle;
 
 // layershell application
 pub trait Application: Sized {
@@ -129,7 +103,7 @@ pub trait Application: Sized {
     ///
     /// [`Theme`]: Self::Theme
     fn style(&self, theme: &Self::Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -192,7 +166,7 @@ pub trait Application: Sized {
 
 struct Instance<A: Application>(A);
 
-impl<A> iced_runtime::Program for Instance<A>
+impl<A> program::Program for Instance<A>
 where
     A: Application,
 {
@@ -308,7 +282,7 @@ pub trait MultiApplication: Sized {
     ///
     /// [`Theme`]: Self::Theme
     fn style(&self, theme: &Self::Theme, _id: iced_core::window::Id) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -372,7 +346,7 @@ pub trait MultiApplication: Sized {
 
 struct MultiInstance<A: MultiApplication>(A);
 
-impl<A> iced_runtime::multi_window::Program for MultiInstance<A>
+impl<A> program::multi_window::Program for MultiInstance<A>
 where
     A: MultiApplication,
 {
@@ -447,7 +421,7 @@ mod tests {
     impl Application for TestApp {
         type Executor = iced::executor::Default;
         type Message = TestMessage;
-        type Theme = Theme;
+        type Theme = iced::Theme;
         type Flags = (i32, f64, String);
 
         fn new(flags: Self::Flags) -> (Self, Task<Self::Message>) {
@@ -481,15 +455,6 @@ mod tests {
         fn scale_factor(&self) -> f64 {
             self.scale_factor
         }
-    }
-
-    // Test default appearance
-    #[test]
-    fn test_default_appearance() {
-        let theme = Theme::default();
-        let appearance = theme.default_style();
-        assert_eq!(appearance.background_color, Color::WHITE);
-        assert_eq!(appearance.text_color, Color::BLACK);
     }
 
     // Test namespace

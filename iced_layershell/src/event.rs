@@ -93,6 +93,7 @@ pub enum WindowEvent {
         x: f64,
         y: f64,
     },
+    Ime(layershellev::Ime),
 }
 
 #[derive(Debug)]
@@ -103,6 +104,7 @@ pub enum IcedLayerEvent<Message: 'static> {
         fractal_scale: f64,
         wrapper: WindowWrapper,
         info: Option<iced_core::window::Id>,
+        is_mouse_surface: bool,
     },
     RequestRefresh {
         width: u32,
@@ -212,6 +214,7 @@ impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
             DispatchMessage::ModifiersChanged(modifiers) => {
                 IcedLayerEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
             }
+            DispatchMessage::Ime(ime) => IcedLayerEvent::Window(WindowEvent::Ime(ime.clone())),
             DispatchMessage::Axis {
                 horizontal,
                 vertical,

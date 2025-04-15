@@ -24,9 +24,9 @@ use super::Appearance;
 use iced_graphics::{Compositor, compositor};
 use iced_runtime::{Action, Task};
 
-use iced_core::{Size, time::Instant};
-
-use iced_runtime::{Debug, UserInterface, multi_window::Program, user_interface};
+use crate::program::multi_window::Program;
+use iced_core::{Size, mouse::Cursor, time::Instant};
+use iced_runtime::{UserInterface, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
@@ -91,7 +91,7 @@ where
 
     /// Returns the `Style` variation of the `Theme`.
     fn style(&self, theme: &Self::Theme, _id: iced_core::window::Id) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -150,9 +150,6 @@ where
     use futures::Future;
     use futures::task;
 
-    let mut debug = Debug::new();
-    debug.startup_started();
-
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
@@ -197,7 +194,6 @@ where
         application,
         compositor_settings,
         runtime,
-        debug,
         event_receiver,
         control_sender,
         settings.fonts,
@@ -205,7 +201,6 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    let mut pointer_serial: u32 = 0;
     let mut wl_input_region: Option<WlRegion> = None;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, index| {
@@ -245,34 +240,29 @@ where
                 }
             }
             LayerEvent::RequestMessages(message) => 'outside: {
-                match message {
-                    DispatchMessage::RequestRefresh {
-                        width,
-                        height,
-                        scale_float,
-                        ..
-                    } => {
-                        let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
-                            break 'outside;
-                        };
-                        event_sender
-                            .start_send(MultiWindowIcedLayerEvent(
-                                sended_id,
-                                IcedLayerEvent::RequestRefreshWithWrapper {
-                                    width: *width,
-                                    height: *height,
-                                    fractal_scale: *scale_float,
-                                    wrapper: unit.gen_wrapper(),
-                                    info: unit.get_binding().cloned(),
-                                },
-                            ))
-                            .expect("Cannot send");
+                if let DispatchMessage::RequestRefresh {
+                    width,
+                    height,
+                    scale_float,
+                    ..
+                } = message {
+                    let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
                         break 'outside;
-                    }
-                    DispatchMessage::MouseEnter { serial, .. } => {
-                        pointer_serial = *serial;
-                    }
-                    _ => {}
+                    };
+                    event_sender
+                        .start_send(MultiWindowIcedLayerEvent(
+                            sended_id,
+                            IcedLayerEvent::RequestRefreshWithWrapper {
+                                width: *width,
+                                height: *height,
+                                fractal_scale: *scale_float,
+                                wrapper: unit.gen_wrapper(),
+                                info: unit.get_binding().cloned(),
+                                is_mouse_surface: sended_id.map(|id| ev.is_mouse_surface(id)).unwrap_or(false),
+                            },
+                        ))
+                        .expect("Cannot send");
+                    break 'outside;
                 }
 
                 event_sender
@@ -467,7 +457,35 @@ where
                         }
                     }
                 }
-                LayerShellAction::NewMenu((menusettings, info)) => 'out: {
+                LayerShellAction::ImeWithId(id, ime, ime_flags) => match ime{
+                    iced_core::InputMethod::Disabled => {
+                        use crate::ime_preedit::ImeState;
+                        if ime_flags.contains(ImeState::Disabled) {
+                            ev.set_ime_allowed(false);
+                        }
+                    }
+                    iced_core::InputMethod::Enabled {
+                        position, purpose, ..
+                    } => {
+                        use crate::ime_preedit::ImeState;
+                        if ime_flags.contains(ImeState::Allowed) {
+                            ev.set_ime_allowed(true);
+                        }
+
+                        if ime_flags.contains(ImeState::Update) {
+                            ev.set_ime_purpose(conversion::ime_purpose(purpose));
+                            ev.set_ime_cursor_area(
+                                layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                                layershellev::dpi::LogicalSize {
+                                    width: 10,
+                                    height: 10,
+                                },
+                                id,
+                            );
+                        }
+                    }
+                },
+                LayerShellAction::NewMenu(menusettings, info) => 'out: {
                     let IcedNewPopupSettings { size, position } = menusettings;
                     let Some(id) = ev.current_surface_id() else {
                         break 'out;
@@ -484,7 +502,6 @@ where
                     ev.append_return_data(ReturnData::RequestSetCursorShape((
                         conversion::mouse_interaction(mouse),
                         pointer.clone(),
-                        pointer_serial,
                     )));
                 }
                 LayerShellAction::RedrawAll => {
@@ -506,7 +523,6 @@ async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
     mut runtime: MultiRuntime<E, A::Message>,
-    mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<Action<A::Message>>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
     fonts: Vec<Cow<'static, [u8]>>,
@@ -542,7 +558,6 @@ async fn run_instance<A, E, C>(
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
         &application,
-        &mut debug,
         &mut window_manager,
         HashMap::new(),
     ));
@@ -578,14 +593,14 @@ async fn run_instance<A, E, C>(
         });
         match event {
             MultiWindowIcedLayerEvent(
-                _id,
+                oid,
                 IcedLayerEvent::RequestRefreshWithWrapper {
                     width,
                     height,
                     fractal_scale,
                     wrapper,
                     info,
-                    ..
+                    is_mouse_surface,
                 },
             ) => {
                 let mut is_new_window = false;
@@ -634,7 +649,6 @@ async fn run_instance<A, E, C>(
                                 user_interface::Cache::default(),
                                 &mut window.renderer,
                                 window.state.viewport().logical_size(),
-                                &mut debug,
                                 id,
                             ),
                         );
@@ -658,10 +672,14 @@ async fn run_instance<A, E, C>(
                 let redraw_event =
                     iced_core::Event::Window(window::Event::RedrawRequested(Instant::now()));
 
-                let cursor = window.state.cursor();
+                let cursor = if is_mouse_surface {
+                    window.state.cursor()
+                } else {
+                    Cursor::Unavailable
+                };
 
                 events.push((Some(id), redraw_event.clone()));
-                ui.update(
+                let (ui_state, _) = ui.update(
                     &[redraw_event.clone()],
                     cursor,
                     &mut window.renderer,
@@ -669,7 +687,6 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
-                debug.draw_started();
                 let new_mouse_interaction = ui.draw(
                     &mut window.renderer,
                     window.state.theme(),
@@ -678,7 +695,6 @@ async fn run_instance<A, E, C>(
                     },
                     cursor,
                 );
-                debug.draw_finished();
 
                 if new_mouse_interaction != window.mouse_interaction {
                     custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
@@ -708,9 +724,7 @@ async fn run_instance<A, E, C>(
                     event: redraw_event.clone(),
                     status: iced_core::event::Status::Ignored,
                 });
-                debug.render_started();
 
-                debug.draw_started();
                 ui.draw(
                     &mut window.renderer,
                     &application.theme(id),
@@ -719,24 +733,36 @@ async fn run_instance<A, E, C>(
                     },
                     window.state.cursor(),
                 );
-                debug.draw_finished();
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method,
+                } = ui_state
+                {
+                    events.push((Some(id), redraw_event.clone()));
+                    let need_update_ime = window.request_input_method(input_method.clone());
+                    custom_actions.push(LayerShellAction::ImeWithId(
+                        oid.expect("id should exist when refreshing"),
+                        input_method,
+                        need_update_ime,
+                    ));
+                }
+                window.draw_preedit();
                 if !is_new_window {
                     match compositor.present(
                         &mut window.renderer,
                         &mut window.surface,
                         window.state.viewport(),
                         window.state.background_color(),
-                        &debug.overlay(),
+                        || {},
                     ) {
                         Ok(()) => {
-                            debug.render_finished();
+                            // TODO:
                         }
                         Err(error) => match error {
                             compositor::SurfaceError::OutOfMemory => {
                                 panic!("{:?}", error);
                             }
                             _ => {
-                                debug.render_finished();
                                 tracing::error!(
                                     "Error {error:?} when \
                                         presenting surface."
@@ -787,13 +813,11 @@ async fn run_instance<A, E, C>(
                     &mut custom_actions,
                     &mut waiting_actions,
                     &mut should_exit,
-                    &mut debug,
                     &mut window_manager,
                     &mut cached_user_interfaces,
                 );
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
-                    &mut debug,
                     &mut window_manager,
                     cached_user_interfaces,
                 ));
@@ -805,8 +829,6 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
-
-                debug.event_processing_started();
 
                 let mut window_refresh_events = vec![];
                 let mut uis_stale = false;
@@ -847,8 +869,6 @@ async fn run_instance<A, E, C>(
                         uis_stale = matches!(ui_state, user_interface::State::Outdated);
                     }
 
-                    debug.event_processing_finished();
-
                     for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
                         runtime.broadcast(iced_futures::subscription::Event::Interaction {
                             window: id,
@@ -873,7 +893,7 @@ async fn run_instance<A, E, C>(
                             .collect();
 
                     // Update application
-                    update(&mut application, &mut runtime, &mut debug, &mut messages);
+                    update(&mut application, &mut runtime, &mut messages);
 
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
@@ -881,7 +901,6 @@ async fn run_instance<A, E, C>(
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
-                        &mut debug,
                         &mut window_manager,
                         cached_user_interfaces,
                     ));
@@ -906,7 +925,6 @@ async fn run_instance<A, E, C>(
                 cached_user_interfaces.remove(&id);
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
-                    &mut debug,
                     &mut window_manager,
                     cached_user_interfaces,
                 ));
@@ -943,13 +961,13 @@ async fn run_instance<A, E, C>(
                 if let MenuDirection::Up = direction {
                     y -= height as i32;
                 }
-                custom_actions.push(LayerShellAction::NewMenu((
+                custom_actions.push(LayerShellAction::NewMenu(
                     IcedNewPopupSettings {
                         size: (width, height),
                         position: (x, y),
                     },
                     info,
-                )));
+                ));
             }
             _ => {}
         }
@@ -963,7 +981,6 @@ async fn run_instance<A, E, C>(
 #[allow(clippy::type_complexity)]
 pub fn build_user_interfaces<'a, A: Application, C>(
     application: &'a A,
-    debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
 ) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
@@ -983,7 +1000,6 @@ where
                     cache,
                     &mut window.renderer,
                     window.state.viewport().logical_size(),
-                    debug,
                     id,
                 ),
             ))
@@ -998,19 +1014,14 @@ fn build_user_interface<'a, A: Application>(
     cache: user_interface::Cache,
     renderer: &mut A::Renderer,
     size: Size,
-    debug: &mut Debug,
     id: iced::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
     A::Theme: DefaultStyle,
 {
-    debug.view_started();
     let view = application.view(id);
-    debug.view_finished();
 
-    debug.layout_started();
     let user_interface = UserInterface::build(view, size, cache, renderer);
-    debug.layout_finished();
     user_interface
 }
 
@@ -1018,18 +1029,13 @@ where
 pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
     runtime: &mut MultiRuntime<E, A::Message>,
-    debug: &mut Debug,
     messages: &mut Vec<A::Message>,
 ) where
     A::Theme: DefaultStyle,
     A::Message: 'static,
 {
     for message in messages.drain(..) {
-        debug.log_message(&message);
-
-        debug.update_started();
         let task = runtime.enter(|| application.update(message));
-        debug.update_finished();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -1052,7 +1058,6 @@ pub(crate) fn run_action<A, C>(
     custom_actions: &mut Vec<LayerShellAction>,
     waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomActions)>,
     should_exit: &mut bool,
-    debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     cached_user_interfaces: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
@@ -1064,7 +1069,7 @@ pub(crate) fn run_action<A, C>(
     use iced_core::widget::operation;
     use iced_runtime::Action;
     use iced_runtime::clipboard;
-    use iced_runtime::window;
+
     use iced_runtime::window::Action as WindowAction;
     match event {
         Action::Output(stream) => match stream.try_into() {
@@ -1113,7 +1118,6 @@ pub(crate) fn run_action<A, C>(
 
             let mut uis = build_user_interfaces(
                 application,
-                debug,
                 window_manager,
                 std::mem::take(cached_user_interfaces),
             );
@@ -1162,13 +1166,11 @@ pub(crate) fn run_action<A, C>(
                 };
                 let bytes = compositor.screenshot(
                     &mut window.renderer,
-                    &mut window.surface,
                     window.state.viewport(),
                     window.state.background_color(),
-                    &debug.overlay(),
                 );
 
-                let _ = channel.send(window::Screenshot::new(
+                let _ = channel.send(iced_core::window::Screenshot::new(
                     bytes,
                     window.state.viewport().physical_size(),
                     window.state.viewport().scale_factor(),

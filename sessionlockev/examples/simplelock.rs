@@ -52,15 +52,9 @@ fn main() {
             SessionLockEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => {
                 ReturnData::None
             }
-            SessionLockEvent::RequestMessages(DispatchMessage::MouseEnter {
-                serial,
-                pointer,
-                ..
-            }) => ReturnData::RequestSetCursorShape((
-                "crosshair".to_owned(),
-                pointer.clone(),
-                *serial,
-            )),
+            SessionLockEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
+                ReturnData::RequestSetCursorShape(("crosshair".to_owned(), pointer.clone()))
+            }
             SessionLockEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
                     ReturnData::RequestUnlockAndExist

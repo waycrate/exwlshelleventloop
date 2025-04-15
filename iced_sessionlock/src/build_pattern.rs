@@ -130,7 +130,7 @@ mod pattern {
         ///
         /// [`Theme`]: Self::Theme
         fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            theme.default_style()
+            theme.base()
         }
 
         /// Returns the event [`iced::Subscription`] for the current state of the
@@ -170,8 +170,8 @@ mod pattern {
                 _initialize: PhantomData<I>,
             }
 
-            impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-                iced_runtime::multi_window::Program for Instance<P, I>
+            impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)> crate::program::Program
+                for Instance<P, I>
             {
                 type Message = P::Message;
                 type Theme = P::Theme;

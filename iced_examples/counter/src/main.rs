@@ -79,8 +79,8 @@ impl Application for Counter {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::IcedEvent(event) => {
-                println!("hello {event:?}");
+            Message::IcedEvent(_event) => {
+                //println!("hello {event:?}");
                 Command::none()
             }
             Message::IncrementPressed => {
@@ -156,9 +156,9 @@ impl Application for Counter {
         .into()
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }

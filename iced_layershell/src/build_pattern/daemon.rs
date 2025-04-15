@@ -86,7 +86,7 @@ pub trait Program: Sized {
         theme: &Self::Theme,
         _id: iced_core::window::Id,
     ) -> crate::Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -127,7 +127,7 @@ pub trait Program: Sized {
         }
 
         impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-            iced_runtime::multi_window::Program for Instance<P, I>
+            crate::program::multi_window::Program for Instance<P, I>
         {
             type Message = P::Message;
             type Theme = P::Theme;

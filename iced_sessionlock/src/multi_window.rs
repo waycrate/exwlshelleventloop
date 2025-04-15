@@ -13,9 +13,9 @@ use super::{Appearance, DefaultStyle};
 use iced::Task;
 use iced_graphics::Compositor;
 
+use crate::program::Program;
 use iced_core::{Size, time::Instant};
-
-use iced_runtime::{Action, Debug, UserInterface, multi_window::Program, user_interface};
+use iced_runtime::{Action, UserInterface, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
@@ -73,7 +73,7 @@ where
 
     /// Returns the `Style` variation of the `Theme`.
     fn style(&self, theme: &Self::Theme) -> Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event `Subscription` for the current state of the
@@ -132,9 +132,6 @@ where
     use futures::Future;
     use futures::task;
 
-    let mut debug = Debug::new();
-    debug.startup_started();
-
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
     let proxy = IcedProxy::new(message_sender);
@@ -172,7 +169,6 @@ where
         application,
         compositor_settings,
         runtime,
-        debug,
         event_receiver,
         control_sender,
         //state,
@@ -182,8 +178,6 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
-    let mut pointer_serial: u32 = 0;
-
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, id| {
         use sessionlockev::DispatchMessage;
         match event {
@@ -191,32 +185,24 @@ where
             // TODO: maybe use it later
             SessionLockEvent::BindProvide(_, _) => {}
             SessionLockEvent::RequestMessages(message) => 'outside: {
-                match message {
-                    DispatchMessage::RequestRefresh {
-                        width,
-                        height,
-                        scale_float,
-                    } => {
-                        event_sender
-                            .start_send(MultiWindowIcedSessionLockEvent(
-                                id,
-                                IcedSessionLockEvent::RequestRefreshWithWrapper {
-                                    width: *width,
-                                    height: *height,
-                                    scale_float: *scale_float,
-                                    wrapper: ev
-                                        .get_unit_with_id(id.unwrap())
-                                        .unwrap()
-                                        .gen_wrapper(),
-                                },
-                            ))
-                            .expect("Cannot send");
-                        break 'outside;
-                    }
-                    DispatchMessage::MouseEnter { serial, .. } => {
-                        pointer_serial = *serial;
-                    }
-                    _ => {}
+                if let DispatchMessage::RequestRefresh {
+                    width,
+                    height,
+                    scale_float,
+                } = message
+                {
+                    event_sender
+                        .start_send(MultiWindowIcedSessionLockEvent(
+                            id,
+                            IcedSessionLockEvent::RequestRefreshWithWrapper {
+                                width: *width,
+                                height: *height,
+                                scale_float: *scale_float,
+                                wrapper: ev.get_unit_with_id(id.unwrap()).unwrap().gen_wrapper(),
+                            },
+                        ))
+                        .expect("Cannot send");
+                    break 'outside;
                 }
 
                 event_sender
@@ -259,7 +245,6 @@ where
                             break 'peddingBlock ReturnData::RequestSetCursorShape((
                                 conversion::mouse_interaction(mouse),
                                 pointer.clone(),
-                                pointer_serial,
                             ));
                         }
                         SessionShellAction::RedrawAll => {
@@ -283,7 +268,6 @@ async fn run_instance<A, E, C>(
     mut application: A,
     compositor_settings: iced_graphics::Settings,
     mut runtime: SessionRuntime<E, A::Message>,
-    mut debug: Debug,
     mut event_receiver: mpsc::UnboundedReceiver<
         MultiWindowIcedSessionLockEvent<Action<A::Message>>,
     >,
@@ -315,7 +299,6 @@ async fn run_instance<A, E, C>(
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
         &application,
-        &mut debug,
         &mut window_manager,
         HashMap::new(),
     ));
@@ -374,7 +357,6 @@ async fn run_instance<A, E, C>(
                                 user_interface::Cache::default(),
                                 &mut window.renderer,
                                 window.state.viewport().logical_size(),
-                                &mut debug,
                                 id,
                             ),
                         );
@@ -405,7 +387,6 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
-                debug.draw_started();
                 let new_mouse_interaction = ui.draw(
                     &mut window.renderer,
                     window.state.theme(),
@@ -414,7 +395,6 @@ async fn run_instance<A, E, C>(
                     },
                     cursor,
                 );
-                debug.draw_finished();
 
                 if new_mouse_interaction != window.mouse_interaction {
                     custom_actions.push(SessionShellAction::Mouse(new_mouse_interaction));
@@ -442,9 +422,7 @@ async fn run_instance<A, E, C>(
                     event: redraw_event.clone(),
                     status: iced_core::event::Status::Ignored,
                 });
-                debug.render_started();
 
-                debug.draw_started();
                 ui.draw(
                     &mut window.renderer,
                     &application.theme(),
@@ -453,18 +431,15 @@ async fn run_instance<A, E, C>(
                     },
                     window.state.cursor(),
                 );
-                debug.draw_finished();
                 compositor
                     .present(
                         &mut window.renderer,
                         &mut window.surface,
                         window.state.viewport(),
                         window.state.background_color(),
-                        &debug.overlay(),
+                        || {},
                     )
                     .ok();
-
-                debug.render_finished();
             }
             MultiWindowIcedSessionLockEvent(Some(id), IcedSessionLockEvent::Window(event)) => {
                 let Some((id, window)) = window_manager.get_mut_alias(id) else {
@@ -493,14 +468,12 @@ async fn run_instance<A, E, C>(
                     action,
                     &mut clipboard,
                     &mut should_exit,
-                    &mut debug,
                     &mut window_manager,
                     &mut cached_interfaces,
                 );
 
                 user_interfaces = ManuallyDrop::new(build_user_interfaces(
                     &application,
-                    &mut debug,
                     &mut window_manager,
                     cached_interfaces,
                 ));
@@ -512,8 +485,6 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
-
-                debug.event_processing_started();
 
                 let mut uis_stale = false;
                 for (id, window) in window_manager.iter_mut() {
@@ -546,8 +517,6 @@ async fn run_instance<A, E, C>(
                         uis_stale = matches!(ui_state, user_interface::State::Outdated);
                     }
 
-                    debug.event_processing_finished();
-
                     for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
                         runtime.broadcast(iced_futures::subscription::Event::Interaction {
                             window: id,
@@ -565,7 +534,7 @@ async fn run_instance<A, E, C>(
                             .collect();
 
                     // Update application
-                    update(&mut application, &mut runtime, &mut debug, &mut messages);
+                    update(&mut application, &mut runtime, &mut messages);
 
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
@@ -575,7 +544,6 @@ async fn run_instance<A, E, C>(
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
-                        &mut debug,
                         &mut window_manager,
                         cached_interfaces,
                     ));
@@ -594,7 +562,6 @@ async fn run_instance<A, E, C>(
 #[allow(clippy::type_complexity)]
 pub fn build_user_interfaces<'a, A: Application, C>(
     application: &'a A,
-    debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
 ) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
@@ -614,7 +581,6 @@ where
                     cache,
                     &mut window.renderer,
                     window.state.viewport().logical_size(),
-                    debug,
                     id,
                 ),
             ))
@@ -629,19 +595,14 @@ fn build_user_interface<'a, A: Application>(
     cache: user_interface::Cache,
     renderer: &mut A::Renderer,
     size: Size,
-    debug: &mut Debug,
     id: iced::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
     A::Theme: DefaultStyle,
 {
-    debug.view_started();
     let view = application.view(id);
-    debug.view_finished();
 
-    debug.layout_started();
     let user_interface = UserInterface::build(view, size, cache, renderer);
-    debug.layout_finished();
     user_interface
 }
 
@@ -649,18 +610,13 @@ where
 pub(crate) fn update<A: Application, E: Executor>(
     application: &mut A,
     runtime: &mut SessionRuntime<E, A::Message>,
-    debug: &mut Debug,
     messages: &mut Vec<A::Message>,
 ) where
     A::Theme: DefaultStyle,
     A::Message: 'static,
 {
     for message in messages.drain(..) {
-        debug.log_message(&message);
-
-        debug.update_started();
         let task = runtime.enter(|| application.update(message));
-        debug.update_finished();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -681,7 +637,6 @@ pub(crate) fn run_action<A, C>(
     action: Action<A::Message>,
     clipboard: &mut SessionLockClipboard,
     should_exit: &mut bool,
-    debug: &mut Debug,
     window_manager: &mut WindowManager<A, C>,
     ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
@@ -692,7 +647,6 @@ pub(crate) fn run_action<A, C>(
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
-    use iced_runtime::window;
     use iced_runtime::window::Action as WindowAction;
     //let mut customactions = Vec::new();
     match action {
@@ -714,12 +668,8 @@ pub(crate) fn run_action<A, C>(
         Action::Widget(action) => {
             let mut current_operation = Some(action);
 
-            let mut uis = build_user_interfaces(
-                application,
-                debug,
-                window_manager,
-                std::mem::take(ui_caches),
-            );
+            let mut uis =
+                build_user_interfaces(application, window_manager, std::mem::take(ui_caches));
 
             'operate: while let Some(mut operation) = current_operation.take() {
                 for (id, ui) in uis.iter_mut() {
@@ -755,12 +705,10 @@ pub(crate) fn run_action<A, C>(
                     };
                     let bytes = compositor.screenshot(
                         &mut window.renderer,
-                        &mut window.surface,
                         window.state.viewport(),
                         window.state.background_color(),
-                        &debug.overlay(),
                     );
-                    let _ = channel.send(window::Screenshot::new(
+                    let _ = channel.send(iced_core::window::Screenshot::new(
                         bytes,
                         window.state.viewport().physical_size(),
                         window.state.viewport().scale_factor(),

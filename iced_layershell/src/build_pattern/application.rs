@@ -80,7 +80,7 @@ pub trait Program: Sized {
     ///
     /// [`Theme`]: Self::Theme
     fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-        theme.default_style()
+        theme.base()
     }
 
     /// Returns the event [`Subscription`] for the current state of the
@@ -120,7 +120,7 @@ pub trait Program: Sized {
             _initialize: PhantomData<I>,
         }
 
-        impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)> iced_runtime::Program
+        impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)> crate::program::Program
             for Instance<P, I>
         {
             type Message = P::Message;

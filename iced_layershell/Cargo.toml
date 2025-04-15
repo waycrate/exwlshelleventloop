@@ -24,3 +24,4 @@ layershellev.workspace = true
 window_clipboard.workspace = true
 log.workspace = true
 futures.workspace = true
+enumflags2.workspace = true
