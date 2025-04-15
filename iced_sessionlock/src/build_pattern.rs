@@ -170,8 +170,8 @@ mod pattern {
                 _initialize: PhantomData<I>,
             }
 
-            impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-                crate::program::Program for Instance<P, I>
+            impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)> crate::program::Program
+                for Instance<P, I>
             {
                 type Message = P::Message;
                 type Theme = P::Theme;
