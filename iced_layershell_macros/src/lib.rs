@@ -51,6 +51,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced::window::Id },
                 NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, id: iced::window::Id },
                 NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, id: iced::window::Id },
+                NewInputPanel { settings: iced_layershell::reexport::NewInputPanelSettings, id: iced::window::Id },
                 RemoveWindow(iced::window::Id),
                 ForgetLastOutput,
             };
@@ -77,6 +78,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::NewLayerShell {settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewLayerShell { settings, id })),
                             Self::NewPopUp { settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewPopUp { settings, id })),
                             Self::NewMenu { settings, id } =>  Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewMenu {settings, id })),
+                            Self::NewInputPanel {settings, id } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::NewInputPanel { settings, id })),
                             Self::RemoveWindow(id) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::RemoveWindow(id))),
                             Self::ForgetLastOutput => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::ForgetLastOutput)),
                             _ => Err(self)

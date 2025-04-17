@@ -160,21 +160,37 @@ where
                 }
             }
             LayerEvent::RequestMessages(message) => 'outside: {
-                if let DispatchMessage::RequestRefresh {
-                    width,
-                    height,
-                    scale_float,
-                    ..
-                } = message {
+                let refresh_params = match message {
+                    DispatchMessage::RequestRefresh {
+                        width,
+                        height,
+                        scale_float,
+                        ..
+                    } => {
+                        Some((Some(*width), Some(*height), scale_float))
+                    },
+                    // There is no configure event for input panel surface like layer shell surface, so we use scale event to let input panel surface to be presented.
+                    DispatchMessage::PreferredScale { scale_u32: _, scale_float } => {
+                        Some((None, None, scale_float))
+                    }
+                    _ => None,
+                };
+
+                if let Some((width, height, scale_float)) = refresh_params {
                     let Some(unit) = ev.get_mut_unit_with_id(sended_id.unwrap()) else {
                         break 'outside;
                     };
+                    let width = width.unwrap_or(unit.get_size().0);
+                    let height = height.unwrap_or(unit.get_size().1);
+                    if width == 0 || height == 0 {
+                        break 'outside;
+                    }
                     event_sender
                         .start_send(MultiWindowIcedLayerEvent(
                             sended_id,
                             IcedLayerEvent::RequestRefreshWithWrapper {
-                                width: *width,
-                                height: *height,
+                                width,
+                                height,
                                 fractal_scale: *scale_float,
                                 wrapper: unit.gen_wrapper(),
                                 info: unit.get_binding().cloned(),
@@ -183,11 +199,11 @@ where
                         ))
                         .expect("Cannot send");
                     break 'outside;
+                } else {
+                    event_sender
+                        .start_send(MultiWindowIcedLayerEvent(sended_id, message.into()))
+                        .expect("Cannot send");
                 }
-
-                event_sender
-                    .start_send(MultiWindowIcedLayerEvent(sended_id, message.into()))
-                    .expect("Cannot send");
             }
 
             LayerEvent::UserEvent(event) => {
@@ -371,6 +387,17 @@ where
                                     IcedLayerEvent::NewMenu((menusetting, info)),
                                 ))
                                 .expect("Cannot send");
+                        }
+                        LayershellCustomActions::NewInputPanel {
+                            settings,
+                            id: info,
+                        } => {
+                            let id = layershellev::id::Id::unique();
+                            ev.append_return_data(ReturnData::NewInputPanel((
+                                settings,
+                                id,
+                                Some(info),
+                            )));
                         }
                         LayershellCustomActions::ForgetLastOutput => {
                             ev.forget_last_output();

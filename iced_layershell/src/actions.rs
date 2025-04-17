@@ -4,8 +4,8 @@ use enumflags2::BitFlags;
 use iced::window::Id as IcedId;
 use iced_core::input_method;
 use iced_core::mouse::Interaction;
-use layershellev::NewLayerShellSettings;
 use layershellev::id::Id as LayerId;
+use layershellev::{NewInputPanelSettings, NewLayerShellSettings};
 
 use std::sync::Arc;
 
@@ -88,6 +88,10 @@ pub enum LayershellCustomActions {
     },
     NewMenu {
         settings: IcedNewMenuSettings,
+        id: IcedId,
+    },
+    NewInputPanel {
+        settings: NewInputPanelSettings,
         id: IcedId,
     },
     /// is same with WindowAction::Close(id)
