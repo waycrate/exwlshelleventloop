@@ -10,6 +10,12 @@ readme = "README.md"
 description = "sessionlock binding for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["tiny-skia", "wgpu", "fira-sans"]
+tiny-skia = ["iced/tiny-skia", "iced_renderer/tiny-skia"]
+wgpu = ["iced/wgpu", "iced_renderer/wgpu"]
+fira-sans = ["iced/fira-sans", "iced_renderer/fira-sans"]
+
 [dependencies]
 iced_sessionlock_macros.workspace = true
 
