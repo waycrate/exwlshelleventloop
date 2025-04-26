@@ -76,6 +76,10 @@ where
         self.entries.remove(&id);
     }
 
+    pub fn first(&self) -> Option<&Window<A, C>> {
+        self.entries.first_key_value().map(|(_, v)| v)
+    }
+
     pub fn insert(
         &mut self,
         id: IcedId,

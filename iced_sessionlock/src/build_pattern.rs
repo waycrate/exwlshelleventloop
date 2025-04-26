@@ -102,6 +102,7 @@ mod pattern {
             "A cool iced application".to_string()
         }
 
+        fn name() -> &'static str;
         /// Handles a __message__ and updates the state of the [`Application`].
         ///
         /// This is where you define your __update logic__. All the __messages__,
@@ -186,6 +187,9 @@ mod pattern {
                 ) -> crate::Element<'_, Self::Message, Self::Theme, Self::Renderer>
                 {
                     self.program.view(&self.state, window)
+                }
+                fn name() -> &'static str {
+                    P::name()
                 }
             }
 
@@ -369,6 +373,11 @@ mod pattern {
             ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
                 self.view.view(state, window).into()
             }
+            fn name() -> &'static str {
+                let name = std::any::type_name::<State>();
+
+                name.split("::").next().unwrap_or("a_cool_application")
+            }
         }
         Application {
             raw: Instance {
@@ -438,6 +447,9 @@ mod pattern {
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
             }
+            fn name() -> &'static str {
+                P::name()
+            }
         }
 
         WithExecutor {
@@ -499,6 +511,9 @@ mod pattern {
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -562,6 +577,9 @@ mod pattern {
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
             }
+            fn name() -> &'static str {
+                P::name()
+            }
         }
 
         WithTheme { program, theme: f }
@@ -621,6 +639,9 @@ mod pattern {
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
             }
+            fn name() -> &'static str {
+                P::name()
+            }
         }
 
         WithStyle { program, style: f }
@@ -679,6 +700,9 @@ mod pattern {
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 (self.scale_factor)(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 

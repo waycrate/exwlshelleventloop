@@ -44,6 +44,9 @@ pub trait MultiApplication: Sized {
 
     type Theme: Default + DefaultStyle;
 
+    fn name() -> &'static str {
+        "a_cool_iced_application"
+    }
     /// Initializes the [`MultiApplication`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -165,6 +168,10 @@ where
 
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         self.0.update(message)
+    }
+
+    fn name() -> &'static str {
+        A::name()
     }
 
     fn view(

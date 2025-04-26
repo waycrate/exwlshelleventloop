@@ -69,6 +69,10 @@ impl Application for Counter {
         )
     }
 
+    fn name() -> &'static str {
+        "hello"
+    }
+
     fn namespace(&self) -> String {
         String::from("Counter - Iced")
     }

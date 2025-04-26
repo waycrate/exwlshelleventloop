@@ -21,8 +21,11 @@ use crate::{
 };
 
 use super::Appearance;
+use iced::theme;
 use iced_graphics::{Compositor, compositor};
 use iced_runtime::{Action, Task};
+
+use iced_runtime::debug;
 
 use crate::program::multi_window::Program;
 use iced_core::{Size, mouse::Cursor, time::Instant};
@@ -77,13 +80,6 @@ where
 
     /// The name space of the layershell
     fn namespace(&self) -> String;
-    /// Returns the current title of the [`Application`].
-    ///
-    /// This title can be dynamic! The runtime will automatically update the
-    /// title of your application when necessary.
-    fn title(&self, _id: iced_core::window::Id) -> String {
-        self.namespace()
-    }
 
     fn remove_id(&mut self, _id: iced_core::window::Id);
     /// Returns the current `Theme` of the [`Application`].
@@ -152,6 +148,9 @@ where
 
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
+    debug::init(A::name());
+
+    let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
     let mut runtime: MultiRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
@@ -200,6 +199,8 @@ where
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
+
+    boot_span.finish();
 
     let mut wl_input_region: Option<WlRegion> = None;
 
@@ -612,6 +613,7 @@ async fn run_instance<A, E, C>(
                             || window_size.height != height
                             || window.state.wayland_scale_factor() != fractal_scale
                         {
+                            let layout_span = debug::layout(id);
                             let ui = user_interfaces.remove(&id).expect("Get User interface");
                             window.state.update_view_port(width, height, fractal_scale);
 
@@ -622,6 +624,7 @@ async fn run_instance<A, E, C>(
                                     &mut window.renderer,
                                 ),
                             );
+                            layout_span.finish();
                         }
                         (id, window)
                     } else {
@@ -633,6 +636,13 @@ async fn run_instance<A, E, C>(
                             clipboard = LayerShellClipboard::connect(&wrapper);
                         }
 
+                        debug::theme_changed(|| {
+                            if window_manager.is_empty() {
+                                theme::Base::palette(&application.theme(id))
+                            } else {
+                                None
+                            }
+                        });
                         let window = window_manager.insert(
                             id,
                             (width, height),
@@ -679,6 +689,8 @@ async fn run_instance<A, E, C>(
                 };
 
                 events.push((Some(id), redraw_event.clone()));
+
+                let draw_span = debug::draw(id);
                 let (ui_state, _) = ui.update(
                     &[redraw_event.clone()],
                     cursor,
@@ -695,6 +707,8 @@ async fn run_instance<A, E, C>(
                     },
                     cursor,
                 );
+
+                draw_span.finish();
 
                 if new_mouse_interaction != window.mouse_interaction {
                     custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
@@ -747,6 +761,8 @@ async fn run_instance<A, E, C>(
                     ));
                 }
                 window.draw_preedit();
+
+                let present_span = debug::present(id);
                 if !is_new_window {
                     match compositor.present(
                         &mut window.renderer,
@@ -756,6 +772,7 @@ async fn run_instance<A, E, C>(
                         || {},
                     ) {
                         Ok(()) => {
+                            present_span.finish();
                             // TODO:
                         }
                         Err(error) => match error {
@@ -834,6 +851,7 @@ async fn run_instance<A, E, C>(
                 let mut uis_stale = false;
                 let mut has_window_event = false;
                 for (id, window) in window_manager.iter_mut() {
+                    let interact_span = debug::interact(id);
                     let mut window_events = vec![];
 
                     events.retain(|(window_id, event)| {
@@ -876,6 +894,7 @@ async fn run_instance<A, E, C>(
                             status,
                         });
                     }
+                    interact_span.finish();
                 }
 
                 let mut already_redraw_all = false;
@@ -898,7 +917,11 @@ async fn run_instance<A, E, C>(
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
                     }
-
+                    debug::theme_changed(|| {
+                        window_manager
+                            .first()
+                            .and_then(|window| theme::Base::palette(window.state.theme()))
+                    });
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
                         &mut window_manager,
@@ -1019,9 +1042,13 @@ fn build_user_interface<'a, A: Application>(
 where
     A::Theme: DefaultStyle,
 {
+    let view_span = debug::view(id);
     let view = application.view(id);
+    view_span.finish();
 
+    let layout_span = debug::layout(id);
     let user_interface = UserInterface::build(view, size, cache, renderer);
+    layout_span.finish();
     user_interface
 }
 
@@ -1035,7 +1062,10 @@ pub(crate) fn update<A: Application, E: Executor>(
     A::Message: 'static,
 {
     for message in messages.drain(..) {
+        let update_span = debug::update(&message);
         let task = runtime.enter(|| application.update(message));
+        debug::tasks_spawned(task.units());
+        update_span.finish();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -1043,9 +1073,10 @@ pub(crate) fn update<A: Application, E: Executor>(
     }
 
     let subscription = runtime.enter(|| application.subscription());
-    runtime.track(iced_futures::subscription::into_recipes(
-        subscription.map(Action::Output),
-    ));
+    let recipes = iced_futures::subscription::into_recipes(subscription.map(Action::Output));
+
+    debug::subscriptions_tracked(recipes.len());
+    runtime.track(recipes);
 }
 
 #[allow(clippy::too_many_arguments)]

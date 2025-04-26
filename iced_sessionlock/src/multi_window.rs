@@ -11,7 +11,7 @@ use crate::{
 
 use super::{Appearance, DefaultStyle};
 use iced::Task;
-use iced_graphics::Compositor;
+use iced_graphics::{Compositor, compositor};
 
 use crate::program::Program;
 use iced_core::{Size, time::Instant};
@@ -19,6 +19,8 @@ use iced_runtime::{Action, UserInterface, user_interface};
 
 use iced_futures::{Executor, Runtime, Subscription};
 
+use iced::theme;
+use iced_runtime::debug;
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 
 use futures::{StreamExt, channel::mpsc};
@@ -133,7 +135,9 @@ where
     use futures::task;
 
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
+    debug::init(A::name());
 
+    let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
     let mut runtime: SessionRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
@@ -178,6 +182,7 @@ where
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
 
+    boot_span.finish();
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, id| {
         use sessionlockev::DispatchMessage;
         match event {
@@ -327,6 +332,7 @@ async fn run_instance<A, E, C>(
                             || window_size.height != height
                             || window.state.wayland_scale_factor() != scale_float
                         {
+                            let layout_span = debug::layout(id);
                             let ui = user_interfaces.remove(&id).expect("Get User interface");
                             window.state.update_view_port(width, height, scale_float);
                             let _ = user_interfaces.insert(
@@ -336,11 +342,12 @@ async fn run_instance<A, E, C>(
                                     &mut window.renderer,
                                 ),
                             );
+                            layout_span.finish();
                         }
                         (id, window)
                     } else {
                         let id = window::Id::unique();
-
+                        debug::theme_changed(|| theme::Base::palette(&application.theme()));
                         let window = window_manager.insert(
                             id,
                             (width, height),
@@ -379,6 +386,7 @@ async fn run_instance<A, E, C>(
                 let cursor = window.state.cursor();
 
                 events.push((Some(id), redraw_event.clone()));
+                let draw_span = debug::draw(id);
                 ui.update(
                     &[redraw_event.clone()],
                     cursor,
@@ -395,6 +403,7 @@ async fn run_instance<A, E, C>(
                     },
                     cursor,
                 );
+                draw_span.finish();
 
                 if new_mouse_interaction != window.mouse_interaction {
                     custom_actions.push(SessionShellAction::Mouse(new_mouse_interaction));
@@ -431,15 +440,30 @@ async fn run_instance<A, E, C>(
                     },
                     window.state.cursor(),
                 );
-                compositor
-                    .present(
-                        &mut window.renderer,
-                        &mut window.surface,
-                        window.state.viewport(),
-                        window.state.background_color(),
-                        || {},
-                    )
-                    .ok();
+                let present_span = debug::present(id);
+                match compositor.present(
+                    &mut window.renderer,
+                    &mut window.surface,
+                    window.state.viewport(),
+                    window.state.background_color(),
+                    || {},
+                ) {
+                    Ok(()) => {
+                        present_span.finish();
+                        // TODO:
+                    }
+                    Err(error) => match error {
+                        compositor::SurfaceError::OutOfMemory => {
+                            panic!("{:?}", error);
+                        }
+                        _ => {
+                            tracing::error!(
+                                "Error {error:?} when \
+                                        presenting surface."
+                            );
+                        }
+                    },
+                }
             }
             MultiWindowIcedSessionLockEvent(Some(id), IcedSessionLockEvent::Window(event)) => {
                 let Some((id, window)) = window_manager.get_mut_alias(id) else {
@@ -488,6 +512,7 @@ async fn run_instance<A, E, C>(
 
                 let mut uis_stale = false;
                 for (id, window) in window_manager.iter_mut() {
+                    let interact_span = debug::interact(id);
                     let mut window_events = vec![];
 
                     events.retain(|(window_id, event)| {
@@ -524,6 +549,7 @@ async fn run_instance<A, E, C>(
                             status,
                         });
                     }
+                    interact_span.finish();
                 }
                 // TODO mw application update returns which window IDs to update
                 if !messages.is_empty() || uis_stale {
@@ -542,6 +568,7 @@ async fn run_instance<A, E, C>(
 
                     custom_actions.push(SessionShellAction::RedrawAll);
 
+                    debug::theme_changed(|| theme::Base::palette(&application.theme()));
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
                         &mut window_manager,
@@ -600,9 +627,13 @@ fn build_user_interface<'a, A: Application>(
 where
     A::Theme: DefaultStyle,
 {
+    let view_span = debug::view(id);
     let view = application.view(id);
+    view_span.finish();
 
+    let layout_span = debug::layout(id);
     let user_interface = UserInterface::build(view, size, cache, renderer);
+    layout_span.finish();
     user_interface
 }
 
@@ -616,7 +647,10 @@ pub(crate) fn update<A: Application, E: Executor>(
     A::Message: 'static,
 {
     for message in messages.drain(..) {
+        let update_span = debug::update(&message);
         let task = runtime.enter(|| application.update(message));
+        debug::tasks_spawned(task.units());
+        update_span.finish();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -624,9 +658,9 @@ pub(crate) fn update<A: Application, E: Executor>(
     }
 
     let subscription = runtime.enter(|| application.subscription());
-    runtime.track(iced_futures::subscription::into_recipes(
-        subscription.map(Action::Output),
-    ));
+    let recipes = iced_futures::subscription::into_recipes(subscription.map(Action::Output));
+    debug::subscriptions_tracked(recipes.len());
+    runtime.track(recipes);
 }
 
 #[allow(clippy::too_many_arguments)]

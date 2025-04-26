@@ -72,6 +72,10 @@ pub trait Application: Sized {
     /// [`run`]: Self::run
     fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
+    fn name() -> &'static str {
+        "a_cool_iced_application"
+    }
+
     /// Returns the current title of the [`Application`].
     ///
     /// This title can be dynamic! The runtime will automatically update the
@@ -174,6 +178,10 @@ where
     type Theme = A::Theme;
     type Renderer = iced_renderer::Renderer;
 
+    fn name() -> &'static str {
+        A::name()
+    }
+
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         self.0.update(message)
     }
@@ -246,6 +254,9 @@ pub trait MultiApplication: Sized {
     /// [`run`]: Self::run
     fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
 
+    fn name() -> &'static str {
+        "a_cool_iced_application"
+    }
     /// Returns the current title of the `window` of the [`Application`].
     ///
     /// This title can be dynamic! The runtime will automatically update the
@@ -358,6 +369,10 @@ where
         self.0.update(message)
     }
 
+    fn name() -> &'static str {
+        A::name()
+    }
+
     fn view(
         &self,
         window: iced::window::Id,
@@ -434,6 +449,9 @@ mod tests {
                 },
                 Task::none(),
             )
+        }
+        fn name() -> &'static str {
+            "hello"
         }
 
         fn namespace(&self) -> String {

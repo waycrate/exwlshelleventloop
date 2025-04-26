@@ -35,6 +35,8 @@ use layershellev::{
 };
 
 use futures::{StreamExt, channel::mpsc};
+use iced::theme;
+use iced_runtime::debug;
 
 use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
@@ -141,6 +143,8 @@ where
 
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
+    debug::init(A::name());
+    let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
     let mut runtime: SingleRuntime<E, A::Message> = {
         let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
@@ -200,6 +204,7 @@ where
     ));
 
     let mut context = task::Context::from_waker(task::noop_waker_ref());
+    boot_span.finish();
     let mut wl_input_region: Option<WlRegion> = None;
 
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, _| {
@@ -507,14 +512,15 @@ async fn run_instance<A, E, C>(
     let mut events: Vec<Event> = Vec::new();
     let mut custom_actions = Vec::new();
 
+    let main_id = IcedCoreWindow::Id::unique();
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &application,
         cache,
         &mut renderer,
         state.viewport().logical_size(),
+        main_id,
     ));
 
-    let main_id = IcedCoreWindow::Id::unique();
     let mut p_width: u32 = 0;
     let mut p_height: u32 = 0;
     let mut p_fractal_scale: f64 = 0.;
@@ -531,12 +537,15 @@ async fn run_instance<A, E, C>(
                     p_height = height;
                     p_fractal_scale = fractal_scale;
 
+                    let layout_span = debug::layout(main_id);
                     state.update_view_port(width, height, fractal_scale);
 
                     user_interface = ManuallyDrop::new(
                         ManuallyDrop::into_inner(user_interface)
                             .relayout(state.viewport().logical_size(), &mut renderer),
                     );
+                    layout_span.finish();
+                    debug::theme_changed(|| theme::Base::palette(&application.theme()));
 
                     let physical_size = state.viewport().physical_size();
                     compositor.configure_surface(
@@ -652,12 +661,14 @@ async fn run_instance<A, E, C>(
                     &mut clipboard,
                     &mut custom_actions,
                     &mut should_exit,
+                    main_id,
                 );
                 user_interface = ManuallyDrop::new(build_user_interface(
                     &application,
                     cache,
                     &mut renderer,
                     state.viewport().logical_size(),
+                    main_id,
                 ));
                 if should_exit {
                     break;
@@ -667,6 +678,7 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
+                let interact_span = debug::interact(main_id);
                 let (interface_state, statuses) = user_interface.update(
                     &events,
                     state.cursor(),
@@ -674,6 +686,7 @@ async fn run_instance<A, E, C>(
                     &mut clipboard,
                     &mut messages,
                 );
+                interact_span.finish();
 
                 for (event, status) in events.drain(..).zip(statuses.into_iter()) {
                     runtime.broadcast(iced_futures::subscription::Event::Interaction {
@@ -689,11 +702,13 @@ async fn run_instance<A, E, C>(
                     let cache = ManuallyDrop::into_inner(user_interface).into_cache();
                     // Update application
                     update(&mut application, &mut state, &mut runtime, &mut messages);
+                    debug::theme_changed(|| theme::Base::palette(&application.theme()));
                     user_interface = ManuallyDrop::new(build_user_interface(
                         &application,
                         cache,
                         &mut renderer,
                         state.viewport().logical_size(),
+                        main_id,
                     ));
                 }
                 custom_actions.push(LayerShellAction::RedrawAll);
@@ -715,13 +730,18 @@ pub fn build_user_interface<'a, A: Application>(
     cache: user_interface::Cache,
     renderer: &mut A::Renderer,
     size: Size,
+    id: IcedCoreWindow::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
     A::Theme: DefaultStyle,
 {
+    let view_span = debug::view(id);
     let view = application.view();
+    view_span.finish();
 
+    let layout_span = debug::layout(id);
     let user_interface = UserInterface::build(view, size, cache, renderer);
+    layout_span.finish();
     user_interface
 }
 
@@ -738,7 +758,10 @@ pub(crate) fn update<A: Application, E: Executor>(
     A::Message: 'static,
 {
     for message in messages.drain(..) {
+        let update_span = debug::update(&message);
         let task = runtime.enter(|| application.update(message));
+        debug::tasks_spawned(task.units());
+        update_span.finish();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
@@ -747,9 +770,10 @@ pub(crate) fn update<A: Application, E: Executor>(
     state.synchronize(application);
 
     let subscription = runtime.enter(|| application.subscription());
-    runtime.track(iced_futures::subscription::into_recipes(
-        subscription.map(Action::Output),
-    ));
+    let recipes = iced_futures::subscription::into_recipes(subscription.map(Action::Output));
+
+    debug::subscriptions_tracked(recipes.len());
+    runtime.track(recipes);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -764,6 +788,7 @@ pub(crate) fn run_action<A, C>(
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction>,
     should_exit: &mut bool,
+    id: IcedCoreWindow::Id,
 ) where
     A: Application,
     C: Compositor<Renderer = A::Renderer> + 'static,
@@ -800,6 +825,7 @@ pub(crate) fn run_action<A, C>(
                 current_cache,
                 renderer,
                 state.viewport().logical_size(),
+                id,
             );
 
             while let Some(mut operation) = current_operation.take() {

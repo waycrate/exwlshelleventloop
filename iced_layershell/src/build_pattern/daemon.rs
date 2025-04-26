@@ -52,7 +52,7 @@ pub trait Program: Sized {
         "A cool iced application".to_string()
     }
 
-    /// Handles a __message__ and updates the state of the [`Application`].
+    fn name() -> &'static str;
     ///
     /// This is where you define your __update logic__. All the __messages__,
     /// produced by either user interactions or commands, will be handled by
@@ -141,6 +141,10 @@ pub trait Program: Sized {
                 window: iced_core::window::Id,
             ) -> crate::Element<'_, Self::Message, Self::Theme, Self::Renderer> {
                 self.program.view(&self.state, window)
+            }
+
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -371,6 +375,12 @@ where
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
             self.view.view(state, window).into()
         }
+
+        fn name() -> &'static str {
+            let name = std::any::type_name::<State>();
+
+            name.split("::").next().unwrap_or("a_cool_application")
+        }
     }
     Daemon {
         raw: Instance {
@@ -434,6 +444,10 @@ fn with_namespace<P: Program>(
             self.program.subscription(state)
         }
 
+        fn name() -> &'static str {
+            P::name()
+        }
+
         fn style(
             &self,
             state: &Self::State,
@@ -478,6 +492,10 @@ pub fn with_subscription<P: Program>(
         }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
+        }
+
+        fn name() -> &'static str {
+            P::name()
         }
 
         fn view<'a>(
@@ -544,7 +562,9 @@ pub fn with_theme<P: Program>(
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
         }
-
+        fn name() -> &'static str {
+            P::name()
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -609,7 +629,9 @@ pub fn with_style<P: Program>(
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
         }
-
+        fn name() -> &'static str {
+            P::name()
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -668,7 +690,9 @@ pub fn with_scale_factor<P: Program>(
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
-
+        fn name() -> &'static str {
+            P::name()
+        }
         fn view<'a>(
             &self,
             state: &'a Self::State,
@@ -728,7 +752,9 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         fn namespace(&self, state: &Self::State) -> String {
             self.program.namespace(state)
         }
-
+        fn name() -> &'static str {
+            P::name()
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }

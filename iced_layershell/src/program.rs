@@ -15,6 +15,7 @@ pub trait Program: Sized {
     /// The type of __messages__ your [`Program`] will produce.
     type Message: std::fmt::Debug + Send;
 
+    fn name() -> &'static str;
     /// Handles a __message__ and updates the state of the [`Program`].
     ///
     /// This is where you define your __update logic__. All the __messages__,
@@ -47,6 +48,7 @@ pub mod multi_window {
         /// The theme used to draw the [`Program`].
         type Theme;
 
+        fn name() -> &'static str;
         /// Handles a __message__ and updates the state of the [`Program`].
         ///
         /// This is where you define your __update logic__. All the __messages__,
