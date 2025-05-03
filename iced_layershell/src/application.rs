@@ -858,6 +858,9 @@ pub(crate) fn run_action<A, C>(
             WindowAction::GetScaleFactor(_id, channel) => {
                 let _ = channel.send(state.wayland_scale_factor() as f32);
             }
+            WindowAction::GetLatest(channel) => {
+                let _ = channel.send(Some(id));
+            }
             _ => {}
         },
         Action::Exit => {
