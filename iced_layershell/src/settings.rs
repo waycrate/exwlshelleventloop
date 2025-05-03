@@ -6,6 +6,8 @@ use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
 pub use layershellev::StartMode;
 
+pub use crate::build_pattern::Settings;
+
 use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
 
 #[derive(Debug)]
@@ -16,7 +18,7 @@ pub struct VirtualKeyboardSettings {
 }
 
 #[derive(Debug)]
-pub struct Settings<Flags> {
+pub struct SettingsMain<Flags> {
     /// The identifier of the application.
     ///
     /// If provided, this identifier may be used to identify the application or
@@ -56,12 +58,12 @@ pub struct Settings<Flags> {
     pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
 }
 
-impl<Flags> Default for Settings<Flags>
+impl<Flags> Default for SettingsMain<Flags>
 where
     Flags: Default,
 {
     fn default() -> Self {
-        Settings {
+        SettingsMain {
             id: None,
             flags: Default::default(),
             fonts: Vec::new(),
@@ -107,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_settings_default() {
-        let settings: Settings<()> = Settings::default();
+        let settings: SettingsMain<()> = SettingsMain::default();
 
         assert!(settings.id.is_none());
         assert!(settings.fonts.is_empty());

@@ -9,16 +9,15 @@ Session lock is the wayland protocol for lock. This protocol is supported in riv
 The smallest example is like
 
 ```rust, no_run
-use iced::widget::{button, column, text, text_input, Space};
-use iced::{event, Alignment, Element, Event, Length, Task as Command, Theme};
-
+use iced::widget::{Space, button, column, text, text_input};
+use iced::{Alignment, Element, Event, Length, Task as Command, event};
 use iced_sessionlock::actions::UnLockAction;
-use iced_sessionlock::settings::Settings;
-use iced_sessionlock::MultiApplication;
-use iced_sessionlock::to_session_message;
+use iced_sessionlock::application;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
-    Counter::run(Settings::default())
+    application(Counter::update, Counter::view)
+        .subscription(Counter::subscription)
+        .run_with(Counter::new)
 }
 
 struct Counter {
@@ -35,12 +34,7 @@ enum Message {
     IcedEvent(Event),
 }
 
-impl MultiApplication for Counter {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
+impl Counter {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (
             Self {
@@ -55,7 +49,7 @@ impl MultiApplication for Counter {
         String::from("Counter - Iced")
     }
 
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
+    fn subscription(&self) -> iced::Subscription<Message> {
         event::listen().map(Message::IcedEvent)
     }
 

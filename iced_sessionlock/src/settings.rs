@@ -2,8 +2,10 @@ use std::borrow::Cow;
 
 use iced::{Font, Pixels};
 
+pub use crate::build_pattern::Settings;
+
 #[derive(Debug, Clone)]
-pub struct Settings<Flags> {
+pub struct SettingsMain<Flags> {
     /// The identifier of the application.
     ///
     /// If provided, this identifier may be used to identify the application or
@@ -39,12 +41,12 @@ pub struct Settings<Flags> {
     pub antialiasing: bool,
 }
 
-impl<Flags> Default for Settings<Flags>
+impl<Flags> Default for SettingsMain<Flags>
 where
     Flags: Default,
 {
     fn default() -> Self {
-        Settings {
+        SettingsMain {
             id: None,
             flags: Default::default(),
             fonts: Vec::new(),

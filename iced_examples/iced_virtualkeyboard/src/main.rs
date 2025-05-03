@@ -2,9 +2,9 @@ use iced::mouse::{Cursor, Interaction};
 use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
-use iced::{Element, Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_layershell::Application;
+use iced::{Length, Point, Rectangle, Renderer, Size, Theme};
 use iced_layershell::actions::LayershellCustomActions;
+use iced_layershell::application;
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
@@ -77,8 +77,8 @@ struct KeyCoords {
     position: Point,
     size: Size,
 }
-#[derive(Default)]
 
+#[derive(Default)]
 struct KeyboardView {
     draw_cache: Cache,
 }
@@ -95,13 +95,9 @@ impl TryInto<LayershellCustomActions> for Message {
         Ok(LayershellCustomActions::VirtualKeyboardPressed { time: 100, key })
     }
 }
-impl Application for KeyboardView {
-    type Executor = iced::executor::Default;
-    type Message = Message;
-    type Theme = iced::Theme;
-    type Flags = ();
 
-    fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
+impl KeyboardView {
+    fn new() -> (Self, Command<Message>) {
         (
             Self {
                 ..Default::default()
@@ -109,21 +105,20 @@ impl Application for KeyboardView {
             Command::none(),
         )
     }
-
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::InputKeyPressed(_) => Command::done(message),
         }
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+    fn style(&self, theme: &iced::Theme) -> iced::theme::Style {
         use iced::theme::Style;
         Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }
     }
-    fn view(&self) -> Element<'_, Self::Message, Self::Theme, Renderer> {
+    fn view(&self) -> iced::Element<Message> {
         canvas(self).height(Length::Fill).width(Length::Fill).into()
     }
 
@@ -135,7 +130,13 @@ impl Application for KeyboardView {
 fn main() -> Result<(), iced_layershell::Error> {
     let (file, keymap_size) = get_keymap_as_file();
 
-    KeyboardView::run(Settings {
+    application(
+        KeyboardView::namespace,
+        KeyboardView::update,
+        KeyboardView::view,
+    )
+    .style(KeyboardView::style)
+    .settings(Settings {
         layer_settings: LayerShellSettings {
             size: Some((1200, 400)),
             exclusive_zone: 400,
@@ -150,6 +151,7 @@ fn main() -> Result<(), iced_layershell::Error> {
         }),
         ..Default::default()
     })
+    .run_with(KeyboardView::new)
 }
 
 type KeyboardState = HashMap<String, KeyCoords>;

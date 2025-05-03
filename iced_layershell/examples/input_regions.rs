@@ -1,18 +1,21 @@
 use iced::widget::{button, row};
 use iced::{Color, Element, Length, Task as Command, Theme};
-use iced_layershell::Application;
 use iced_layershell::actions::ActionCallback;
+use iced_layershell::application;
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
-    InputRegionExample::run(Settings {
-        layer_settings: LayerShellSettings {
-            size: Some((400, 400)),
-            ..Default::default()
-        },
+    application(
+        InputRegionExample::namespace,
+        InputRegionExample::update,
+        InputRegionExample::view,
+    )
+    .layer_settings(LayerShellSettings {
+        size: Some((400, 400)),
         ..Default::default()
     })
+    .run_with(InputRegionExample::new)
 }
 
 #[derive(Copy, Clone)]
@@ -25,12 +28,7 @@ enum Message {
     SetRegion,
 }
 
-impl Application for InputRegionExample {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
+impl InputRegionExample {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         (Self(false), Command::none())
     }

@@ -28,7 +28,7 @@ use futures::{StreamExt, channel::mpsc};
 use crate::{
     event::{IcedSessionLockEvent, MultiWindowIcedSessionLockEvent},
     proxy::IcedProxy,
-    settings::Settings,
+    settings::SettingsMain,
 };
 
 mod window_manager;
@@ -121,7 +121,7 @@ type SessionRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<
 
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
-    settings: Settings<A::Flags>,
+    settings: SettingsMain<A::Flags>,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where

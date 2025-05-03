@@ -17,7 +17,7 @@ impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compo
 /// MainSettings for iced_layershell
 /// different from [`crate::Settings`], it does not contain the field of flags
 #[derive(Debug)]
-pub struct MainSettings {
+pub struct Settings {
     /// The identifier of the application.
     ///
     /// If provided, this identifier may be used to identify the application or
@@ -53,9 +53,9 @@ pub struct MainSettings {
 
     pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
 }
-impl Default for MainSettings {
+impl Default for Settings {
     fn default() -> Self {
-        MainSettings {
+        Settings {
             id: None,
             fonts: Vec::new(),
             layer_settings: LayerShellSettings::default(),

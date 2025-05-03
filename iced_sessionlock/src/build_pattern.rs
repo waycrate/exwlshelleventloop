@@ -8,7 +8,7 @@ pub trait Renderer: iced_core::text::Renderer + iced_graphics::compositor::Defau
 impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compositor::Default {}
 
 #[derive(Debug)]
-pub struct MainSettings {
+pub struct Settings {
     /// The identifier of the application.
     ///
     /// If provided, this identifier may be used to identify the application or
@@ -40,9 +40,9 @@ pub struct MainSettings {
     ///
     pub antialiasing: bool,
 }
-impl Default for MainSettings {
+impl Default for Settings {
     fn default() -> Self {
-        MainSettings {
+        Settings {
             id: None,
             fonts: Vec::new(),
             default_font: Font::default(),
@@ -63,7 +63,7 @@ mod pattern {
     use crate::DefaultStyle;
 
     use crate::Result;
-    use crate::Settings;
+    use crate::SettingsMain;
 
     // layershell application
     pub trait Program: Sized {
@@ -159,7 +159,7 @@ mod pattern {
             1.0
         }
 
-        fn run_with<I>(self, settings: MainSettings, initialize: I) -> Result
+        fn run_with<I>(self, settings: Settings, initialize: I) -> Result
         where
             Self: 'static,
             I: FnOnce() -> (Self::State, Task<Self::Message>) + 'static,
@@ -232,7 +232,7 @@ mod pattern {
                 }
             }
 
-            let real_settings = Settings {
+            let real_settings = SettingsMain {
                 flags: (self, initialize),
                 id: settings.id,
                 default_font: settings.default_font,
@@ -259,7 +259,7 @@ mod pattern {
             >(real_settings, renderer_settings)
         }
 
-        fn run(self, settings: MainSettings) -> Result
+        fn run(self, settings: Settings) -> Result
         where
             Self: 'static,
             Self::State: Default,
@@ -321,7 +321,7 @@ mod pattern {
     #[derive(Debug)]
     pub struct Application<A: Program> {
         raw: A,
-        settings: MainSettings,
+        settings: Settings,
     }
 
     pub fn application<State, Message, Theme, Renderer>(
@@ -388,7 +388,7 @@ mod pattern {
                 _theme: PhantomData,
                 _renderer: PhantomData,
             },
-            settings: MainSettings::default(),
+            settings: Settings::default(),
         }
     }
 
@@ -728,14 +728,14 @@ mod pattern {
         {
             self.raw.run_with(self.settings, initialize)
         }
-        pub fn settings(self, settings: MainSettings) -> Self {
+        pub fn settings(self, settings: Settings) -> Self {
             Self { settings, ..self }
         }
 
         /// Sets the [`Settings::antialiasing`] of the [`Application`].
         pub fn antialiasing(self, antialiasing: bool) -> Self {
             Self {
-                settings: MainSettings {
+                settings: Settings {
                     antialiasing,
                     ..self.settings
                 },
@@ -746,7 +746,7 @@ mod pattern {
         /// Sets the default [`Font`] of the [`Application`].
         pub fn default_font(self, default_font: Font) -> Self {
             Self {
-                settings: MainSettings {
+                settings: Settings {
                     default_font,
                     ..self.settings
                 },
@@ -763,7 +763,7 @@ mod pattern {
         /// set the default_text_size
         pub fn default_text_size(self, default_text_size: iced::Pixels) -> Self {
             Self {
-                settings: MainSettings {
+                settings: Settings {
                     default_text_size,
                     ..self.settings
                 },

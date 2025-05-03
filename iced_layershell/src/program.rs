@@ -5,6 +5,7 @@ use iced_core::Element;
 use iced_core::text;
 
 /// The core of a user interface application following The Elm Architecture.
+#[allow(unused)]
 pub trait Program: Sized {
     /// The graphics backend to use to draw the [`Program`].
     type Renderer: text::Renderer;
@@ -32,6 +33,7 @@ pub trait Program: Sized {
     fn view(&self) -> Element<'_, Self::Message, Self::Theme, Self::Renderer>;
 }
 
+#[allow(unused)]
 pub mod multi_window {
     use iced_core::Element;
     use iced_core::Renderer;

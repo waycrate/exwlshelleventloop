@@ -2,19 +2,26 @@ use std::collections::HashMap;
 
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
-use iced::{Alignment, Element, Event, Length, Task as Command, Theme, event};
+use iced::{Alignment, Element, Event, Length, Task as Command, event};
 use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
-use iced_layershell::MultiApplication;
+use iced_layershell::build_pattern::{Settings, daemon};
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
-    Counter::run(Settings {
+    daemon(
+        Counter::namespace,
+        Counter::update,
+        Counter::view,
+        Counter::remove_id,
+    )
+    .subscription(Counter::subscription)
+    .settings(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
@@ -24,8 +31,10 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
+    .run_with(|| Counter::new("Hello"))
 }
 
+#[derive(Debug, Default)]
 struct Counter {
     value: i32,
     text: String,
@@ -72,37 +81,33 @@ impl Counter {
 }
 
 impl Counter {
-    fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
-        self.ids.get(&id).cloned()
-    }
-}
-
-impl MultiApplication for Counter {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+    fn new(text: &str) -> (Self, Command<Message>) {
         (
             Self {
                 value: 0,
-                text: "type something".to_string(),
+                text: text.to_string(),
                 ids: HashMap::new(),
             },
             Command::none(),
         )
     }
+
+    fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
+        self.ids.get(&id).cloned()
+    }
+
+    fn remove_id(&mut self, id: iced::window::Id) {
+        self.ids.remove(&id);
+    }
+
     fn namespace(&self) -> String {
         String::from("Counter - Iced")
     }
 
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
+    fn subscription(&self) -> iced::Subscription<Message> {
         event::listen().map(Message::IcedEvent)
     }
-    fn remove_id(&mut self, id: iced::window::Id) {
-        self.ids.remove(&id);
-    }
+
     fn update(&mut self, message: Message) -> Command<Message> {
         use iced::Event;
         use iced::keyboard;
@@ -223,6 +228,7 @@ impl MultiApplication for Counter {
                     background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
+                //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();

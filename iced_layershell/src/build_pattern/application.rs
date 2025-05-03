@@ -9,11 +9,11 @@ use crate::DefaultStyle;
 use crate::settings::LayerShellSettings;
 
 use super::Renderer;
-use crate::Settings;
+use crate::SettingsMain;
 
 use crate::Result;
 
-use super::MainSettings;
+use super::Settings;
 
 // layershell application
 pub trait Program: Sized {
@@ -110,7 +110,7 @@ pub trait Program: Sized {
         1.0
     }
 
-    fn run_with<I>(self, settings: MainSettings, initialize: I) -> Result
+    fn run_with<I>(self, settings: Settings, initialize: I) -> Result
     where
         Self: 'static,
         I: FnOnce() -> (Self::State, Task<Self::Message>) + 'static,
@@ -180,7 +180,7 @@ pub trait Program: Sized {
             }
         }
 
-        let real_settings = Settings {
+        let real_settings = SettingsMain {
             flags: (self, initialize),
             id: settings.id,
             default_font: settings.default_font,
@@ -209,7 +209,7 @@ pub trait Program: Sized {
         >(real_settings, renderer_settings)
     }
 
-    fn run(self, settings: MainSettings) -> Result
+    fn run(self, settings: Settings) -> Result
     where
         Self: 'static,
         Self::State: Default,
@@ -284,7 +284,7 @@ where
 #[derive(Debug)]
 pub struct SingleApplication<A: Program> {
     raw: A,
-    settings: MainSettings,
+    settings: Settings,
 }
 
 pub fn application<State, Message, Theme, Renderer>(
@@ -349,7 +349,7 @@ where
             _theme: PhantomData,
             _renderer: PhantomData,
         },
-        settings: MainSettings::default(),
+        settings: Settings::default(),
     }
     .namespace(namespace)
 }
@@ -728,14 +728,14 @@ impl<P: Program> SingleApplication<P> {
     {
         self.raw.run_with(self.settings, initialize)
     }
-    pub fn settings(self, settings: MainSettings) -> Self {
+    pub fn settings(self, settings: Settings) -> Self {
         Self { settings, ..self }
     }
 
     /// Sets the [`Settings::antialiasing`] of the [`Application`].
     pub fn antialiasing(self, antialiasing: bool) -> Self {
         Self {
-            settings: MainSettings {
+            settings: Settings {
                 antialiasing,
                 ..self.settings
             },
@@ -746,7 +746,7 @@ impl<P: Program> SingleApplication<P> {
     /// Sets the default [`Font`] of the [`Application`].
     pub fn default_font(self, default_font: Font) -> Self {
         Self {
-            settings: MainSettings {
+            settings: Settings {
                 default_font,
                 ..self.settings
             },
@@ -756,7 +756,7 @@ impl<P: Program> SingleApplication<P> {
 
     pub fn layer_settings(self, layer_settings: LayerShellSettings) -> Self {
         Self {
-            settings: MainSettings {
+            settings: Settings {
                 layer_settings,
                 ..self.settings
             },
@@ -773,7 +773,7 @@ impl<P: Program> SingleApplication<P> {
     /// set the default_text_size
     pub fn default_text_size(self, default_text_size: iced::Pixels) -> Self {
         Self {
-            settings: MainSettings {
+            settings: Settings {
                 default_text_size,
                 ..self.settings
             },

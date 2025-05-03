@@ -38,7 +38,7 @@ use futures::{StreamExt, channel::mpsc};
 use iced::theme;
 use iced_runtime::debug;
 
-use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
+use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::SettingsMain};
 
 /// An interactive, native cross-platform application.
 ///
@@ -51,6 +51,7 @@ use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, se
 ///
 /// When using an [`Application`] with the `debug` feature enabled, a debug view
 /// can be toggled by pressing `F12`.
+#[allow(unused)]
 pub trait Application: Program
 where
     Self::Theme: DefaultStyle,
@@ -128,7 +129,7 @@ type SingleRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<M
 
 // a dispatch loop, another is listen loop
 pub fn run<A, E, C>(
-    settings: Settings<A::Flags>,
+    settings: SettingsMain<A::Flags>,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where

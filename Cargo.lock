@@ -890,15 +890,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "counter_lock_pattern"
-version = "0.13.5"
-dependencies = [
- "iced",
- "iced_runtime",
- "iced_sessionlock",
-]
-
-[[package]]
 name = "counter_multi"
 version = "0.13.5"
 dependencies = [
@@ -906,25 +897,6 @@ dependencies = [
  "iced_layershell",
  "iced_runtime",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "counter_multi_pattern"
-version = "0.13.5"
-dependencies = [
- "iced",
- "iced_layershell",
- "iced_runtime",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "counter_pattern"
-version = "0.13.5"
-dependencies = [
- "iced",
- "iced_layershell",
- "iced_runtime",
 ]
 
 [[package]]

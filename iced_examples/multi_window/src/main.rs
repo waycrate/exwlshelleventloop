@@ -4,7 +4,7 @@ use iced::widget::{
 };
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
 use iced::{Color, window};
-use iced_layershell::build_pattern::{self, MainSettings};
+use iced_layershell::build_pattern::{self, Settings};
 use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
@@ -29,7 +29,7 @@ fn main() -> iced_layershell::Result {
     .style(Example::style)
     .subscription(Example::subscription)
     .scale_factor(Example::scale_factor)
-    .settings(MainSettings {
+    .settings(Settings {
         layer_settings: LayerShellSettings {
             start_mode: StartMode::Background,
             ..Default::default()

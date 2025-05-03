@@ -1,14 +1,14 @@
 use futures::future::pending;
 use iced::widget::{button, column, container, text, text_input};
 use iced::window::Id;
-use iced::{Element, Length, Task as Command, Theme};
+use iced::{Element, Length, Task as Command};
 use iced_layershell::to_layer_message;
 use iced_runtime::Action;
 use iced_runtime::window::Action as WindowAction;
 
-use iced_layershell::MultiApplication;
+use iced_layershell::daemon;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, StartMode};
 use zbus::{connection, interface};
 
 use futures::channel::mpsc::Sender;
@@ -18,13 +18,18 @@ struct Counter {
     text: String,
 }
 pub fn main() -> Result<(), iced_layershell::Error> {
-    Counter::run(Settings {
-        layer_settings: LayerShellSettings {
-            start_mode: StartMode::Background,
-            ..Default::default()
-        },
+    daemon(
+        Counter::namespace,
+        Counter::update,
+        Counter::view,
+        Counter::remove_id,
+    )
+    .layer_settings(LayerShellSettings {
+        start_mode: StartMode::Background,
         ..Default::default()
     })
+    .subscription(Counter::subscription)
+    .run_with(Counter::new)
 }
 
 #[to_layer_message(multi)]
@@ -35,17 +40,12 @@ enum Message {
     CloseWindow(Id),
 }
 
-impl MultiApplication for Counter {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
+impl Counter {
     fn remove_id(&mut self, _id: iced_runtime::core::window::Id) {
         self.window_shown = false;
     }
 
-    fn new(_flags: Self::Flags) -> (Self, Command<Self::Message>) {
+    fn new() -> (Self, Command<Message>) {
         (
             Self {
                 window_shown: false,
@@ -79,7 +79,7 @@ impl MultiApplication for Counter {
         .center_y(Length::Fill)
         .into()
     }
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
+    fn subscription(&self) -> iced::Subscription<Message> {
         iced::Subscription::run(|| {
             iced::stream::channel(100, |sender| async move {
                 // setup the object server
@@ -97,7 +97,7 @@ impl MultiApplication for Counter {
             })
         })
     }
-    fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::CloseWindow(id) => {
                 iced_runtime::task::effect(Action::Window(WindowAction::Close(id)))

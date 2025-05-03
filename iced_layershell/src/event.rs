@@ -37,6 +37,7 @@ impl From<WEnum<KeyState>> for IcedKeyState {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
     ScaleFactorChanged {
