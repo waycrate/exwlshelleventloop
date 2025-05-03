@@ -122,7 +122,7 @@ impl KeyboardView {
         canvas(self).height(Length::Fill).width(Length::Fill).into()
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Iced - Virtual Keyboard")
     }
 }
@@ -131,6 +131,7 @@ fn main() -> Result<(), iced_layershell::Error> {
     let (file, keymap_size) = get_keymap_as_file();
 
     application(
+        KeyboardView::new,
         KeyboardView::namespace,
         KeyboardView::update,
         KeyboardView::view,
@@ -151,7 +152,7 @@ fn main() -> Result<(), iced_layershell::Error> {
         }),
         ..Default::default()
     })
-    .run_with(KeyboardView::new)
+    .run()
 }
 
 type KeyboardState = HashMap<String, KeyCoords>;

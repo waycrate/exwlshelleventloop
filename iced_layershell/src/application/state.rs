@@ -1,13 +1,13 @@
-use crate::application::Application;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
 use layershellev::keyboard::ModifiersState;
 
+use crate::build_pattern::ApplicationInstance as Instance;
+use crate::build_pattern::ApplicationProgram as IcedProgram;
 use crate::event::WindowEvent;
 use layershellev::reexport::wp_viewport::WpViewport;
-
-pub struct State<A: Application>
+pub struct State<A: IcedProgram>
 where
     A::Theme: DefaultStyle,
 {
@@ -25,11 +25,11 @@ where
     wpviewport: WpViewport,
 }
 
-impl<A: Application> State<A>
+impl<A: IcedProgram> State<A>
 where
     A::Theme: DefaultStyle,
 {
-    pub fn new(application: &A, window: &layershellev::WindowStateSimple) -> Self {
+    pub fn new(application: &Instance<A>, window: &layershellev::WindowStateSimple) -> Self {
         let application_scale_factor = application.scale_factor();
         let theme = application.theme();
         let appearance = application.style(&theme);
@@ -147,7 +147,7 @@ where
         }
     }
 
-    pub fn synchronize(&mut self, application: &A) {
+    pub fn synchronize(&mut self, application: &Instance<A>) {
         let new_scale_factor = application.scale_factor();
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;

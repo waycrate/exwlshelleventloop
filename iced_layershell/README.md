@@ -20,9 +20,9 @@ The smallest example is like
 
 use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Color, Element, Event, Length, Task as Command, event};
-use iced_layershell::build_pattern::{Settings, application};
+use iced_layershell::application;
 use iced_layershell::reexport::Anchor;
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -38,7 +38,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         None => StartMode::Active,
     };
 
-    application(namespace, update, view)
+    application(|| Counter::default(), namespace, update, view)
         .style(style)
         .subscription(subscription)
         .settings(Settings {
@@ -78,7 +78,7 @@ enum Message {
     IcedEvent(Event),
 }
 
-fn namespace(_: &Counter) -> String {
+fn namespace() -> String {
     String::from("Counter - Iced")
 }
 

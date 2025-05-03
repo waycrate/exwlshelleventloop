@@ -3,19 +3,20 @@ use std::{collections::BTreeMap, sync::Arc};
 use super::state::State;
 use crate::DefaultStyle;
 use crate::ime_preedit::{ImeState, Preedit};
-use crate::multi_window::Application;
 use enumflags2::{BitFlag, BitFlags};
 use iced_core::InputMethod;
 use iced_core::input_method;
 use iced_graphics::Compositor;
 use layershellev::{WindowWrapper, id::Id as LayerId};
 
+use crate::build_pattern::DaemonInstance as Instance;
+use crate::build_pattern::DaemonProgram as Program;
 use iced::mouse;
 use iced::window::Id as IcedId;
 
 pub struct Window<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
@@ -28,7 +29,7 @@ where
     ime_state: Option<(iced_core::Point, input_method::Purpose)>,
 }
 
-pub struct WindowManager<A: Application, C: Compositor>
+pub struct WindowManager<A: Program, C: Compositor>
 where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
@@ -40,7 +41,7 @@ where
 
 impl<A, C> Default for WindowManager<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
@@ -51,7 +52,7 @@ where
 
 impl<A, C> WindowManager<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
@@ -86,7 +87,7 @@ where
         size: (u32, u32),
         fractal_scale: f64,
         window: Arc<WindowWrapper>,
-        application: &A,
+        application: &Instance<A>,
         compositor: &mut C,
     ) -> &mut Window<A, C> {
         let layerid = window.id();
@@ -150,7 +151,7 @@ where
 
 impl<A, C> Window<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {

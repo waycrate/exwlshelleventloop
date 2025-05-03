@@ -9,11 +9,10 @@ use crate::DefaultStyle;
 use crate::settings::LayerShellSettings;
 
 use super::Renderer;
-use crate::SettingsMain;
 
 use crate::Result;
 
-use super::Settings;
+use crate::settings::Settings;
 
 // layershell application
 pub trait Program: Sized {
@@ -48,11 +47,13 @@ pub trait Program: Sized {
     ///
     /// This title can be dynamic! The runtime will automatically update the
     /// title of your application when necessary.
-    fn namespace(&self, _state: &Self::State) -> String {
+    fn namespace(&self) -> String {
         "A cool iced application".to_string()
     }
 
     fn name() -> &'static str;
+    fn boot(&self) -> (Self::State, Task<Self::Message>);
+    ///
     ///
     /// This is where you define your __update logic__. All the __messages__,
     /// produced by either user interactions or commands, will be handled by
@@ -114,94 +115,10 @@ pub trait Program: Sized {
         1.0
     }
 
-    fn run_with<I>(self, settings: Settings, initialize: I) -> Result
+    fn run(self, settings: Settings) -> Result
     where
         Self: 'static,
-        I: FnOnce() -> (Self::State, Task<Self::Message>) + 'static,
     {
-        use std::marker::PhantomData;
-        struct Instance<P: Program, I> {
-            program: P,
-            state: P::State,
-            _initialize: PhantomData<I>,
-        }
-
-        impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-            crate::program::multi_window::Program for Instance<P, I>
-        {
-            type Message = P::Message;
-            type Theme = P::Theme;
-            type Renderer = P::Renderer;
-            fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
-                self.program.update(&mut self.state, message)
-            }
-
-            fn view(
-                &self,
-                window: iced_core::window::Id,
-            ) -> crate::Element<'_, Self::Message, Self::Theme, Self::Renderer> {
-                self.program.view(&self.state, window)
-            }
-
-            fn name() -> &'static str {
-                P::name()
-            }
-        }
-
-        impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-            crate::multi_window::Application for Instance<P, I>
-        {
-            type Flags = (P, I);
-
-            fn new((program, initialize): Self::Flags) -> (Self, Task<Self::Message>) {
-                let (state, task) = initialize();
-
-                (
-                    Self {
-                        program,
-                        state,
-                        _initialize: PhantomData,
-                    },
-                    task,
-                )
-            }
-
-            fn namespace(&self) -> String {
-                self.program.namespace(&self.state)
-            }
-
-            fn remove_id(&mut self, id: iced_core::window::Id) {
-                self.program.remove_id(&mut self.state, id)
-            }
-
-            fn subscription(&self) -> iced::Subscription<Self::Message> {
-                self.program.subscription(&self.state)
-            }
-
-            fn theme(&self, id: iced_core::window::Id) -> Self::Theme {
-                self.program.theme(&self.state, id)
-            }
-
-            fn style(&self, theme: &Self::Theme, id: iced_core::window::Id) -> crate::Appearance {
-                self.program.style(&self.state, theme, id)
-            }
-
-            fn scale_factor(&self, window: iced_core::window::Id) -> f64 {
-                self.program.scale_factor(&self.state, window)
-            }
-        }
-
-        let real_settings = SettingsMain {
-            flags: (self, initialize),
-            id: settings.id,
-            default_font: settings.default_font,
-            layer_settings: settings.layer_settings,
-            fonts: settings.fonts,
-            default_text_size: settings.default_text_size,
-            antialiasing: settings.antialiasing,
-            virtual_keyboard_support: settings.virtual_keyboard_support,
-        };
-        #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {
             default_font: settings.default_font,
             default_text_size: settings.default_text_size,
@@ -210,42 +127,28 @@ pub trait Program: Sized {
             } else {
                 None
             },
-            ..iced_graphics::Settings::default()
         };
-
-        crate::multi_window::run::<
-            Instance<Self, I>,
-            Self::Executor,
-            <Self::Renderer as iced_graphics::compositor::Default>::Compositor,
-        >(real_settings, renderer_settings)
-    }
-
-    fn run(self, settings: Settings) -> Result
-    where
-        Self: 'static,
-        Self::State: Default,
-    {
-        self.run_with(settings, || (Self::State::default(), Task::none()))
+        crate::multi_window::run(self, settings, renderer_settings)
     }
 }
 
-pub trait NameSpace<State> {
+pub trait NameSpace {
     /// Produces the title of the [`Application`].
-    fn namespace(&self, state: &State) -> String;
+    fn namespace(&self) -> String;
 }
 
-impl<State> NameSpace<State> for &'static str {
-    fn namespace(&self, _state: &State) -> String {
+impl NameSpace for &'static str {
+    fn namespace(&self) -> String {
         self.to_string()
     }
 }
 
-impl<T, State> NameSpace<State> for T
+impl<T> NameSpace for T
 where
-    T: Fn(&State) -> String,
+    T: Fn() -> String,
 {
-    fn namespace(&self, state: &State) -> String {
-        self(state)
+    fn namespace(&self) -> String {
+        self()
     }
 }
 
@@ -313,6 +216,39 @@ where
     }
 }
 
+pub trait Boot<State, Message> {
+    /// Initializes the [`Application`] state.
+    fn boot(&self) -> (State, Task<Message>);
+}
+
+impl<T, C, State, Message> Boot<State, Message> for T
+where
+    T: Fn() -> C,
+    C: IntoBoot<State, Message>,
+{
+    fn boot(&self) -> (State, Task<Message>) {
+        self().into_boot()
+    }
+}
+
+/// The initial state of some [`Application`].
+pub trait IntoBoot<State, Message> {
+    /// Turns some type into the initial state of some [`Application`].
+    fn into_boot(self) -> (State, Task<Message>);
+}
+
+impl<State, Message> IntoBoot<State, Message> for State {
+    fn into_boot(self) -> (State, Task<Message>) {
+        (self, Task::none())
+    }
+}
+
+impl<State, Message> IntoBoot<State, Message> for (State, Task<Message>) {
+    fn into_boot(self) -> (State, Task<Message>) {
+        self
+    }
+}
+
 #[derive(Debug)]
 pub struct Daemon<A: Program> {
     raw: A,
@@ -320,7 +256,8 @@ pub struct Daemon<A: Program> {
 }
 
 pub fn daemon<State, Message, Theme, Renderer>(
-    namespace: impl NameSpace<State>,
+    boot: impl Boot<State, Message>,
+    namespace: impl NameSpace,
     update: impl Update<State, Message>,
     view: impl for<'a> self::View<'a, State, Message, Theme, Renderer>,
     remove_id: impl RemoveId<State>,
@@ -333,17 +270,18 @@ where
     Renderer: self::Renderer,
 {
     use std::marker::PhantomData;
-    struct Instance<State, Message, Theme, Renderer, Update, View, RemoveId> {
+    struct Instance<State, Message, Theme, Renderer, Update, View, RemoveId, Boot> {
         update: Update,
         view: View,
         remove_id: RemoveId,
+        boot: Boot,
         _state: PhantomData<State>,
         _message: PhantomData<Message>,
         _theme: PhantomData<Theme>,
         _renderer: PhantomData<Renderer>,
     }
-    impl<State, Message, Theme, Renderer, Update, View, RemoveId> Program
-        for Instance<State, Message, Theme, Renderer, Update, View, RemoveId>
+    impl<State, Message, Theme, Renderer, Update, View, RemoveId, Boot> Program
+        for Instance<State, Message, Theme, Renderer, Update, View, RemoveId, Boot>
     where
         Message: 'static
             + TryInto<LayershellCustomActionsWithId, Error = Message>
@@ -353,6 +291,7 @@ where
         Renderer: self::Renderer,
         Update: self::Update<State, Message>,
         RemoveId: self::RemoveId<State>,
+        Boot: self::Boot<State, Message>,
         View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
     {
         type State = State;
@@ -363,6 +302,10 @@ where
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.update.update(state, message).into()
+        }
+
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.boot.boot()
         }
 
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
@@ -387,6 +330,7 @@ where
             update,
             view,
             remove_id,
+            boot,
 
             _state: PhantomData,
             _message: PhantomData,
@@ -400,7 +344,7 @@ where
 
 fn with_namespace<P: Program>(
     program: P,
-    namespace: impl Fn(&P::State) -> String,
+    namespace: impl Fn() -> String,
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithNamespace<P, NameSpace> {
         program: P,
@@ -409,19 +353,23 @@ fn with_namespace<P: Program>(
     impl<P, Namespace> Program for WithNamespace<P, Namespace>
     where
         P: Program,
-        Namespace: Fn(&P::State) -> String,
+        Namespace: Fn() -> String,
     {
         type State = P::State;
         type Message = P::Message;
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-        fn namespace(&self, state: &Self::State) -> String {
-            (self.namespace)(state)
+        fn namespace(&self) -> String {
+            (self.namespace)()
         }
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
+        }
+
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
         }
 
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
@@ -498,6 +446,9 @@ pub fn with_subscription<P: Program>(
             P::name()
         }
 
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
+        }
         fn view<'a>(
             &self,
             state: &'a Self::State,
@@ -506,8 +457,8 @@ pub fn with_subscription<P: Program>(
             self.program.view(state, window)
         }
 
-        fn namespace(&self, state: &Self::State) -> String {
-            self.program.namespace(state)
+        fn namespace(&self) -> String {
+            self.program.namespace()
         }
 
         fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
@@ -559,8 +510,11 @@ pub fn with_theme<P: Program>(
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
             self.program.remove_id(state, id)
         }
-        fn namespace(&self, state: &Self::State) -> String {
-            self.program.namespace(state)
+        fn namespace(&self) -> String {
+            self.program.namespace()
+        }
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
         }
         fn name() -> &'static str {
             P::name()
@@ -626,11 +580,14 @@ pub fn with_style<P: Program>(
             (self.style)(state, theme, id)
         }
 
-        fn namespace(&self, state: &Self::State) -> String {
-            self.program.namespace(state)
+        fn namespace(&self) -> String {
+            self.program.namespace()
         }
         fn name() -> &'static str {
             P::name()
+        }
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
         }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
@@ -681,8 +638,11 @@ pub fn with_scale_factor<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
 
-        fn namespace(&self, state: &Self::State) -> String {
-            self.program.namespace(state)
+        fn namespace(&self) -> String {
+            self.program.namespace()
+        }
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
         }
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
             self.program.remove_id(state, id)
@@ -749,14 +709,17 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         type Renderer = P::Renderer;
         type Executor = E;
 
-        fn namespace(&self, state: &Self::State) -> String {
-            self.program.namespace(state)
+        fn namespace(&self) -> String {
+            self.program.namespace()
         }
         fn name() -> &'static str {
             P::name()
         }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
+        }
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
         }
         fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
             self.program.remove_id(state, id)
@@ -800,18 +763,10 @@ impl<P: Program> Daemon<P> {
     pub fn run(self) -> Result
     where
         Self: 'static,
-        P::State: Default,
     {
         self.raw.run(self.settings)
     }
 
-    pub fn run_with<I>(self, initialize: I) -> Result
-    where
-        Self: 'static,
-        I: FnOnce() -> (P::State, Task<P::Message>) + 'static,
-    {
-        self.raw.run_with(self.settings, initialize)
-    }
     pub fn settings(self, settings: Settings) -> Self {
         Self { settings, ..self }
     }
@@ -867,10 +822,10 @@ impl<P: Program> Daemon<P> {
 
     pub fn namespace(
         self,
-        namespace: impl NameSpace<P::State>,
+        namespace: impl NameSpace,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_namespace(self.raw, move |state| namespace.namespace(state)),
+            raw: with_namespace(self.raw, move || namespace.namespace()),
             settings: self.settings,
         }
     }
@@ -927,5 +882,63 @@ impl<P: Program> Daemon<P> {
             raw: with_executor::<P, E>(self.raw),
             settings: self.settings,
         }
+    }
+}
+
+use iced::Subscription;
+use iced::theme;
+use iced::window;
+
+#[allow(missing_debug_implementations)]
+pub struct Instance<P: Program> {
+    program: P,
+    state: P::State,
+}
+
+impl<P: Program> Instance<P> {
+    /// Creates a new [`Instance`] of the given [`Program`].
+    pub fn new(program: P) -> (Self, Task<P::Message>) {
+        let (state, task) = program.boot();
+
+        (Self { program, state }, task)
+    }
+
+    /// Returns the current title of the [`Instance`].
+    pub fn namespace(&self) -> String {
+        self.program.namespace()
+    }
+
+    /// Processes the given message and updates the [`Instance`].
+    pub fn update(&mut self, message: P::Message) -> Task<P::Message> {
+        self.program.update(&mut self.state, message)
+    }
+
+    /// Produces the current widget tree of the [`Instance`].
+    pub fn view(&self, window: window::Id) -> Element<'_, P::Message, P::Theme, P::Renderer> {
+        self.program.view(&self.state, window)
+    }
+
+    /// Returns the current [`Subscription`] of the [`Instance`].
+    pub fn subscription(&self) -> Subscription<P::Message> {
+        self.program.subscription(&self.state)
+    }
+
+    /// Returns the current theme of the [`Instance`].
+    pub fn theme(&self, window: window::Id) -> P::Theme {
+        self.program.theme(&self.state, window)
+    }
+
+    /// Returns the current [`theme::Style`] of the [`Instance`].
+    pub fn style(&self, theme: &P::Theme, window: window::Id) -> theme::Style {
+        self.program.style(&self.state, theme, window)
+    }
+
+    /// Returns the current scale factor of the [`Instance`].
+    pub fn scale_factor(&self, window: window::Id) -> f64 {
+        self.program.scale_factor(&self.state, window)
+    }
+
+    pub fn remove_id(&mut self, id: iced_core::window::Id) {
+        self.program.remove_id(&mut self.state, id);
     }
 }

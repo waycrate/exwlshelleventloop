@@ -4,9 +4,9 @@ use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::application;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
-    application(Counter::update, Counter::view)
+    application(Counter::new, Counter::update, Counter::view)
         .subscription(Counter::subscription)
-        .run_with(Counter::new)
+        .run()
 }
 
 struct Counter {

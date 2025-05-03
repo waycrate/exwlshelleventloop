@@ -20,18 +20,16 @@ use crate::{
     error::Error,
 };
 
-use super::Appearance;
 use iced::theme;
 use iced_graphics::{Compositor, compositor};
-use iced_runtime::{Action, Task};
+use iced_runtime::Action;
 
 use iced_runtime::debug;
 
-use crate::program::multi_window::Program;
 use iced_core::{Size, mouse::Cursor, time::Instant};
 use iced_runtime::{UserInterface, user_interface};
 
-use iced_futures::{Executor, Runtime, Subscription};
+use iced_futures::{Executor, Runtime};
 
 use layershellev::{
     LayerEvent, NewPopUpSettings, ReturnData, WindowState,
@@ -45,102 +43,24 @@ use futures::{StreamExt, channel::mpsc};
 use crate::{
     event::{IcedLayerEvent, MultiWindowIcedLayerEvent},
     proxy::IcedProxy,
-    settings::SettingsMain,
+    settings::Settings,
 };
 
 mod window_manager;
 
-/// An interactive, native cross-platform application.
-///
-/// This trait is the main entrypoint of Iced. Once implemented, you can run
-/// your GUI application by simply calling [`run`]. It will run in
-/// its own window.
-///
-/// An [`Application`] can execute asynchronous actions by returning a
-/// [`Task`] in some of its methods.
-///
-/// When using an [`Application`] with the `debug` feature enabled, a debug view
-/// can be toggled by pressing `F12`.
-#[allow(unused)]
-pub trait Application: Program
-where
-    Self::Theme: DefaultStyle,
-{
-    /// The data needed to initialize your [`Application`].
-    type Flags;
-
-    /// Initializes the [`Application`] with the flags provided to
-    /// [`run`] as part of the [`Settings`].
-    ///
-    /// Here is where you should return the initial state of your app.
-    ///
-    /// Additionally, you can return a [`Task`] if you need to perform some
-    /// async action in the background on startup. This is useful if you want to
-    /// load state from a file, perform an initial HTTP request, etc.
-    fn new(flags: Self::Flags) -> (Self, Task<Self::Message>);
-
-    /// The name space of the layershell
-    fn namespace(&self) -> String;
-
-    fn remove_id(&mut self, _id: iced_core::window::Id);
-    /// Returns the current `Theme` of the [`Application`].
-    fn theme(&self, id: iced_core::window::Id) -> Self::Theme;
-
-    /// Returns the `Style` variation of the `Theme`.
-    fn style(&self, theme: &Self::Theme, _id: iced_core::window::Id) -> Appearance {
-        theme.base()
-    }
-
-    /// Returns the event `Subscription` for the current state of the
-    /// application.
-    ///
-    /// The messages produced by the `Subscription` will be handled by
-    /// [`update`](#tymethod.update).
-    ///
-    /// A `Subscription` will be kept alive as long as you keep returning it!
-    ///
-    /// By default, it returns an empty subscription.
-    fn subscription(&self) -> Subscription<Self::Message> {
-        Subscription::none()
-    }
-
-    /// Returns the scale factor of the [`Application`].
-    ///
-    /// It can be used to dynamically control the size of the UI at runtime
-    /// (i.e. zooming).
-    ///
-    /// For instance, a scale factor of `2.0` will make widgets twice as big,
-    /// while a scale factor of `0.5` will shrink them to half their size.
-    ///
-    /// By default, it returns `1.0`.
-    fn scale_factor(&self, _window: iced::window::Id) -> f64 {
-        1.0
-    }
-
-    /// Defines whether or not to use natural scrolling
-    fn natural_scroll(&self) -> bool {
-        false
-    }
-
-    /// Returns whether the [`Application`] should be terminated.
-    ///
-    /// By default, it returns `false`.
-    fn should_exit(&self) -> bool {
-        false
-    }
-}
-
 type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
 
+use crate::build_pattern::DaemonInstance as Instance;
+use crate::build_pattern::DaemonProgram as IcedProgram;
+
 // a dispatch loop, another is listen loop
-pub fn run<A, E, C>(
-    settings: SettingsMain<A::Flags>,
+pub fn run<A>(
+    program: A,
+    settings: Settings,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where
-    A: Application + 'static,
-    E: Executor + 'static,
-    C: Compositor<Renderer = A::Renderer> + 'static,
+    A: IcedProgram + 'static,
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
 {
@@ -150,16 +70,13 @@ where
 
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
-    let mut runtime: MultiRuntime<E, A::Message> = {
-        let executor = E::new().map_err(Error::ExecutorCreationFailed)?;
+    let mut runtime: MultiRuntime<A::Executor, A::Message> = {
+        let executor = A::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
     };
-    let (application, task) = {
-        let flags = settings.flags;
 
-        runtime.enter(|| A::new(flags))
-    };
+    let (application, task) = runtime.enter(|| Instance::new(program));
 
     if let Some(stream) = iced_runtime::task::into_stream(task) {
         runtime.run(stream);
@@ -187,7 +104,11 @@ where
         mpsc::unbounded::<MultiWindowIcedLayerEvent<Action<A::Message>>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec>();
 
-    let mut instance = Box::pin(run_instance::<A, E, C>(
+    let mut instance = Box::pin(run_instance::<
+        A,
+        A::Executor,
+        <A::Renderer as iced_graphics::compositor::Default>::Compositor,
+    >(
         application,
         compositor_settings,
         runtime,
@@ -519,14 +440,14 @@ where
 
 #[allow(clippy::too_many_arguments)]
 async fn run_instance<A, E, C>(
-    mut application: A,
+    mut application: Instance<A>,
     compositor_settings: iced_graphics::Settings,
     mut runtime: MultiRuntime<E, A::Message>,
     mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<Action<A::Message>>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
     fonts: Vec<Cow<'static, [u8]>>,
 ) where
-    A: Application + 'static,
+    A: IcedProgram + 'static,
     E: Executor + 'static,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
@@ -998,8 +919,8 @@ async fn run_instance<A, E, C>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn build_user_interfaces<'a, A: Application, C>(
-    application: &'a A,
+pub fn build_user_interfaces<'a, A: IcedProgram, C>(
+    application: &'a Instance<A>,
     window_manager: &mut WindowManager<A, C>,
     mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
 ) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
@@ -1028,8 +949,8 @@ where
 
 /// Builds a [`UserInterface`] for the provided [`Application`], logging
 /// [`struct@Debug`] information accordingly.
-fn build_user_interface<'a, A: Application>(
-    application: &'a A,
+fn build_user_interface<'a, A: IcedProgram>(
+    application: &'a Instance<A>,
     cache: user_interface::Cache,
     renderer: &mut A::Renderer,
     size: Size,
@@ -1049,8 +970,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn update<A: Application, E: Executor>(
-    application: &mut A,
+pub(crate) fn update<A: IcedProgram, E: Executor>(
+    application: &mut Instance<A>,
     runtime: &mut MultiRuntime<E, A::Message>,
     messages: &mut Vec<A::Message>,
 ) where
@@ -1077,7 +998,7 @@ pub(crate) fn update<A: Application, E: Executor>(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_action<A, C>(
-    application: &A,
+    application: &Instance<A>,
     compositor: &mut Option<C>,
     event: Action<A::Message>,
     messages: &mut Vec<A::Message>,
@@ -1088,7 +1009,7 @@ pub(crate) fn run_action<A, C>(
     window_manager: &mut WindowManager<A, C>,
     cached_user_interfaces: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
-    A: Application,
+    A: IcedProgram,
     C: Compositor<Renderer = A::Renderer> + 'static,
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,

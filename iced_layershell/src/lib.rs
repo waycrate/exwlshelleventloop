@@ -7,7 +7,6 @@ mod conversion;
 mod error;
 mod event;
 mod multi_window;
-mod program;
 mod proxy;
 
 pub mod settings;
@@ -20,15 +19,11 @@ pub mod reexport {
     pub use layershellev::reexport::wayland_client::{WlRegion, wl_keyboard};
 }
 
-use settings::SettingsMain;
-
 mod ime_preedit;
 
 pub use iced_layershell_macros::to_layer_message;
 
 pub use error::Error;
-
-use iced::Element;
 
 pub type Result = std::result::Result<(), error::Error>;
 use iced::theme::Style as Appearance;
@@ -36,8 +31,7 @@ use iced::theme::Style as Appearance;
 use iced::theme::Base as DefaultStyle;
 
 // layershell application
-
 pub use build_pattern::application;
 pub use build_pattern::daemon;
 
-pub use build_pattern::Settings;
+pub use settings::Settings;

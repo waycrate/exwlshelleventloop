@@ -11,13 +11,14 @@ use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
-use iced_layershell::build_pattern::{daemon, Settings};
+use iced_layershell::build_pattern::daemon;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     daemon(
+        || Counter::new("Hello"),
         Counter::namespace,
         Counter::update,
         Counter::view,
@@ -34,7 +35,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
-    .run_with(|| Counter::new("Hello"))
+    .run()
 }
 
 #[derive(Debug, Default)]
@@ -103,7 +104,7 @@ impl Counter {
         self.ids.remove(&id);
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Counter - Iced")
     }
 

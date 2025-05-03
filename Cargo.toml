@@ -71,6 +71,7 @@ iced = { git = "https://github.com/iced-rs/iced.git", features = ["auto-detect-t
 iced_runtime = { git = "https://github.com/iced-rs/iced.git" }
 #iced_style = "0.13"
 iced_core = { git = "https://github.com/iced-rs/iced.git" }
+iced_program = { git = "https://github.com/iced-rs/iced.git" }
 iced_renderer = { git = "https://github.com/iced-rs/iced.git" }
 iced_futures = { git = "https://github.com/iced-rs/iced.git" }
 iced_graphics = { git = "https://github.com/iced-rs/iced.git" }
