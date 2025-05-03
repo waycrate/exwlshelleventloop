@@ -171,7 +171,7 @@ where
     }
 }
 
-/// The view logic of some [`Application`].
+/// The view logic of some [`SingleApplication`].
 ///
 /// This trait allows the [`application`] builder to take any closure that
 /// returns any `Into<Element<'_, Message>>`.
@@ -192,7 +192,7 @@ where
 }
 
 pub trait Boot<State, Message> {
-    /// Initializes the [`Application`] state.
+    /// Initializes the [`SingleApplication`] state.
     fn boot(&self) -> (State, Task<Message>);
 }
 
@@ -206,9 +206,9 @@ where
     }
 }
 
-/// The initial state of some [`Application`].
+/// The initial state of some [`SingleApplication`].
 pub trait IntoBoot<State, Message> {
-    /// Turns some type into the initial state of some [`Application`].
+    /// Turns some type into the initial state of some [`SingleApplication`].
     fn into_boot(self) -> (State, Task<Message>);
 }
 
