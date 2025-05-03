@@ -1,8 +1,8 @@
 use iced::widget::{button, row};
-use iced::{Color, Element, Length, Task as Command, Theme};
+use iced::{Color, Element, Length, Task as Command};
 use iced_layershell::actions::ActionCallback;
 use iced_layershell::application;
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -11,6 +11,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         InputRegionExample::update,
         InputRegionExample::view,
     )
+    .style(InputRegionExample::style)
     .layer_settings(LayerShellSettings {
         size: Some((400, 400)),
         ..Default::default()
@@ -29,7 +30,7 @@ enum Message {
 }
 
 impl InputRegionExample {
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+    fn new() -> (Self, Command<Message>) {
         (Self(false), Command::none())
     }
 
@@ -68,7 +69,7 @@ impl InputRegionExample {
         .into()
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced::theme::Style {
+    fn style(&self, theme: &iced::Theme) -> iced::theme::Style {
         use iced::theme::Style;
         Style {
             background_color: Color::from_rgba(0.3, 0.3, 0.3, 0.3),

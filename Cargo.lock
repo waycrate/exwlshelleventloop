@@ -2224,6 +2224,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "input_regions"
+version = "0.13.5"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+]
+
+[[package]]
 name = "interpolate_name"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
