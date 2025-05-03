@@ -38,7 +38,9 @@ use futures::{StreamExt, channel::mpsc};
 use iced::theme;
 use iced_runtime::debug;
 
-use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::SettingsMain};
+use crate::{
+    actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::SettingsMain,
+};
 
 /// An interactive, native cross-platform application.
 ///
