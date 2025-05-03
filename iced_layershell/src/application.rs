@@ -849,6 +849,9 @@ pub(crate) fn run_action<A, C>(
             WindowAction::Close(_) => {
                 *should_exit = true;
             }
+            WindowAction::GetSize(_, channel) => {
+                let _ = channel.send(state.window_size_f32());
+            }
             WindowAction::Screenshot(_id, channel) => {
                 let bytes =
                     compositor.screenshot(renderer, state.viewport(), state.background_color());

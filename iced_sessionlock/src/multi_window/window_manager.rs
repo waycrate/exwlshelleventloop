@@ -110,4 +110,8 @@ where
     pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<A, C>> {
         self.entries.get_mut(&id)
     }
+
+    pub fn get(&mut self, id: IcedId) -> Option<&Window<A, C>> {
+        self.entries.get(&id)
+    }
 }

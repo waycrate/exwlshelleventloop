@@ -1188,6 +1188,12 @@ pub(crate) fn run_action<A, C>(
                     ))
                 }
             }
+            WindowAction::GetSize(id, channel) => 'out: {
+                let Some(window) = window_manager.get(id) else {
+                    break 'out;
+                };
+                let _ = channel.send(window.state.window_size_f32());
+            }
             WindowAction::Screenshot(id, channel) => 'out: {
                 let Some(window) = window_manager.get_mut(id) else {
                     break 'out;
