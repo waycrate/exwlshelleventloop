@@ -10,14 +10,9 @@ mod error;
 mod event;
 mod proxy;
 
-mod program;
-use iced::Element;
-
 pub use iced_sessionlock_macros::to_session_message;
 
 pub use error::Error;
-
-use settings::SettingsMain;
 
 use iced::theme::Base as DefaultStyle;
 use iced::theme::Style as Appearance;
@@ -25,3 +20,4 @@ use iced::theme::Style as Appearance;
 pub type Result = std::result::Result<(), error::Error>;
 
 pub use build_pattern::application;
+pub use settings::Settings;

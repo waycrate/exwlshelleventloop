@@ -9,7 +9,7 @@ use iced_runtime::{Action, task};
 
 use iced_layershell::daemon;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {

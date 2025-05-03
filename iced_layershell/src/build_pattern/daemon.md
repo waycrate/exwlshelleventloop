@@ -18,6 +18,7 @@ use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     daemon(
+        || Counter::new("Hello"),
         Counter::namespace,
         Counter::update,
         Counter::view,
@@ -34,7 +35,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
-    .run_with(|| Counter::new("Hello"))
+    .run()
 }
 
 #[derive(Debug, Default)]

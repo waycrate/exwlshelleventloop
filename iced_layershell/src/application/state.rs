@@ -3,10 +3,10 @@ use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
 use layershellev::keyboard::ModifiersState;
 
-use crate::event::WindowEvent;
-use layershellev::reexport::wp_viewport::WpViewport;
 use crate::build_pattern::ApplicationInstance as Instance;
 use crate::build_pattern::ApplicationProgram as IcedProgram;
+use crate::event::WindowEvent;
+use layershellev::reexport::wp_viewport::WpViewport;
 pub struct State<A: IcedProgram>
 where
     A::Theme: DefaultStyle,
