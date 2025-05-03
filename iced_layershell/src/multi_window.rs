@@ -143,7 +143,6 @@ where
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
 {
-
     use futures::Future;
     use futures::task;
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
