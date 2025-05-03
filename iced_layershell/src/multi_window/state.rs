@@ -1,4 +1,3 @@
-use crate::multi_window::Application;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
@@ -6,10 +5,11 @@ use layershellev::WindowWrapper;
 use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wp_viewport::WpViewport;
 
+use crate::build_pattern::DaemonProgram as Program;
+use crate::build_pattern::Instance;
 use crate::event::WindowEvent;
 use iced::window;
-
-pub struct State<A: Application>
+pub struct State<A: Program>
 where
     A::Theme: DefaultStyle,
 {
@@ -28,13 +28,13 @@ where
     wpviewport: WpViewport,
 }
 
-impl<A: Application> State<A>
+impl<A: Program> State<A>
 where
     A::Theme: DefaultStyle,
 {
     pub fn new(
         id: window::Id,
-        application: &A,
+        application: &Instance<A>,
         (width, height): (u32, u32),
         wayland_scale_factor: f64,
         window: &WindowWrapper,
@@ -157,7 +157,7 @@ where
         }
     }
 
-    pub fn synchronize(&mut self, application: &A) {
+    pub fn synchronize(&mut self, application: &Instance<A>) {
         let new_scale_factor = application.scale_factor(self.id);
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;

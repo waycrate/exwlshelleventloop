@@ -19,6 +19,7 @@ struct Counter {
 }
 pub fn main() -> Result<(), iced_layershell::Error> {
     daemon(
+        || Counter::new(),
         Counter::namespace,
         Counter::update,
         Counter::view,
@@ -29,7 +30,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         ..Default::default()
     })
     .subscription(Counter::subscription)
-    .run_with(Counter::new)
+    .run()
 }
 
 #[to_layer_message(multi)]
@@ -55,7 +56,7 @@ impl Counter {
         )
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Counter - Iced")
     }
     fn view(&self, id: iced::window::Id) -> Element<Message> {

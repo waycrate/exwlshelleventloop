@@ -15,6 +15,7 @@ use iced_layershell::to_layer_message;
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
     daemon(
+        || Counter::new("hello"),
         Counter::namespace,
         Counter::update,
         Counter::view,
@@ -31,7 +32,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
-    .run_with(|| Counter::new("Hello"))
+    .run()
 }
 
 #[derive(Debug, Default)]
@@ -100,7 +101,7 @@ impl Counter {
         self.ids.remove(&id);
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Counter - Iced")
     }
 

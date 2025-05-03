@@ -20,6 +20,7 @@ fn main() -> iced_layershell::Result {
         .with(EnvFilter::from_default_env())
         .init();
     build_pattern::daemon(
+        || Example::new(),
         "multi_window",
         Example::update,
         Example::view,
@@ -36,8 +37,7 @@ fn main() -> iced_layershell::Result {
         },
         ..Default::default()
     })
-    .run_with(Example::new)?;
-    Ok(())
+    .run()
 }
 
 struct Example {
