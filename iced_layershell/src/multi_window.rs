@@ -143,12 +143,10 @@ where
     A::Theme: DefaultStyle,
     A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
 {
+
     use futures::Future;
     use futures::task;
-
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
-
-    debug::init(A::name());
 
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
@@ -699,7 +697,7 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
-                let new_mouse_interaction = ui.draw(
+                ui.draw(
                     &mut window.renderer,
                     window.state.theme(),
                     &iced_core::renderer::Style {
@@ -709,11 +707,6 @@ async fn run_instance<A, E, C>(
                 );
 
                 draw_span.finish();
-
-                if new_mouse_interaction != window.mouse_interaction {
-                    custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
-                    window.mouse_interaction = new_mouse_interaction;
-                }
 
                 let physical_size = window.state.viewport().physical_size();
 
@@ -750,8 +743,11 @@ async fn run_instance<A, E, C>(
                 if let user_interface::State::Updated {
                     redraw_request: _, // NOTE: I do not know how to use it now
                     input_method,
+                    mouse_interaction,
                 } = ui_state
                 {
+                    custom_actions.push(LayerShellAction::Mouse(mouse_interaction));
+                    window.mouse_interaction = mouse_interaction;
                     events.push((Some(id), redraw_event.clone()));
                     let need_update_ime = window.request_input_method(input_method.clone());
                     custom_actions.push(LayerShellAction::ImeWithId(

@@ -135,8 +135,6 @@ where
     use futures::task;
 
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
-    debug::init(A::name());
-
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
     let mut runtime: SessionRuntime<E, A::Message> = {
@@ -387,7 +385,7 @@ async fn run_instance<A, E, C>(
 
                 events.push((Some(id), redraw_event.clone()));
                 let draw_span = debug::draw(id);
-                ui.update(
+                let (ui_state, _) = ui.update(
                     &[redraw_event.clone()],
                     cursor,
                     &mut window.renderer,
@@ -395,7 +393,7 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
-                let new_mouse_interaction = ui.draw(
+                ui.draw(
                     &mut window.renderer,
                     window.state.theme(),
                     &iced_core::renderer::Style {
@@ -404,11 +402,6 @@ async fn run_instance<A, E, C>(
                     cursor,
                 );
                 draw_span.finish();
-
-                if new_mouse_interaction != window.mouse_interaction {
-                    custom_actions.push(SessionShellAction::Mouse(new_mouse_interaction));
-                    window.mouse_interaction = new_mouse_interaction;
-                }
 
                 let physical_size = window.state.viewport().physical_size();
                 if cached_layer_dimensions
@@ -440,6 +433,16 @@ async fn run_instance<A, E, C>(
                     },
                     window.state.cursor(),
                 );
+                if let user_interface::State::Updated {
+                    redraw_request: _, // NOTE: I do not know how to use it now
+                    input_method: _,   // TODO: someone's help needed
+                    mouse_interaction,
+                } = ui_state
+                {
+                    custom_actions.push(SessionShellAction::Mouse(mouse_interaction));
+                    window.mouse_interaction = mouse_interaction;
+                    events.push((Some(id), redraw_event.clone()));
+                }
                 let present_span = debug::present(id);
                 match compositor.present(
                     &mut window.renderer,

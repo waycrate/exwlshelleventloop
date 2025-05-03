@@ -143,7 +143,6 @@ where
 
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
 
-    debug::init(A::name());
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
     let mut runtime: SingleRuntime<E, A::Message> = {
@@ -484,7 +483,6 @@ async fn run_instance<A, E, C>(
     A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
 {
     use iced_core::Event;
-    use iced_core::mouse;
 
     let mut compositor = C::new(compositor_settings, window.clone())
         .await
@@ -507,7 +505,6 @@ async fn run_instance<A, E, C>(
 
     let mut clipboard = LayerShellClipboard::connect(&window);
 
-    let mut mouse_interaction = mouse::Interaction::default();
     let mut messages = Vec::new();
     let mut events: Vec<Event> = Vec::new();
     let mut custom_actions = Vec::new();
@@ -572,7 +569,7 @@ async fn run_instance<A, E, C>(
                     status: iced_core::event::Status::Ignored,
                 });
 
-                let new_mouse_interaction = user_interface.draw(
+                user_interface.draw(
                     &mut renderer,
                     state.theme(),
                     &iced_core::renderer::Style {
@@ -580,11 +577,6 @@ async fn run_instance<A, E, C>(
                     },
                     state.cursor(),
                 );
-
-                if new_mouse_interaction != mouse_interaction {
-                    custom_actions.push(LayerShellAction::Mouse(new_mouse_interaction));
-                    mouse_interaction = new_mouse_interaction;
-                }
 
                 user_interface.draw(
                     &mut renderer,
@@ -597,8 +589,10 @@ async fn run_instance<A, E, C>(
                 if let user_interface::State::Updated {
                     redraw_request: _, // NOTE: I do not know how to use it now
                     input_method,
+                    mouse_interaction,
                 } = ui_state
                 {
+                    custom_actions.push(LayerShellAction::Mouse(mouse_interaction));
                     events.push(redraw_event);
 
                     let ime_flags = im_drawer.request_input_method(

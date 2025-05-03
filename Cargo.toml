@@ -74,6 +74,8 @@ iced_core = { git = "https://github.com/iced-rs/iced.git" }
 iced_renderer = { git = "https://github.com/iced-rs/iced.git" }
 iced_futures = { git = "https://github.com/iced-rs/iced.git" }
 iced_graphics = { git = "https://github.com/iced-rs/iced.git" }
+iced_debug = { git = "https://github.com/iced-rs/iced.git" }
+iced_devtools = { git = "https://github.com/iced-rs/iced.git" }
 window_clipboard = "0.4.1"
 
 bitflags = "2.9.0"
