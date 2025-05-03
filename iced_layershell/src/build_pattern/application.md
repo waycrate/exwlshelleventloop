@@ -4,7 +4,7 @@
 
 use iced::widget::{button, column, row, text, text_input};
 use iced::{event, Alignment, Color, Element, Event, Length, Task as Command};
-use iced_layershell::build_pattern::{application, MainSettings};
+use iced_layershell::build_pattern::{application, Settings};
 use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
@@ -25,7 +25,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     application(namespace, update, view)
         .style(style)
         .subscription(subscription)
-        .settings(MainSettings {
+        .settings(Settings {
             layer_settings: LayerShellSettings {
                 size: Some((0, 400)),
                 exclusive_zone: 400,

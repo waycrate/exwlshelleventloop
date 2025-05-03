@@ -13,6 +13,7 @@ use iced::widget::{Space, button, column, text, text_input};
 use iced::{Alignment, Element, Event, Length, Task as Command, event};
 use iced_sessionlock::actions::UnLockAction;
 use iced_sessionlock::application;
+use iced_sessionlock::to_session_message;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
     application(Counter::update, Counter::view)
@@ -35,7 +36,7 @@ enum Message {
 }
 
 impl Counter {
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+    fn new() -> (Self, Command<Message>) {
         (
             Self {
                 value: 0,
