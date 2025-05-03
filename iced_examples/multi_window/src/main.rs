@@ -4,9 +4,9 @@ use iced::widget::{
 };
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
 use iced::{Color, window};
-use iced_layershell::build_pattern::{self, Settings};
+use iced_layershell::daemon;
 use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -19,7 +19,7 @@ fn main() -> iced_layershell::Result {
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())
         .init();
-    build_pattern::daemon(
+    daemon(
         || Example::new(),
         "multi_window",
         Example::update,

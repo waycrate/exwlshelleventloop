@@ -10,7 +10,7 @@ use iced_graphics::Compositor;
 use layershellev::{WindowWrapper, id::Id as LayerId};
 
 use crate::build_pattern::DaemonProgram as Program;
-use crate::build_pattern::Instance;
+use crate::build_pattern::DaemonInstance as Instance;
 use iced::mouse;
 use iced::window::Id as IcedId;
 

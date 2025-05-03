@@ -7,6 +7,7 @@ use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     application(
+        || InputRegionExample::new(),
         InputRegionExample::namespace,
         InputRegionExample::update,
         InputRegionExample::view,
@@ -16,7 +17,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         size: Some((400, 400)),
         ..Default::default()
     })
-    .run_with(InputRegionExample::new)
+    .run()
 }
 
 #[derive(Copy, Clone)]
@@ -34,7 +35,7 @@ impl InputRegionExample {
         (Self(false), Command::none())
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Custom input regions")
     }
 

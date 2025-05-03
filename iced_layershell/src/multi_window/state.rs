@@ -6,7 +6,7 @@ use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wp_viewport::WpViewport;
 
 use crate::build_pattern::DaemonProgram as Program;
-use crate::build_pattern::Instance;
+use crate::build_pattern::DaemonInstance as Instance;
 use crate::event::WindowEvent;
 use iced::window;
 pub struct State<A: Program>

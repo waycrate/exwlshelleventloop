@@ -6,8 +6,6 @@ use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
 pub use layershellev::StartMode;
 
-pub use crate::build_pattern::Settings;
-
 use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
 
 #[derive(Debug)]
@@ -16,9 +14,10 @@ pub struct VirtualKeyboardSettings {
     pub keymap_size: u32,
     pub keymap_format: KeymapFormat,
 }
-
+/// MainSettings for iced_layershell
+/// different from [`crate::Settings`], it does not contain the field of flags
 #[derive(Debug)]
-pub struct SettingsMain<Flags> {
+pub struct Settings {
     /// The identifier of the application.
     ///
     /// If provided, this identifier may be used to identify the application or
@@ -27,11 +26,8 @@ pub struct SettingsMain<Flags> {
 
     /// settings for layer shell
     pub layer_settings: LayerShellSettings,
-    /// The data needed to initialize an [`Application`].
+    /// The data needed to initialize an Application
     ///
-    /// [`Application`]: crate::Application
-    pub flags: Flags,
-
     /// The fonts to load on boot.
     pub fonts: Vec<Cow<'static, [u8]>>,
 
@@ -57,15 +53,10 @@ pub struct SettingsMain<Flags> {
 
     pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
 }
-
-impl<Flags> Default for SettingsMain<Flags>
-where
-    Flags: Default,
-{
+impl Default for Settings {
     fn default() -> Self {
-        SettingsMain {
+        Settings {
             id: None,
-            flags: Default::default(),
             fonts: Vec::new(),
             layer_settings: LayerShellSettings::default(),
             default_font: Font::default(),
@@ -109,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_settings_default() {
-        let settings: SettingsMain<()> = SettingsMain::default();
+        let settings: Settings = Settings::default();
 
         assert!(settings.id.is_none());
         assert!(settings.fonts.is_empty());

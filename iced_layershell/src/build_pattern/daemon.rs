@@ -12,7 +12,7 @@ use super::Renderer;
 
 use crate::Result;
 
-use super::Settings;
+use crate::settings::Settings;
 
 // layershell application
 pub trait Program: Sized {
@@ -118,13 +118,7 @@ pub trait Program: Sized {
     fn run(self, settings: Settings) -> Result
     where
         Self: 'static,
-        Self::Message: std::fmt::Debug
-            + Send
-            + 'static
-            + TryInto<LayershellCustomActionsWithId, Error = Self::Message>,
     {
-        let namespace = self.namespace();
-
         let renderer_settings = iced_graphics::Settings {
             default_font: settings.default_font,
             default_text_size: settings.default_text_size,
@@ -135,7 +129,7 @@ pub trait Program: Sized {
             },
             ..iced_graphics::Settings::default()
         };
-        crate::multi_window::run(self, namespace, settings, renderer_settings)
+        crate::multi_window::run(self, settings, renderer_settings)
     }
 }
 
@@ -889,5 +883,63 @@ impl<P: Program> Daemon<P> {
             raw: with_executor::<P, E>(self.raw),
             settings: self.settings,
         }
+    }
+}
+
+use iced::Subscription;
+use iced::theme;
+use iced::window;
+
+#[allow(missing_debug_implementations)]
+pub struct Instance<P: Program> {
+    program: P,
+    state: P::State,
+}
+
+impl<P: Program> Instance<P> {
+    /// Creates a new [`Instance`] of the given [`Program`].
+    pub fn new(program: P) -> (Self, Task<P::Message>) {
+        let (state, task) = program.boot();
+
+        (Self { program, state }, task)
+    }
+
+    /// Returns the current title of the [`Instance`].
+    pub fn namespace(&self) -> String {
+        self.program.namespace()
+    }
+
+    /// Processes the given message and updates the [`Instance`].
+    pub fn update(&mut self, message: P::Message) -> Task<P::Message> {
+        self.program.update(&mut self.state, message)
+    }
+
+    /// Produces the current widget tree of the [`Instance`].
+    pub fn view(&self, window: window::Id) -> Element<'_, P::Message, P::Theme, P::Renderer> {
+        self.program.view(&self.state, window)
+    }
+
+    /// Returns the current [`Subscription`] of the [`Instance`].
+    pub fn subscription(&self) -> Subscription<P::Message> {
+        self.program.subscription(&self.state)
+    }
+
+    /// Returns the current theme of the [`Instance`].
+    pub fn theme(&self, window: window::Id) -> P::Theme {
+        self.program.theme(&self.state, window)
+    }
+
+    /// Returns the current [`theme::Style`] of the [`Instance`].
+    pub fn style(&self, theme: &P::Theme, window: window::Id) -> theme::Style {
+        self.program.style(&self.state, theme, window)
+    }
+
+    /// Returns the current scale factor of the [`Instance`].
+    pub fn scale_factor(&self, window: window::Id) -> f64 {
+        self.program.scale_factor(&self.state, window)
+    }
+
+    pub fn remove_id(&mut self, id: iced_core::window::Id) {
+        self.program.remove_id(&mut self.state, id);
     }
 }

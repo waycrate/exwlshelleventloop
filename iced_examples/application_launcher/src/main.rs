@@ -14,18 +14,23 @@ static SCROLLABLE_ID: LazyLock<scrollable::Id> = LazyLock::new(scrollable::Id::u
 static INPUT_ID: LazyLock<text_input::Id> = LazyLock::new(text_input::Id::unique);
 
 fn main() -> Result<(), iced_layershell::Error> {
-    application(Launcher::namespace, Launcher::update, Launcher::view)
-        .settings(Settings {
-            layer_settings: LayerShellSettings {
-                size: Some((1000, 1000)),
-                anchor: Anchor::Bottom | Anchor::Left | Anchor::Right | Anchor::Top,
-                keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                ..Default::default()
-            },
+    application(
+        || Launcher::new(),
+        Launcher::namespace,
+        Launcher::update,
+        Launcher::view,
+    )
+    .settings(Settings {
+        layer_settings: LayerShellSettings {
+            size: Some((1000, 1000)),
+            anchor: Anchor::Bottom | Anchor::Left | Anchor::Right | Anchor::Top,
+            keyboard_interactivity: KeyboardInteractivity::Exclusive,
             ..Default::default()
-        })
-        .subscription(Launcher::subscription)
-        .run_with(Launcher::new)?;
+        },
+        ..Default::default()
+    })
+    .subscription(Launcher::subscription)
+    .run()?;
     std::thread::sleep(std::time::Duration::from_millis(1));
     Ok(())
 }
@@ -63,7 +68,7 @@ impl Launcher {
         )
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("iced_launcer2")
     }
 
