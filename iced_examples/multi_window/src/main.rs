@@ -20,7 +20,7 @@ fn main() -> iced_layershell::Result {
         .with(EnvFilter::from_default_env())
         .init();
     daemon(
-        || Example::new(),
+        Example::new,
         "multi_window",
         Example::update,
         Example::view,

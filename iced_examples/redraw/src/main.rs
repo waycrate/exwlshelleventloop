@@ -26,7 +26,7 @@ use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
 fn main() -> iced_layershell::Result {
-    application(|| Panel::new(), "Example", Panel::update, Panel::view)
+    application(Panel::new, "Example", Panel::update, Panel::view)
         .layer_settings(LayerShellSettings {
             size: Some((600, 50)),
             anchor: Anchor::empty(),

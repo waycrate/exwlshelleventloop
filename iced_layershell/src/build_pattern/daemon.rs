@@ -127,7 +127,6 @@ pub trait Program: Sized {
             } else {
                 None
             },
-            ..iced_graphics::Settings::default()
         };
         crate::multi_window::run(self, settings, renderer_settings)
     }

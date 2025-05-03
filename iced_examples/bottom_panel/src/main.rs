@@ -10,7 +10,7 @@ use iced_layershell::to_layer_message;
 
 fn main() -> iced_layershell::Result {
     application(
-        || Panel::new(),
+        Panel::new,
         Panel::namespace,
         Panel::update,
         Panel::view,

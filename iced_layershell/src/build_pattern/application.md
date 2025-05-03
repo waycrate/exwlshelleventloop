@@ -22,7 +22,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         None => StartMode::Active,
     };
 
-    application(|| Counter::default(), namespace, update, view)
+    application(Counter::default, namespace, update, view)
         .style(style)
         .subscription(subscription)
         .settings(Settings {

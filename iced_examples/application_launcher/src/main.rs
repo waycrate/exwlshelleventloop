@@ -15,7 +15,7 @@ static INPUT_ID: LazyLock<text_input::Id> = LazyLock::new(text_input::Id::unique
 
 fn main() -> Result<(), iced_layershell::Error> {
     application(
-        || Launcher::new(),
+        Launcher::new,
         Launcher::namespace,
         Launcher::update,
         Launcher::view,

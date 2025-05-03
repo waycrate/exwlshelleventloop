@@ -7,7 +7,7 @@ use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     application(
-        || InputRegionExample::new(),
+        InputRegionExample::new,
         InputRegionExample::namespace,
         InputRegionExample::update,
         InputRegionExample::view,

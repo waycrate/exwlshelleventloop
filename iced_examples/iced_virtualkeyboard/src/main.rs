@@ -131,7 +131,7 @@ fn main() -> Result<(), iced_layershell::Error> {
     let (file, keymap_size) = get_keymap_as_file();
 
     application(
-        || KeyboardView::new(),
+        KeyboardView::new,
         KeyboardView::namespace,
         KeyboardView::update,
         KeyboardView::view,

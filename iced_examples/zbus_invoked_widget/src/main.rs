@@ -19,7 +19,7 @@ struct Counter {
 }
 pub fn main() -> Result<(), iced_layershell::Error> {
     daemon(
-        || Counter::new(),
+        Counter::new,
         Counter::namespace,
         Counter::update,
         Counter::view,
