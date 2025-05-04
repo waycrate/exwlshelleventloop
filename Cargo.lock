@@ -1814,6 +1814,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_exdevtools"
+version = "0.13.5"
+dependencies = [
+ "iced_debug",
+ "iced_program",
+ "iced_widget",
+ "log",
+]
+
+[[package]]
 name = "iced_futures"
 version = "0.14.0-dev"
 source = "git+https://github.com/iced-rs/iced.git#f031b99196431692bf4084e38f7dd68771ab2d87"
@@ -1857,6 +1867,7 @@ dependencies = [
  "iced",
  "iced_core",
  "iced_debug",
+ "iced_exdevtools",
  "iced_futures",
  "iced_graphics",
  "iced_layershell_macros",
@@ -1922,6 +1933,7 @@ dependencies = [
  "iced",
  "iced_core",
  "iced_debug",
+ "iced_exdevtools",
  "iced_futures",
  "iced_graphics",
  "iced_renderer",

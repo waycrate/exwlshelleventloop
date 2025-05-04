@@ -13,6 +13,95 @@ use super::Renderer;
 use crate::Result;
 use crate::settings::Settings;
 
+use iced_exdevtools::singlelayershell_dev_generate;
+singlelayershell_dev_generate! {
+    Type = DevTools,
+    Program = Program
+}
+
+#[allow(unused)]
+fn attach(program: impl Program + 'static) -> impl Program {
+    struct Attach<P> {
+        program: P,
+    }
+
+    impl<P> Program for Attach<P>
+    where
+        P: Program + 'static,
+    {
+        type State = DevTools<P>;
+        type Message = Event<P>;
+        type Theme = P::Theme;
+        type Renderer = P::Renderer;
+        type Executor = P::Executor;
+
+        fn name() -> &'static str {
+            P::name()
+        }
+
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            let (state, boot) = self.program.boot();
+            let (devtools, task) = DevTools::new(state);
+
+            (
+                devtools,
+                Task::batch([boot.map(Event::Program), task.map(Event::Message)]),
+            )
+        }
+
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            state.update(&self.program, message)
+        }
+
+        fn view<'a>(
+            &self,
+            state: &'a Self::State,
+        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+            state.view(&self.program)
+        }
+
+        fn namespace(&self) -> String {
+            self.program.namespace()
+        }
+
+        fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            state.subscription(&self.program)
+        }
+
+        fn theme(&self, state: &Self::State) -> Self::Theme {
+            self.program.theme(state.state())
+        }
+
+        fn style(&self, state: &Self::State, theme: &Self::Theme) -> iced::theme::Style {
+            self.program.style(state.state(), theme)
+        }
+
+        fn scale_factor(&self, state: &Self::State) -> f64 {
+            self.program.scale_factor(state.state())
+        }
+    }
+
+    Attach { program }
+}
+
+impl<P> TryInto<LayershellCustomActions> for Event<P>
+where
+    P: Program,
+{
+    type Error = Self;
+    fn try_into(self) -> std::result::Result<LayershellCustomActions, Self::Error> {
+        let Event::Program(message) = self else {
+            return Err(self);
+        };
+
+        let message: std::result::Result<LayershellCustomActions, P::Message> = message.try_into();
+        match message {
+            Ok(action) => Ok(action),
+            Err(message) => Err(Self::Program(message)),
+        }
+    }
+}
+
 // layershell application
 pub trait Program: Sized {
     /// The [`Executor`] that will run commands and subscriptions.
@@ -114,11 +203,18 @@ pub trait Program: Sized {
         Self: 'static,
     {
         #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
-        iced_debug::init(iced_debug::Metadata {
-            name: P::name(),
-            theme: None,
-            can_time_travel: cfg!(feature = "time-travel"),
-        });
+        let program = {
+            iced_debug::init(iced_debug::Metadata {
+                name: Self::name(),
+                theme: None,
+                can_time_travel: cfg!(feature = "time-travel"),
+            });
+
+            attach(self)
+        };
+
+        #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
+        let program = self;
 
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {
@@ -131,7 +227,7 @@ pub trait Program: Sized {
             },
             ..iced_graphics::Settings::default()
         };
-        crate::application::run(self, settings, renderer_settings)
+        crate::application::run(program, settings, renderer_settings)
     }
 }
 
