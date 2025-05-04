@@ -13,10 +13,11 @@ use super::Renderer;
 use crate::Result;
 use crate::settings::Settings;
 
-use iced_exdevtools::singlelayershell_dev_generate;
-singlelayershell_dev_generate! {
+use iced_exdevtools::single_dev_generate;
+single_dev_generate! {
     Type = DevTools,
-    Program = Program
+    Program = Program,
+    MyAction = LayershellCustomActions
 }
 
 #[allow(unused)]
@@ -82,24 +83,6 @@ fn attach(program: impl Program + 'static) -> impl Program {
     }
 
     Attach { program }
-}
-
-impl<P> TryInto<LayershellCustomActions> for Event<P>
-where
-    P: Program,
-{
-    type Error = Self;
-    fn try_into(self) -> std::result::Result<LayershellCustomActions, Self::Error> {
-        let Event::Program(message) = self else {
-            return Err(self);
-        };
-
-        let message: std::result::Result<LayershellCustomActions, P::Message> = message.try_into();
-        match message {
-            Ok(action) => Ok(action),
-            Err(message) => Err(Self::Program(message)),
-        }
-    }
 }
 
 // layershell application

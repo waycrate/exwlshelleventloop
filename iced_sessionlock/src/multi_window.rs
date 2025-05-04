@@ -260,7 +260,11 @@ async fn run_instance<A, E, C>(
                         (id, window)
                     } else {
                         let id = window::Id::unique();
-                        debug::theme_changed(|| theme::Base::palette(&application.theme()));
+                        debug::theme_changed(|| {
+                            window_manager
+                                .first()
+                                .and_then(|window| theme::Base::palette(window.state.theme()))
+                        });
                         let window = window_manager.insert(
                             id,
                             (width, height),
@@ -342,7 +346,7 @@ async fn run_instance<A, E, C>(
 
                 ui.draw(
                     &mut window.renderer,
-                    &application.theme(),
+                    &application.theme(id),
                     &iced_core::renderer::Style {
                         text_color: window.state.text_color(),
                     },
@@ -486,7 +490,11 @@ async fn run_instance<A, E, C>(
 
                     custom_actions.push(SessionShellAction::RedrawAll);
 
-                    debug::theme_changed(|| theme::Base::palette(&application.theme()));
+                    debug::theme_changed(|| {
+                        window_manager
+                            .first()
+                            .and_then(|window| theme::Base::palette(window.state.theme()))
+                    });
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,
                         &mut window_manager,

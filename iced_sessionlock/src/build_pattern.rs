@@ -21,31 +21,13 @@ mod pattern {
     use crate::DefaultStyle;
 
     use crate::Result;
-    use iced_exdevtools::sessionlock_dev_generate;
+    use iced_exdevtools::multi_dev_generate;
 
-    sessionlock_dev_generate! {
+    multi_dev_generate! {
         Type = DevTools,
-        Program = Program
+        Program = Program,
+        MyAction = UnLockAction
     }
-    impl<P> TryInto<UnLockAction> for Event<P>
-    where
-        P: Program,
-    {
-        type Error = Self;
-        fn try_into(self) -> std::result::Result<UnLockAction, Self::Error> {
-            let Event::Program(message) = self else {
-                return Err(self);
-            };
-
-            let message: std::result::Result<UnLockAction, P::Message> = message.try_into();
-
-            match message {
-                Ok(action) => Ok(action),
-                Err(message) => Err(Self::Program(message)),
-            }
-        }
-    }
-
     #[allow(unused)]
     fn attach(program: impl Program + 'static) -> impl Program {
         struct Attach<P> {
@@ -96,8 +78,8 @@ mod pattern {
                 state.subscription(&self.program)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state.state())
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state.state(), window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> iced::theme::Style {
@@ -171,7 +153,7 @@ mod pattern {
         /// Returns the current [`Theme`] of the [`Application`].
         ///
         /// [`Theme`]: Self::Theme
-        fn theme(&self, _state: &Self::State) -> Self::Theme {
+        fn theme(&self, _state: &Self::State, _window: iced_core::window::Id) -> Self::Theme {
             Self::Theme::default()
         }
 
@@ -446,8 +428,8 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -513,8 +495,8 @@ mod pattern {
                 self.program.namespace(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -537,7 +519,7 @@ mod pattern {
 
     pub fn with_theme<P: Program>(
         program: P,
-        f: impl Fn(&P::State) -> P::Theme,
+        f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
         struct WithTheme<P, F> {
             program: P,
@@ -546,7 +528,7 @@ mod pattern {
 
         impl<P: Program, F> Program for WithTheme<P, F>
         where
-            F: Fn(&P::State) -> P::Theme,
+            F: Fn(&P::State, iced_core::window::Id) -> P::Theme,
         {
             type State = P::State;
             type Message = P::Message;
@@ -554,8 +536,8 @@ mod pattern {
             type Renderer = P::Renderer;
             type Executor = P::Executor;
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                (self.theme)(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                (self.theme)(state, window)
             }
             fn boot(&self) -> (Self::State, Task<Self::Message>) {
                 self.program.boot()
@@ -648,8 +630,8 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
@@ -708,8 +690,8 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -807,7 +789,7 @@ mod pattern {
         /// Sets the theme logic of the [`Application`].
         pub fn theme(
             self,
-            f: impl Fn(&P::State) -> P::Theme,
+            f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
@@ -877,8 +859,8 @@ mod pattern {
         }
 
         /// Returns the current theme of the [`Instance`].
-        pub fn theme(&self) -> P::Theme {
-            self.program.theme(&self.state)
+        pub fn theme(&self, window: window::Id) -> P::Theme {
+            self.program.theme(&self.state, window)
         }
 
         /// Returns the current [`theme::Style`] of the [`Instance`].

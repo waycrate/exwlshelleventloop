@@ -14,33 +14,13 @@ use crate::Result;
 
 use crate::settings::Settings;
 
-use iced_exdevtools::multilayershell_dev_generate;
+use iced_exdevtools::multi_dev_generate;
 
-multilayershell_dev_generate! {
+multi_dev_generate! {
     Type = DevTools,
-    Program = Program
+    Program = Program,
+    MyAction = LayershellCustomActionsWithId
 }
-
-impl<P> TryInto<LayershellCustomActionsWithId> for Event<P>
-where
-    P: Program,
-{
-    type Error = Self;
-    fn try_into(self) -> std::result::Result<LayershellCustomActionsWithId, Self::Error> {
-        let Event::Program(message) = self else {
-            return Err(self);
-        };
-
-        let message: std::result::Result<LayershellCustomActionsWithId, P::Message> =
-            message.try_into();
-
-        match message {
-            Ok(action) => Ok(action),
-            Err(message) => Err(Self::Program(message)),
-        }
-    }
-}
-
 #[allow(unused)]
 fn attach(program: impl Program + 'static) -> impl Program {
     struct Attach<P> {

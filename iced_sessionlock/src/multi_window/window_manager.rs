@@ -88,6 +88,9 @@ where
             .get_mut(&id)
             .expect("Get window that was just inserted")
     }
+    pub fn first(&self) -> Option<&Window<A, C>> {
+        self.entries.first_key_value().map(|(_, v)| v)
+    }
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()

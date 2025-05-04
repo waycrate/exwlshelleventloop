@@ -41,7 +41,7 @@ where
         window: &WindowWrapper,
     ) -> Self {
         let application_scale_factor = application.scale_factor(id);
-        let theme = application.theme();
+        let theme = application.theme(id);
         let appearance = application.style(&theme);
 
         let window_size = Size::new(width, height);
@@ -160,7 +160,7 @@ where
             self.application_scale_factor = new_scale_factor;
             self.resize_viewport();
         }
-        self.theme = application.theme();
+        self.theme = application.theme(self.id);
         self.appearance = application.style(&self.theme);
     }
 
