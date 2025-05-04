@@ -29,9 +29,13 @@ impl<A: IcedProgram> State<A>
 where
     A::Theme: DefaultStyle,
 {
-    pub fn new(application: &Instance<A>, window: &layershellev::WindowStateSimple) -> Self {
+    pub fn new(
+        application: &Instance<A>,
+        window: &layershellev::WindowStateSimple,
+        mainid: iced::window::Id,
+    ) -> Self {
         let application_scale_factor = application.scale_factor();
-        let theme = application.theme();
+        let theme = application.theme(mainid);
         let appearance = application.style(&theme);
 
         let (width, height) = window.main_window().get_size();
@@ -147,13 +151,13 @@ where
         }
     }
 
-    pub fn synchronize(&mut self, application: &Instance<A>) {
+    pub fn synchronize(&mut self, application: &Instance<A>, mainid: iced::window::Id) {
         let new_scale_factor = application.scale_factor();
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;
             self.resize_viewport();
         }
-        self.theme = application.theme();
+        self.theme = application.theme(mainid);
         self.appearance = application.style(&self.theme);
     }
 

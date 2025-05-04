@@ -41,6 +41,7 @@ use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, se
 type SingleRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
 use crate::build_pattern::ApplicationInstance as Instance;
 use crate::build_pattern::ApplicationProgram as IcedProgram;
+
 // a dispatch loop, another is listen loop
 pub fn run<A>(
     program: A,
@@ -94,8 +95,9 @@ where
     runtime.track(iced_futures::subscription::into_recipes(
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
+    let main_id = IcedCoreWindow::Id::unique();
 
-    let state = State::new(&application, &ev);
+    let state = State::new(&application, &ev, main_id);
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<IcedLayerEvent<Action<A::Message>>>();
@@ -112,6 +114,7 @@ where
         event_receiver,
         control_sender,
         state,
+        main_id,
         window,
         settings.fonts,
     ));
@@ -387,6 +390,7 @@ async fn run_instance<A, E, C>(
     mut event_receiver: mpsc::UnboundedReceiver<IcedLayerEvent<Action<A::Message>>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
     mut state: State<A>,
+    main_id: iced::window::Id,
     window: Arc<WindowWrapper>,
     fonts: Vec<Cow<'static, [u8]>>,
 ) where
@@ -423,7 +427,6 @@ async fn run_instance<A, E, C>(
     let mut events: Vec<Event> = Vec::new();
     let mut custom_actions = Vec::new();
 
-    let main_id = IcedCoreWindow::Id::unique();
     let mut user_interface = ManuallyDrop::new(build_user_interface(
         &application,
         cache,
@@ -456,7 +459,7 @@ async fn run_instance<A, E, C>(
                             .relayout(state.viewport().logical_size(), &mut renderer),
                     );
                     layout_span.finish();
-                    debug::theme_changed(|| theme::Base::palette(&application.theme()));
+                    debug::theme_changed(|| theme::Base::palette(&application.theme(main_id)));
 
                     let physical_size = state.viewport().physical_size();
                     compositor.configure_surface(
@@ -494,7 +497,7 @@ async fn run_instance<A, E, C>(
 
                 user_interface.draw(
                     &mut renderer,
-                    &application.theme(),
+                    &application.theme(main_id),
                     &iced_core::renderer::Style {
                         text_color: state.text_color(),
                     },
@@ -609,8 +612,14 @@ async fn run_instance<A, E, C>(
                 {
                     let cache = ManuallyDrop::into_inner(user_interface).into_cache();
                     // Update application
-                    update(&mut application, &mut state, &mut runtime, &mut messages);
-                    debug::theme_changed(|| theme::Base::palette(&application.theme()));
+                    update(
+                        &mut application,
+                        &mut state,
+                        &mut runtime,
+                        &mut messages,
+                        main_id,
+                    );
+                    debug::theme_changed(|| theme::Base::palette(&application.theme(main_id)));
                     user_interface = ManuallyDrop::new(build_user_interface(
                         &application,
                         cache,
@@ -644,7 +653,7 @@ where
     A::Theme: DefaultStyle,
 {
     let view_span = debug::view(id);
-    let view = application.view();
+    let view = application.view(id);
     view_span.finish();
 
     let layout_span = debug::layout(id);
@@ -661,6 +670,7 @@ pub(crate) fn update<A: IcedProgram, E: Executor>(
     state: &mut State<A>,
     runtime: &mut SingleRuntime<E, A::Message>,
     messages: &mut Vec<A::Message>,
+    mainid: iced::window::Id,
 ) where
     A::Theme: DefaultStyle,
     A::Message: 'static,
@@ -675,7 +685,7 @@ pub(crate) fn update<A: IcedProgram, E: Executor>(
             runtime.run(stream);
         }
     }
-    state.synchronize(application);
+    state.synchronize(application, mainid);
 
     let subscription = runtime.enter(|| application.subscription());
     let recipes = iced_futures::subscription::into_recipes(subscription.map(Action::Output));

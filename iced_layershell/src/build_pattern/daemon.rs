@@ -14,13 +14,14 @@ use crate::Result;
 
 use crate::settings::Settings;
 
-use iced_exdevtools::multi_dev_generate;
+use iced_exdevtools::devtools_generate;
 
-multi_dev_generate! {
+devtools_generate! {
     Type = DevTools,
     Program = Program,
     MyAction = LayershellCustomActionsWithId
 }
+
 #[allow(unused)]
 fn attach(program: impl Program + 'static) -> impl Program {
     struct Attach<P> {

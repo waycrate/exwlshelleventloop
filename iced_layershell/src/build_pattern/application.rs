@@ -13,8 +13,8 @@ use super::Renderer;
 use crate::Result;
 use crate::settings::Settings;
 
-use iced_exdevtools::single_dev_generate;
-single_dev_generate! {
+use iced_exdevtools::devtools_generate;
+devtools_generate! {
     Type = DevTools,
     Program = Program,
     MyAction = LayershellCustomActions
@@ -57,8 +57,9 @@ fn attach(program: impl Program + 'static) -> impl Program {
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced_core::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            state.view(&self.program)
+            state.view(&self.program, window)
         }
 
         fn namespace(&self) -> String {
@@ -69,8 +70,8 @@ fn attach(program: impl Program + 'static) -> impl Program {
             state.subscription(&self.program)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state.state())
+        fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state.state(), window)
         }
 
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> iced::theme::Style {
@@ -140,12 +141,13 @@ pub trait Program: Sized {
     fn view<'a>(
         &self,
         state: &'a Self::State,
+        window: iced::window::Id,
     ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer>;
 
     /// Returns the current [`Theme`] of the [`Application`].
     ///
     /// [`Theme`]: Self::Theme
-    fn theme(&self, _state: &Self::State) -> Self::Theme {
+    fn theme(&self, _state: &Self::State, _window: iced::window::Id) -> Self::Theme {
         Self::Theme::default()
     }
 
@@ -370,6 +372,7 @@ where
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            _window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
             self.view.view(state).into()
         }
@@ -426,16 +429,17 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state)
+            self.program.view(state, window)
         }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             self.program.subscription(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
+            self.program.theme(state, window)
         }
 
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -489,12 +493,13 @@ fn with_namespace<P: Program>(
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state)
+            self.program.view(state, window)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
+            self.program.theme(state, window)
         }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
@@ -549,16 +554,17 @@ pub fn with_subscription<P: Program>(
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state)
+            self.program.view(state, window)
         }
 
         fn namespace(&self) -> String {
             self.program.namespace()
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
+            self.program.theme(state, window)
         }
 
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -595,7 +601,7 @@ pub fn with_theme<P: Program>(
         type Renderer = P::Renderer;
         type Executor = P::Executor;
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
+        fn theme(&self, state: &Self::State, _window: iced::window::Id) -> Self::Theme {
             (self.theme)(state)
         }
 
@@ -616,8 +622,9 @@ pub fn with_theme<P: Program>(
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state)
+            self.program.view(state, window)
         }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
@@ -676,16 +683,17 @@ pub fn with_style<P: Program>(
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state)
+            self.program.view(state, window)
         }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             self.program.subscription(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
+            self.program.theme(state, window)
         }
 
         fn scale_factor(&self, state: &Self::State) -> f64 {
@@ -730,16 +738,17 @@ pub fn with_scale_factor<P: Program>(
         fn view<'a>(
             &self,
             state: &'a Self::State,
+            window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state)
+            self.program.view(state, window)
         }
 
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             self.program.subscription(state)
         }
 
-        fn theme(&self, state: &Self::State) -> Self::Theme {
-            self.program.theme(state)
+        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
+            self.program.theme(state, window)
         }
 
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -915,8 +924,8 @@ impl<P: Program> Instance<P> {
     }
 
     /// Produces the current widget tree of the [`Instance`].
-    pub fn view(&self) -> Element<'_, P::Message, P::Theme, P::Renderer> {
-        self.program.view(&self.state)
+    pub fn view(&self, window: iced::window::Id) -> Element<'_, P::Message, P::Theme, P::Renderer> {
+        self.program.view(&self.state, window)
     }
 
     /// Returns the current [`Subscription`] of the [`Instance`].
@@ -925,8 +934,8 @@ impl<P: Program> Instance<P> {
     }
 
     /// Returns the current theme of the [`Instance`].
-    pub fn theme(&self) -> P::Theme {
-        self.program.theme(&self.state)
+    pub fn theme(&self, window: iced::window::Id) -> P::Theme {
+        self.program.theme(&self.state, window)
     }
 
     /// Returns the current [`theme::Style`] of the [`Instance`].
