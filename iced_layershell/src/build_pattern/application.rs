@@ -113,6 +113,13 @@ pub trait Program: Sized {
     where
         Self: 'static,
     {
+        #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
+        iced_debug::init(iced_debug::Metadata {
+            name: P::name(),
+            theme: None,
+            can_time_travel: cfg!(feature = "time-travel"),
+        });
+
         #[allow(clippy::needless_update)]
         let renderer_settings = iced_graphics::Settings {
             default_font: settings.default_font,
