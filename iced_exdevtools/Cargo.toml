@@ -10,11 +10,11 @@ readme = "README.md"
 description = "layershell binding for iced"
 
 [features]
-time-travel = ["iced_program/time-travel"]
+time-travel = ["iced/time-travel"]
 
 [dependencies]
+iced.workspace = true
 iced_debug.workspace = true
-iced_program.workspace = true
 iced_widget.workspace = true
 
 log.workspace = true
