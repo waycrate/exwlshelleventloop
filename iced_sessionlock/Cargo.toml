@@ -17,6 +17,7 @@ wgpu = ["iced/wgpu", "iced_renderer/wgpu"]
 fira-sans = ["iced/fira-sans", "iced_renderer/fira-sans"]
 debug = ["iced/debug"]
 time-travel = ["iced/time-travel"]
+unconditional-rendering = ["iced/unconditional-rendering"]
 
 [dependencies]
 iced_sessionlock_macros.workspace = true

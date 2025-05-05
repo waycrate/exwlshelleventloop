@@ -459,9 +459,20 @@ async fn run_instance<A, E, C>(
                             &mut clipboard,
                             &mut messages,
                         );
+                    match ui_state {
+                        user_interface::State::Updated {
+                            redraw_request: _redraw_request,
+                            mouse_interaction,
+                            ..
+                        } => {
+                            window.mouse_interaction = mouse_interaction;
 
-                    if !uis_stale {
-                        uis_stale = matches!(ui_state, user_interface::State::Outdated);
+                            #[cfg(not(feature = "unconditional-rendering"))]
+                            custom_actions.push(SessionShellAction::RedrawWindow(window.id));
+                        }
+                        user_interface::State::Outdated => {
+                            uis_stale = true;
+                        }
                     }
 
                     for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
@@ -488,6 +499,7 @@ async fn run_instance<A, E, C>(
                         window.state.synchronize(&application);
                     }
 
+                    #[cfg(feature = "unconditional-rendering")]
                     custom_actions.push(SessionShellAction::RedrawAll);
 
                     debug::theme_changed(|| {

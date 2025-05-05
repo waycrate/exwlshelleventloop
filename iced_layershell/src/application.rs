@@ -590,7 +590,7 @@ async fn run_instance<A, E, C>(
                     continue;
                 }
                 let interact_span = debug::interact(main_id);
-                let (interface_state, statuses) = user_interface.update(
+                let (ui_state, statuses) = user_interface.update(
                     &events,
                     state.cursor(),
                     &mut renderer,
@@ -607,9 +607,24 @@ async fn run_instance<A, E, C>(
                     });
                 }
 
-                if !messages.is_empty()
-                    || matches!(interface_state, user_interface::State::Outdated)
-                {
+                #[cfg(feature = "unconditional-rendering")]
+                custom_actions.push(LayerShellAction::RedrawAll);
+
+                match ui_state {
+                    user_interface::State::Updated {
+                        redraw_request: _redraw_request,
+                        mouse_interaction,
+                        ..
+                    } => {
+                        custom_actions.push(LayerShellAction::Mouse(mouse_interaction));
+
+                        #[cfg(not(feature = "unconditional-rendering"))]
+                        custom_actions.push(LayerShellAction::RedrawAll);
+                    }
+                    user_interface::State::Outdated => {}
+                }
+
+                if !messages.is_empty() || matches!(ui_state, user_interface::State::Outdated) {
                     let cache = ManuallyDrop::into_inner(user_interface).into_cache();
                     // Update application
                     update(
@@ -628,7 +643,6 @@ async fn run_instance<A, E, C>(
                         main_id,
                     ));
                 }
-                custom_actions.push(LayerShellAction::RedrawAll);
             }
             _ => unreachable!(),
         }

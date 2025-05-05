@@ -766,7 +766,6 @@ async fn run_instance<A, E, C>(
 
                 let mut window_refresh_events = vec![];
                 let mut uis_stale = false;
-                let mut has_window_event = false;
                 for (id, window) in window_manager.iter_mut() {
                     let interact_span = debug::interact(id);
                     let mut window_events = vec![];
@@ -784,10 +783,6 @@ async fn run_instance<A, E, C>(
                         continue;
                     }
 
-                    if !window_events.is_empty() {
-                        has_window_event = true;
-                    }
-
                     let (ui_state, statuses) = user_interfaces
                         .get_mut(&id)
                         .expect("Get user interface")
@@ -799,9 +794,26 @@ async fn run_instance<A, E, C>(
                             &mut messages,
                         );
 
+                    #[cfg(feature = "unconditional-rendering")]
                     window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
+
                     if !uis_stale {
                         uis_stale = matches!(ui_state, user_interface::State::Outdated);
+                    }
+                    match ui_state {
+                        user_interface::State::Updated {
+                            redraw_request: _redraw_request,
+                            mouse_interaction,
+                            ..
+                        } => {
+                            window.mouse_interaction = mouse_interaction;
+
+                            #[cfg(not(feature = "unconditional-rendering"))]
+                            window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
+                        }
+                        user_interface::State::Outdated => {
+                            uis_stale = true;
+                        }
                     }
 
                     for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
@@ -812,12 +824,6 @@ async fn run_instance<A, E, C>(
                         });
                     }
                     interact_span.finish();
-                }
-
-                let mut already_redraw_all = false;
-                if has_window_event {
-                    custom_actions.push(LayerShellAction::RedrawAll);
-                    already_redraw_all = true;
                 }
 
                 // TODO mw application update returns which window IDs to update
@@ -848,9 +854,7 @@ async fn run_instance<A, E, C>(
 
                 // NOTE: only append the target window refresh event when not invoke the redrawAll
                 // event. This will make the events fewer.
-                if !already_redraw_all {
-                    custom_actions.append(&mut window_refresh_events);
-                }
+                custom_actions.append(&mut window_refresh_events);
             }
             MultiWindowIcedLayerEvent(_, IcedLayerEvent::WindowRemoved(id)) => {
                 let mut cached_user_interfaces: HashMap<window::Id, user_interface::Cache> =
