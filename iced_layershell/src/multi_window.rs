@@ -763,7 +763,10 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
-
+                #[cfg(not(feature = "unconditional-rendering"))]
+                let mut is_updated = false;
+                #[cfg(feature = "unconditional-rendering")]
+                let is_updated = false;
                 let mut window_refresh_events = vec![];
                 let mut uis_stale = false;
                 for (id, window) in window_manager.iter_mut() {
@@ -797,19 +800,22 @@ async fn run_instance<A, E, C>(
                     #[cfg(feature = "unconditional-rendering")]
                     window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
 
-                    if !uis_stale {
-                        uis_stale = matches!(ui_state, user_interface::State::Outdated);
-                    }
                     match ui_state {
                         user_interface::State::Updated {
-                            redraw_request: _redraw_request,
+                            redraw_request,
                             mouse_interaction,
                             ..
                         } => {
+                            // TODO: now just do when receive NextFrame
                             window.mouse_interaction = mouse_interaction;
 
+                            // TODO: just check NextFrame
                             #[cfg(not(feature = "unconditional-rendering"))]
-                            window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
+                            if matches!(redraw_request, iced::window::RedrawRequest::NextFrame) {
+                                window_refresh_events
+                                    .push(LayerShellAction::RedrawWindow(window.id));
+                                is_updated = true;
+                            }
                         }
                         user_interface::State::Outdated => {
                             uis_stale = true;
@@ -839,6 +845,9 @@ async fn run_instance<A, E, C>(
 
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
+                        if !is_updated {
+                            window_refresh_events.push(LayerShellAction::RedrawWindow(window.id));
+                        }
                     }
                     debug::theme_changed(|| {
                         window_manager

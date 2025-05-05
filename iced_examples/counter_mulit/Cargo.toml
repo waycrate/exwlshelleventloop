@@ -14,5 +14,5 @@ readme.workspace = true
 [dependencies]
 iced.workspace = true
 iced_runtime.workspace = true
-iced_layershell.workspace = true
+iced_layershell = { workspace = true, features = ["debug"] }
 tracing-subscriber.workspace = true

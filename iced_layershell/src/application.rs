@@ -589,6 +589,10 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
+                #[cfg(not(feature = "unconditional-rendering"))]
+                let mut is_updated = false;
+                #[cfg(feature = "unconditional-rendering")]
+                let is_updated = false;
                 let interact_span = debug::interact(main_id);
                 let (ui_state, statuses) = user_interface.update(
                     &events,
@@ -612,14 +616,18 @@ async fn run_instance<A, E, C>(
 
                 match ui_state {
                     user_interface::State::Updated {
-                        redraw_request: _redraw_request,
+                        redraw_request,
                         mouse_interaction,
                         ..
                     } => {
                         custom_actions.push(LayerShellAction::Mouse(mouse_interaction));
 
                         #[cfg(not(feature = "unconditional-rendering"))]
-                        custom_actions.push(LayerShellAction::RedrawAll);
+                        // TODO: now just do when receive NextFrame
+                        if matches!(redraw_request, IcedCoreWindow::RedrawRequest::NextFrame) {
+                            custom_actions.push(LayerShellAction::RedrawAll);
+                            is_updated = true;
+                        }
                     }
                     user_interface::State::Outdated => {}
                 }
@@ -634,6 +642,10 @@ async fn run_instance<A, E, C>(
                         &mut messages,
                         main_id,
                     );
+
+                    if !is_updated {
+                        custom_actions.push(LayerShellAction::RedrawAll);
+                    }
                     debug::theme_changed(|| theme::Base::palette(&application.theme(main_id)));
                     user_interface = ManuallyDrop::new(build_user_interface(
                         &application,

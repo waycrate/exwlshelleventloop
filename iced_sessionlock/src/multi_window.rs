@@ -431,7 +431,10 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
-
+                #[cfg(not(feature = "unconditional-rendering"))]
+                let mut is_updated = false;
+                #[cfg(feature = "unconditional-rendering")]
+                let is_updated = false;
                 let mut uis_stale = false;
                 for (id, window) in window_manager.iter_mut() {
                     let interact_span = debug::interact(id);
@@ -461,14 +464,18 @@ async fn run_instance<A, E, C>(
                         );
                     match ui_state {
                         user_interface::State::Updated {
-                            redraw_request: _redraw_request,
+                            redraw_request,
                             mouse_interaction,
                             ..
                         } => {
                             window.mouse_interaction = mouse_interaction;
 
+                            // TODO: just check NextFrame
                             #[cfg(not(feature = "unconditional-rendering"))]
-                            custom_actions.push(SessionShellAction::RedrawWindow(window.id));
+                            if matches!(redraw_request, iced::window::RedrawRequest::NextFrame) {
+                                custom_actions.push(SessionShellAction::RedrawWindow(window.id));
+                                is_updated = true;
+                            }
                         }
                         user_interface::State::Outdated => {
                             uis_stale = true;
@@ -496,6 +503,10 @@ async fn run_instance<A, E, C>(
                     update(&mut application, &mut runtime, &mut messages);
 
                     for (_id, window) in window_manager.iter_mut() {
+                        if !is_updated {
+                            custom_actions.push(SessionShellAction::RedrawWindow(window.id));
+                        }
+
                         window.state.synchronize(&application);
                     }
 
