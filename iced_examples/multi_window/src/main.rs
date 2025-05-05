@@ -19,25 +19,20 @@ fn main() -> iced_layershell::Result {
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())
         .init();
-    daemon(
-        Example::new,
-        "multi_window",
-        Example::update,
-        Example::view,
-    )
-    .remove_id(Example::remove_id)
-    .theme(Example::theme)
-    .style(Example::style)
-    .subscription(Example::subscription)
-    .scale_factor(Example::scale_factor)
-    .settings(Settings {
-        layer_settings: LayerShellSettings {
-            start_mode: StartMode::Background,
+    daemon(Example::new, "multi_window", Example::update, Example::view)
+        .remove_id(Example::remove_id)
+        .theme(Example::theme)
+        .style(Example::style)
+        .subscription(Example::subscription)
+        .scale_factor(Example::scale_factor)
+        .settings(Settings {
+            layer_settings: LayerShellSettings {
+                start_mode: StartMode::Background,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    })
-    .run()
+        })
+        .run()
 }
 
 struct Example {
