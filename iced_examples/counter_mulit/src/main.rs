@@ -19,9 +19,9 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::namespace,
         Counter::update,
         Counter::view,
-        Counter::remove_id,
     )
     .subscription(Counter::subscription)
+    .remove_id(Counter::remove_id)
     .settings(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
@@ -82,15 +82,12 @@ impl Counter {
 }
 
 impl Counter {
-    fn new(text: &str) -> (Self, Command<Message>) {
-        (
-            Self {
-                value: 0,
-                text: text.to_string(),
-                ids: HashMap::new(),
-            },
-            Command::none(),
-        )
+    fn new(text: &str) -> Self {
+        Self {
+            value: 0,
+            text: text.to_string(),
+            ids: HashMap::new(),
+        }
     }
 
     fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
@@ -229,7 +226,6 @@ impl Counter {
                     background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
-                //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();
@@ -268,7 +264,6 @@ impl Counter {
         ]
         .padding(20)
         .spacing(10)
-        //.align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()

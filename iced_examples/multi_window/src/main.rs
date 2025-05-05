@@ -24,8 +24,8 @@ fn main() -> iced_layershell::Result {
         "multi_window",
         Example::update,
         Example::view,
-        Example::remove_id,
     )
+    .remove_id(Example::remove_id)
     .theme(Example::theme)
     .style(Example::style)
     .subscription(Example::subscription)

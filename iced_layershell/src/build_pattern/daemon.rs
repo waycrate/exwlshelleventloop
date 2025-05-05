@@ -117,7 +117,7 @@ pub trait Program: Sized {
 
     /// The theme of your [`Application`].
     type Theme: Default + DefaultStyle;
-    fn remove_id(&self, _state: &mut Self::State, _id: iced_core::window::Id);
+    fn remove_id(&self, _state: &mut Self::State, _id: iced_core::window::Id) {}
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -261,19 +261,6 @@ impl<State, Message> Update<State, Message> for () {
     fn update(&self, _state: &mut State, _message: Message) -> impl Into<Task<Message>> {}
 }
 
-pub trait RemoveId<State> {
-    fn remove_id(&self, state: &mut State, id: iced_core::window::Id);
-}
-
-impl<T, State> RemoveId<State> for T
-where
-    T: Fn(&mut State, iced_core::window::Id),
-{
-    fn remove_id(&self, state: &mut State, id: iced_core::window::Id) {
-        self(state, id)
-    }
-}
-
 impl<T, State, Message, C> Update<State, Message> for T
 where
     T: Fn(&mut State, Message) -> C,
@@ -356,7 +343,6 @@ pub fn daemon<State, Message, Theme, Renderer>(
     namespace: impl NameSpace,
     update: impl Update<State, Message>,
     view: impl for<'a> self::View<'a, State, Message, Theme, Renderer>,
-    remove_id: impl RemoveId<State>,
 ) -> Daemon<impl Program<Message = Message, Theme = Theme, State = State>>
 where
     State: 'static,
@@ -366,18 +352,17 @@ where
     Renderer: self::Renderer,
 {
     use std::marker::PhantomData;
-    struct Instance<State, Message, Theme, Renderer, Update, View, RemoveId, Boot> {
+    struct Instance<State, Message, Theme, Renderer, Update, View, Boot> {
         update: Update,
         view: View,
-        remove_id: RemoveId,
         boot: Boot,
         _state: PhantomData<State>,
         _message: PhantomData<Message>,
         _theme: PhantomData<Theme>,
         _renderer: PhantomData<Renderer>,
     }
-    impl<State, Message, Theme, Renderer, Update, View, RemoveId, Boot> Program
-        for Instance<State, Message, Theme, Renderer, Update, View, RemoveId, Boot>
+    impl<State, Message, Theme, Renderer, Update, View, Boot> Program
+        for Instance<State, Message, Theme, Renderer, Update, View, Boot>
     where
         Message: 'static
             + TryInto<LayershellCustomActionsWithId, Error = Message>
@@ -386,7 +371,6 @@ where
         Theme: Default + DefaultStyle,
         Renderer: self::Renderer,
         Update: self::Update<State, Message>,
-        RemoveId: self::RemoveId<State>,
         Boot: self::Boot<State, Message>,
         View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
     {
@@ -404,9 +388,6 @@ where
             self.boot.boot()
         }
 
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.remove_id.remove_id(state, id);
-        }
         fn view<'a>(
             &self,
             state: &'a Self::State,
@@ -425,7 +406,6 @@ where
         raw: Instance {
             update,
             view,
-            remove_id,
             boot,
 
             _state: PhantomData,
@@ -507,6 +487,78 @@ fn with_namespace<P: Program>(
     }
 
     WithNamespace { program, namespace }
+}
+
+pub fn with_remove_id<P: Program>(
+    program: P,
+    f: impl Fn(&mut P::State, iced_core::window::Id),
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
+    struct WithRemoveId<P, F> {
+        program: P,
+        remove_id: F,
+    }
+
+    impl<P: Program, F> Program for WithRemoveId<P, F>
+    where
+        F: Fn(&mut P::State, iced_core::window::Id),
+    {
+        type State = P::State;
+        type Message = P::Message;
+        type Theme = P::Theme;
+        type Renderer = P::Renderer;
+        type Executor = P::Executor;
+
+        fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            self.program.subscription(state)
+        }
+        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            (self.remove_id)(state, id)
+        }
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            self.program.update(state, message)
+        }
+
+        fn name() -> &'static str {
+            P::name()
+        }
+
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
+        }
+        fn view<'a>(
+            &self,
+            state: &'a Self::State,
+            window: iced_core::window::Id,
+        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+            self.program.view(state, window)
+        }
+
+        fn namespace(&self) -> String {
+            self.program.namespace()
+        }
+
+        fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
+            self.program.theme(state, id)
+        }
+
+        fn style(
+            &self,
+            state: &Self::State,
+            theme: &Self::Theme,
+            id: iced_core::window::Id,
+        ) -> crate::Appearance {
+            self.program.style(state, theme, id)
+        }
+
+        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+            self.program.scale_factor(state, window)
+        }
+    }
+
+    WithRemoveId {
+        program,
+        remove_id: f,
+    }
 }
 
 pub fn with_subscription<P: Program>(
@@ -942,6 +994,17 @@ impl<P: Program> Daemon<P> {
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_subscription(self.raw, f),
+            settings: self.settings,
+        }
+    }
+
+    /// Sets the subscription logic of the [`Application`].
+    pub fn remove_id(
+        self,
+        f: impl Fn(&mut P::State, iced_core::window::Id),
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
+        Daemon {
+            raw: with_remove_id(self.raw, f),
             settings: self.settings,
         }
     }

@@ -23,8 +23,8 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::namespace,
         Counter::update,
         Counter::view,
-        Counter::remove_id,
     )
+    .remove_id(Counter::remove_id)
     .layer_settings(LayerShellSettings {
         start_mode: StartMode::Background,
         ..Default::default()
