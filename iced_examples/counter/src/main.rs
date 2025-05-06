@@ -7,13 +7,7 @@ use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
-    let args: Vec<String> = std::env::args().collect();
-
-    let mut binded_output_name = None;
-    if args.len() >= 2 {
-        binded_output_name = Some(args[1].to_string())
-    }
-
+    let binded_output_name = std::env::args().nth(1);
     let start_mode = match binded_output_name {
         Some(output) => StartMode::TargetScreen(output),
         None => StartMode::Active,
