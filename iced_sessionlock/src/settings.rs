@@ -2,19 +2,16 @@ use std::borrow::Cow;
 
 use iced::{Font, Pixels};
 
-#[derive(Debug, Clone)]
-pub struct Settings<Flags> {
+#[derive(Debug)]
+pub struct Settings {
     /// The identifier of the application.
     ///
     /// If provided, this identifier may be used to identify the application or
     /// communicate with it through the windowing system.
     pub id: Option<String>,
 
-    /// The data needed to initialize an [`MultiApplication`].
+    /// The data needed to initialize an Application.
     ///
-    /// [`MultiApplication`]: crate::MultiApplication
-    pub flags: Flags,
-
     /// The fonts to load on boot.
     pub fonts: Vec<Cow<'static, [u8]>>,
 
@@ -38,15 +35,10 @@ pub struct Settings<Flags> {
     ///
     pub antialiasing: bool,
 }
-
-impl<Flags> Default for Settings<Flags>
-where
-    Flags: Default,
-{
+impl Default for Settings {
     fn default() -> Self {
         Settings {
             id: None,
-            flags: Default::default(),
             fonts: Vec::new(),
             default_font: Font::default(),
             default_text_size: Pixels(16.0),

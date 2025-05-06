@@ -2,16 +2,16 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::DefaultStyle;
-use crate::multi_window::Application;
+use crate::build_pattern::Instance;
+use crate::build_pattern::Program;
+use iced::mouse;
+use iced::window::Id as IcedId;
 use iced_graphics::Compositor;
 use sessionlockev::{WindowWrapper, id::Id as SessionId};
 
-use iced::mouse;
-use iced::window::Id as IcedId;
-
 pub struct Window<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
@@ -22,7 +22,7 @@ where
     pub mouse_interaction: mouse::Interaction,
 }
 
-pub struct WindowManager<A: Application, C: Compositor>
+pub struct WindowManager<A: Program, C: Compositor>
 where
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
@@ -34,7 +34,7 @@ where
 
 impl<A, C> Default for WindowManager<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
@@ -45,7 +45,7 @@ where
 
 impl<A, C> WindowManager<A, C>
 where
-    A: Application,
+    A: Program,
     C: Compositor<Renderer = A::Renderer>,
     A::Theme: DefaultStyle,
 {
@@ -63,7 +63,7 @@ where
         size: (u32, u32),
         fractal_scale: f64,
         window: Arc<WindowWrapper>,
-        application: &A,
+        application: &Instance<A>,
         compositor: &mut C,
     ) -> &mut Window<A, C> {
         let layerid = window.id();
@@ -88,6 +88,9 @@ where
             .get_mut(&id)
             .expect("Get window that was just inserted")
     }
+    pub fn first(&self) -> Option<&Window<A, C>> {
+        self.entries.first_key_value().map(|(_, v)| v)
+    }
 
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
@@ -109,5 +112,9 @@ where
 
     pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<A, C>> {
         self.entries.get_mut(&id)
+    }
+
+    pub fn get(&mut self, id: IcedId) -> Option<&Window<A, C>> {
+        self.entries.get(&id)
     }
 }

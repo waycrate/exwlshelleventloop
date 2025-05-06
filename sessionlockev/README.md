@@ -60,13 +60,11 @@ fn main() {
                 ReturnData::None
             }
             SessionLockEvent::RequestMessages(DispatchMessage::MouseEnter {
-                serial,
                 pointer,
                 ..
             }) => ReturnData::RequestSetCursorShape((
                 "crosshair".to_owned(),
                 pointer.clone(),
-                *serial,
             )),
             SessionLockEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
                 if *key == ESC_KEY {

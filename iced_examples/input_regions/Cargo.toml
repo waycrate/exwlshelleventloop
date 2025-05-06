@@ -1,5 +1,5 @@
 [package]
-name = "counter_lock_pattern"
+name = "input_regions"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true
@@ -14,4 +14,4 @@ readme.workspace = true
 [dependencies]
 iced.workspace = true
 iced_runtime.workspace = true
-iced_sessionlock.workspace = true
+iced_layershell.workspace = true

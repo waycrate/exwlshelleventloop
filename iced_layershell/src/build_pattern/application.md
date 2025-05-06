@@ -4,9 +4,9 @@
 
 use iced::widget::{button, column, row, text, text_input};
 use iced::{event, Alignment, Color, Element, Event, Length, Task as Command};
-use iced_layershell::build_pattern::{application, MainSettings};
+use iced_layershell::application;
 use iced_layershell::reexport::Anchor;
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -22,10 +22,10 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         None => StartMode::Active,
     };
 
-    application(namespace, update, view)
+    application(Counter::default, namespace, update, view)
         .style(style)
         .subscription(subscription)
-        .settings(MainSettings {
+        .settings(Settings {
             layer_settings: LayerShellSettings {
                 size: Some((0, 400)),
                 exclusive_zone: 400,
@@ -62,7 +62,7 @@ enum Message {
     IcedEvent(Event),
 }
 
-fn namespace(_: &Counter) -> String {
+fn namespace() -> String {
     String::from("Counter - Iced")
 }
 
@@ -149,9 +149,9 @@ fn view(counter: &Counter) -> Element<Message> {
     .into()
 }
 
-fn style(_counter: &Counter, theme: &iced::Theme) -> iced_layershell::Appearance {
-    use iced_layershell::Appearance;
-    Appearance {
+fn style(_counter: &Counter, theme: &iced::Theme) -> iced::theme::Style {
+    use iced::theme::Style;
+    Style {
         background_color: Color::TRANSPARENT,
         text_color: theme.palette().text,
     }

@@ -4,10 +4,10 @@ use iced::widget::{
 };
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
 use iced::{Color, window};
-use iced_layershell::build_pattern::{self, MainSettings};
+use iced_layershell::daemon;
 use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
-use iced_layershell::{Appearance, DefaultStyle, to_layer_message};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_layershell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
@@ -19,25 +19,20 @@ fn main() -> iced_layershell::Result {
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())
         .init();
-    build_pattern::daemon(
-        "multi_window",
-        Example::update,
-        Example::view,
-        Example::remove_id,
-    )
-    .theme(Example::theme)
-    .style(Example::style)
-    .subscription(Example::subscription)
-    .scale_factor(Example::scale_factor)
-    .settings(MainSettings {
-        layer_settings: LayerShellSettings {
-            start_mode: StartMode::Background,
+    daemon(Example::new, "multi_window", Example::update, Example::view)
+        .shell_removed(Example::remove_id)
+        .theme(Example::theme)
+        .style(Example::style)
+        .subscription(Example::subscription)
+        .scale_factor(Example::scale_factor)
+        .settings(Settings {
+            layer_settings: LayerShellSettings {
+                start_mode: StartMode::Background,
+                ..Default::default()
+            },
             ..Default::default()
-        },
-        ..Default::default()
-    })
-    .run_with(Example::new)?;
-    Ok(())
+        })
+        .run()
 }
 
 struct Example {
@@ -78,7 +73,7 @@ impl Example {
             7 => Anchor::Left | Anchor::Bottom,
             _ => Anchor::Bottom,
         };
-        let size = (1024, 768);
+        let size = (480, 320);
         let id = window::Id::unique();
         (
             id,
@@ -178,8 +173,9 @@ impl Example {
         }
     }
 
-    fn style(&self, theme: &Theme, window: window::Id) -> Appearance {
-        let mut style = theme.default_style();
+    fn style(&self, theme: &Theme, window: window::Id) -> iced::theme::Style {
+        use iced::theme::Base;
+        let mut style = theme.base();
         if let Some(window) = self.windows.get(&window) {
             if window.transparent {
                 style.background_color = Color::TRANSPARENT;

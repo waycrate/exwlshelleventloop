@@ -9,7 +9,7 @@ use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
 fn main() -> iced_layershell::Result {
-    application(Panel::namespace, Panel::update, Panel::view)
+    application(Panel::new, Panel::namespace, Panel::update, Panel::view)
         .layer_settings(LayerShellSettings {
             size: Some((600, 50)),
             anchor: Anchor::Bottom,
@@ -17,7 +17,7 @@ fn main() -> iced_layershell::Result {
             ..Default::default()
         })
         .style(Panel::style)
-        .run_with(Panel::new)
+        .run()
 }
 
 struct Panel {
@@ -34,7 +34,7 @@ impl Panel {
     fn new() -> (Self, Task<Message>) {
         (Self { apps: all_apps() }, Task::none())
     }
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("bottom panel")
     }
 
@@ -60,9 +60,9 @@ impl Panel {
         container(row).into()
     }
 
-    fn style(&self, theme: &iced::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &iced::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::TRANSPARENT,
             text_color: theme.palette().text,
         }

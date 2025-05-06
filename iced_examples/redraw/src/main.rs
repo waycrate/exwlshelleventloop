@@ -14,7 +14,6 @@ use iced::advanced::renderer;
 use iced::advanced::widget::Tree;
 use iced::advanced::widget::tree::State;
 use iced::advanced::widget::tree::Tag;
-use iced::event::Status;
 use iced::mouse::Cursor;
 use iced::widget::container;
 use iced::{Color, window};
@@ -27,13 +26,13 @@ use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
 fn main() -> iced_layershell::Result {
-    application("Example", Panel::update, Panel::view)
+    application(Panel::new, "Example", Panel::update, Panel::view)
         .layer_settings(LayerShellSettings {
             size: Some((600, 50)),
             anchor: Anchor::empty(),
             ..Default::default()
         })
-        .run_with(Panel::new)
+        .run()
 }
 
 #[to_layer_message]
@@ -130,7 +129,7 @@ where
                 border: Border::default(),
                 shadow: Shadow::default(),
             },
-            Color::new(1.0, 0.0, 0.0, 1.0),
+            Color::from_rgba(1.0, 0.0, 0.0, 1.0),
         );
     }
 
@@ -145,25 +144,23 @@ where
         })
     }
 
-    fn on_event(
+    fn update(
         &mut self,
         state: &mut Tree,
-        event: Event,
+        event: &iced::Event,
         layout: Layout<'_>,
         _cursor: Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         _viewport: &Rectangle,
-    ) -> Status {
-        const FRAMES_PER_SECOND: u64 = 60;
-
+    ) {
         let bounds = layout.bounds();
 
         if let Event::Window(window::Event::RedrawRequested(now)) = event {
             if is_visible(&bounds) {
                 let state = state.state.downcast_mut::<LoadingBarState>();
-                let duration = (now - state.last_update).as_secs_f32();
+                let duration = (*now - state.last_update).as_secs_f32();
                 let increment = if self.rate == Duration::ZERO {
                     0.0
                 } else {
@@ -176,16 +173,10 @@ where
                     state.t -= 1.0;
                 }
 
-                shell.request_redraw(window::RedrawRequest::At(
-                    now + Duration::from_millis(1000 / FRAMES_PER_SECOND),
-                ));
-                state.last_update = now;
-
-                return Status::Captured;
+                shell.request_redraw();
+                state.last_update = *now;
             }
         }
-
-        Status::Ignored
     }
 }
 

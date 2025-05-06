@@ -1,9 +1,9 @@
 use applications::{App, all_apps};
 use iced::widget::{column, scrollable, text_input};
-use iced::{Element, Event, Length, Task as Command, Theme, event};
+use iced::{Element, Event, Length, Task as Command, event};
 mod applications;
-use iced_layershell::Application;
 use iced_layershell::actions::LayershellCustomActions;
+use iced_layershell::application;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_runtime::Action;
@@ -14,7 +14,13 @@ static SCROLLABLE_ID: LazyLock<scrollable::Id> = LazyLock::new(scrollable::Id::u
 static INPUT_ID: LazyLock<text_input::Id> = LazyLock::new(text_input::Id::unique);
 
 fn main() -> Result<(), iced_layershell::Error> {
-    Launcher::run(Settings {
+    application(
+        Launcher::new,
+        Launcher::namespace,
+        Launcher::update,
+        Launcher::view,
+    )
+    .settings(Settings {
         layer_settings: LayerShellSettings {
             size: Some((1000, 1000)),
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right | Anchor::Top,
@@ -22,7 +28,9 @@ fn main() -> Result<(), iced_layershell::Error> {
             ..Default::default()
         },
         ..Default::default()
-    })?;
+    })
+    .subscription(Launcher::subscription)
+    .run()?;
     std::thread::sleep(std::time::Duration::from_millis(1));
     Ok(())
 }
@@ -48,13 +56,8 @@ enum Message {
     IcedEvent(Event),
 }
 
-impl Application for Launcher {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+impl Launcher {
+    fn new() -> (Self, Command<Message>) {
         (
             Self {
                 text: "".to_string(),
@@ -65,11 +68,11 @@ impl Application for Launcher {
         )
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("iced_launcer2")
     }
 
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
+    fn subscription(&self) -> iced::Subscription<Message> {
         event::listen().map(Message::IcedEvent)
     }
 

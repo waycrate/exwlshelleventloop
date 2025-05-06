@@ -10,15 +10,26 @@ readme = "README.md"
 description = "sessionlock binding for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["tiny-skia", "wgpu", "fira-sans"]
+tiny-skia = ["iced/tiny-skia", "iced_renderer/tiny-skia"]
+wgpu = ["iced/wgpu", "iced_renderer/wgpu"]
+fira-sans = ["iced/fira-sans", "iced_renderer/fira-sans"]
+debug = ["iced/debug"]
+time-travel = ["iced/time-travel"]
+unconditional-rendering = ["iced/unconditional-rendering"]
+
 [dependencies]
 iced_sessionlock_macros.workspace = true
-
 iced.workspace = true
 iced_renderer.workspace = true
 iced_runtime.workspace = true
 iced_core.workspace = true
 iced_futures.workspace = true
 iced_graphics.workspace = true
+#iced_program.workspace = true
+iced_debug.workspace = true
+iced_exdevtools.workspace = true
 tracing.workspace = true
 thiserror.workspace = true
 sessionlockev.workspace = true

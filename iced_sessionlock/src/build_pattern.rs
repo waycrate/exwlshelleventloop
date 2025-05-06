@@ -1,61 +1,19 @@
 use std::borrow::Cow;
 
-use iced::{Font, Pixels};
+use iced::Font;
 
 /// The renderer of iced program.
 pub trait Renderer: iced_core::text::Renderer + iced_graphics::compositor::Default {}
 
 impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compositor::Default {}
 
-#[derive(Debug)]
-pub struct MainSettings {
-    /// The identifier of the application.
-    ///
-    /// If provided, this identifier may be used to identify the application or
-    /// communicate with it through the windowing system.
-    pub id: Option<String>,
-
-    /// The data needed to initialize an Application.
-    ///
-    /// The fonts to load on boot.
-    pub fonts: Vec<Cow<'static, [u8]>>,
-
-    /// The default [`Font`] to be used.
-    ///
-    /// By default, it uses [`Family::SansSerif`](iced::font::Family::SansSerif).
-    pub default_font: Font,
-
-    /// The text size that will be used by default.
-    ///
-    /// The default value is `16.0`.
-    pub default_text_size: Pixels,
-
-    /// If set to true, the renderer will try to perform antialiasing for some
-    /// primitives.
-    ///
-    /// Enabling it can produce a smoother result in some widgets, like the
-    /// `Canvas`, at a performance cost.
-    ///
-    /// By default, it is disabled.
-    ///
-    pub antialiasing: bool,
-}
-impl Default for MainSettings {
-    fn default() -> Self {
-        MainSettings {
-            id: None,
-            fonts: Vec::new(),
-            default_font: Font::default(),
-            default_text_size: Pixels(16.0),
-            antialiasing: false,
-        }
-    }
-}
-
 pub use pattern::application;
 
+pub(crate) use pattern::Instance;
+pub(crate) use pattern::Program;
 mod pattern {
     use super::*;
+    use crate::settings::Settings;
     use iced::{Element, Task};
 
     use crate::actions::UnLockAction;
@@ -63,8 +21,78 @@ mod pattern {
     use crate::DefaultStyle;
 
     use crate::Result;
-    use crate::Settings;
+    use iced_exdevtools::devtools_generate;
 
+    devtools_generate! {
+        Type = DevTools,
+        Program = Program,
+        MyAction = UnLockAction
+    }
+    #[allow(unused)]
+    fn attach(program: impl Program + 'static) -> impl Program {
+        struct Attach<P> {
+            program: P,
+        }
+
+        impl<P> Program for Attach<P>
+        where
+            P: Program + 'static,
+        {
+            type State = DevTools<P>;
+            type Message = Event<P>;
+            type Theme = P::Theme;
+            type Renderer = P::Renderer;
+            type Executor = P::Executor;
+
+            fn name() -> &'static str {
+                P::name()
+            }
+
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                let (state, boot) = self.program.boot();
+                let (devtools, task) = DevTools::new(state);
+
+                (
+                    devtools,
+                    Task::batch([boot.map(Event::Program), task.map(Event::Message)]),
+                )
+            }
+
+            fn update(
+                &self,
+                state: &mut Self::State,
+                message: Self::Message,
+            ) -> Task<Self::Message> {
+                state.update(&self.program, message)
+            }
+
+            fn view<'a>(
+                &self,
+                state: &'a Self::State,
+                window: iced_core::window::Id,
+            ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+                state.view(&self.program, window)
+            }
+
+            fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+                state.subscription(&self.program)
+            }
+
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state.state(), window)
+            }
+
+            fn style(&self, state: &Self::State, theme: &Self::Theme) -> iced::theme::Style {
+                self.program.style(state.state(), theme)
+            }
+
+            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+                self.program.scale_factor(state.state(), window)
+            }
+        }
+
+        Attach { program }
+    }
     // layershell application
     pub trait Program: Sized {
         /// The [`Executor`] that will run commands and subscriptions.
@@ -102,6 +130,9 @@ mod pattern {
             "A cool iced application".to_string()
         }
 
+        fn boot(&self) -> (Self::State, Task<Self::Message>);
+
+        fn name() -> &'static str;
         /// Handles a __message__ and updates the state of the [`Application`].
         ///
         /// This is where you define your __update logic__. All the __messages__,
@@ -122,7 +153,7 @@ mod pattern {
         /// Returns the current [`Theme`] of the [`Application`].
         ///
         /// [`Theme`]: Self::Theme
-        fn theme(&self, _state: &Self::State) -> Self::Theme {
+        fn theme(&self, _state: &Self::State, _window: iced_core::window::Id) -> Self::Theme {
             Self::Theme::default()
         }
 
@@ -130,7 +161,7 @@ mod pattern {
         ///
         /// [`Theme`]: Self::Theme
         fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            theme.default_style()
+            theme.base()
         }
 
         /// Returns the event [`iced::Subscription`] for the current state of the
@@ -158,85 +189,23 @@ mod pattern {
             1.0
         }
 
-        fn run_with<I>(self, settings: MainSettings, initialize: I) -> Result
+        fn run(self, settings: Settings) -> Result
         where
             Self: 'static,
-            I: FnOnce() -> (Self::State, Task<Self::Message>) + 'static,
         {
-            use std::marker::PhantomData;
-            struct Instance<P: Program, I> {
-                program: P,
-                state: P::State,
-                _initialize: PhantomData<I>,
-            }
+            #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
+            let program = {
+                iced_debug::init(iced_debug::Metadata {
+                    name: Self::name(),
+                    theme: None,
+                    can_time_travel: cfg!(feature = "time-travel"),
+                });
 
-            impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-                iced_runtime::multi_window::Program for Instance<P, I>
-            {
-                type Message = P::Message;
-                type Theme = P::Theme;
-                type Renderer = P::Renderer;
-                fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
-                    self.program.update(&mut self.state, message)
-                }
-
-                fn view(
-                    &self,
-                    window: iced_core::window::Id,
-                ) -> crate::Element<'_, Self::Message, Self::Theme, Self::Renderer>
-                {
-                    self.program.view(&self.state, window)
-                }
-            }
-
-            impl<P: Program, I: FnOnce() -> (P::State, Task<P::Message>)>
-                crate::multi_window::Application for Instance<P, I>
-            {
-                type Flags = (P, I);
-
-                fn new((program, initialize): Self::Flags) -> (Self, Task<Self::Message>) {
-                    let (state, task) = initialize();
-
-                    (
-                        Self {
-                            program,
-                            state,
-                            _initialize: PhantomData,
-                        },
-                        task,
-                    )
-                }
-
-                fn namespace(&self) -> String {
-                    self.program.namespace(&self.state)
-                }
-
-                fn subscription(&self) -> iced::Subscription<Self::Message> {
-                    self.program.subscription(&self.state)
-                }
-
-                fn theme(&self) -> Self::Theme {
-                    self.program.theme(&self.state)
-                }
-
-                fn style(&self, theme: &Self::Theme) -> crate::Appearance {
-                    self.program.style(&self.state, theme)
-                }
-
-                fn scale_factor(&self, window: iced::window::Id) -> f64 {
-                    self.program.scale_factor(&self.state, window)
-                }
-            }
-
-            let real_settings = Settings {
-                flags: (self, initialize),
-                id: settings.id,
-                default_font: settings.default_font,
-                fonts: settings.fonts,
-                default_text_size: settings.default_text_size,
-                antialiasing: settings.antialiasing,
+                attach(self)
             };
-            #[allow(clippy::needless_update)]
+
+            #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
+            let program = self;
             let renderer_settings = iced_graphics::Settings {
                 default_font: settings.default_font,
                 default_text_size: settings.default_text_size,
@@ -245,22 +214,8 @@ mod pattern {
                 } else {
                     None
                 },
-                ..iced_graphics::Settings::default()
             };
-
-            crate::multi_window::run::<
-                Instance<Self, I>,
-                Self::Executor,
-                <Self::Renderer as iced_graphics::compositor::Default>::Compositor,
-            >(real_settings, renderer_settings)
-        }
-
-        fn run(self, settings: MainSettings) -> Result
-        where
-            Self: 'static,
-            Self::State: Default,
-        {
-            self.run_with(settings, || (Self::State::default(), Task::none()))
+            crate::multi_window::run(program, settings, renderer_settings)
         }
     }
 
@@ -314,13 +269,47 @@ mod pattern {
             self(state, window)
         }
     }
+
+    pub trait Boot<State, Message> {
+        /// Initializes the [`Application`] state.
+        fn boot(&self) -> (State, Task<Message>);
+    }
+
+    impl<T, C, State, Message> Boot<State, Message> for T
+    where
+        T: Fn() -> C,
+        C: IntoBoot<State, Message>,
+    {
+        fn boot(&self) -> (State, Task<Message>) {
+            self().into_boot()
+        }
+    }
+
+    /// The initial state of some [`Application`].
+    pub trait IntoBoot<State, Message> {
+        /// Turns some type into the initial state of some [`Application`].
+        fn into_boot(self) -> (State, Task<Message>);
+    }
+
+    impl<State, Message> IntoBoot<State, Message> for State {
+        fn into_boot(self) -> (State, Task<Message>) {
+            (self, Task::none())
+        }
+    }
+
+    impl<State, Message> IntoBoot<State, Message> for (State, Task<Message>) {
+        fn into_boot(self) -> (State, Task<Message>) {
+            self
+        }
+    }
     #[derive(Debug)]
     pub struct Application<A: Program> {
         raw: A,
-        settings: MainSettings,
+        settings: Settings,
     }
 
     pub fn application<State, Message, Theme, Renderer>(
+        boot: impl Boot<State, Message>,
         update: impl Update<State, Message>,
         view: impl for<'a> self::View<'a, State, Message, Theme, Renderer>,
     ) -> Application<impl Program<Message = Message, Theme = Theme, State = State>>
@@ -331,21 +320,23 @@ mod pattern {
         Renderer: self::Renderer,
     {
         use std::marker::PhantomData;
-        struct Instance<State, Message, Theme, Renderer, Update, View> {
+        struct Instance<State, Message, Theme, Renderer, Update, View, Boot> {
             update: Update,
             view: View,
+            boot: Boot,
             _state: PhantomData<State>,
             _message: PhantomData<Message>,
             _theme: PhantomData<Theme>,
             _renderer: PhantomData<Renderer>,
         }
-        impl<State, Message, Theme, Renderer, Update, View> Program
-            for Instance<State, Message, Theme, Renderer, Update, View>
+        impl<State, Message, Theme, Renderer, Update, View, Boot> Program
+            for Instance<State, Message, Theme, Renderer, Update, View, Boot>
         where
             Message: 'static + TryInto<UnLockAction, Error = Message> + Send + std::fmt::Debug,
             Theme: Default + DefaultStyle,
             Renderer: self::Renderer,
             Update: self::Update<State, Message>,
+            Boot: self::Boot<State, Message>,
             View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
         {
             type State = State;
@@ -361,7 +352,9 @@ mod pattern {
             ) -> Task<Self::Message> {
                 self.update.update(state, message).into()
             }
-
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                self.boot.boot()
+            }
             fn view<'a>(
                 &self,
                 state: &'a Self::State,
@@ -369,17 +362,23 @@ mod pattern {
             ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
                 self.view.view(state, window).into()
             }
+            fn name() -> &'static str {
+                let name = std::any::type_name::<State>();
+
+                name.split("::").next().unwrap_or("a_cool_application")
+            }
         }
         Application {
             raw: Instance {
                 update,
                 view,
+                boot,
                 _state: PhantomData,
                 _message: PhantomData,
                 _theme: PhantomData,
                 _renderer: PhantomData,
             },
-            settings: MainSettings::default(),
+            settings: Settings::default(),
         }
     }
 
@@ -414,7 +413,9 @@ mod pattern {
             ) -> Task<Self::Message> {
                 self.program.update(state, message)
             }
-
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                self.program.boot()
+            }
             fn view<'a>(
                 &self,
                 state: &'a Self::State,
@@ -427,8 +428,8 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -437,6 +438,9 @@ mod pattern {
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -476,7 +480,9 @@ mod pattern {
             ) -> Task<Self::Message> {
                 self.program.update(state, message)
             }
-
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                self.program.boot()
+            }
             fn view<'a>(
                 &self,
                 state: &'a Self::State,
@@ -489,8 +495,8 @@ mod pattern {
                 self.program.namespace(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -499,6 +505,9 @@ mod pattern {
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -510,7 +519,7 @@ mod pattern {
 
     pub fn with_theme<P: Program>(
         program: P,
-        f: impl Fn(&P::State) -> P::Theme,
+        f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
         struct WithTheme<P, F> {
             program: P,
@@ -519,7 +528,7 @@ mod pattern {
 
         impl<P: Program, F> Program for WithTheme<P, F>
         where
-            F: Fn(&P::State) -> P::Theme,
+            F: Fn(&P::State, iced_core::window::Id) -> P::Theme,
         {
             type State = P::State;
             type Message = P::Message;
@@ -527,10 +536,12 @@ mod pattern {
             type Renderer = P::Renderer;
             type Executor = P::Executor;
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                (self.theme)(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                (self.theme)(state, window)
             }
-
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                self.program.boot()
+            }
             fn namespace(&self, state: &Self::State) -> String {
                 self.program.namespace(state)
             }
@@ -561,6 +572,9 @@ mod pattern {
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -601,7 +615,9 @@ mod pattern {
             ) -> Task<Self::Message> {
                 self.program.update(state, message)
             }
-
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                self.program.boot()
+            }
             fn view<'a>(
                 &self,
                 state: &'a Self::State,
@@ -614,12 +630,15 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 self.program.scale_factor(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -656,7 +675,9 @@ mod pattern {
             ) -> Task<Self::Message> {
                 self.program.update(state, message)
             }
-
+            fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                self.program.boot()
+            }
             fn view<'a>(
                 &self,
                 state: &'a Self::State,
@@ -669,8 +690,8 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State) -> Self::Theme {
-                self.program.theme(state)
+            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+                self.program.theme(state, window)
             }
 
             fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
@@ -679,6 +700,9 @@ mod pattern {
 
             fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
                 (self.scale_factor)(state, window)
+            }
+            fn name() -> &'static str {
+                P::name()
             }
         }
 
@@ -692,26 +716,18 @@ mod pattern {
         pub fn run(self) -> Result
         where
             Self: 'static,
-            P::State: Default,
         {
             self.raw.run(self.settings)
         }
 
-        pub fn run_with<I>(self, initialize: I) -> Result
-        where
-            Self: 'static,
-            I: FnOnce() -> (P::State, Task<P::Message>) + 'static,
-        {
-            self.raw.run_with(self.settings, initialize)
-        }
-        pub fn settings(self, settings: MainSettings) -> Self {
+        pub fn settings(self, settings: Settings) -> Self {
             Self { settings, ..self }
         }
 
         /// Sets the [`Settings::antialiasing`] of the [`Application`].
         pub fn antialiasing(self, antialiasing: bool) -> Self {
             Self {
-                settings: MainSettings {
+                settings: Settings {
                     antialiasing,
                     ..self.settings
                 },
@@ -722,7 +738,7 @@ mod pattern {
         /// Sets the default [`Font`] of the [`Application`].
         pub fn default_font(self, default_font: Font) -> Self {
             Self {
-                settings: MainSettings {
+                settings: Settings {
                     default_font,
                     ..self.settings
                 },
@@ -739,7 +755,7 @@ mod pattern {
         /// set the default_text_size
         pub fn default_text_size(self, default_text_size: iced::Pixels) -> Self {
             Self {
-                settings: MainSettings {
+                settings: Settings {
                     default_text_size,
                     ..self.settings
                 },
@@ -773,7 +789,7 @@ mod pattern {
         /// Sets the theme logic of the [`Application`].
         pub fn theme(
             self,
-            f: impl Fn(&P::State) -> P::Theme,
+            f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
@@ -804,6 +820,57 @@ mod pattern {
                 raw: with_executor::<P, E>(self.raw),
                 settings: self.settings,
             }
+        }
+    }
+    #[allow(missing_debug_implementations)]
+    pub struct Instance<P: Program> {
+        program: P,
+        state: P::State,
+    }
+    use iced::Subscription;
+    use iced::theme;
+    use iced::window;
+    impl<P: Program> Instance<P> {
+        /// Creates a new [`Instance`] of the given [`Program`].
+        pub fn new(program: P) -> (Self, Task<P::Message>) {
+            let (state, task) = program.boot();
+
+            (Self { program, state }, task)
+        }
+
+        /// Returns the current title of the [`Instance`].
+        pub fn namespace(&self, state: &P::State) -> String {
+            self.program.namespace(state)
+        }
+
+        /// Processes the given message and updates the [`Instance`].
+        pub fn update(&mut self, message: P::Message) -> Task<P::Message> {
+            self.program.update(&mut self.state, message)
+        }
+
+        /// Produces the current widget tree of the [`Instance`].
+        pub fn view(&self, window: window::Id) -> Element<'_, P::Message, P::Theme, P::Renderer> {
+            self.program.view(&self.state, window)
+        }
+
+        /// Returns the current [`Subscription`] of the [`Instance`].
+        pub fn subscription(&self) -> Subscription<P::Message> {
+            self.program.subscription(&self.state)
+        }
+
+        /// Returns the current theme of the [`Instance`].
+        pub fn theme(&self, window: window::Id) -> P::Theme {
+            self.program.theme(&self.state, window)
+        }
+
+        /// Returns the current [`theme::Style`] of the [`Instance`].
+        pub fn style(&self, theme: &P::Theme) -> theme::Style {
+            self.program.style(&self.state, theme)
+        }
+
+        /// Returns the current scale factor of the [`Instance`].
+        pub fn scale_factor(&self, window: window::Id) -> f64 {
+            self.program.scale_factor(&self.state, window)
         }
     }
 }

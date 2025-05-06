@@ -11,20 +11,21 @@ use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
-use iced_layershell::build_pattern::{daemon, MainSettings};
+use iced_layershell::build_pattern::daemon;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     daemon(
+        || Counter::new("Hello"),
         Counter::namespace,
         Counter::update,
         Counter::view,
-        Counter::remove_id,
     )
+    .shell_removed(Counter::remove_id)
     .subscription(Counter::subscription)
-    .settings(MainSettings {
+    .settings(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
@@ -34,7 +35,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
-    .run_with(|| Counter::new("Hello"))
+    .run()
 }
 
 #[derive(Debug, Default)]
@@ -103,7 +104,7 @@ impl Counter {
         self.ids.remove(&id);
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Counter - Iced")
     }
 
@@ -228,7 +229,7 @@ impl Counter {
                 .center_x(Length::Fill)
                 .center_y(Length::Fill)
                 .style(|_theme| container::Style {
-                    background: Some(iced::Color::new(0., 0.5, 0.7, 0.6).into()),
+                    background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
                 //.style(Container::Custom(Box::new(BlackMenu)))

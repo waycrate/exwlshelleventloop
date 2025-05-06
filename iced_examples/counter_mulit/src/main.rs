@@ -7,21 +7,22 @@ use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
-use iced_layershell::build_pattern::{MainSettings, daemon};
+use iced_layershell::daemon;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
     daemon(
+        || Counter::new("hello"),
         Counter::namespace,
         Counter::update,
         Counter::view,
-        Counter::remove_id,
     )
     .subscription(Counter::subscription)
-    .settings(MainSettings {
+    .shell_removed(Counter::remove_id)
+    .settings(Settings {
         layer_settings: LayerShellSettings {
             size: Some((0, 400)),
             exclusive_zone: 400,
@@ -31,7 +32,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
-    .run_with(|| Counter::new("Hello"))
+    .run()
 }
 
 #[derive(Debug, Default)]
@@ -81,15 +82,12 @@ impl Counter {
 }
 
 impl Counter {
-    fn new(text: &str) -> (Self, Command<Message>) {
-        (
-            Self {
-                value: 0,
-                text: text.to_string(),
-                ids: HashMap::new(),
-            },
-            Command::none(),
-        )
+    fn new(text: &str) -> Self {
+        Self {
+            value: 0,
+            text: text.to_string(),
+            ids: HashMap::new(),
+        }
     }
 
     fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
@@ -100,7 +98,7 @@ impl Counter {
         self.ids.remove(&id);
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Counter - Iced")
     }
 
@@ -225,10 +223,9 @@ impl Counter {
                 .center_x(Length::Fill)
                 .center_y(Length::Fill)
                 .style(|_theme| container::Style {
-                    background: Some(iced::Color::new(0., 0.5, 0.7, 0.6).into()),
+                    background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
-                //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();
@@ -267,7 +264,6 @@ impl Counter {
         ]
         .padding(20)
         .spacing(10)
-        //.align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()

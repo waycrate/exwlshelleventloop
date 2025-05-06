@@ -4,6 +4,7 @@ on:
     push:
         branches:
             - master
+            - iced14
         tags:
             - v*
     pull_request:

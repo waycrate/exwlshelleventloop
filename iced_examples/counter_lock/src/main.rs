@@ -1,12 +1,12 @@
 use iced::widget::{Space, button, column, text, text_input};
-use iced::{Alignment, Element, Event, Length, Task as Command, Theme, event};
-
-use iced_sessionlock::MultiApplication;
+use iced::{Alignment, Element, Event, Length, Task as Command, event};
 use iced_sessionlock::actions::UnLockAction;
-use iced_sessionlock::settings::Settings;
+use iced_sessionlock::application;
 
 pub fn main() -> Result<(), iced_sessionlock::Error> {
-    Counter::run(Settings::default())
+    application(Counter::new, Counter::update, Counter::view)
+        .subscription(Counter::subscription)
+        .run()
 }
 
 struct Counter {
@@ -33,13 +33,8 @@ impl TryInto<UnLockAction> for Message {
     }
 }
 
-impl MultiApplication for Counter {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+impl Counter {
+    fn new() -> (Self, Command<Message>) {
         (
             Self {
                 value: 0,
@@ -49,11 +44,7 @@ impl MultiApplication for Counter {
         )
     }
 
-    fn namespace(&self) -> String {
-        String::from("Counter - Iced")
-    }
-
-    fn subscription(&self) -> iced::Subscription<Self::Message> {
+    fn subscription(&self) -> iced::Subscription<Message> {
         event::listen().map(Message::IcedEvent)
     }
 

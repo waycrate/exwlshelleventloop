@@ -1,13 +1,13 @@
-use crate::application::Application;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
 use layershellev::keyboard::ModifiersState;
 
+use crate::build_pattern::ApplicationInstance as Instance;
+use crate::build_pattern::ApplicationProgram as IcedProgram;
 use crate::event::WindowEvent;
 use layershellev::reexport::wp_viewport::WpViewport;
-
-pub struct State<A: Application>
+pub struct State<A: IcedProgram>
 where
     A::Theme: DefaultStyle,
 {
@@ -25,13 +25,17 @@ where
     wpviewport: WpViewport,
 }
 
-impl<A: Application> State<A>
+impl<A: IcedProgram> State<A>
 where
     A::Theme: DefaultStyle,
 {
-    pub fn new(application: &A, window: &layershellev::WindowStateSimple) -> Self {
+    pub fn new(
+        application: &Instance<A>,
+        window: &layershellev::WindowStateSimple,
+        mainid: iced::window::Id,
+    ) -> Self {
         let application_scale_factor = application.scale_factor();
-        let theme = application.theme();
+        let theme = application.theme(mainid);
         let appearance = application.style(&theme);
 
         let (width, height) = window.main_window().get_size();
@@ -104,15 +108,30 @@ where
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }
 
+    #[allow(unused)]
+    pub fn window_size(&self) -> Size<u32> {
+        self.window_size
+    }
+
+    /// using viewport physical size and wayland scale factor to calculate the actual window size.
+    /// The result may contain fractions.
+    pub fn window_size_f32(&self) -> Size<f32> {
+        let physical_size = self.viewport.physical_size();
+        Size::new(
+            (physical_size.width as f64 / self.wayland_scale_factor) as f32,
+            (physical_size.height as f64 / self.wayland_scale_factor) as f32,
+        )
+    }
     pub fn update(&mut self, event: &WindowEvent) {
         match event {
-            WindowEvent::CursorLeft | WindowEvent::TouchUp { .. } => {
+            WindowEvent::CursorLeft => {
                 self.mouse_position = None;
             }
             WindowEvent::CursorMoved { x, y }
             | WindowEvent::CursorEnter { x, y }
             | WindowEvent::TouchMotion { x, y, .. }
-            | WindowEvent::TouchDown { x, y, .. } => {
+            | WindowEvent::TouchDown { x, y, .. }
+            | WindowEvent::TouchUp { x, y, .. } => {
                 self.mouse_position = Some(Point::new(
                     (*x / self.application_scale_factor) as f32,
                     (*y / self.application_scale_factor) as f32,
@@ -132,13 +151,13 @@ where
         }
     }
 
-    pub fn synchronize(&mut self, application: &A) {
+    pub fn synchronize(&mut self, application: &Instance<A>, mainid: iced::window::Id) {
         let new_scale_factor = application.scale_factor();
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;
             self.resize_viewport();
         }
-        self.theme = application.theme();
+        self.theme = application.theme(mainid);
         self.appearance = application.style(&self.theme);
     }
 

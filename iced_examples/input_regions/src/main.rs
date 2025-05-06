@@ -1,18 +1,23 @@
 use iced::widget::{button, row};
-use iced::{Color, Element, Length, Task as Command, Theme};
-use iced_layershell::Application;
+use iced::{Color, Element, Length, Task as Command};
 use iced_layershell::actions::ActionCallback;
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_layershell::application;
+use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
-    InputRegionExample::run(Settings {
-        layer_settings: LayerShellSettings {
-            size: Some((400, 400)),
-            ..Default::default()
-        },
+    application(
+        InputRegionExample::new,
+        InputRegionExample::namespace,
+        InputRegionExample::update,
+        InputRegionExample::view,
+    )
+    .style(InputRegionExample::style)
+    .layer_settings(LayerShellSettings {
+        size: Some((400, 400)),
         ..Default::default()
     })
+    .run()
 }
 
 #[derive(Copy, Clone)]
@@ -25,17 +30,12 @@ enum Message {
     SetRegion,
 }
 
-impl Application for InputRegionExample {
-    type Message = Message;
-    type Flags = ();
-    type Theme = Theme;
-    type Executor = iced::executor::Default;
-
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+impl InputRegionExample {
+    fn new() -> (Self, Command<Message>) {
         (Self(false), Command::none())
     }
 
-    fn namespace(&self) -> String {
+    fn namespace() -> String {
         String::from("Custom input regions")
     }
 
@@ -70,9 +70,9 @@ impl Application for InputRegionExample {
         .into()
     }
 
-    fn style(&self, theme: &Self::Theme) -> iced_layershell::Appearance {
-        use iced_layershell::Appearance;
-        Appearance {
+    fn style(&self, theme: &iced::Theme) -> iced::theme::Style {
+        use iced::theme::Style;
+        Style {
             background_color: Color::from_rgba(0.3, 0.3, 0.3, 0.3),
             text_color: theme.palette().text,
         }
