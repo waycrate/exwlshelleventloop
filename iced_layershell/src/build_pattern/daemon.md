@@ -23,7 +23,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::update,
         Counter::view,
     )
-    .remove_id(Counter::remove_id)
+    .shell_removed(Counter::remove_id)
     .subscription(Counter::subscription)
     .settings(Settings {
         layer_settings: LayerShellSettings {
