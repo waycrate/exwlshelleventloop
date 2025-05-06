@@ -89,8 +89,8 @@ fn attach(program: impl Program + 'static) -> impl Program {
             self.program.scale_factor(state.state(), window)
         }
 
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state.state_mut(), id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state.state_mut(), id)
         }
     }
 
@@ -117,7 +117,9 @@ pub trait Program: Sized {
 
     /// The theme of your [`Application`].
     type Theme: Default + DefaultStyle;
-    fn remove_id(&self, _state: &mut Self::State, _id: iced_core::window::Id) {}
+
+    /// CallBack when shell is removed
+    fn shell_removed(&self, _state: &mut Self::State, _id: iced_core::window::Id) {}
     /// Initializes the [`Application`] with the flags provided to
     /// [`run`] as part of the [`Settings`].
     ///
@@ -134,7 +136,10 @@ pub trait Program: Sized {
         "A cool iced application".to_string()
     }
 
+    /// The name of the program, used when debuginning
     fn name() -> &'static str;
+
+    /// Boot, init the Program at the beginning
     fn boot(&self) -> (Self::State, Task<Self::Message>);
     ///
     ///
@@ -448,8 +453,8 @@ fn with_namespace<P: Program>(
             self.program.boot()
         }
 
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state, id)
         }
 
         fn view<'a>(
@@ -489,16 +494,16 @@ fn with_namespace<P: Program>(
     WithNamespace { program, namespace }
 }
 
-pub fn with_remove_id<P: Program>(
+pub fn with_shell_removed<P: Program>(
     program: P,
     f: impl Fn(&mut P::State, iced_core::window::Id),
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
-    struct WithRemoveId<P, F> {
+    struct WithShellRemoved<P, F> {
         program: P,
-        remove_id: F,
+        shell_removed: F,
     }
 
-    impl<P: Program, F> Program for WithRemoveId<P, F>
+    impl<P: Program, F> Program for WithShellRemoved<P, F>
     where
         F: Fn(&mut P::State, iced_core::window::Id),
     {
@@ -511,8 +516,8 @@ pub fn with_remove_id<P: Program>(
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             self.program.subscription(state)
         }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            (self.remove_id)(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            (self.shell_removed)(state, id)
         }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
@@ -555,9 +560,9 @@ pub fn with_remove_id<P: Program>(
         }
     }
 
-    WithRemoveId {
+    WithShellRemoved {
         program,
-        remove_id: f,
+        shell_removed: f,
     }
 }
 
@@ -583,8 +588,8 @@ pub fn with_subscription<P: Program>(
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             (self.subscription)(state)
         }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state, id)
         }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
@@ -655,8 +660,8 @@ pub fn with_theme<P: Program>(
         fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
             (self.theme)(state, id)
         }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state, id)
         }
         fn namespace(&self) -> String {
             self.program.namespace()
@@ -740,8 +745,8 @@ pub fn with_style<P: Program>(
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state, id)
         }
         fn view<'a>(
             &self,
@@ -792,8 +797,8 @@ pub fn with_scale_factor<P: Program>(
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.program.boot()
         }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state, id)
         }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
@@ -869,8 +874,8 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.program.boot()
         }
-        fn remove_id(&self, state: &mut Self::State, id: iced_core::window::Id) {
-            self.program.remove_id(state, id)
+        fn shell_removed(&self, state: &mut Self::State, id: iced_core::window::Id) {
+            self.program.shell_removed(state, id)
         }
         fn view<'a>(
             &self,
@@ -998,13 +1003,13 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Sets the subscription logic of the [`Application`].
-    pub fn remove_id(
+    /// Sets the shell_removed logic of the [`Application`].
+    pub fn shell_removed(
         self,
         f: impl Fn(&mut P::State, iced_core::window::Id),
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_remove_id(self.raw, f),
+            raw: with_shell_removed(self.raw, f),
             settings: self.settings,
         }
     }
@@ -1098,6 +1103,6 @@ impl<P: Program> Instance<P> {
     }
 
     pub fn remove_id(&mut self, id: iced_core::window::Id) {
-        self.program.remove_id(&mut self.state, id);
+        self.program.shell_removed(&mut self.state, id);
     }
 }

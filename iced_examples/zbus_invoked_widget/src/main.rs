@@ -24,7 +24,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::update,
         Counter::view,
     )
-    .remove_id(Counter::remove_id)
+    .shell_removed(Counter::shell_removed)
     .layer_settings(LayerShellSettings {
         start_mode: StartMode::Background,
         ..Default::default()
@@ -42,7 +42,7 @@ enum Message {
 }
 
 impl Counter {
-    fn remove_id(&mut self, _id: iced_runtime::core::window::Id) {
+    fn shell_removed(&mut self, _id: iced_runtime::core::window::Id) {
         self.window_shown = false;
     }
 
