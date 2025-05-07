@@ -1395,11 +1395,11 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                             RepeatInfo::Repeat { delay, .. } => delay,
                             RepeatInfo::Disable => return,
                         };
-                        if !keyboard_state
+
+                        if keyboard_state
                             .xkb_context
                             .keymap_mut()
-                            .unwrap()
-                            .key_repeats(key)
+                            .is_none_or(|keymap| !keymap.key_repeats(key))
                         {
                             return;
                         }
@@ -1458,8 +1458,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                             && keyboard_state
                                 .xkb_context
                                 .keymap_mut()
-                                .unwrap()
-                                .key_repeats(key)
+                                .is_some_and(|keymap| keymap.key_repeats(key))
                             && Some(key) == keyboard_state.current_repeat
                         {
                             keyboard_state.current_repeat = None;
