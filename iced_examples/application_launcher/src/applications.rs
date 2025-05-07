@@ -4,8 +4,8 @@ use std::str::FromStr;
 use gio::{AppLaunchContext, DesktopAppInfo};
 
 use gio::prelude::*;
-use iced::widget::{button, column, image, row, svg, text};
 use iced::Pixels;
+use iced::widget::{button, column, image, row, svg, text};
 use iced::{Element, Length};
 
 use crate::Message;
