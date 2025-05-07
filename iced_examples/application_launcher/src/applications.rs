@@ -4,8 +4,8 @@ use std::str::FromStr;
 use gio::{AppLaunchContext, DesktopAppInfo};
 
 use gio::prelude::*;
-use iced::Pixels;
 use iced::widget::{button, column, image, row, svg, text};
+use iced::Pixels;
 use iced::{Element, Length};
 
 use crate::Message;
@@ -98,19 +98,17 @@ static ICONS_SIZE: &[&str] = &["256x256", "128x128"];
 static THEMES_LIST: &[&str] = &["breeze", "Adwaita"];
 
 fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
-    let scalable_icon_path =
-        xdg::BaseDirectories::with_prefix("icons/hicolor/scalable/apps").unwrap();
+    let scalable_icon_path = xdg::BaseDirectories::with_prefix("icons/hicolor/scalable/apps");
     if let Some(iconpath) = scalable_icon_path.find_data_file(format!("{iconname}.svg")) {
         return Some(iconpath);
     }
     for prefix in ICONS_SIZE {
-        let iconpath =
-            xdg::BaseDirectories::with_prefix(format!("icons/hicolor/{prefix}/apps")).unwrap();
+        let iconpath = xdg::BaseDirectories::with_prefix(format!("icons/hicolor/{prefix}/apps"));
         if let Some(iconpath) = iconpath.find_data_file(format!("{iconname}.png")) {
             return Some(iconpath);
         }
     }
-    let pixmappath = xdg::BaseDirectories::with_prefix("pixmaps").unwrap();
+    let pixmappath = xdg::BaseDirectories::with_prefix("pixmaps");
     if let Some(iconpath) = pixmappath.find_data_file(format!("{iconname}.svg")) {
         return Some(iconpath);
     }
@@ -118,13 +116,11 @@ fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
         return Some(iconpath);
     }
     for themes in THEMES_LIST {
-        let iconpath =
-            xdg::BaseDirectories::with_prefix(format!("icons/{themes}/apps/48")).unwrap();
+        let iconpath = xdg::BaseDirectories::with_prefix(format!("icons/{themes}/apps/48"));
         if let Some(iconpath) = iconpath.find_data_file(format!("{iconname}.svg")) {
             return Some(iconpath);
         }
-        let iconpath =
-            xdg::BaseDirectories::with_prefix(format!("icons/{themes}/apps/64")).unwrap();
+        let iconpath = xdg::BaseDirectories::with_prefix(format!("icons/{themes}/apps/64"));
         if let Some(iconpath) = iconpath.find_data_file(format!("{iconname}.svg")) {
             return Some(iconpath);
         }
