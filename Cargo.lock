@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "application-launcher"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "gio",
  "iced",
@@ -405,7 +405,7 @@ dependencies = [
 
 [[package]]
 name = "bottom_panel"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "gio",
  "iced",
@@ -783,7 +783,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -792,7 +792,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_runtime",
@@ -801,7 +801,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock_pattern"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_runtime",
@@ -810,7 +810,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -820,7 +820,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi_pattern"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -830,7 +830,7 @@ dependencies = [
 
 [[package]]
 name = "counter_pattern"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -1837,7 +1837,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "futures",
  "iced",
@@ -1856,7 +1856,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell_macros"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "darling",
  "manyhow",
@@ -1893,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "futures",
  "iced",
@@ -1912,7 +1912,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock_macros"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "darling",
  "manyhow",
@@ -1940,7 +1940,7 @@ dependencies = [
 
 [[package]]
 name = "iced_virtualkeyboard"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -2159,7 +2159,7 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "bitflags 2.8.0",
  "calloop 0.14.2",
@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "redraw"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -3541,7 +3541,7 @@ dependencies = [
 
 [[package]]
 name = "sessionlockev"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "bitflags 2.8.0",
  "calloop 0.14.2",
@@ -3747,7 +3747,7 @@ dependencies = [
 
 [[package]]
 name = "starcolorkeyboard"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "bitflags 2.8.0",
  "cairo-rs",
@@ -4349,7 +4349,7 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "bitflags 2.8.0",
  "calloop 0.14.2",
@@ -5142,7 +5142,7 @@ dependencies = [
 
 [[package]]
 name = "zbus_invoked_widget"
-version = "0.13.5"
+version = "0.13.6"
 dependencies = [
  "futures",
  "iced",

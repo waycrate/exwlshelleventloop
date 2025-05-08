@@ -11,7 +11,6 @@ use crate::{
 };
 
 use super::{Appearance, DefaultStyle};
-use iced::window::RedrawRequest;
 use iced_graphics::{Compositor, compositor};
 use state::State;
 
@@ -562,7 +561,7 @@ async fn run_instance<A, E, C>(
 
                 match interface_state {
                     user_interface::State::Updated {
-                        redraw_request: Some(RedrawRequest::NextFrame),
+                        redraw_request: Some(_),
                     } => {
                         custom_actions.push(LayerShellAction::RedrawAll);
                         is_updated = true;

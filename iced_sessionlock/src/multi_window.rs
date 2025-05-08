@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{Appearance, DefaultStyle};
-use iced::{Task, window::RedrawRequest};
+use iced::Task;
 use iced_graphics::Compositor;
 
 use iced_core::{Size, time::Instant};
@@ -539,7 +539,7 @@ async fn run_instance<A, E, C>(
 
                     match ui_state {
                         user_interface::State::Updated {
-                            redraw_request: Some(RedrawRequest::NextFrame),
+                            redraw_request: Some(_),
                         } => {
                             custom_actions.push(SessionShellAction::RedrawWindow(window.id));
                             is_updated = true;
