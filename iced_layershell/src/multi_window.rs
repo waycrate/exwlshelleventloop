@@ -97,6 +97,7 @@ where
             .with_exclusive_zone(settings.layer_settings.exclusive_zone)
             .with_margin(settings.layer_settings.margin)
             .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+            .with_connection(settings.with_connection)
             .build()
             .expect("Cannot create layershell");
 
