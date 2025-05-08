@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{Appearance, DefaultStyle};
-use iced::Task;
+use iced::{Task, window::RedrawRequest};
 use iced_graphics::Compositor;
 
 use iced_core::{Size, time::Instant};
@@ -508,6 +508,7 @@ async fn run_instance<A, E, C>(
                 }
 
                 debug.event_processing_started();
+                let mut is_updated = false;
 
                 let mut uis_stale = false;
                 for (id, window) in window_manager.iter_mut() {
@@ -536,8 +537,17 @@ async fn run_instance<A, E, C>(
                             &mut messages,
                         );
 
-                    if !uis_stale {
-                        uis_stale = matches!(ui_state, user_interface::State::Outdated);
+                    match ui_state {
+                        user_interface::State::Updated {
+                            redraw_request: Some(RedrawRequest::NextFrame),
+                        } => {
+                            custom_actions.push(SessionShellAction::RedrawWindow(window.id));
+                            is_updated = true;
+                        }
+                        user_interface::State::Outdated => {
+                            uis_stale = true;
+                        }
+                        _ => {}
                     }
 
                     debug.event_processing_finished();
@@ -563,9 +573,10 @@ async fn run_instance<A, E, C>(
 
                     for (_id, window) in window_manager.iter_mut() {
                         window.state.synchronize(&application);
+                        if !is_updated {
+                            custom_actions.push(SessionShellAction::RedrawWindow(window.id));
+                        }
                     }
-
-                    custom_actions.push(SessionShellAction::RedrawAll);
 
                     user_interfaces = ManuallyDrop::new(build_user_interfaces(
                         &application,

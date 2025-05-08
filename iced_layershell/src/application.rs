@@ -11,6 +11,7 @@ use crate::{
 };
 
 use super::{Appearance, DefaultStyle};
+use iced::window::RedrawRequest;
 use iced_graphics::{Compositor, compositor};
 use state::State;
 
@@ -538,6 +539,7 @@ async fn run_instance<A, E, C>(
                 if events.is_empty() && messages.is_empty() {
                     continue;
                 }
+                let mut is_updated = false;
                 debug.event_processing_started();
                 let (interface_state, statuses) = user_interface.update(
                     &events,
@@ -556,9 +558,21 @@ async fn run_instance<A, E, C>(
                     });
                 }
 
-                if !messages.is_empty()
-                    || matches!(interface_state, user_interface::State::Outdated)
-                {
+                let mut uis_stale = false;
+
+                match interface_state {
+                    user_interface::State::Updated {
+                        redraw_request: Some(RedrawRequest::NextFrame),
+                    } => {
+                        custom_actions.push(LayerShellAction::RedrawAll);
+                        is_updated = true;
+                    }
+                    user_interface::State::Outdated => {
+                        uis_stale = true;
+                    }
+                    _ => {}
+                }
+                if !messages.is_empty() || uis_stale {
                     let cache = ManuallyDrop::into_inner(user_interface).into_cache();
                     // Update application
                     update(
@@ -575,8 +589,10 @@ async fn run_instance<A, E, C>(
                         state.logical_size(),
                         &mut debug,
                     ));
+                    if !is_updated {
+                        custom_actions.push(LayerShellAction::RedrawAll);
+                    }
                 }
-                custom_actions.push(LayerShellAction::RedrawAll);
             }
             _ => unreachable!(),
         }
