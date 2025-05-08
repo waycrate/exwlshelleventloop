@@ -12,10 +12,10 @@ readme.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced = { workspace = true, features = ["image", "svg"] }
+iced = { workspace = true, features = ["tokio", "image", "svg"] }
 iced_runtime.workspace = true
 iced_layershell.workspace = true
 gio = "0.20.5"
 regex = "1.11.1"
-xdg = "2.5.2"
+xdg = "3.0.0"
 tracing = "0.1.40"
