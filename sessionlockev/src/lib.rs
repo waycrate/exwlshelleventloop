@@ -1585,7 +1585,9 @@ impl<T: 'static> WindowState<T> {
                         {
                             ReturnData::RequestUnlockAndExist => {
                                 lock.unlock_and_destroy();
-                                connection.roundtrip().expect("should roundtrip successfully");
+                                connection
+                                    .roundtrip()
+                                    .expect("should roundtrip successfully");
                                 signal.stop();
                                 return TimeoutAction::Drop;
                             }
