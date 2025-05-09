@@ -223,6 +223,19 @@ where
                     ))
                     .expect("Cannot send");
             }
+            LayerEvent::WindowClosed => {
+                let Some(unit) = sended_id.and_then(|unit_id| ev.get_mut_unit_with_id(unit_id)) else {
+                    return def_returndata;
+                };
+                if let Some(id) = unit.get_binding() {
+                    event_sender
+                        .start_send(MultiWindowIcedLayerEvent(
+                                sended_id,
+                                IcedLayerEvent::WindowRemoved(*id),
+                        ))
+                        .expect("Cannot send");
+                }
+            }
             _ => {}
         }
         let poll = instance.as_mut().poll(&mut context);

@@ -1866,24 +1866,33 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        if let zwlr_layer_surface_v1::Event::Configure {
-            serial,
-            width,
-            height,
-        } = event
-        {
-            surface.ack_configure(serial);
+        let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
+        match event {
+            zwlr_layer_surface_v1::Event::Configure {
+                serial,
+                width,
+                height,
+            } => {
+                surface.ack_configure(serial);
 
-            let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
-            else {
-                return;
-            };
-            state.units[unit_index].size = (width, height);
+                let Some(unit_index) = unit_index else {
+                    return;
+                };
+                state.units[unit_index].size = (width, height);
 
-            state.message.push((
-                Some(state.units[unit_index].id),
-                DispatchMessageInner::RefreshSurface { width, height },
-            ));
+                state.message.push((
+                    Some(state.units[unit_index].id),
+                    DispatchMessageInner::RefreshSurface { width, height },
+                ));
+            }
+            zwlr_layer_surface_v1::Event::Closed => {
+                let unit_id = unit_index.map(|i| state.units[i].id);
+
+                state
+                    .message
+                    .push((unit_id, DispatchMessageInner::WindowClosed));
+            }
+            _ => log::info!("ignore zwlr_layer_surface_v1 event: {event:?}"),
         }
     }
 }
@@ -2667,6 +2676,13 @@ impl<T: 'static> WindowState<T> {
                                     wl_output: Some(output_display.clone()),
                                     scale: 120,
                                 });
+                            }
+                            (unit_id, DispatchMessageInner::WindowClosed) => {
+                                let Some(unit_id) = *unit_id else {
+                                    continue;
+                                };
+                                event_handler(LayerEvent::WindowClosed, window_state, Some(unit_id));
+                                window_state.remove_shell(unit_id);
                             }
                             _ => {
                                 let (index_message, msg) = msg;
