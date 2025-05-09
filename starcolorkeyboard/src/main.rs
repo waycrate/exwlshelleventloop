@@ -92,7 +92,6 @@ fn main() {
         .unwrap();
 
     let mut current_keytype = KeyModifierType::NoMod;
-    let mut virtual_keyboard_manager = None;
     let mut virtuan_keyboard = None;
     let mut button_pos: (f64, f64) = (0., 0.);
     let mut is_min = false;
@@ -100,19 +99,12 @@ fn main() {
     let mut touch_id = -1;
     let mut touch_key = 0;
 
-    ev.running(|event, ev, index| match event {
+    ev.running(move |event, ev, index| match event {
         LayerEvent::InitRequest => ReturnData::RequestBind,
         LayerEvent::BindProvide(globals, qh) => {
-            virtual_keyboard_manager = Some(
-                globals
-                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                        qh,
-                        1..=1,
-                        (),
-                    )
-                    .unwrap(),
-            );
-            let virtual_keyboard_manager = virtual_keyboard_manager.as_ref().unwrap();
+            let virtual_keyboard_manager = globals
+                .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(qh, 1..=1, ())
+                .unwrap();
             let seat = ev.get_seat();
             let virtual_keyboard_in =
                 virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());

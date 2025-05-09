@@ -17,22 +17,19 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut virtual_keyboard_manager = None;
-    ev.running(|event, ev, index| {
+    ev.running(move |event, ev, index| {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
             LayerEvent::InitRequest => ReturnData::RequestBind,
             LayerEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
-                virtual_keyboard_manager = Some(
-                    globals
-                        .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                            qh,
-                            1..=1,
-                            (),
-                        )
-                        .unwrap(),
-                );
+                let virtual_keyboard_manager = globals
+                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                        qh,
+                        1..=1,
+                        (),
+                    )
+                    .unwrap();
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::RequestCompositor
             }
