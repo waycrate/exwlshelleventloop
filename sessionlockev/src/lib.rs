@@ -15,7 +15,6 @@
 //! fn main() {
 //!     let ev: WindowState<()> = WindowState::new();
 //!
-//!     let mut virtual_keyboard_manager = None;
 //!     ev.running(|event, _ev, _index| {
 //!         println!("{:?}", event);
 //!         match event {
@@ -23,15 +22,13 @@
 //!             SessionLockEvent::InitRequest => ReturnData::RequestBind,
 //!             SessionLockEvent::BindProvide(globals, qh) => {
 //!                 // NOTE: you can get implied wayland object from here
-//!                 virtual_keyboard_manager = Some(
-//!                     globals
+//!                 let virtual_keyboard_manager = globals
 //!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
 //!                             qh,
 //!                             1..=1,
 //!                             (),
 //!                         )
-//!                         .unwrap(),
-//!                 );
+//!                         .unwrap();
 //!                 println!("{:?}", virtual_keyboard_manager);
 //!                 ReturnData::None
 //!             }
@@ -1357,7 +1354,8 @@ impl<T: 'static> WindowState<T> {
     ) -> Result<(), SessonLockEventError>
     where
         Message: std::marker::Send + 'static,
-        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
+        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData
+            + 'static,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
@@ -1368,7 +1366,8 @@ impl<T: 'static> WindowState<T> {
     /// it will return [None].
     pub fn running<F>(self, event_handler: F) -> Result<(), SessonLockEventError>
     where
-        F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
+        F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData
+            + 'static,
     {
         self.running_with_proxy_option(None, event_handler)
     }
@@ -1380,7 +1379,8 @@ impl<T: 'static> WindowState<T> {
     ) -> Result<(), SessonLockEventError>
     where
         Message: std::marker::Send + 'static,
-        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
+        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData
+            + 'static,
     {
         let globals = self.globals.take().unwrap();
         let event_queue = self.event_queue.take().unwrap();
@@ -1395,11 +1395,11 @@ impl<T: 'static> WindowState<T> {
         let mut init_event = None;
 
         let cursor_update_context = CursorUpdateContext {
-            cursor_manager: &cursor_manager,
-            qh: &qh,
-            connection: &connection,
-            shm: &shm,
-            wmcompositer: &wmcompositer,
+            cursor_manager,
+            qh: qh.clone(),
+            connection: connection.clone(),
+            shm: shm.clone(),
+            wmcompositer: wmcompositer.clone(),
         };
 
         while !matches!(init_event, Some(ReturnData::None)) {
@@ -1451,99 +1451,148 @@ impl<T: 'static> WindowState<T> {
                 events_local.push(message);
             }
         });
-        'out: loop {
-            event_loop.dispatch(Duration::from_millis(1), &mut self)?;
-            let mut messages = Vec::new();
-            std::mem::swap(&mut messages, &mut self.message);
-            for msg in messages.iter() {
-                match msg {
-                    (Some(unit_index), DispatchMessageInner::RefreshSurface { width, height }) => {
-                        let index = self
-                            .units
-                            .iter()
-                            .position(|unit| unit.id == *unit_index)
-                            .unwrap();
-                        if self.units[index].buffer.is_none() && !self.use_display_handle {
-                            let mut file = tempfile::tempfile()?;
-                            let ReturnData::WlBuffer(buffer) = event_handler(
-                                SessionLockEvent::RequestBuffer(
-                                    &mut file, &shm, &qh, *width, *height,
-                                ),
-                                &mut self,
-                                Some(*unit_index),
-                            ) else {
-                                panic!("You cannot return this one");
-                            };
-                            let surface = &self.units[index].wl_surface;
-                            surface.attach(Some(&buffer), 0, 0);
-                            self.units[index].buffer = Some(buffer);
-                        } else {
-                            event_handler(
-                                SessionLockEvent::RequestMessages(
-                                    &DispatchMessage::RequestRefresh {
-                                        width: *width,
-                                        height: *height,
-                                        scale_float: self.units[index].scale_float(),
-                                    },
-                                ),
-                                &mut self,
-                                Some(*unit_index),
-                            );
-                        }
-                        if let Some(unit) = self.get_unit_with_id(*unit_index) {
-                            unit.wl_surface.commit();
-                        }
-                    }
-                    (_, DispatchMessageInner::NewDisplay(display)) => {
-                        let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                        //
-                        wl_surface.commit();
-                        let session_lock_surface =
-                            lock.get_lock_surface(&wl_surface, display, &qh, ());
+        let signal = event_loop.get_signal();
+        event_loop
+            .handle()
+            .insert_source(
+                Timer::from_duration(Duration::from_millis(50)),
+                move |_, _, window_state| {
+                    let mut messages = Vec::new();
+                    std::mem::swap(&mut messages, &mut window_state.message);
+                    for msg in messages.iter() {
+                        match msg {
+                            (
+                                Some(unit_index),
+                                DispatchMessageInner::RefreshSurface { width, height },
+                            ) => {
+                                let index = window_state
+                                    .units
+                                    .iter()
+                                    .position(|unit| unit.id == *unit_index)
+                                    .unwrap();
+                                if window_state.units[index].buffer.is_none()
+                                    && !window_state.use_display_handle
+                                {
+                                    let Ok(mut file) = tempfile::tempfile() else {
+                                        log::error!("Cannot create new file from tempfile");
+                                        return TimeoutAction::Drop;
+                                    };
+                                    let ReturnData::WlBuffer(buffer) = event_handler(
+                                        SessionLockEvent::RequestBuffer(
+                                            &mut file, &shm, &qh, *width, *height,
+                                        ),
+                                        window_state,
+                                        Some(*unit_index),
+                                    ) else {
+                                        panic!("You cannot return this one");
+                                    };
+                                    let surface = &window_state.units[index].wl_surface;
+                                    surface.attach(Some(&buffer), 0, 0);
+                                    window_state.units[index].buffer = Some(buffer);
+                                } else {
+                                    event_handler(
+                                        SessionLockEvent::RequestMessages(
+                                            &DispatchMessage::RequestRefresh {
+                                                width: *width,
+                                                height: *height,
+                                                scale_float: window_state.units[index]
+                                                    .scale_float(),
+                                            },
+                                        ),
+                                        window_state,
+                                        Some(*unit_index),
+                                    );
+                                }
+                                if let Some(unit) = window_state.get_unit_with_id(*unit_index) {
+                                    unit.wl_surface.commit();
+                                }
+                            }
+                            (_, DispatchMessageInner::NewDisplay(display)) => {
+                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                //
+                                wl_surface.commit();
+                                let session_lock_surface =
+                                    lock.get_lock_surface(&wl_surface, display, &qh, ());
 
-                        let mut fractional_scale = None;
-                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
-                                &wl_surface,
-                                &qh,
-                                (),
-                            ));
+                                let mut fractional_scale = None;
+                                if let Some(ref fractional_scale_manager) = fractional_scale_manager
+                                {
+                                    fractional_scale =
+                                        Some(fractional_scale_manager.get_fractional_scale(
+                                            &wl_surface,
+                                            &qh,
+                                            (),
+                                        ));
+                                }
+                                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                                // and if you need to reconfigure it, you need to commit the wl_surface again
+                                // so because this is just an example, so we just commit it once
+                                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+                                let viewport = viewporter
+                                    .as_ref()
+                                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                                window_state.push_window(WindowStateUnit {
+                                    id: id::Id::unique(),
+                                    display: connection.display(),
+                                    wl_surface,
+                                    size: (0, 0),
+                                    buffer: None,
+                                    session_shell: session_lock_surface,
+                                    viewport,
+                                    fractional_scale,
+                                    binding: None,
+                                    scale: 120,
+                                });
+                            }
+                            _ => {
+                                let (index_message, msg) = msg;
+                                let msg: DispatchMessage = msg.clone().into();
+                                match event_handler(
+                                    SessionLockEvent::RequestMessages(&msg),
+                                    window_state,
+                                    *index_message,
+                                ) {
+                                    ReturnData::RequestUnlockAndExist => {
+                                        lock.unlock_and_destroy();
+                                        connection
+                                            .roundtrip()
+                                            .expect("should roundtrip successfully");
+                                        signal.stop();
+                                        return TimeoutAction::Drop;
+                                    }
+                                    ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
+                                        let Some(serial) = window_state.enter_serial else {
+                                            continue;
+                                        };
+                                        set_cursor_shape(
+                                            &cursor_update_context,
+                                            shape_name,
+                                            pointer,
+                                            serial,
+                                        );
+                                    }
+                                    _ => {}
+                                }
+                            }
                         }
-                        // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                        // and if you need to reconfigure it, you need to commit the wl_surface again
-                        // so because this is just an example, so we just commit it once
-                        // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-                        let viewport = viewporter
-                            .as_ref()
-                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                        self.push_window(WindowStateUnit {
-                            id: id::Id::unique(),
-                            display: connection.display(),
-                            wl_surface,
-                            size: (0, 0),
-                            buffer: None,
-                            session_shell: session_lock_surface,
-                            viewport,
-                            fractional_scale,
-                            binding: None,
-                            scale: 120,
-                        });
                     }
-                    _ => {
-                        let (index_message, msg) = msg;
-                        let msg: DispatchMessage = msg.clone().into();
-                        match event_handler(
-                            SessionLockEvent::RequestMessages(&msg),
-                            &mut self,
-                            *index_message,
-                        ) {
+                    let mut local_events = events.lock().unwrap();
+                    let mut swapped_events: Vec<Message> = vec![];
+                    std::mem::swap(&mut *local_events, &mut swapped_events);
+                    drop(local_events);
+                    for event in swapped_events {
+                        match event_handler(SessionLockEvent::UserEvent(event), window_state, None)
+                        {
                             ReturnData::RequestUnlockAndExist => {
                                 lock.unlock_and_destroy();
-                                connection.roundtrip()?;
-                                break 'out;
+                                connection
+                                    .roundtrip()
+                                    .expect("should roundtrip successfully");
+                                signal.stop();
+                                return TimeoutAction::Drop;
                             }
                             ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                let Some(serial) = self.enter_serial else {
+                                let Some(serial) = window_state.enter_serial else {
                                     continue;
                                 };
                                 set_cursor_shape(
@@ -1556,91 +1605,89 @@ impl<T: 'static> WindowState<T> {
                             _ => {}
                         }
                     }
-                }
-            }
-            let mut local_events = events.lock().unwrap();
-            let mut swapped_events: Vec<Message> = vec![];
-            std::mem::swap(&mut *local_events, &mut swapped_events);
-            drop(local_events);
-            for event in swapped_events {
-                match event_handler(SessionLockEvent::UserEvent(event), &mut self, None) {
-                    ReturnData::RequestUnlockAndExist => {
-                        lock.unlock_and_destroy();
-                        connection.roundtrip()?;
-                        break 'out;
-                    }
-                    ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                        let Some(serial) = self.enter_serial else {
-                            continue;
-                        };
-                        set_cursor_shape(&cursor_update_context, shape_name, pointer, serial);
-                    }
-                    _ => {}
-                }
-            }
-            let mut return_data = vec![event_handler(
-                SessionLockEvent::NormalDispatch,
-                &mut self,
-                None,
-            )];
-            loop {
-                let mut replace_data = Vec::new();
-                for data in return_data {
-                    match data {
-                        ReturnData::RedrawAllRequest => {
-                            let idlist = self.get_id_list();
-                            for id in idlist {
-                                if let Some(unit) = self.get_unit_with_id(id) {
-                                    replace_data.push(event_handler(
-                                        SessionLockEvent::RequestMessages(
-                                            &DispatchMessage::RequestRefresh {
-                                                width: unit.size.0,
-                                                height: unit.size.1,
-                                                scale_float: unit.scale_float(),
-                                            },
-                                        ),
-                                        &mut self,
-                                        Some(id),
-                                    ));
+                    let mut return_data = vec![event_handler(
+                        SessionLockEvent::NormalDispatch,
+                        window_state,
+                        None,
+                    )];
+                    loop {
+                        let mut replace_data = Vec::new();
+                        for data in return_data {
+                            match data {
+                                ReturnData::RedrawAllRequest => {
+                                    let idlist = window_state.get_id_list();
+                                    for id in idlist {
+                                        if let Some(unit) = window_state.get_unit_with_id(id) {
+                                            replace_data.push(event_handler(
+                                                SessionLockEvent::RequestMessages(
+                                                    &DispatchMessage::RequestRefresh {
+                                                        width: unit.size.0,
+                                                        height: unit.size.1,
+                                                        scale_float: unit.scale_float(),
+                                                    },
+                                                ),
+                                                window_state,
+                                                Some(id),
+                                            ));
+                                        }
+                                    }
                                 }
+                                ReturnData::RedrawIndexRequest(id) => {
+                                    if let Some(unit) = window_state.get_unit_with_id(id) {
+                                        replace_data.push(event_handler(
+                                            SessionLockEvent::RequestMessages(
+                                                &DispatchMessage::RequestRefresh {
+                                                    width: unit.size.0,
+                                                    height: unit.size.1,
+                                                    scale_float: unit.scale_float(),
+                                                },
+                                            ),
+                                            window_state,
+                                            Some(id),
+                                        ));
+                                    }
+                                }
+                                ReturnData::RequestUnlockAndExist => {
+                                    lock.unlock_and_destroy();
+                                    connection.roundtrip().expect("should go final roundtrip");
+                                    signal.stop();
+                                    return TimeoutAction::Drop;
+                                }
+                                ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
+                                    let Some(serial) = window_state.enter_serial else {
+                                        continue;
+                                    };
+                                    set_cursor_shape(
+                                        &cursor_update_context,
+                                        shape_name,
+                                        pointer,
+                                        serial,
+                                    );
+                                }
+                                _ => {}
                             }
                         }
-                        ReturnData::RedrawIndexRequest(id) => {
-                            if let Some(unit) = self.get_unit_with_id(id) {
-                                replace_data.push(event_handler(
-                                    SessionLockEvent::RequestMessages(
-                                        &DispatchMessage::RequestRefresh {
-                                            width: unit.size.0,
-                                            height: unit.size.1,
-                                            scale_float: unit.scale_float(),
-                                        },
-                                    ),
-                                    &mut self,
-                                    Some(id),
-                                ));
-                            }
+                        replace_data.retain(|x| *x != ReturnData::None);
+                        if replace_data.is_empty() {
+                            break;
                         }
-                        ReturnData::RequestUnlockAndExist => {
-                            lock.unlock_and_destroy();
-                            connection.roundtrip()?;
-                            break 'out;
-                        }
-                        ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                            let Some(serial) = self.enter_serial else {
-                                continue;
-                            };
-                            set_cursor_shape(&cursor_update_context, shape_name, pointer, serial);
-                        }
-                        _ => {}
+                        return_data = replace_data;
                     }
-                }
-                replace_data.retain(|x| *x != ReturnData::None);
-                if replace_data.is_empty() {
-                    break;
-                }
-                return_data = replace_data;
-            }
-        }
+                    TimeoutAction::ToDuration(Duration::from_millis(50))
+                },
+            )
+            .expect("Cannot insert source");
+        event_loop
+            .run(
+                std::time::Duration::from_millis(20),
+                &mut self,
+                |_window_state| {
+                    // Finally, this is where you can insert the processing you need
+                    // to do do between each waiting event eg. drawing logic if
+                    // you're doing a GUI app.
+                },
+            )
+            .expect("Error during event loop!");
         to_exit.store(true, Ordering::Relaxed);
         let _ = thread.join();
         Ok(())
@@ -1658,35 +1705,35 @@ fn get_cursor_buffer(
 }
 
 /// avoid too_many_arguments alert in `set_cursor_shape`
-struct CursorUpdateContext<'a, T: 'static> {
-    cursor_manager: &'a Option<WpCursorShapeManagerV1>,
-    qh: &'a QueueHandle<WindowState<T>>,
-    connection: &'a Connection,
-    shm: &'a WlShm,
-    wmcompositer: &'a WlCompositor,
+struct CursorUpdateContext<T: 'static> {
+    cursor_manager: Option<WpCursorShapeManagerV1>,
+    qh: QueueHandle<WindowState<T>>,
+    connection: Connection,
+    shm: WlShm,
+    wmcompositer: WlCompositor,
 }
 
 fn set_cursor_shape<T: 'static>(
-    context: &CursorUpdateContext<'_, T>,
+    context: &CursorUpdateContext<T>,
     shape_name: String,
     pointer: WlPointer,
     serial: u32,
 ) {
-    if let Some(cursor_manager) = context.cursor_manager {
+    if let Some(cursor_manager) = &context.cursor_manager {
         let Some(shape) = str_to_shape(&shape_name) else {
             log::error!("Not supported shape");
             return;
         };
-        let device = cursor_manager.get_pointer(&pointer, context.qh, ());
+        let device = cursor_manager.get_pointer(&pointer, &context.qh, ());
         device.set_shape(serial, shape);
         device.destroy();
     } else {
-        let Some(cursor_buffer) = get_cursor_buffer(&shape_name, context.connection, context.shm)
+        let Some(cursor_buffer) = get_cursor_buffer(&shape_name, &context.connection, &context.shm)
         else {
             log::error!("Cannot find cursor {shape_name}");
             return;
         };
-        let cursor_surface = context.wmcompositer.create_surface(context.qh, ());
+        let cursor_surface = context.wmcompositer.create_surface(&context.qh, ());
         cursor_surface.attach(Some(&cursor_buffer), 0, 0);
         // and create a surface. if two or more,
         let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
