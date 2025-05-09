@@ -8,7 +8,6 @@ use sessionlockev::*;
 fn main() {
     let ev: WindowState<()> = WindowState::new().build().unwrap();
 
-    let mut virtual_keyboard_manager = None;
     ev.running(|event, _ev, _index| {
         println!("{:?}", event);
         match event {
@@ -16,15 +15,13 @@ fn main() {
             SessionLockEvent::InitRequest => ReturnData::RequestBind,
             SessionLockEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
-                virtual_keyboard_manager = Some(
-                    globals
-                        .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                            qh,
-                            1..=1,
-                            (),
-                        )
-                        .unwrap(),
-                );
+                let virtual_keyboard_manager = globals
+                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                        qh,
+                        1..=1,
+                        (),
+                    )
+                    .unwrap();
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::None
             }

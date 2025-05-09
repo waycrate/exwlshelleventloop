@@ -2425,7 +2425,7 @@ impl<T: 'static> WindowState<T> {
         let viewporter = self.viewporter.take();
 
         let cursor_update_context = CursorUpdateContext {
-            cursor_manager: cursor_manager.clone(),
+            cursor_manager,
             qh: qh.clone(),
             connection: connection.clone(),
             shm: shm.clone(),
@@ -2485,28 +2485,29 @@ impl<T: 'static> WindowState<T> {
             }
         });
 
+        let signal = event_loop.get_signal();
         event_loop
             .handle()
             .insert_source(
                 Timer::from_duration(Duration::from_millis(2)),
-                move |_, _, shared_data| {
+                move |_, _, window_state| {
                     let mut messages = Vec::new();
-                    std::mem::swap(&mut messages, &mut shared_data.message);
+                    std::mem::swap(&mut messages, &mut window_state.message);
                     for msg in messages.iter() {
                         match msg {
                             (
                                 Some(unit_index),
                                 DispatchMessageInner::RefreshSurface { width, height },
                             ) => {
-                                let Some(index) = shared_data
+                                let Some(index) = window_state
                                     .units
                                     .iter()
                                     .position(|unit| unit.id == *unit_index)
                                 else {
                                     continue;
                                 };
-                                if shared_data.units[index].buffer.is_none()
-                                    && !shared_data.use_display_handle
+                                if window_state.units[index].buffer.is_none()
+                                    && !window_state.use_display_handle
                                 {
                                     let Ok(mut file) = tempfile::tempfile() else {
                                         log::error!("Cannot create new file from tempfile");
@@ -2516,42 +2517,42 @@ impl<T: 'static> WindowState<T> {
                                         LayerEvent::RequestBuffer(
                                             &mut file, &shm, &qh, *width, *height,
                                         ),
-                                        shared_data,
+                                        window_state,
                                         Some(*unit_index),
                                     ) else {
                                         panic!("You cannot return this one");
                                     };
-                                    let surface = &shared_data.units[index].wl_surface;
+                                    let surface = &window_state.units[index].wl_surface;
                                     surface.attach(Some(&buffer), 0, 0);
-                                    shared_data.units[index].buffer = Some(buffer);
+                                    window_state.units[index].buffer = Some(buffer);
                                 } else {
                                     event_handler(
                                         LayerEvent::RequestMessages(
                                             &DispatchMessage::RequestRefresh {
                                                 width: *width,
                                                 height: *height,
-                                                is_created: shared_data.units[index].becreated,
-                                                scale_float: shared_data.units[index].scale_float(),
+                                                is_created: window_state.units[index].becreated,
+                                                scale_float: window_state.units[index].scale_float(),
                                             },
                                         ),
-                                        shared_data,
+                                        window_state,
                                         Some(*unit_index),
                                     );
                                 }
 
-                                if let Some(unit) = shared_data.get_unit_with_id(*unit_index) {
+                                if let Some(unit) = window_state.get_unit_with_id(*unit_index) {
                                     unit.wl_surface.commit();
                                 }
                             }
                             (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
                                 event_handler(
                                     LayerEvent::XdgInfoChanged(*change_type),
-                                    shared_data,
+                                    window_state,
                                     *index_info,
                                 );
                             }
                             (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                                if !shared_data.is_allscreens() {
+                                if !window_state.is_allscreens() {
                                     continue;
                                 }
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -2561,27 +2562,27 @@ impl<T: 'static> WindowState<T> {
                                 let layer = layer_shell.get_layer_surface(
                                     &wl_surface,
                                     Some(output_display),
-                                    shared_data.layer,
-                                    shared_data.namespace.clone(),
+                                    window_state.layer,
+                                    window_state.namespace.clone(),
                                     &qh,
                                     (),
                                 );
-                                layer.set_anchor(shared_data.anchor);
+                                layer.set_anchor(window_state.anchor);
                                 layer
-                                    .set_keyboard_interactivity(shared_data.keyboard_interactivity);
-                                if let Some((init_w, init_h)) = shared_data.size {
+                                    .set_keyboard_interactivity(window_state.keyboard_interactivity);
+                                if let Some((init_w, init_h)) = window_state.size {
                                     layer.set_size(init_w, init_h);
                                 }
 
-                                if let Some(zone) = shared_data.exclusive_zone {
+                                if let Some(zone) = window_state.exclusive_zone {
                                     layer.set_exclusive_zone(zone);
                                 }
 
-                                if let Some((top, right, bottom, left)) = shared_data.margin {
+                                if let Some((top, right, bottom, left)) = window_state.margin {
                                     layer.set_margin(top, right, bottom, left);
                                 }
 
-                                if shared_data.events_transparent {
+                                if window_state.events_transparent {
                                     let region = wmcompositer.create_region(&qh, ());
                                     wl_surface.set_input_region(Some(&region));
                                     region.destroy();
@@ -2608,7 +2609,7 @@ impl<T: 'static> WindowState<T> {
                                 // so because this is just an example, so we just commit it once
                                 // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-                                shared_data.push_window(WindowStateUnit {
+                                window_state.push_window(WindowStateUnit {
                                     id: id::Id::unique(),
                                     display: connection.display(),
                                     wl_surface,
@@ -2630,13 +2631,13 @@ impl<T: 'static> WindowState<T> {
                                 let msg: DispatchMessage = msg.clone().into();
                                 match event_handler(
                                     LayerEvent::RequestMessages(&msg),
-                                    shared_data,
+                                    window_state,
                                     *index_message,
                                 ) {
                                     ReturnData::RedrawAllRequest => {
-                                        let idlist = shared_data.get_id_list();
+                                        let idlist = window_state.get_id_list();
                                         for id in idlist {
-                                            if let Some(unit) = shared_data.get_unit_with_id(id) {
+                                            if let Some(unit) = window_state.get_unit_with_id(id) {
                                                 if unit.size.0 == 0 || unit.size.1 == 0 {
                                                     continue;
                                                 }
@@ -2649,14 +2650,14 @@ impl<T: 'static> WindowState<T> {
                                                             scale_float: unit.scale_float(),
                                                         },
                                                     ),
-                                                    shared_data,
+                                                    window_state,
                                                     Some(id),
                                                 );
                                             }
                                         }
                                     }
                                     ReturnData::RedrawIndexRequest(id) => {
-                                        if let Some(unit) = shared_data.get_unit_with_id(id) {
+                                        if let Some(unit) = window_state.get_unit_with_id(id) {
                                             event_handler(
                                                 LayerEvent::RequestMessages(
                                                     &DispatchMessage::RequestRefresh {
@@ -2666,16 +2667,17 @@ impl<T: 'static> WindowState<T> {
                                                         scale_float: unit.scale_float(),
                                                     },
                                                 ),
-                                                shared_data,
+                                                window_state,
                                                 Some(id),
                                             );
                                         }
                                     }
                                     ReturnData::RequestExit => {
+                                        signal.stop();
                                         return TimeoutAction::Drop;
                                     }
                                     ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                        let Some(serial) = shared_data.enter_serial else {
+                                        let Some(serial) = window_state.enter_serial else {
                                             continue;
                                         };
                                         set_cursor_shape(
@@ -2698,12 +2700,13 @@ impl<T: 'static> WindowState<T> {
                     std::mem::swap(&mut *local_events, &mut swapped_events);
                     drop(local_events);
                     for event in swapped_events {
-                        match event_handler(LayerEvent::UserEvent(event), shared_data, None) {
+                        match event_handler(LayerEvent::UserEvent(event), window_state, None) {
                             ReturnData::RequestExit => {
+                                signal.stop();
                                 return TimeoutAction::Drop;
                             }
                             ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                let Some(serial) = shared_data.enter_serial else {
+                                let Some(serial) = window_state.enter_serial else {
                                     continue;
                                 };
                                 set_cursor_shape(
@@ -2717,17 +2720,17 @@ impl<T: 'static> WindowState<T> {
                         }
                     }
                     let mut return_data =
-                        vec![event_handler(LayerEvent::NormalDispatch, shared_data, None)];
+                        vec![event_handler(LayerEvent::NormalDispatch, window_state, None)];
                     loop {
-                        return_data.append(&mut shared_data.return_data);
+                        return_data.append(&mut window_state.return_data);
 
                         let mut replace_data = Vec::new();
                         for data in return_data {
                             match data {
                                 ReturnData::RedrawAllRequest => {
-                                    let idlist = shared_data.get_id_list();
+                                    let idlist = window_state.get_id_list();
                                     for id in idlist {
-                                        if let Some(unit) = shared_data.get_unit_with_id(id) {
+                                        if let Some(unit) = window_state.get_unit_with_id(id) {
                                             if unit.size.0 == 0 || unit.size.1 == 0 {
                                                 continue;
                                             }
@@ -2740,14 +2743,14 @@ impl<T: 'static> WindowState<T> {
                                                         scale_float: unit.scale_float(),
                                                     },
                                                 ),
-                                                shared_data,
+                                                window_state,
                                                 Some(id),
                                             );
                                         }
                                     }
                                 }
                                 ReturnData::RedrawIndexRequest(id) => {
-                                    if let Some(unit) = shared_data.get_unit_with_id(id) {
+                                    if let Some(unit) = window_state.get_unit_with_id(id) {
                                         replace_data.push(event_handler(
                                             LayerEvent::RequestMessages(
                                                 &DispatchMessage::RequestRefresh {
@@ -2757,16 +2760,17 @@ impl<T: 'static> WindowState<T> {
                                                     scale_float: unit.scale_float(),
                                                 },
                                             ),
-                                            shared_data,
+                                            window_state,
                                             Some(id),
                                         ));
                                     }
                                 }
                                 ReturnData::RequestExit => {
+                                    signal.stop();
                                     return TimeoutAction::Drop;
                                 }
                                 ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                    let Some(serial) = shared_data.enter_serial else {
+                                    let Some(serial) = window_state.enter_serial else {
                                         continue;
                                     };
                                     set_cursor_shape(
@@ -2790,23 +2794,23 @@ impl<T: 'static> WindowState<T> {
                                     id,
                                     info,
                                 )) => {
-                                    let pos = shared_data.surface_pos();
+                                    let pos = window_state.surface_pos();
 
                                     let mut output =
-                                        pos.and_then(|p| shared_data.units[p].wl_output.as_ref());
+                                        pos.and_then(|p| window_state.units[p].wl_output.as_ref());
 
-                                    if shared_data.last_wloutput.is_none()
-                                        && shared_data.outputs.len() > shared_data.last_unit_index
+                                    if window_state.last_wloutput.is_none()
+                                        && window_state.outputs.len() > window_state.last_unit_index
                                     {
-                                        shared_data.last_wloutput = Some(
-                                            shared_data.outputs[shared_data.last_unit_index]
+                                        window_state.last_wloutput = Some(
+                                            window_state.outputs[window_state.last_unit_index]
                                                 .1
                                                 .clone(),
                                         );
                                     }
 
                                     if use_last_output {
-                                        output = shared_data.last_wloutput.as_ref();
+                                        output = window_state.last_wloutput.as_ref();
                                     }
 
                                     let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -2817,7 +2821,7 @@ impl<T: 'static> WindowState<T> {
                                         &wl_surface,
                                         output,
                                         layer,
-                                        shared_data.namespace.clone(),
+                                        window_state.namespace.clone(),
                                         &qh,
                                         (),
                                     );
@@ -2862,7 +2866,7 @@ impl<T: 'static> WindowState<T> {
                                     // so because this is just an example, so we just commit it once
                                     // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-                                    shared_data.push_window(WindowStateUnit {
+                                    window_state.push_window(WindowStateUnit {
                                         id,
                                         display: connection.display(),
                                         wl_surface,
@@ -2887,7 +2891,7 @@ impl<T: 'static> WindowState<T> {
                                     targetid,
                                     info,
                                 )) => {
-                                    let Some(index) = shared_data
+                                    let Some(index) = window_state
                                         .units
                                         .iter()
                                         .position(|unit| !unit.is_popup() && unit.id == id)
@@ -2903,7 +2907,7 @@ impl<T: 'static> WindowState<T> {
                                     let popup =
                                         wl_xdg_surface.get_popup(None, &positioner, &qh, ());
 
-                                    let Shell::LayerShell(shell) = &shared_data.units[index].shell
+                                    let Shell::LayerShell(shell) = &window_state.units[index].shell
                                     else {
                                         unreachable!()
                                     };
@@ -2925,7 +2929,7 @@ impl<T: 'static> WindowState<T> {
                                     let viewport = viewporter.as_ref().map(|viewport| {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
-                                    shared_data.push_window(WindowStateUnit {
+                                    window_state.push_window(WindowStateUnit {
                                         id: targetid,
                                         display: connection.display(),
                                         wl_surface,
@@ -2959,7 +2963,7 @@ impl<T: 'static> WindowState<T> {
             .run(
                 std::time::Duration::from_millis(20),
                 &mut self,
-                |_shared_data| {
+                |_window_state| {
                     // Finally, this is where you can insert the processing you need
                     // to do do between each waiting event eg. drawing logic if
                     // you're doing a GUI app.
