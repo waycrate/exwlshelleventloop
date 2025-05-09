@@ -2489,7 +2489,7 @@ impl<T: 'static> WindowState<T> {
         event_loop
             .handle()
             .insert_source(
-                Timer::from_duration(Duration::from_millis(2)),
+                Timer::from_duration(Duration::from_millis(50)),
                 move |_, _, window_state| {
                     let mut messages = Vec::new();
                     std::mem::swap(&mut messages, &mut window_state.message);
@@ -2955,7 +2955,7 @@ impl<T: 'static> WindowState<T> {
                         return_data = replace_data;
                         continue;
                     }
-                    TimeoutAction::ToDuration(std::time::Duration::from_millis(2))
+                    TimeoutAction::ToDuration(std::time::Duration::from_millis(50))
                 },
             )
             .expect("Cannot insert_source");
