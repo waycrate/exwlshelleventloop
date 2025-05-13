@@ -9,10 +9,10 @@ use iced_core::input_method;
 use iced_graphics::Compositor;
 use layershellev::{WindowWrapper, id::Id as LayerId};
 
-use crate::build_pattern::DaemonInstance as Instance;
-use crate::build_pattern::DaemonProgram as Program;
 use iced::mouse;
 use iced::window::Id as IcedId;
+use iced_program::Instance;
+use iced_program::Program;
 
 pub struct Window<A, C>
 where

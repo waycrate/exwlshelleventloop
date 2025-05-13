@@ -21,7 +21,11 @@ devtools_generate! {
 }
 
 #[allow(unused)]
-fn attach(program: impl Program + 'static) -> impl Program {
+fn attach<P>(program: P) -> impl Program<Message = Event<P>>
+where
+    P: Program + 'static,
+    Event<P>: TryInto<LayershellCustomActions, Error = Event<P>> + std::fmt::Debug + Send + 'static,
+{
     struct Attach<P> {
         program: P,
     }
@@ -62,10 +66,6 @@ fn attach(program: impl Program + 'static) -> impl Program {
             state.view(&self.program, window)
         }
 
-        fn namespace(&self) -> String {
-            self.program.namespace()
-        }
-
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             state.subscription(&self.program)
         }
@@ -78,143 +78,15 @@ fn attach(program: impl Program + 'static) -> impl Program {
             self.program.style(state.state(), theme)
         }
 
-        fn scale_factor(&self, state: &Self::State) -> f64 {
-            self.program.scale_factor(state.state())
+        fn scale_factor(&self, state: &Self::State, id: iced::window::Id) -> f64 {
+            self.program.scale_factor(state.state(), id)
         }
     }
 
     Attach { program }
 }
 
-// layershell application
-pub trait Program: Sized {
-    /// The [`Executor`] that will run commands and subscriptions.
-    ///
-    /// The [default executor] can be a good starting point!
-    ///
-    /// [`Executor`]: Self::Executor
-    /// [default executor]: iced::executor::Default
-    type Executor: iced::Executor;
-    type State;
-    type Renderer: Renderer;
-
-    /// The type of __messages__ your [`Application`] will produce.
-    type Message: std::fmt::Debug
-        + Send
-        + 'static
-        + TryInto<LayershellCustomActions, Error = Self::Message>;
-
-    /// The theme of your [`Application`].
-    type Theme: Default + DefaultStyle;
-
-    /// Initializes the [`Application`] with the flags provided to
-    /// [`run`] as part of the [`Settings`].
-    ///
-    /// Here is where you should return the initial state of your app.
-    ///
-    /// Additionally, you can return a [`Task`] if you need to perform some
-    /// async action in the background on startup. This is useful if you want to
-    /// load state from a file, perform an initial HTTP request, etc.
-    ///
-    ///
-    /// This title can be dynamic! The runtime will automatically update the
-    /// title of your application when necessary.
-    fn namespace(&self) -> String {
-        "A cool iced application".to_string()
-    }
-
-    fn name() -> &'static str;
-    fn boot(&self) -> (Self::State, Task<Self::Message>);
-
-    /// Handles a __message__ and updates the state of the [`Application`].
-    ///
-    /// This is where you define your __update logic__. All the __messages__,
-    /// produced by either user interactions or commands, will be handled by
-    /// this method.
-    ///
-    /// Any [`Task`] returned will be executed immediately in the background.
-    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message>;
-
-    /// Returns the widgets to display in the [`Application`].
-    ///
-    /// These widgets can produce __messages__ based on user interaction.
-    fn view<'a>(
-        &self,
-        state: &'a Self::State,
-        window: iced::window::Id,
-    ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer>;
-
-    /// Returns the current [`Theme`] of the [`Application`].
-    ///
-    /// [`Theme`]: Self::Theme
-    fn theme(&self, _state: &Self::State, _window: iced::window::Id) -> Self::Theme {
-        Self::Theme::default()
-    }
-
-    /// Returns the current `Style` of the [`Theme`].
-    ///
-    /// [`Theme`]: Self::Theme
-    fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-        theme.base()
-    }
-
-    /// Returns the event [`Subscription`] for the current state of the
-    /// application.
-    ///
-    /// A [`Subscription`] will be kept alive as long as you keep returning it,
-    /// and the __messages__ produced will be handled by
-    /// [`update`](#tymethod.update).
-    ///
-    /// By default, this method returns an empty [`Subscription`].
-    fn subscription(&self, _state: &Self::State) -> iced::Subscription<Self::Message> {
-        iced::Subscription::none()
-    }
-
-    /// Returns the scale factor of the [`Application`].
-    ///
-    /// It can be used to dynamically control the size of the UI at runtime
-    /// (i.e. zooming).
-    ///
-    /// For instance, a scale factor of `2.0` will make widgets twice as big,
-    /// while a scale factor of `0.5` will shrink them to half their size.
-    ///
-    /// By default, it returns `1.0`.
-    fn scale_factor(&self, _state: &Self::State) -> f64 {
-        1.0
-    }
-
-    fn run(self, settings: Settings) -> Result
-    where
-        Self: 'static,
-    {
-        #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
-        let program = {
-            iced_debug::init(iced_debug::Metadata {
-                name: Self::name(),
-                theme: None,
-                can_time_travel: cfg!(feature = "time-travel"),
-            });
-
-            attach(self)
-        };
-
-        #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
-        let program = self;
-
-        #[allow(clippy::needless_update)]
-        let renderer_settings = iced_graphics::Settings {
-            default_font: settings.default_font,
-            default_text_size: settings.default_text_size,
-            antialiasing: if settings.antialiasing {
-                Some(iced_graphics::Antialiasing::MSAAx4)
-            } else {
-                None
-            },
-            ..iced_graphics::Settings::default()
-        };
-        crate::application::run(program, settings, renderer_settings)
-    }
-}
+use iced_program::Program;
 
 pub trait NameSpace {
     /// Produces the title of the [`Application`].
@@ -316,6 +188,7 @@ impl<State, Message> IntoBoot<State, Message> for (State, Task<Message>) {
 pub struct SingleApplication<A: Program> {
     raw: A,
     settings: Settings,
+    namespace: String,
 }
 
 pub fn application<State, Message, Theme, Renderer>(
@@ -388,8 +261,8 @@ where
             _renderer: PhantomData,
         },
         settings: Settings::default(),
+        namespace: namespace.namespace(),
     }
-    .namespace(namespace)
 }
 
 pub fn with_executor<P: Program, E: iced_futures::Executor>(
@@ -412,9 +285,6 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         type Renderer = P::Renderer;
         type Executor = E;
 
-        fn namespace(&self) -> String {
-            self.program.namespace()
-        }
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.program.boot()
         }
@@ -446,8 +316,8 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State) -> f64 {
-            self.program.scale_factor(state)
+        fn scale_factor(&self, state: &Self::State, id: iced::window::Id) -> f64 {
+            self.program.scale_factor(state, id)
         }
     }
 
@@ -455,67 +325,6 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         program,
         executor: PhantomData::<E>,
     }
-}
-
-fn with_namespace<P: Program>(
-    program: P,
-    namespace: impl Fn() -> String,
-) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
-    struct WithNamespace<P, NameSpace> {
-        program: P,
-        namespace: NameSpace,
-    }
-    impl<P, Namespace> Program for WithNamespace<P, Namespace>
-    where
-        P: Program,
-        Namespace: Fn() -> String,
-    {
-        type State = P::State;
-        type Message = P::Message;
-        type Theme = P::Theme;
-        type Renderer = P::Renderer;
-        type Executor = P::Executor;
-
-        fn namespace(&self) -> String {
-            (self.namespace)()
-        }
-        fn boot(&self) -> (Self::State, Task<Self::Message>) {
-            self.program.boot()
-        }
-        fn name() -> &'static str {
-            P::name()
-        }
-
-        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
-            self.program.update(state, message)
-        }
-
-        fn view<'a>(
-            &self,
-            state: &'a Self::State,
-            window: iced::window::Id,
-        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.program.view(state, window)
-        }
-
-        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
-            self.program.theme(state, window)
-        }
-
-        fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
-            self.program.subscription(state)
-        }
-
-        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            self.program.style(state, theme)
-        }
-
-        fn scale_factor(&self, state: &Self::State) -> f64 {
-            self.program.scale_factor(state)
-        }
-    }
-
-    WithNamespace { program, namespace }
 }
 
 pub fn with_subscription<P: Program>(
@@ -559,10 +368,6 @@ pub fn with_subscription<P: Program>(
             self.program.view(state, window)
         }
 
-        fn namespace(&self) -> String {
-            self.program.namespace()
-        }
-
         fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
             self.program.theme(state, window)
         }
@@ -571,8 +376,8 @@ pub fn with_subscription<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State) -> f64 {
-            self.program.scale_factor(state)
+        fn scale_factor(&self, state: &Self::State, id: iced::window::Id) -> f64 {
+            self.program.scale_factor(state, id)
         }
     }
 
@@ -611,9 +416,6 @@ pub fn with_theme<P: Program>(
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.program.boot()
         }
-        fn namespace(&self) -> String {
-            self.program.namespace()
-        }
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
@@ -635,8 +437,8 @@ pub fn with_theme<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State) -> f64 {
-            self.program.scale_factor(state)
+        fn scale_factor(&self, state: &Self::State, id: iced::window::Id) -> f64 {
+            self.program.scale_factor(state, id)
         }
     }
 
@@ -670,9 +472,6 @@ pub fn with_style<P: Program>(
             P::name()
         }
 
-        fn namespace(&self) -> String {
-            self.program.namespace()
-        }
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.program.boot()
         }
@@ -696,8 +495,8 @@ pub fn with_style<P: Program>(
             self.program.theme(state, window)
         }
 
-        fn scale_factor(&self, state: &Self::State) -> f64 {
-            self.program.scale_factor(state)
+        fn scale_factor(&self, state: &Self::State, id: iced::window::Id) -> f64 {
+            self.program.scale_factor(state, id)
         }
     }
 
@@ -722,10 +521,6 @@ pub fn with_scale_factor<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-
-        fn namespace(&self) -> String {
-            self.program.namespace()
-        }
 
         fn name() -> &'static str {
             P::name()
@@ -755,7 +550,7 @@ pub fn with_scale_factor<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State) -> f64 {
+        fn scale_factor(&self, state: &Self::State, _id: iced::window::Id) -> f64 {
             (self.scale_factor)(state)
         }
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
@@ -773,8 +568,37 @@ impl<P: Program> SingleApplication<P> {
     pub fn run(self) -> Result
     where
         Self: 'static,
+        P::Message:
+            std::fmt::Debug + Send + 'static + TryInto<LayershellCustomActions, Error = P::Message>,
     {
-        self.raw.run(self.settings)
+        let settings = self.settings;
+
+        #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
+        let program = {
+            iced_debug::init(iced_debug::Metadata {
+                name: P::name(),
+                theme: None,
+                can_time_travel: cfg!(feature = "time-travel"),
+            });
+
+            attach(self.raw)
+        };
+
+        #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
+        let program = self.raw;
+
+        #[allow(clippy::needless_update)]
+        let renderer_settings = iced_graphics::Settings {
+            default_font: settings.default_font,
+            default_text_size: settings.default_text_size,
+            antialiasing: if settings.antialiasing {
+                Some(iced_graphics::Antialiasing::MSAAx4)
+            } else {
+                None
+            },
+            ..iced_graphics::Settings::default()
+        };
+        crate::application::run(program, &self.namespace, settings, renderer_settings)
     }
 
     pub fn settings(self, settings: Settings) -> Self {
@@ -830,17 +654,6 @@ impl<P: Program> SingleApplication<P> {
         }
     }
 
-    pub fn namespace(
-        self,
-        namespace: impl NameSpace,
-    ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
-    {
-        SingleApplication {
-            raw: with_namespace(self.raw, move || namespace.namespace()),
-            settings: self.settings,
-        }
-    }
-    /// Sets the style logic of the [`Application`].
     pub fn style(
         self,
         f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
@@ -849,6 +662,7 @@ impl<P: Program> SingleApplication<P> {
         SingleApplication {
             raw: with_style(self.raw, f),
             settings: self.settings,
+            namespace: self.namespace,
         }
     }
     /// Sets the subscription logic of the [`Application`].
@@ -860,6 +674,7 @@ impl<P: Program> SingleApplication<P> {
         SingleApplication {
             raw: with_subscription(self.raw, f),
             settings: self.settings,
+            namespace: self.namespace,
         }
     }
 
@@ -872,6 +687,7 @@ impl<P: Program> SingleApplication<P> {
         SingleApplication {
             raw: with_theme(self.raw, f),
             settings: self.settings,
+            namespace: self.namespace,
         }
     }
 
@@ -884,6 +700,7 @@ impl<P: Program> SingleApplication<P> {
         SingleApplication {
             raw: with_scale_factor(self.raw, f),
             settings: self.settings,
+            namespace: self.namespace,
         }
     }
     /// Sets the executor of the [`Application`].
@@ -896,55 +713,7 @@ impl<P: Program> SingleApplication<P> {
         SingleApplication {
             raw: with_executor::<P, E>(self.raw),
             settings: self.settings,
+            namespace: self.namespace,
         }
-    }
-}
-
-pub struct Instance<P: Program> {
-    program: P,
-    state: P::State,
-}
-
-impl<P: Program> Instance<P> {
-    /// Creates a new [`Instance`] of the given [`Program`].
-    pub fn new(program: P) -> (Self, Task<P::Message>) {
-        let (state, task) = program.boot();
-
-        (Self { program, state }, task)
-    }
-
-    /// Returns the current title of the [`Instance`].
-    pub fn namespace(&self) -> String {
-        self.program.namespace()
-    }
-
-    /// Processes the given message and updates the [`Instance`].
-    pub fn update(&mut self, message: P::Message) -> Task<P::Message> {
-        self.program.update(&mut self.state, message)
-    }
-
-    /// Produces the current widget tree of the [`Instance`].
-    pub fn view(&self, window: iced::window::Id) -> Element<'_, P::Message, P::Theme, P::Renderer> {
-        self.program.view(&self.state, window)
-    }
-
-    /// Returns the current [`Subscription`] of the [`Instance`].
-    pub fn subscription(&self) -> iced::Subscription<P::Message> {
-        self.program.subscription(&self.state)
-    }
-
-    /// Returns the current theme of the [`Instance`].
-    pub fn theme(&self, window: iced::window::Id) -> P::Theme {
-        self.program.theme(&self.state, window)
-    }
-
-    /// Returns the current [`theme::Style`] of the [`Instance`].
-    pub fn style(&self, theme: &P::Theme) -> iced::theme::Style {
-        self.program.style(&self.state, theme)
-    }
-
-    /// Returns the current scale factor of the [`Instance`].
-    pub fn scale_factor(&self) -> f64 {
-        self.program.scale_factor(&self.state)
     }
 }

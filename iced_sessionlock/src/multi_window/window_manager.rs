@@ -2,11 +2,11 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::DefaultStyle;
-use crate::build_pattern::Instance;
-use crate::build_pattern::Program;
 use iced::mouse;
 use iced::window::Id as IcedId;
 use iced_graphics::Compositor;
+use iced_program::Instance;
+use iced_program::Program;
 use sessionlockev::{WindowWrapper, id::Id as SessionId};
 
 pub struct Window<A, C>

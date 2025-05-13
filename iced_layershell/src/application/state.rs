@@ -3,9 +3,9 @@ use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
 use layershellev::keyboard::ModifiersState;
 
-use crate::build_pattern::ApplicationInstance as Instance;
-use crate::build_pattern::ApplicationProgram as IcedProgram;
 use crate::event::WindowEvent;
+use iced_program::Instance;
+use iced_program::Program as IcedProgram;
 use layershellev::reexport::wp_viewport::WpViewport;
 pub struct State<A: IcedProgram>
 where
@@ -34,7 +34,7 @@ where
         window: &layershellev::WindowStateSimple,
         mainid: iced::window::Id,
     ) -> Self {
-        let application_scale_factor = application.scale_factor();
+        let application_scale_factor = application.scale_factor(mainid);
         let theme = application.theme(mainid);
         let appearance = application.style(&theme);
 
@@ -152,7 +152,7 @@ where
     }
 
     pub fn synchronize(&mut self, application: &Instance<A>, mainid: iced::window::Id) {
-        let new_scale_factor = application.scale_factor();
+        let new_scale_factor = application.scale_factor(mainid);
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;
             self.resize_viewport();

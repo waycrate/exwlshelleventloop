@@ -9,8 +9,6 @@ impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compo
 
 pub use pattern::application;
 
-pub(crate) use pattern::Instance;
-pub(crate) use pattern::Program;
 mod pattern {
     use super::*;
     use crate::settings::Settings;
@@ -29,7 +27,11 @@ mod pattern {
         MyAction = UnLockAction
     }
     #[allow(unused)]
-    fn attach(program: impl Program + 'static) -> impl Program {
+    fn attach<P>(program: P) -> impl Program<Message = Event<P>>
+    where
+        P: Program + 'static,
+        Event<P>: TryInto<UnLockAction, Error = Event<P>> + std::fmt::Debug + Send + 'static,
+    {
         struct Attach<P> {
             program: P,
         }
@@ -93,131 +95,8 @@ mod pattern {
 
         Attach { program }
     }
-    // layershell application
-    pub trait Program: Sized {
-        /// The [`Executor`] that will run commands and subscriptions.
-        ///
-        /// The [default executor] can be a good starting point!
-        ///
-        /// [`Executor`]: Self::Executor
-        /// [default executor]: iced::executor::Default
-        type Executor: iced::Executor;
-        type State;
-        type Renderer: Renderer;
 
-        /// The type of __messages__ your [`Application`] will produce.
-        type Message: std::fmt::Debug
-            + Send
-            + 'static
-            + TryInto<UnLockAction, Error = Self::Message>;
-
-        /// The theme of your [`Application`].
-        type Theme: Default + DefaultStyle;
-
-        /// Initializes the [`Application`] with the flags provided to
-        /// run as part of the [`Settings`].
-        ///
-        /// Here is where you should return the initial state of your app.
-        ///
-        /// Additionally, you can return a [`Task`] if you need to perform some
-        /// async action in the background on startup. This is useful if you want to
-        /// load state from a file, perform an initial HTTP request, etc.
-        ///
-        ///
-        /// This title can be dynamic! The runtime will automatically update the
-        /// title of your application when necessary.
-        fn namespace(&self, _state: &Self::State) -> String {
-            "A cool iced application".to_string()
-        }
-
-        fn boot(&self) -> (Self::State, Task<Self::Message>);
-
-        fn name() -> &'static str;
-        /// Handles a __message__ and updates the state of the [`Application`].
-        ///
-        /// This is where you define your __update logic__. All the __messages__,
-        /// produced by either user interactions or commands, will be handled by
-        /// this method.
-        ///
-        /// Any [`Task`] returned will be executed immediately in the background.
-        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message>;
-
-        /// Returns the widgets to display in the [`Application`].
-        ///
-        /// These widgets can produce __messages__ based on user interaction.
-        fn view<'a>(
-            &self,
-            state: &'a Self::State,
-            _window: iced_core::window::Id,
-        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer>;
-        /// Returns the current [`Theme`] of the [`Application`].
-        ///
-        /// [`Theme`]: Self::Theme
-        fn theme(&self, _state: &Self::State, _window: iced_core::window::Id) -> Self::Theme {
-            Self::Theme::default()
-        }
-
-        /// Returns the current `Style` of the [`Theme`].
-        ///
-        /// [`Theme`]: Self::Theme
-        fn style(&self, _state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-            theme.base()
-        }
-
-        /// Returns the event [`iced::Subscription`] for the current state of the
-        /// application.
-        ///
-        /// A [`iced::Subscription`] will be kept alive as long as you keep returning it,
-        /// and the __messages__ produced will be handled by
-        /// [`Program::update`](#tymethod.update).
-        ///
-        /// By default, this method returns an empty [`iced::Subscription`].
-        fn subscription(&self, _state: &Self::State) -> iced::Subscription<Self::Message> {
-            iced::Subscription::none()
-        }
-
-        /// Returns the scale factor of the [`Application`].
-        ///
-        /// It can be used to dynamically control the size of the UI at runtime
-        /// (i.e. zooming).
-        ///
-        /// For instance, a scale factor of `2.0` will make widgets twice as big,
-        /// while a scale factor of `0.5` will shrink them to half their size.
-        ///
-        /// By default, it returns `1.0`.
-        fn scale_factor(&self, _state: &Self::State, _window: iced_core::window::Id) -> f64 {
-            1.0
-        }
-
-        fn run(self, settings: Settings) -> Result
-        where
-            Self: 'static,
-        {
-            #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
-            let program = {
-                iced_debug::init(iced_debug::Metadata {
-                    name: Self::name(),
-                    theme: None,
-                    can_time_travel: cfg!(feature = "time-travel"),
-                });
-
-                attach(self)
-            };
-
-            #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
-            let program = self;
-            let renderer_settings = iced_graphics::Settings {
-                default_font: settings.default_font,
-                default_text_size: settings.default_text_size,
-                antialiasing: if settings.antialiasing {
-                    Some(iced_graphics::Antialiasing::MSAAx4)
-                } else {
-                    None
-                },
-            };
-            crate::multi_window::run(program, settings, renderer_settings)
-        }
-    }
+    use iced_program::Program;
 
     /// The update logic of some [`Application`].
     ///
@@ -402,10 +281,6 @@ mod pattern {
             type Renderer = P::Renderer;
             type Executor = E;
 
-            fn namespace(&self, state: &Self::State) -> String {
-                self.program.namespace(state)
-            }
-
             fn update(
                 &self,
                 state: &mut Self::State,
@@ -491,10 +366,6 @@ mod pattern {
                 self.program.view(state, window)
             }
 
-            fn namespace(&self, state: &Self::State) -> String {
-                self.program.namespace(state)
-            }
-
             fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
                 self.program.theme(state, window)
             }
@@ -541,9 +412,6 @@ mod pattern {
             }
             fn boot(&self) -> (Self::State, Task<Self::Message>) {
                 self.program.boot()
-            }
-            fn namespace(&self, state: &Self::State) -> String {
-                self.program.namespace(state)
             }
 
             fn update(
@@ -604,10 +472,6 @@ mod pattern {
                 (self.style)(state, theme)
             }
 
-            fn namespace(&self, state: &Self::State) -> String {
-                self.program.namespace(state)
-            }
-
             fn update(
                 &self,
                 state: &mut Self::State,
@@ -664,10 +528,6 @@ mod pattern {
             type Renderer = P::Renderer;
             type Executor = P::Executor;
 
-            fn namespace(&self, state: &Self::State) -> String {
-                self.program.namespace(state)
-            }
-
             fn update(
                 &self,
                 state: &mut Self::State,
@@ -716,8 +576,33 @@ mod pattern {
         pub fn run(self) -> Result
         where
             Self: 'static,
+            P::Message:
+                std::fmt::Debug + Send + 'static + TryInto<UnLockAction, Error = P::Message>,
         {
-            self.raw.run(self.settings)
+            #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
+            let program = {
+                iced_debug::init(iced_debug::Metadata {
+                    name: Program::name(),
+                    theme: None,
+                    can_time_travel: cfg!(feature = "time-travel"),
+                });
+
+                attach(self.raw)
+            };
+
+            #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
+            let program = self.raw;
+            let settings = self.settings;
+            let renderer_settings = iced_graphics::Settings {
+                default_font: settings.default_font,
+                default_text_size: settings.default_text_size,
+                antialiasing: if settings.antialiasing {
+                    Some(iced_graphics::Antialiasing::MSAAx4)
+                } else {
+                    None
+                },
+            };
+            crate::multi_window::run(program, settings, renderer_settings)
         }
 
         pub fn settings(self, settings: Settings) -> Self {
@@ -820,57 +705,6 @@ mod pattern {
                 raw: with_executor::<P, E>(self.raw),
                 settings: self.settings,
             }
-        }
-    }
-    #[allow(missing_debug_implementations)]
-    pub struct Instance<P: Program> {
-        program: P,
-        state: P::State,
-    }
-    use iced::Subscription;
-    use iced::theme;
-    use iced::window;
-    impl<P: Program> Instance<P> {
-        /// Creates a new [`Instance`] of the given [`Program`].
-        pub fn new(program: P) -> (Self, Task<P::Message>) {
-            let (state, task) = program.boot();
-
-            (Self { program, state }, task)
-        }
-
-        /// Returns the current title of the [`Instance`].
-        pub fn namespace(&self, state: &P::State) -> String {
-            self.program.namespace(state)
-        }
-
-        /// Processes the given message and updates the [`Instance`].
-        pub fn update(&mut self, message: P::Message) -> Task<P::Message> {
-            self.program.update(&mut self.state, message)
-        }
-
-        /// Produces the current widget tree of the [`Instance`].
-        pub fn view(&self, window: window::Id) -> Element<'_, P::Message, P::Theme, P::Renderer> {
-            self.program.view(&self.state, window)
-        }
-
-        /// Returns the current [`Subscription`] of the [`Instance`].
-        pub fn subscription(&self) -> Subscription<P::Message> {
-            self.program.subscription(&self.state)
-        }
-
-        /// Returns the current theme of the [`Instance`].
-        pub fn theme(&self, window: window::Id) -> P::Theme {
-            self.program.theme(&self.state, window)
-        }
-
-        /// Returns the current [`theme::Style`] of the [`Instance`].
-        pub fn style(&self, theme: &P::Theme) -> theme::Style {
-            self.program.style(&self.state, theme)
-        }
-
-        /// Returns the current scale factor of the [`Instance`].
-        pub fn scale_factor(&self, window: window::Id) -> f64 {
-            self.program.scale_factor(&self.state, window)
         }
     }
 }

@@ -50,12 +50,13 @@ mod window_manager;
 
 type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
 
-use crate::build_pattern::DaemonInstance as Instance;
-use crate::build_pattern::DaemonProgram as IcedProgram;
+use iced_program::Instance;
+use iced_program::Program as IcedProgram;
 
 // a dispatch loop, another is listen loop
 pub fn run<A>(
     program: A,
+    namespace: &str,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
@@ -86,20 +87,19 @@ where
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
 
-    let ev: WindowState<iced::window::Id> =
-        layershellev::WindowState::new(&application.namespace())
-            .with_start_mode(settings.layer_settings.start_mode)
-            .with_use_display_handle(true)
-            .with_events_transparent(settings.layer_settings.events_transparent)
-            .with_option_size(settings.layer_settings.size)
-            .with_layer(settings.layer_settings.layer)
-            .with_anchor(settings.layer_settings.anchor)
-            .with_exclusive_zone(settings.layer_settings.exclusive_zone)
-            .with_margin(settings.layer_settings.margin)
-            .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-            .with_connection(settings.with_connection)
-            .build()
-            .expect("Cannot create layershell");
+    let ev: WindowState<iced::window::Id> = layershellev::WindowState::new(namespace)
+        .with_start_mode(settings.layer_settings.start_mode)
+        .with_use_display_handle(true)
+        .with_events_transparent(settings.layer_settings.events_transparent)
+        .with_option_size(settings.layer_settings.size)
+        .with_layer(settings.layer_settings.layer)
+        .with_anchor(settings.layer_settings.anchor)
+        .with_exclusive_zone(settings.layer_settings.exclusive_zone)
+        .with_margin(settings.layer_settings.margin)
+        .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .with_connection(settings.with_connection)
+        .build()
+        .expect("Cannot create layershell");
 
     let (mut event_sender, event_receiver) =
         mpsc::unbounded::<MultiWindowIcedLayerEvent<Action<A::Message>>>();
@@ -900,7 +900,6 @@ async fn run_instance<A, E, C>(
                         .map(|(id, ui)| (id, ui.into_cache()))
                         .collect();
 
-                application.remove_id(id);
                 cached_layer_dimensions.remove(&id);
                 window_manager.remove(id);
                 cached_user_interfaces.remove(&id);

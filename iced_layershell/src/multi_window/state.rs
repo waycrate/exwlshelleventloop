@@ -5,10 +5,10 @@ use layershellev::WindowWrapper;
 use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wp_viewport::WpViewport;
 
-use crate::build_pattern::DaemonInstance as Instance;
-use crate::build_pattern::DaemonProgram as Program;
 use crate::event::WindowEvent;
 use iced::window;
+use iced_program::Instance;
+use iced_program::Program;
 pub struct State<A: Program>
 where
     A::Theme: DefaultStyle,
@@ -41,7 +41,7 @@ where
     ) -> Self {
         let application_scale_factor = application.scale_factor(id);
         let theme = application.theme(id);
-        let appearance = application.style(&theme, id);
+        let appearance = application.style(&theme);
 
         let window_size = Size::new(width, height);
         let viewport = viewport(window_size, wayland_scale_factor, application_scale_factor);
@@ -164,7 +164,7 @@ where
             self.resize_viewport();
         }
         self.theme = application.theme(self.id);
-        self.appearance = application.style(&self.theme, self.id);
+        self.appearance = application.style(&self.theme);
     }
 
     fn resize_viewport(&mut self) {

@@ -32,8 +32,8 @@ use crate::{
 mod window_manager;
 
 type SessionRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
-use crate::build_pattern::Instance;
-use crate::build_pattern::Program;
+use iced_program::Instance;
+use iced_program::Program;
 // a dispatch loop, another is listen loop
 pub fn run<A>(
     program: A,

@@ -24,7 +24,6 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::update,
         Counter::view,
     )
-    .shell_removed(Counter::shell_removed)
     .layer_settings(LayerShellSettings {
         start_mode: StartMode::Background,
         ..Default::default()
@@ -39,13 +38,10 @@ enum Message {
     NewWindow,
     TextInput(String),
     CloseWindow(Id),
+    WindowClosed(Id),
 }
 
 impl Counter {
-    fn shell_removed(&mut self, _id: iced_runtime::core::window::Id) {
-        self.window_shown = false;
-    }
-
     fn new() -> (Self, Command<Message>) {
         (
             Self {
@@ -81,25 +77,32 @@ impl Counter {
         .into()
     }
     fn subscription(&self) -> iced::Subscription<Message> {
-        iced::Subscription::run(|| {
-            iced::stream::channel(100, |sender| async move {
-                // setup the object server
-                let _connection = connection::Builder::session()
-                    .unwrap()
-                    .name("zbus.iced.MyGreeter1")
-                    .unwrap()
-                    .serve_at("/org/zbus/MyGreeter1", Greeter { sender })
-                    .unwrap()
-                    .build()
-                    .await
-                    .unwrap();
-                pending::<()>().await;
-                unreachable!()
-            })
-        })
+        iced::Subscription::batch(vec![
+            iced::Subscription::run(|| {
+                iced::stream::channel(100, |sender| async move {
+                    // setup the object server
+                    let _connection = connection::Builder::session()
+                        .unwrap()
+                        .name("zbus.iced.MyGreeter1")
+                        .unwrap()
+                        .serve_at("/org/zbus/MyGreeter1", Greeter { sender })
+                        .unwrap()
+                        .build()
+                        .await
+                        .unwrap();
+                    pending::<()>().await;
+                    unreachable!()
+                })
+            }),
+            iced::window::close_events().map(Message::WindowClosed),
+        ])
     }
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::WindowClosed(_id) => {
+                self.window_shown = false;
+                Command::none()
+            }
             Message::CloseWindow(id) => {
                 iced_runtime::task::effect(Action::Window(WindowAction::Close(id)))
             }

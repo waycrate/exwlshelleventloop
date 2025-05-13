@@ -2,8 +2,8 @@ use iced::alignment::Vertical;
 use iced::widget::{
     button, center, column, container, horizontal_space, row, scrollable, text, text_input,
 };
+use iced::window;
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
-use iced::{Color, window};
 use iced_layershell::daemon;
 use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
@@ -20,9 +20,7 @@ fn main() -> iced_layershell::Result {
         .with(EnvFilter::from_default_env())
         .init();
     daemon(Example::new, "multi_window", Example::update, Example::view)
-        .shell_removed(Example::remove_id)
         .theme(Example::theme)
-        .style(Example::style)
         .subscription(Example::subscription)
         .scale_factor(Example::scale_factor)
         .settings(Settings {
@@ -45,7 +43,6 @@ struct Window {
     scale_input: String,
     current_scale: f64,
     theme: Theme,
-    transparent: bool,
 }
 
 #[to_layer_message(multi)]
@@ -173,17 +170,6 @@ impl Example {
         }
     }
 
-    fn style(&self, theme: &Theme, window: window::Id) -> iced::theme::Style {
-        use iced::theme::Base;
-        let mut style = theme.base();
-        if let Some(window) = self.windows.get(&window) {
-            if window.transparent {
-                style.background_color = Color::TRANSPARENT;
-            }
-        }
-        style
-    }
-
     fn scale_factor(&self, window: window::Id) -> f64 {
         self.windows
             .get(&window)
@@ -201,10 +187,6 @@ impl Example {
             }
         })
     }
-
-    fn remove_id(&mut self, _window: window::Id) {
-        // self.windows.remove(&window);
-    }
 }
 
 impl Window {
@@ -214,7 +196,6 @@ impl Window {
             scale_input: "1.0".to_string(),
             current_scale: 1.0,
             theme: Theme::ALL[count % Theme::ALL.len()].clone(),
-            transparent: count % 2 == 0,
         }
     }
 

@@ -39,12 +39,14 @@ use iced_runtime::debug;
 use crate::{actions::ActionCallback, event::IcedLayerEvent, proxy::IcedProxy, settings::Settings};
 
 type SingleRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
-use crate::build_pattern::ApplicationInstance as Instance;
-use crate::build_pattern::ApplicationProgram as IcedProgram;
+use iced_program::Program as IcedProgram;
+
+use iced_program::Instance;
 
 // a dispatch loop, another is listen loop
 pub fn run<A>(
     program: A,
+    namespace: &str,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
@@ -73,7 +75,7 @@ where
         StartMode::AllScreens | StartMode::Background
     ));
 
-    let ev = layershellev::WindowStateSimple::new(&application.namespace())
+    let ev = layershellev::WindowStateSimple::new(namespace)
         .with_use_display_handle(true)
         .with_option_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)

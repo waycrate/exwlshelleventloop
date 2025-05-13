@@ -1,5 +1,5 @@
-use crate::build_pattern::Instance;
-use crate::build_pattern::Program;
+use iced_program::Instance;
+use iced_program::Program;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;

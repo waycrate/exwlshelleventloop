@@ -319,6 +319,7 @@ macro_rules! devtools_generate {
         impl<P> TryInto<$MyAction> for Event<P>
         where
             P: $Program,
+            P::Message: std::fmt::Debug + Send + 'static + TryInto<$MyAction, Error = P::Message>,
         {
             type Error = Self;
             fn try_into(self) -> std::result::Result<$MyAction, Self::Error> {

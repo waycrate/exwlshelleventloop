@@ -23,7 +23,6 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::update,
         Counter::view,
     )
-    .shell_removed(Counter::remove_id)
     .subscription(Counter::subscription)
     .settings(Settings {
         layer_settings: LayerShellSettings {
@@ -71,6 +70,7 @@ enum Message {
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
+    WindowClosed(Id),
 }
 
 impl Counter {
@@ -109,7 +109,10 @@ impl Counter {
     }
 
     fn subscription(&self) -> iced::Subscription<Message> {
-        event::listen().map(Message::IcedEvent)
+        iced::Subscription::batch(vec![
+            event::listen().map(Message::IcedEvent),
+            iced::window::close_events().map(Message::WindowClosed),
+        ])
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -117,8 +120,13 @@ impl Counter {
         use iced::keyboard::key::Named;
         use iced::Event;
         match message {
+            Message::WindowClosed(id) => {
+                self.remove_id(id);
+                Command::none()
+            }
             Message::IcedEvent(event) => {
                 match event {
+
                     Event::Keyboard(keyboard::Event::KeyPressed {
                         key: keyboard::Key::Named(Named::Escape),
                         ..
