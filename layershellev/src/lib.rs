@@ -326,7 +326,7 @@ impl ZxdgOutputInfo {
 ///
 /// and it can set a binding, you to store the related data. like
 /// a cario_context, which is binding to the buffer on the wl_surface.
-
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 enum Shell {
     LayerShell(ZwlrLayerSurfaceV1),
