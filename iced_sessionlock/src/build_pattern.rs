@@ -19,13 +19,29 @@ mod pattern {
     use crate::DefaultStyle;
 
     use crate::Result;
-    use iced_exdevtools::devtools_generate;
+    use iced_exdevtools::DevTools;
+    use iced_exdevtools::Event;
+    use iced_program::Program;
 
-    devtools_generate! {
-        Type = DevTools,
-        Program = Program,
-        MyAction = UnLockAction
+    impl<P: Program> TryInto<UnLockAction> for Event<P>
+    where
+        P::Message: std::fmt::Debug + Send + 'static + TryInto<UnLockAction, Error = P::Message>,
+    {
+        type Error = Self;
+        fn try_into(self) -> std::result::Result<UnLockAction, Self::Error> {
+            let Event::Program(message) = self else {
+                return Err(self);
+            };
+
+            let message: std::result::Result<UnLockAction, P::Message> = message.try_into();
+
+            match message {
+                Ok(action) => Ok(action),
+                Err(message) => Err(Self::Program(message)),
+            }
+        }
     }
+
     #[allow(unused)]
     fn attach<P>(program: P) -> impl Program<Message = Event<P>>
     where
@@ -88,15 +104,13 @@ mod pattern {
                 self.program.style(state.state(), theme)
             }
 
-            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
-                self.program.scale_factor(state.state(), window)
+            fn scale_factor(&self, state: &Self::State, id: iced::window::Id) -> f64 {
+                self.program.scale_factor(state.state(), id)
             }
         }
 
         Attach { program }
     }
-
-    use iced_program::Program;
 
     /// The update logic of some [`Application`].
     ///

@@ -13,11 +13,27 @@ use super::Renderer;
 use crate::Result;
 use crate::settings::Settings;
 
-use iced_exdevtools::devtools_generate;
-devtools_generate! {
-    Type = DevTools,
-    Program = Program,
-    MyAction = LayershellCustomActions
+use iced_exdevtools::DevTools;
+use iced_exdevtools::Event;
+
+impl<P: Program> TryInto<LayershellCustomActions> for Event<P>
+where
+    P::Message:
+        std::fmt::Debug + Send + 'static + TryInto<LayershellCustomActions, Error = P::Message>,
+{
+    type Error = Self;
+    fn try_into(self) -> std::result::Result<LayershellCustomActions, Self::Error> {
+        let Event::Program(message) = self else {
+            return Err(self);
+        };
+
+        let message: std::result::Result<LayershellCustomActions, P::Message> = message.try_into();
+
+        match message {
+            Ok(action) => Ok(action),
+            Err(message) => Err(Self::Program(message)),
+        }
+    }
 }
 
 #[allow(unused)]

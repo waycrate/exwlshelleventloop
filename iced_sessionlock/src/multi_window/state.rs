@@ -1,8 +1,8 @@
-use iced_program::Instance;
-use iced_program::Program;
 use crate::{Appearance, DefaultStyle};
 use iced_core::{Color, Point, Size, mouse as IcedMouse};
 use iced_graphics::Viewport;
+use iced_program::Instance;
+use iced_program::Program;
 use sessionlockev::WindowWrapper;
 use sessionlockev::keyboard::ModifiersState;
 use sessionlockev::reexport::wp_viewport::WpViewport;
