@@ -6,7 +6,7 @@ use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
 pub use layershellev::StartMode;
 
-use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
+use layershellev::{WithConnection, reexport::wayland_client::wl_keyboard::KeymapFormat};
 
 #[derive(Debug)]
 pub struct VirtualKeyboardSettings {
@@ -52,6 +52,8 @@ pub struct Settings {
     pub antialiasing: bool,
 
     pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
+
+    pub with_connection: Option<WithConnection>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -63,6 +65,7 @@ impl Default for Settings {
             default_text_size: Pixels(16.0),
             antialiasing: false,
             virtual_keyboard_support: None,
+            with_connection: None,
         }
     }
 }
