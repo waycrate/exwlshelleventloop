@@ -2865,7 +2865,7 @@ impl<T: 'static> WindowState<T> {
                                         &wl_surface,
                                         output,
                                         layer,
-                                        namespace.clone().unwrap_or_else(|| window_state.namespace.clone()),
+                                        namespace.unwrap_or_else(|| window_state.namespace.clone()),
                                         &qh,
                                         (),
                                     );
