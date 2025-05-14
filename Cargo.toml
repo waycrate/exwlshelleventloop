@@ -37,7 +37,7 @@ iced_sessionlock = { version = "0.14.0-dev", path = "./iced_sessionlock" }
 iced_sessionlock_macros = { version = "0.14.0-dev", path = "./iced_sessionlock_macros" }
 waycrate_xkbkeycode = { version = "0.14.0-dev", path = "./waycrate_xkbkeycode" }
 
-tempfile = "3.19.0"
+tempfile = "3.20.0"
 thiserror = "2.0.12"
 wayland-client = { version = "0.31.7" }
 
