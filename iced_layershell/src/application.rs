@@ -175,7 +175,7 @@ where
             LayerEvent::WindowClosed => {
                 event_sender
                     // there is only one window, id doesn't matter.
-                    .start_send(IcedLayerEvent::WindowRemoved(IcedCoreWindow::Id::unique()))
+                    .start_send(IcedLayerEvent::WindowRemoved(main_id))
                     .expect("Cannot send");
             }
             _ => {}
