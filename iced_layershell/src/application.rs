@@ -172,6 +172,12 @@ where
                     .start_send(IcedLayerEvent::UserEvent(event))
                     .ok();
             }
+            LayerEvent::WindowClosed => {
+                event_sender
+                    // there is only one window, id doesn't matter.
+                    .start_send(IcedLayerEvent::WindowRemoved(main_id))
+                    .expect("Cannot send");
+            }
             _ => {}
         }
         let poll = instance.as_mut().poll(&mut context);
@@ -657,6 +663,9 @@ async fn run_instance<A, E, C>(
                         main_id,
                     ));
                 }
+            }
+            IcedLayerEvent::WindowRemoved(_) => {
+                should_exit = true;
             }
             _ => unreachable!(),
         }

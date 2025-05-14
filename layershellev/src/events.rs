@@ -66,6 +66,8 @@ pub enum LayerEvent<'a, T, Message> {
     NormalDispatch,
     /// It return the event you passed with message_receiver, and return it back.
     UserEvent(Message),
+    /// Window is closed by the wayland server.
+    WindowClosed,
 }
 
 /// layershell settings to create a new layershell surface
@@ -298,6 +300,8 @@ pub(crate) enum DispatchMessageInner {
     },
     XdgInfoChanged(XdgInfoChangedType),
     Ime(Ime),
+    /// Window is closed by the wayland server.
+    WindowClosed,
 }
 
 /// This tell the DispatchMessage by dispatch
@@ -511,6 +515,9 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::Ime(ime) => DispatchMessage::Ime(ime),
             DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
             DispatchMessageInner::XdgInfoChanged(_) => unimplemented!(),
+            DispatchMessageInner::WindowClosed => {
+                unreachable!("WindowClosed won't be dispatched by DispatchMessage")
+            }
         }
     }
 }
