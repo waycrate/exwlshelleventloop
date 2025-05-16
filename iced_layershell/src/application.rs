@@ -488,6 +488,7 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
+                let draw_span = debug::draw(main_id);
                 runtime.broadcast(iced_futures::subscription::Event::Interaction {
                     window: main_id,
                     event: redraw_event.clone(),
@@ -503,14 +504,7 @@ async fn run_instance<A, E, C>(
                     state.cursor(),
                 );
 
-                user_interface.draw(
-                    &mut renderer,
-                    &application.theme(main_id),
-                    &iced_core::renderer::Style {
-                        text_color: state.text_color(),
-                    },
-                    state.cursor(),
-                );
+                draw_span.finish();
                 if let user_interface::State::Updated {
                     redraw_request: _, // NOTE: I do not know how to use it now
                     input_method,

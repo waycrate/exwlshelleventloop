@@ -312,16 +312,6 @@ async fn run_instance<A, E, C>(
                     &mut messages,
                 );
 
-                ui.draw(
-                    &mut window.renderer,
-                    window.state.theme(),
-                    &iced_core::renderer::Style {
-                        text_color: window.state.text_color(),
-                    },
-                    cursor,
-                );
-                draw_span.finish();
-
                 let physical_size = window.state.viewport().physical_size();
                 if cached_layer_dimensions
                     .get(&id)
@@ -352,6 +342,7 @@ async fn run_instance<A, E, C>(
                     },
                     window.state.cursor(),
                 );
+                draw_span.finish();
                 if let user_interface::State::Updated {
                     redraw_request: _, // NOTE: I do not know how to use it now
                     input_method: _,   // TODO: someone's help needed
