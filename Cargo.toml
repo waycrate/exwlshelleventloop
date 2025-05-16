@@ -69,9 +69,7 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
-iced = { git = "https://github.com/iced-rs/iced.git", features = [
-  "auto-detect-theme",
-], default-features = false }
+iced = { git = "https://github.com/iced-rs/iced.git", default-features = false }
 iced_runtime = { git = "https://github.com/iced-rs/iced.git" }
 #iced_style = "0.13"
 iced_core = { git = "https://github.com/iced-rs/iced.git" }
