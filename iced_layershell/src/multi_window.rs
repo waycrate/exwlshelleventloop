@@ -54,25 +54,25 @@ use iced_program::Instance;
 use iced_program::Program as IcedProgram;
 
 // a dispatch loop, another is listen loop
-pub fn run<A>(
-    program: A,
+pub fn run<P>(
+    program: P,
     namespace: &str,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where
-    A: IcedProgram + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
+    P: IcedProgram + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
 {
     use futures::Future;
     use futures::task;
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
+    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
 
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
-    let mut runtime: MultiRuntime<A::Executor, A::Message> = {
-        let executor = A::Executor::new().map_err(Error::ExecutorCreationFailed)?;
+    let mut runtime: MultiRuntime<P::Executor, P::Message> = {
+        let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
     };
@@ -102,13 +102,13 @@ where
         .expect("Cannot create layershell");
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<MultiWindowIcedLayerEvent<Action<A::Message>>>();
+        mpsc::unbounded::<MultiWindowIcedLayerEvent<Action<P::Message>>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec>();
 
     let mut instance = Box::pin(run_instance::<
-        A,
-        A::Executor,
-        <A::Renderer as iced_graphics::compositor::Default>::Compositor,
+        P,
+        P::Executor,
+        <P::Renderer as iced_graphics::compositor::Default>::Compositor,
     >(
         application,
         compositor_settings,
@@ -480,19 +480,19 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn run_instance<A, E, C>(
-    mut application: Instance<A>,
+async fn run_instance<P, E, C>(
+    mut application: Instance<P>,
     compositor_settings: iced_graphics::Settings,
-    mut runtime: MultiRuntime<E, A::Message>,
-    mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<Action<A::Message>>>,
+    mut runtime: MultiRuntime<E, P::Message>,
+    mut event_receiver: mpsc::UnboundedReceiver<MultiWindowIcedLayerEvent<Action<P::Message>>>,
     mut control_sender: mpsc::UnboundedSender<LayerShellActionVec>,
     fonts: Vec<Cow<'static, [u8]>>,
 ) where
-    A: IcedProgram + 'static,
+    P: IcedProgram + 'static,
     E: Executor + 'static,
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
+    C: Compositor<Renderer = P::Renderer> + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
 {
     use iced::window;
     use iced_core::Event;
@@ -510,12 +510,11 @@ async fn run_instance<A, E, C>(
             compositor.replace(new_compositor);
         };
     }
-    let mut window_manager: WindowManager<A, C> = WindowManager::new();
+    let mut window_manager: WindowManager<P, C> = WindowManager::new();
     let mut cached_layer_dimensions: HashMap<iced_core::window::Id, (iced_core::Size<u32>, f64)> =
         HashMap::new();
 
     let mut clipboard = LayerShellClipboard::unconnected();
-    let mut ui_caches: HashMap<window::Id, user_interface::Cache> = HashMap::new();
 
     let mut user_interfaces = ManuallyDrop::new(build_user_interfaces(
         &application,
@@ -622,7 +621,6 @@ async fn run_instance<A, E, C>(
                                 id,
                             ),
                         );
-                        let _ = ui_caches.insert(id, user_interface::Cache::default());
 
                         events.push((
                             Some(id),
@@ -1014,13 +1012,13 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn update<A: IcedProgram, E: Executor>(
-    application: &mut Instance<A>,
-    runtime: &mut MultiRuntime<E, A::Message>,
-    messages: &mut Vec<A::Message>,
+pub(crate) fn update<P: IcedProgram, E: Executor>(
+    application: &mut Instance<P>,
+    runtime: &mut MultiRuntime<E, P::Message>,
+    messages: &mut Vec<P::Message>,
 ) where
-    A::Theme: DefaultStyle,
-    A::Message: 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static,
 {
     for message in messages.drain(..) {
         let update_span = debug::update(&message);
@@ -1041,22 +1039,22 @@ pub(crate) fn update<A: IcedProgram, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_action<A, C>(
-    application: &Instance<A>,
+pub(crate) fn run_action<P, C>(
+    application: &Instance<P>,
     compositor: &mut Option<C>,
-    event: Action<A::Message>,
-    messages: &mut Vec<A::Message>,
+    event: Action<P::Message>,
+    messages: &mut Vec<P::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction>,
     waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomActions)>,
     should_exit: &mut bool,
-    window_manager: &mut WindowManager<A, C>,
+    window_manager: &mut WindowManager<P, C>,
     cached_user_interfaces: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
-    A: IcedProgram,
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = A::Message>,
+    P: IcedProgram,
+    C: Compositor<Renderer = P::Renderer> + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;

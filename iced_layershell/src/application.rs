@@ -44,26 +44,26 @@ use iced_program::Program as IcedProgram;
 use iced_program::Instance;
 
 // a dispatch loop, another is listen loop
-pub fn run<A>(
-    program: A,
+pub fn run<P>(
+    program: P,
     namespace: &str,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where
-    A: IcedProgram + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
+    P: IcedProgram + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<LayershellCustomActions, Error = P::Message>,
 {
     use futures::Future;
     use futures::task;
 
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
+    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
 
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
-    let mut runtime: SingleRuntime<A::Executor, A::Message> = {
-        let executor = A::Executor::new().map_err(Error::ExecutorCreationFailed)?;
+    let mut runtime: SingleRuntime<P::Executor, P::Message> = {
+        let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
     };
@@ -102,13 +102,13 @@ where
     let state = State::new(&application, &ev, main_id);
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<IcedLayerEvent<Action<A::Message>>>();
+        mpsc::unbounded::<IcedLayerEvent<Action<P::Message>>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<LayerShellActionVec>();
 
     let mut instance = Box::pin(run_instance::<
-        A,
-        A::Executor,
-        <A::Renderer as iced_graphics::compositor::Default>::Compositor,
+        P,
+        P::Executor,
+        <P::Renderer as iced_graphics::compositor::Default>::Compositor,
     >(
         application,
         compositor_settings,
@@ -673,15 +673,15 @@ async fn run_instance<A, E, C>(
 
 /// Builds a [`UserInterface`] for the provided [`Application`], logging
 /// [`struct@Debug`] information accordingly.
-pub fn build_user_interface<'a, A: IcedProgram>(
-    application: &'a Instance<A>,
+pub fn build_user_interface<'a, P: IcedProgram>(
+    application: &'a Instance<P>,
     cache: user_interface::Cache,
-    renderer: &mut A::Renderer,
+    renderer: &mut P::Renderer,
     size: Size,
     id: IcedCoreWindow::Id,
-) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
+) -> UserInterface<'a, P::Message, P::Theme, P::Renderer>
 where
-    A::Theme: DefaultStyle,
+    P::Theme: DefaultStyle,
 {
     let view_span = debug::view(id);
     let view = application.view(id);
@@ -696,15 +696,15 @@ where
 /// Updates an [`Application`] by feeding it the provided messages, spawning any
 /// tracking its [`Subscription`].
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn update<A: IcedProgram, E: Executor>(
-    application: &mut Instance<A>,
-    state: &mut State<A>,
-    runtime: &mut SingleRuntime<E, A::Message>,
-    messages: &mut Vec<A::Message>,
+pub(crate) fn update<P: IcedProgram, E: Executor>(
+    application: &mut Instance<P>,
+    state: &mut State<P>,
+    runtime: &mut SingleRuntime<E, P::Message>,
+    messages: &mut Vec<P::Message>,
     mainid: iced::window::Id,
 ) where
-    A::Theme: DefaultStyle,
-    A::Message: 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static,
 {
     for message in messages.drain(..) {
         let update_span = debug::update(&message);
@@ -726,23 +726,23 @@ pub(crate) fn update<A: IcedProgram, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_action<A, C>(
-    application: &Instance<A>,
+pub(crate) fn run_action<P, C>(
+    application: &Instance<P>,
     compositor: &mut C,
     cache: &mut user_interface::Cache,
-    state: &State<A>,
-    renderer: &mut A::Renderer,
-    event: Action<A::Message>,
-    messages: &mut Vec<A::Message>,
+    state: &State<P>,
+    renderer: &mut P::Renderer,
+    event: Action<P::Message>,
+    messages: &mut Vec<P::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction>,
     should_exit: &mut bool,
     id: IcedCoreWindow::Id,
 ) where
-    A: IcedProgram,
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<LayershellCustomActions, Error = A::Message>,
+    P: IcedProgram,
+    C: Compositor<Renderer = P::Renderer> + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<LayershellCustomActions, Error = P::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;

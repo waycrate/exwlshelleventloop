@@ -35,24 +35,24 @@ type SessionRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<
 use iced_program::Instance;
 use iced_program::Program;
 // a dispatch loop, another is listen loop
-pub fn run<A>(
-    program: A,
+pub fn run<P>(
+    program: P,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
 ) -> Result<(), Error>
 where
-    A: Program + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
+    P: Program + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<UnLockAction, Error = P::Message>,
 {
     use futures::Future;
     use futures::task;
 
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<A::Message>>();
+    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
-    let mut runtime: SessionRuntime<A::Executor, A::Message> = {
-        let executor = A::Executor::new().map_err(Error::ExecutorCreationFailed)?;
+    let mut runtime: SessionRuntime<P::Executor, P::Message> = {
+        let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
         Runtime::new(executor, proxy)
     };
@@ -75,13 +75,13 @@ where
     let window = Arc::new(ev.gen_main_wrapper());
 
     let (mut event_sender, event_receiver) =
-        mpsc::unbounded::<MultiWindowIcedSessionLockEvent<Action<A::Message>>>();
+        mpsc::unbounded::<MultiWindowIcedSessionLockEvent<Action<P::Message>>>();
     let (control_sender, mut control_receiver) = mpsc::unbounded::<SessionShellActionVec>();
 
     let mut instance = Box::pin(run_instance::<
-        A,
-        A::Executor,
-        <A::Renderer as iced_graphics::compositor::Default>::Compositor,
+        P,
+        P::Executor,
+        <P::Renderer as iced_graphics::compositor::Default>::Compositor,
     >(
         application,
         compositor_settings,
@@ -182,22 +182,22 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn run_instance<A, E, C>(
-    mut application: Instance<A>,
+async fn run_instance<P, E, C>(
+    mut application: Instance<P>,
     compositor_settings: iced_graphics::Settings,
-    mut runtime: SessionRuntime<E, A::Message>,
+    mut runtime: SessionRuntime<E, P::Message>,
     mut event_receiver: mpsc::UnboundedReceiver<
-        MultiWindowIcedSessionLockEvent<Action<A::Message>>,
+        MultiWindowIcedSessionLockEvent<Action<P::Message>>,
     >,
     mut control_sender: mpsc::UnboundedSender<SessionShellActionVec>,
     window: Arc<WindowWrapper>,
     fonts: Vec<Cow<'static, [u8]>>,
 ) where
-    A: Program + 'static,
+    P: Program + 'static,
     E: Executor + 'static,
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
+    C: Compositor<Renderer = P::Renderer> + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<UnLockAction, Error = P::Message>,
 {
     use iced::window;
     use iced_core::Event;
@@ -527,14 +527,14 @@ async fn run_instance<A, E, C>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn build_user_interfaces<'a, A: Program, C>(
-    application: &'a Instance<A>,
-    window_manager: &mut WindowManager<A, C>,
+pub fn build_user_interfaces<'a, P: Program, C>(
+    application: &'a Instance<P>,
+    window_manager: &mut WindowManager<P, C>,
     mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
-) -> HashMap<iced::window::Id, UserInterface<'a, A::Message, A::Theme, A::Renderer>>
+) -> HashMap<iced::window::Id, UserInterface<'a, P::Message, P::Theme, P::Renderer>>
 where
-    C: Compositor<Renderer = A::Renderer>,
-    A::Theme: DefaultStyle,
+    C: Compositor<Renderer = P::Renderer>,
+    P::Theme: DefaultStyle,
 {
     cached_user_interfaces
         .drain()
@@ -578,13 +578,13 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn update<A: Program, E: Executor>(
-    application: &mut Instance<A>,
-    runtime: &mut SessionRuntime<E, A::Message>,
-    messages: &mut Vec<A::Message>,
+pub(crate) fn update<P: Program, E: Executor>(
+    application: &mut Instance<P>,
+    runtime: &mut SessionRuntime<E, P::Message>,
+    messages: &mut Vec<P::Message>,
 ) where
-    A::Theme: DefaultStyle,
-    A::Message: 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static,
 {
     for message in messages.drain(..) {
         let update_span = debug::update(&message);
@@ -604,20 +604,20 @@ pub(crate) fn update<A: Program, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_action<A, C>(
-    application: &Instance<A>,
-    messages: &mut Vec<A::Message>,
+pub(crate) fn run_action<P, C>(
+    application: &Instance<P>,
+    messages: &mut Vec<P::Message>,
     compositor: &mut C,
-    action: Action<A::Message>,
+    action: Action<P::Message>,
     clipboard: &mut SessionLockClipboard,
     should_exit: &mut bool,
-    window_manager: &mut WindowManager<A, C>,
+    window_manager: &mut WindowManager<P, C>,
     ui_caches: &mut HashMap<iced::window::Id, user_interface::Cache>,
 ) where
-    A: Program,
-    C: Compositor<Renderer = A::Renderer> + 'static,
-    A::Theme: DefaultStyle,
-    A::Message: 'static + TryInto<UnLockAction, Error = A::Message>,
+    P: Program,
+    C: Compositor<Renderer = P::Renderer> + 'static,
+    P::Theme: DefaultStyle,
+    P::Message: 'static + TryInto<UnLockAction, Error = P::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::clipboard;
