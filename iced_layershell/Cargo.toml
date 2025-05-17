@@ -11,13 +11,14 @@ description = "layershell binding for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["tiny-skia", "wgpu", "fira-sans"]
+default = ["tiny-skia", "wgpu", "fira-sans", "auto-detect-theme"]
 tiny-skia = ["iced/tiny-skia", "iced_renderer/tiny-skia"]
 wgpu = ["iced/wgpu", "iced_renderer/wgpu"]
 fira-sans = ["iced/fira-sans", "iced_renderer/fira-sans"]
 debug = ["iced/debug"]
 time-travel = ["iced/time-travel"]
 unconditional-rendering = ["iced/unconditional-rendering"]
+auto-detect-theme = ["iced/auto-detect-theme"]
 
 [dependencies]
 iced.workspace = true
