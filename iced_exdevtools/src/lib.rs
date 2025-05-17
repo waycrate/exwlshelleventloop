@@ -2,7 +2,7 @@
 use iced_debug as debug;
 use iced_program as program;
 use iced_widget as widget;
-use iced_widget::core;
+pub use iced_widget::core;
 use iced_widget::runtime;
 use iced_widget::runtime::futures;
 
@@ -12,11 +12,11 @@ mod time_machine;
 
 use crate::core::border;
 use crate::core::keyboard;
-use crate::core::theme::{self, Base, Theme};
+pub use crate::core::theme::{self, Base, Theme};
 use crate::core::time::seconds;
-use crate::core::window;
+pub use crate::core::window;
 use crate::core::{Alignment::Center, Color, Element, Length::Fill};
-use crate::futures::Subscription;
+pub use crate::futures::Subscription;
 use crate::program::Program;
 use crate::runtime::Task;
 use crate::time_machine::TimeMachine;
@@ -28,72 +28,103 @@ use crate::widget::{
 use std::fmt;
 use std::thread;
 
-pub fn attach<P: Program + 'static>(program: P) -> Attach<P> {
-    Attach { program }
-}
+#[macro_export]
+macro_rules! gen_attach {
+    (
+        Action = $Action:ident
+    ) => {
+        impl<P: Program> TryInto<$Action> for $crate::Event<P>
+        where
+            P::Message: std::fmt::Debug + Send + 'static + TryInto<$Action, Error = P::Message>,
+        {
+            type Error = Self;
+            fn try_into(self) -> std::result::Result<$Action, Self::Error> {
+                let $crate::Event::Program(message) = self else {
+                    return Err(self);
+                };
 
-/// A [`Program`] with some devtools attached to it.
-#[derive(Debug)]
-pub struct Attach<P> {
-    /// The original [`Program`] managed by these devtools.
-    pub program: P,
-}
+                let message: std::result::Result<$Action, P::Message> = message.try_into();
 
-impl<P> Program for Attach<P>
-where
-    P: Program + 'static,
-{
-    type State = DevTools<P>;
-    type Message = Event<P>;
-    type Theme = P::Theme;
-    type Renderer = P::Renderer;
-    type Executor = P::Executor;
+                match message {
+                    Ok(action) => Ok(action),
+                    Err(message) => Err(Self::Program(message)),
+                }
+            }
+        }
+        fn attach<P>(program: P) -> impl Program<Message = $crate::Event<P>>
+        where
+            P: Program + 'static,
+            P::Message: std::fmt::Debug + Send + 'static + TryInto<$Action, Error = P::Message>,
+            $crate::Event<P>:
+                TryInto<$Action, Error = $crate::Event<P>> + std::fmt::Debug + Send + 'static,
+        {
+            struct Attach<P> {
+                program: P,
+            }
 
-    fn name() -> &'static str {
-        P::name()
-    }
+            impl<P> Program for Attach<P>
+            where
+                P: Program + 'static,
+            {
+                type State = $crate::DevTools<P>;
+                type Message = $crate::Event<P>;
+                type Theme = P::Theme;
+                type Renderer = P::Renderer;
+                type Executor = P::Executor;
 
-    fn boot(&self) -> (Self::State, Task<Self::Message>) {
-        let (state, boot) = self.program.boot();
-        let (devtools, task) = DevTools::new(state);
+                fn name() -> &'static str {
+                    P::name()
+                }
 
-        (
-            devtools,
-            Task::batch([boot.map(Event::Program), task.map(Event::Message)]),
-        )
-    }
+                fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                    let (state, boot) = self.program.boot();
+                    let (devtools, task) = $crate::DevTools::new(state);
 
-    fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
-        state.update(&self.program, message)
-    }
+                    (
+                        devtools,
+                        Task::batch([
+                            boot.map($crate::Event::Program),
+                            task.map($crate::Event::Message),
+                        ]),
+                    )
+                }
 
-    fn view<'a>(
-        &self,
-        state: &'a Self::State,
-        window: window::Id,
-    ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-        state.view(&self.program, window)
-    }
+                fn update(
+                    &self,
+                    state: &mut Self::State,
+                    message: Self::Message,
+                ) -> Task<Self::Message> {
+                    state.update(&self.program, message)
+                }
 
-    fn title(&self, state: &Self::State, window: window::Id) -> String {
-        state.title(&self.program, window)
-    }
+                fn view<'a>(
+                    &self,
+                    state: &'a Self::State,
+                    window: $crate::window::Id,
+                ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+                    state.view(&self.program, window)
+                }
 
-    fn subscription(&self, state: &Self::State) -> runtime::futures::Subscription<Self::Message> {
-        state.subscription(&self.program)
-    }
+                fn subscription(&self, state: &Self::State) -> $crate::Subscription<Self::Message> {
+                    state.subscription(&self.program)
+                }
 
-    fn theme(&self, state: &Self::State, window: window::Id) -> Self::Theme {
-        state.theme(&self.program, window)
-    }
+                fn theme(&self, state: &Self::State, window: $crate::window::Id) -> Self::Theme {
+                    self.program.theme(state.state(), window)
+                }
 
-    fn style(&self, state: &Self::State, theme: &Self::Theme) -> theme::Style {
-        state.style(&self.program, theme)
-    }
+                fn style(&self, state: &Self::State, theme: &Self::Theme) -> $crate::theme::Style {
+                    self.program.style(state.state(), theme)
+                }
 
-    fn scale_factor(&self, state: &Self::State, window: window::Id) -> f64 {
-        state.scale_factor(&self.program, window)
-    }
+                fn scale_factor(&self, state: &Self::State, id: $crate::window::Id) -> f64 {
+                    self.program.scale_factor(state.state(), id)
+                }
+            }
+
+            Attach { program }
+        }
+    };
 }
 
 /// The state of the devtools.
