@@ -34,7 +34,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
     let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
     let variants = data.take_enum().unwrap();
 
-    let (additional_variants, try_into_impl) = match is_multi {
+    let (additional_variants, impl_quote) = match is_multi {
         true => {
             let additional_variants = quote! {
                 AnchorChange{id: iced::window::Id, anchor: iced_layershell::reexport::Anchor},
@@ -55,7 +55,21 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 RemoveWindow(iced::window::Id),
                 ForgetLastOutput,
             };
-            let try_into_impl = quote! {
+
+            let impl_quote = quote! {
+                impl #impl_gen #ident #ty_gen #where_gen {
+                    fn new_layershell(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced::window::Id, iced::Task<Self>) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            iced::Task::done(Self::NewLayerShell {
+                                settings,
+                                id,
+                            })
+                        )
+
+                    }
+                }
                 impl #impl_gen TryInto<iced_layershell::actions::LayershellCustomActionsWithId> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
@@ -112,7 +126,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     }
                 }
             };
-            (additional_variants, try_into_impl)
+            (additional_variants, impl_quote)
         }
         false => {
             let additional_variants = quote! {
@@ -128,7 +142,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     key: u32,
                 },
             };
-            let try_into_impl = quote! {
+            let impl_quote = quote! {
                 impl #impl_gen TryInto<iced_layershell::actions::LayershellCustomActions> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
@@ -154,7 +168,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 }
             };
 
-            (additional_variants, try_into_impl)
+            (additional_variants, impl_quote)
         }
     };
 
@@ -165,7 +179,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
             #additional_variants
         }
 
-        #try_into_impl
+        #impl_quote
     })
 }
 
