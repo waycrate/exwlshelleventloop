@@ -21,6 +21,7 @@ where
     A::Theme: DefaultStyle,
 {
     pub id: LayerId,
+    pub iced_id: IcedId,
     pub renderer: A::Renderer,
     pub surface: C::Surface,
     pub state: State<A>,
@@ -102,6 +103,7 @@ where
             id,
             Window {
                 id: layerid,
+                iced_id: id,
                 renderer,
                 surface,
                 state,
@@ -125,6 +127,10 @@ where
 
     pub fn first_window(&self) -> Option<(&IcedId, &Window<A, C>)> {
         self.entries.iter().next()
+    }
+
+    pub fn last_window(&self) -> Option<(&IcedId, &Window<A, C>)> {
+        self.entries.iter().last()
     }
 
     pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<A, C>)> {

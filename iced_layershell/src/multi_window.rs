@@ -1147,6 +1147,12 @@ pub(crate) fn run_action<P, C>(
                     ))
                 }
             }
+            WindowAction::GetOldest(channel) => {
+                let _ = channel.send(window_manager.first_window().map(|(id, _)| *id));
+            }
+            WindowAction::GetLatest(channel) => {
+                let _ = channel.send(window_manager.last_window().map(|(id, _)| *id));
+            }
             WindowAction::GetSize(id, channel) => 'out: {
                 let Some(window) = window_manager.get(id) else {
                     break 'out;
