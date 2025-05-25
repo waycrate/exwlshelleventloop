@@ -21,6 +21,7 @@ where
     A::Theme: DefaultStyle,
 {
     pub id: LayerId,
+    #[allow(unused)]
     pub iced_id: IcedId,
     pub renderer: A::Renderer,
     pub surface: C::Surface,
