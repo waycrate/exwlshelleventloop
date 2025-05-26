@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use iced::Font;
 use iced::{Element, Task};
 
-use crate::actions::LayershellCustomActions;
+use crate::actions::LayershellCustomActionsWithId;
 
 use crate::DefaultStyle;
 use crate::settings::LayerShellSettings;
@@ -12,10 +12,6 @@ use super::Renderer;
 
 use crate::Result;
 use crate::settings::Settings;
-
-use iced_exdevtools::gen_attach;
-
-gen_attach! { Action = LayershellCustomActions}
 
 use iced_program::Program;
 
@@ -130,7 +126,8 @@ pub fn application<State, Message, Theme, Renderer>(
 ) -> SingleApplication<impl Program<Message = Message, Theme = Theme, State = State>>
 where
     State: 'static,
-    Message: 'static + TryInto<LayershellCustomActions, Error = Message> + Send + std::fmt::Debug,
+    Message:
+        'static + TryInto<LayershellCustomActionsWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: Default + DefaultStyle,
     Renderer: self::Renderer,
 {
@@ -147,8 +144,10 @@ where
     impl<State, Message, Theme, Renderer, Update, View, Boot> Program
         for Instance<State, Message, Theme, Renderer, Update, View, Boot>
     where
-        Message:
-            'static + TryInto<LayershellCustomActions, Error = Message> + Send + std::fmt::Debug,
+        Message: 'static
+            + TryInto<LayershellCustomActionsWithId, Error = Message>
+            + Send
+            + std::fmt::Debug,
         Theme: Default + DefaultStyle,
         Renderer: self::Renderer,
         Update: self::Update<State, Message>,
@@ -499,8 +498,10 @@ impl<P: Program> SingleApplication<P> {
     pub fn run(self) -> Result
     where
         Self: 'static,
-        P::Message:
-            std::fmt::Debug + Send + 'static + TryInto<LayershellCustomActions, Error = P::Message>,
+        P::Message: std::fmt::Debug
+            + Send
+            + 'static
+            + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
     {
         let settings = self.settings;
 
@@ -512,7 +513,7 @@ impl<P: Program> SingleApplication<P> {
                 can_time_travel: cfg!(feature = "time-travel"),
             });
 
-            attach(self.raw)
+            super::attach(self.raw)
         };
 
         #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
@@ -529,7 +530,12 @@ impl<P: Program> SingleApplication<P> {
             },
             ..iced_graphics::Settings::default()
         };
-        crate::application::run(program, &self.namespace, settings, renderer_settings)
+        use layershellev::StartMode;
+        assert!(!matches!(
+            settings.layer_settings.start_mode,
+            StartMode::AllScreens | StartMode::Background
+        ));
+        crate::multi_window::run(program, &self.namespace, settings, renderer_settings)
     }
 
     pub fn settings(self, settings: Settings) -> Self {

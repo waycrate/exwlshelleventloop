@@ -15,10 +15,10 @@ use crate::core::keyboard;
 pub use crate::core::theme::{self, Base, Theme};
 use crate::core::time::seconds;
 pub use crate::core::window;
-use crate::core::{Alignment::Center, Color, Element, Length::Fill};
+pub use crate::core::{Alignment::Center, Color, Element, Length::Fill};
 pub use crate::futures::Subscription;
-use crate::program::Program;
-use crate::runtime::Task;
+pub use crate::program::Program;
+pub use crate::runtime::Task;
 use crate::time_machine::TimeMachine;
 use crate::widget::{
     bottom_right, button, center, column, container, horizontal_space, opaque, row, scrollable,
@@ -33,7 +33,7 @@ macro_rules! gen_attach {
     (
         Action = $Action:ident
     ) => {
-        impl<P: Program> TryInto<$Action> for $crate::Event<P>
+        impl<P: $crate::Program> TryInto<$Action> for $crate::Event<P>
         where
             P::Message: std::fmt::Debug + Send + 'static + TryInto<$Action, Error = P::Message>,
         {
@@ -51,9 +51,9 @@ macro_rules! gen_attach {
                 }
             }
         }
-        fn attach<P>(program: P) -> impl Program<Message = $crate::Event<P>>
+        fn attach<P>(program: P) -> impl $crate::Program<Message = $crate::Event<P>>
         where
-            P: Program + 'static,
+            P: $crate::Program + 'static,
             P::Message: std::fmt::Debug + Send + 'static + TryInto<$Action, Error = P::Message>,
             $crate::Event<P>:
                 TryInto<$Action, Error = $crate::Event<P>> + std::fmt::Debug + Send + 'static,
@@ -62,9 +62,9 @@ macro_rules! gen_attach {
                 program: P,
             }
 
-            impl<P> Program for Attach<P>
+            impl<P> $crate::Program for Attach<P>
             where
-                P: Program + 'static,
+                P: $crate::Program + 'static,
             {
                 type State = $crate::DevTools<P>;
                 type Message = $crate::Event<P>;
@@ -76,13 +76,13 @@ macro_rules! gen_attach {
                     P::name()
                 }
 
-                fn boot(&self) -> (Self::State, Task<Self::Message>) {
+                fn boot(&self) -> (Self::State, $crate::Task<Self::Message>) {
                     let (state, boot) = self.program.boot();
                     let (devtools, task) = $crate::DevTools::new(state);
 
                     (
                         devtools,
-                        Task::batch([
+                        $crate::Task::batch([
                             boot.map($crate::Event::Program),
                             task.map($crate::Event::Message),
                         ]),
@@ -93,7 +93,7 @@ macro_rules! gen_attach {
                     &self,
                     state: &mut Self::State,
                     message: Self::Message,
-                ) -> Task<Self::Message> {
+                ) -> $crate::Task<Self::Message> {
                     state.update(&self.program, message)
                 }
 
@@ -101,7 +101,7 @@ macro_rules! gen_attach {
                     &self,
                     state: &'a Self::State,
                     window: $crate::window::Id,
-                ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+                ) -> $crate::Element<'a, Self::Message, Self::Theme, Self::Renderer> {
                     state.view(&self.program, window)
                 }
 

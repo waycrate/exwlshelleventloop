@@ -471,7 +471,6 @@ where
                 LayerShellAction::RedrawWindow(index) => {
                     ev.append_return_data(ReturnData::RedrawIndexRequest(index));
                 }
-                _ => {}
             }
         }
         def_returndata
@@ -1066,6 +1065,8 @@ pub(crate) fn run_action<P, C>(
             Ok(action) => {
                 let LayershellCustomActionsWithId(id, custom_action) = action;
 
+                // Make application also works
+                let id = id.or_else(|| window_manager.first_window().map(|(id, _)| *id));
                 if let Some(id) = id {
                     if window_manager.get_layer_id(id).is_none() {
                         waiting_actions.push((id, custom_action));

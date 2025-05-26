@@ -14,10 +14,6 @@ use crate::Result;
 
 use crate::settings::Settings;
 
-use iced_exdevtools::gen_attach;
-
-gen_attach! {Action = LayershellCustomActionsWithId}
-
 pub trait NameSpace {
     /// Produces the title of the [`Application`].
     fn namespace(&self) -> String;
@@ -506,6 +502,7 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         executor: PhantomData::<E>,
     }
 }
+
 impl<P: Program> Daemon<P> {
     pub fn run(self) -> Result
     where
@@ -524,7 +521,7 @@ impl<P: Program> Daemon<P> {
                 can_time_travel: cfg!(feature = "time-travel"),
             });
 
-            attach(self.raw)
+            super::attach(self.raw)
         };
 
         #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]

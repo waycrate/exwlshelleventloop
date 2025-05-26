@@ -143,25 +143,26 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 },
             };
             let impl_quote = quote! {
-                impl #impl_gen TryInto<iced_layershell::actions::LayershellCustomActions> for #ident #ty_gen #where_gen {
+                impl #impl_gen TryInto<iced_layershell::actions::LayershellCustomActionsWithId> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
-                    fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActions, Self::Error> {
+                    fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActionsWithId, Self::Error> {
                         use iced_layershell::actions::LayershellCustomActions;
+                        use iced_layershell::actions::LayershellCustomActionsWithId;
 
                         match self {
-                            Self::SetInputRegion(callback) => Ok(LayershellCustomActions::SetInputRegion(callback)),
-                            Self::AnchorChange(anchor) => Ok(LayershellCustomActions::AnchorChange(anchor)),
-                            Self::AnchorSizeChange(anchor, size) => Ok(LayershellCustomActions::AnchorSizeChange(anchor, size)),
-                            Self::LayerChange(layer) => Ok(LayershellCustomActions::LayerChange(layer)),
+                            Self::SetInputRegion(callback) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::SetInputRegion(callback))),
+                            Self::AnchorChange(anchor) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::AnchorChange(anchor))),
+                            Self::AnchorSizeChange(anchor, size) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::AnchorSizeChange(anchor, size))),
+                            Self::LayerChange(layer) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::LayerChange(layer))),
 
-                            Self::MarginChange(margin) => Ok(LayershellCustomActions::MarginChange(margin)),
-                            Self::SizeChange(size) => Ok(LayershellCustomActions::SizeChange(size)),
-                            Self::ExclusiveZoneChange(zone_size) => Ok(LayershellCustomActions::ExclusiveZoneChange(zone_size)),
-                            Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActions::VirtualKeyboardPressed {
+                            Self::MarginChange(margin) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::MarginChange(margin))),
+                            Self::SizeChange(size) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::SizeChange(size))),
+                            Self::ExclusiveZoneChange(zone_size) => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::ExclusiveZoneChange(zone_size))),
+                            Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActionsWithId::new(None, LayershellCustomActions::VirtualKeyboardPressed {
                                 time,
                                 key
-                            }),
+                            })),
                             _ => Err(self)
                         }
                     }

@@ -97,6 +97,7 @@ pub enum WindowEvent {
     Ime(layershellev::Ime),
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub enum IcedLayerEvent<Message: 'static> {
     RequestRefreshWithWrapper {

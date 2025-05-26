@@ -11,15 +11,14 @@ use std::sync::Arc;
 
 pub(crate) type LayerShellActionVec = Vec<LayerShellAction>;
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub(crate) enum LayerShellAction {
     Mouse(Interaction),
-    CustomActions(LayershellCustomActions),
     CustomActionsWithId(LayershellCustomActionsWithIdInner),
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
     NewMenu(IcedNewPopupSettings, iced_core::window::Id),
-    Ime(input_method::InputMethod, BitFlags<ImeState>),
     ImeWithId(LayerId, input_method::InputMethod, BitFlags<ImeState>),
 }
 

@@ -12,6 +12,6 @@ readme.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced.workspace = true
+iced = { workspace = true, features = ["thread-pool"] }
 iced_runtime.workspace = true
 iced_layershell = { workspace = true, features = ["debug"] }
