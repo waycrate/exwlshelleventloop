@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use iced::Font;
 use iced::{Element, Task};
 
-use crate::actions::LayershellCustomActionsWithId;
+use crate::actions::LayershellCustomActionWithId;
 
 use crate::DefaultStyle;
 use crate::settings::LayerShellSettings;
@@ -136,7 +136,7 @@ pub fn daemon<State, Message, Theme, Renderer>(
 where
     State: 'static,
     Message:
-        'static + TryInto<LayershellCustomActionsWithId, Error = Message> + Send + std::fmt::Debug,
+        'static + TryInto<LayershellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: Default + DefaultStyle,
     Renderer: self::Renderer,
 {
@@ -154,7 +154,7 @@ where
         for Instance<State, Message, Theme, Renderer, Update, View, Boot>
     where
         Message: 'static
-            + TryInto<LayershellCustomActionsWithId, Error = Message>
+            + TryInto<LayershellCustomActionWithId, Error = Message>
             + Send
             + std::fmt::Debug,
         Theme: Default + DefaultStyle,
@@ -510,7 +510,7 @@ impl<P: Program> Daemon<P> {
         P::Message: std::fmt::Debug
             + Send
             + 'static
-            + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
+            + TryInto<LayershellCustomActionWithId, Error = P::Message>,
     {
         let settings = self.settings;
         #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]

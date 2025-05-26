@@ -3,7 +3,7 @@ use crate::{
     DefaultStyle,
     actions::{
         IcedNewMenuSettings, IcedNewPopupSettings, LayerShellActionVec,
-        LayershellCustomActionsWithId, LayershellCustomActionsWithIdInner, MenuDirection,
+        LayershellCustomActionWithId, LayershellCustomActionWithIdInner, MenuDirection,
     },
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -14,7 +14,7 @@ use std::{
 };
 
 use crate::{
-    actions::{LayerShellAction, LayershellCustomActions},
+    actions::{LayerShellAction, LayershellCustomAction},
     clipboard::LayerShellClipboard,
     conversion,
     error::Error,
@@ -63,7 +63,7 @@ pub fn run<P>(
 where
     P: IcedProgram + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
 {
     use futures::Future;
     use futures::task;
@@ -248,11 +248,11 @@ where
         };
         for flow in flows {
             match flow {
-                LayerShellAction::CustomActionsWithId(
-                    LayershellCustomActionsWithIdInner(id, option_id, action),
+                LayerShellAction::CustomActionWithId(
+                    LayershellCustomActionWithIdInner(id, option_id, action),
                 ) => 'out: {
                     match action {
-                        LayershellCustomActions::AnchorChange(anchor) => {
+                        LayershellCustomAction::AnchorChange(anchor) => {
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
@@ -262,7 +262,7 @@ where
                             };
                             window.set_anchor(anchor);
                         }
-                        LayershellCustomActions::AnchorSizeChange(anchor, size) => {
+                        LayershellCustomAction::AnchorSizeChange(anchor, size) => {
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
@@ -272,7 +272,7 @@ where
                             };
                             window.set_anchor_with_size(anchor, size);
                         }
-                        LayershellCustomActions::LayerChange(layer) => {
+                        LayershellCustomAction::LayerChange(layer) => {
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
@@ -282,7 +282,7 @@ where
                             };
                             window.set_layer(layer);
                         }
-                        LayershellCustomActions::MarginChange(margin) => {
+                        LayershellCustomAction::MarginChange(margin) => {
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
@@ -292,7 +292,7 @@ where
                             };
                             window.set_margin(margin);
                         }
-                        LayershellCustomActions::SizeChange((width, height)) => {
+                        LayershellCustomAction::SizeChange((width, height)) => {
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
@@ -302,7 +302,7 @@ where
                             };
                             window.set_size((width, height));
                         }
-                        LayershellCustomActions::ExclusiveZoneChange(zone_size) => {
+                        LayershellCustomAction::ExclusiveZoneChange(zone_size) => {
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
                                 break 'out;
@@ -312,7 +312,7 @@ where
                             };
                             window.set_exclusive_zone(zone_size);
                         }
-                        LayershellCustomActions::SetInputRegion(set_region) => {
+                        LayershellCustomAction::SetInputRegion(set_region) => {
                             let set_region = set_region.0;
                             let Some(id) = id else {
                                 tracing::error!("Here should be an id, it is a bug, please report an issue for us");
@@ -336,7 +336,7 @@ where
                                 .get_wlsurface()
                                 .set_input_region(wl_input_region.as_ref());
                         }
-                        LayershellCustomActions::VirtualKeyboardPressed { time, key } => {
+                        LayershellCustomAction::VirtualKeyboardPressed { time, key } => {
                             use layershellev::reexport::wayland_client::KeyState;
                             let ky = ev.get_virtual_keyboard().unwrap();
                             ky.key(time, key, KeyState::Pressed.into());
@@ -353,7 +353,7 @@ where
                             )
                             .ok();
                         }
-                        LayershellCustomActions::NewLayerShell {
+                        LayershellCustomAction::NewLayerShell {
                             settings, id: info, ..
                         } => {
                             let id = layershellev::id::Id::unique();
@@ -363,7 +363,7 @@ where
                                 Some(info),
                             )));
                         }
-                        LayershellCustomActions::RemoveWindow(id) => {
+                        LayershellCustomAction::RemoveWindow(id) => {
                             ev.remove_shell(option_id.unwrap());
                             event_sender
                                 .start_send(MultiWindowIcedLayerEvent(
@@ -372,7 +372,7 @@ where
                                 ))
                                 .ok();
                         }
-                        LayershellCustomActions::NewPopUp {
+                        LayershellCustomAction::NewPopUp {
                             settings: menusettings,
                             id: info,
                         } => {
@@ -388,7 +388,7 @@ where
                                 Some(info),
                             )));
                         }
-                        LayershellCustomActions::NewMenu {
+                        LayershellCustomAction::NewMenu {
                             settings: menusetting,
                             id: info,
                         } => {
@@ -402,7 +402,7 @@ where
                                 ))
                                 .expect("Cannot send");
                         }
-                        LayershellCustomActions::NewInputPanel {
+                        LayershellCustomAction::NewInputPanel {
                             settings,
                             id: info,
                         } => {
@@ -413,7 +413,7 @@ where
                                 Some(info),
                             )));
                         }
-                        LayershellCustomActions::ForgetLastOutput => {
+                        LayershellCustomAction::ForgetLastOutput => {
                             ev.forget_last_output();
                         }
                     }
@@ -491,7 +491,7 @@ async fn run_instance<P, E, C>(
     E: Executor + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
 {
     use iced::window;
     use iced_core::Event;
@@ -535,7 +535,7 @@ async fn run_instance<P, E, C>(
                 // Still need to wait for sometime
                 return true;
             };
-            let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
+            let option_id = if let LayershellCustomAction::RemoveWindow(id) = custom_action {
                 let option_id = window_manager.get_layer_id(*id);
                 if option_id.is_none() {
                     // NOTE: drop it
@@ -545,8 +545,8 @@ async fn run_instance<P, E, C>(
             } else {
                 None
             };
-            custom_actions.push(LayerShellAction::CustomActionsWithId(
-                LayershellCustomActionsWithIdInner(Some(layerid), option_id, custom_action.clone()),
+            custom_actions.push(LayerShellAction::CustomActionWithId(
+                LayershellCustomActionWithIdInner(Some(layerid), option_id, custom_action.clone()),
             ));
             false
         });
@@ -1045,7 +1045,7 @@ pub(crate) fn run_action<P, C>(
     messages: &mut Vec<P::Message>,
     clipboard: &mut LayerShellClipboard,
     custom_actions: &mut Vec<LayerShellAction>,
-    waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomActions)>,
+    waiting_actions: &mut Vec<(iced::window::Id, LayershellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
     cached_user_interfaces: &mut HashMap<iced::window::Id, user_interface::Cache>,
@@ -1053,7 +1053,7 @@ pub(crate) fn run_action<P, C>(
     P: IcedProgram,
     C: Compositor<Renderer = P::Renderer> + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionsWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;
@@ -1063,7 +1063,7 @@ pub(crate) fn run_action<P, C>(
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
-                let LayershellCustomActionsWithId(id, custom_action) = action;
+                let LayershellCustomActionWithId(id, custom_action) = action;
 
                 // Make application also works
                 let id = id.or_else(|| window_manager.first_window().map(|(id, _)| *id));
@@ -1074,7 +1074,7 @@ pub(crate) fn run_action<P, C>(
                     }
                 }
 
-                let option_id = if let LayershellCustomActions::RemoveWindow(id) = custom_action {
+                let option_id = if let LayershellCustomAction::RemoveWindow(id) = custom_action {
                     let option_id = window_manager.get_layer_id(id);
                     if option_id.is_none() {
                         return;
@@ -1083,8 +1083,8 @@ pub(crate) fn run_action<P, C>(
                 } else {
                     None
                 };
-                custom_actions.push(LayerShellAction::CustomActionsWithId(
-                    LayershellCustomActionsWithIdInner(
+                custom_actions.push(LayerShellAction::CustomActionWithId(
+                    LayershellCustomActionWithIdInner(
                         id.and_then(|id| window_manager.get_layer_id(id)),
                         option_id,
                         custom_action,
@@ -1139,11 +1139,11 @@ pub(crate) fn run_action<P, C>(
         Action::Window(action) => match action {
             WindowAction::Close(id) => {
                 if let Some(layerid) = window_manager.get_layer_id(id) {
-                    custom_actions.push(LayerShellAction::CustomActionsWithId(
-                        LayershellCustomActionsWithIdInner(
+                    custom_actions.push(LayerShellAction::CustomActionWithId(
+                        LayershellCustomActionWithIdInner(
                             Some(layerid),
                             Some(layerid),
-                            LayershellCustomActions::RemoveWindow(id),
+                            LayershellCustomAction::RemoveWindow(id),
                         ),
                     ))
                 }

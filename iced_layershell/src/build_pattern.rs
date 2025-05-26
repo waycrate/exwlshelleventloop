@@ -9,7 +9,7 @@ pub trait Renderer: iced_core::text::Renderer + iced_graphics::compositor::Defau
 
 use iced_exdevtools::gen_attach;
 
-gen_attach! {Action = LayershellCustomActionsWithId}
+gen_attach! {Action = LayershellCustomActionWithId}
 
 impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compositor::Default {}
 
@@ -19,4 +19,4 @@ pub use application::application;
 #[doc = include_str!("./build_pattern/daemon.md")]
 pub use daemon::daemon;
 
-use crate::actions::LayershellCustomActionsWithId;
+use crate::actions::LayershellCustomActionWithId;

@@ -15,7 +15,7 @@ pub(crate) type LayerShellActionVec = Vec<LayerShellAction>;
 #[derive(Debug, Clone)]
 pub(crate) enum LayerShellAction {
     Mouse(Interaction),
-    CustomActionsWithId(LayershellCustomActionsWithIdInner),
+    CustomActionWithId(LayershellCustomActionWithIdInner),
     RedrawAll,
     RedrawWindow(LayerId), // maybe one day it is useful, but now useless
     NewMenu(IcedNewPopupSettings, iced_core::window::Id),
@@ -64,7 +64,7 @@ impl ActionCallback {
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
 #[derive(Debug, Clone)]
-pub enum LayershellCustomActions {
+pub enum LayershellCustomAction {
     AnchorChange(Anchor),
     LayerChange(Layer),
     AnchorSizeChange(Anchor, (u32, u32)),
@@ -101,18 +101,18 @@ pub enum LayershellCustomActions {
 /// Please do not use this struct directly
 /// Use macro to_layer_message instead
 #[derive(Debug, Clone)]
-pub struct LayershellCustomActionsWithId(pub Option<IcedId>, pub LayershellCustomActions);
+pub struct LayershellCustomActionWithId(pub Option<IcedId>, pub LayershellCustomAction);
 
-impl LayershellCustomActionsWithId {
-    pub fn new(id: Option<IcedId>, actions: LayershellCustomActions) -> Self {
-        Self(id, actions)
+impl LayershellCustomActionWithId {
+    pub fn new(id: Option<IcedId>, action: LayershellCustomAction) -> Self {
+        Self(id, action)
     }
 }
 
 // first one means
 #[derive(Debug, Clone)]
-pub(crate) struct LayershellCustomActionsWithIdInner(
-    pub Option<LayerId>,         // come from
-    pub Option<LayerId>,         // target if has one
-    pub LayershellCustomActions, // actions
+pub(crate) struct LayershellCustomActionWithIdInner(
+    pub Option<LayerId>,        // come from
+    pub Option<LayerId>,        // target if has one
+    pub LayershellCustomAction, // actions
 );

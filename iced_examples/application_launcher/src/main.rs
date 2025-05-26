@@ -2,7 +2,7 @@ use applications::{App, all_apps};
 use iced::widget::{column, scrollable, text_input};
 use iced::{Element, Event, Length, Task as Command, event};
 mod applications;
-use iced_layershell::actions::LayershellCustomActionsWithId;
+use iced_layershell::actions::LayershellCustomActionWithId;
 use iced_layershell::application;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
 use iced_layershell::settings::{LayerShellSettings, Settings};
@@ -35,9 +35,9 @@ fn main() -> Result<(), iced_layershell::Error> {
     Ok(())
 }
 
-impl TryInto<LayershellCustomActionsWithId> for Message {
+impl TryInto<LayershellCustomActionWithId> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<LayershellCustomActionsWithId, Self::Error> {
+    fn try_into(self) -> Result<LayershellCustomActionWithId, Self::Error> {
         Err(self)
     }
 }
