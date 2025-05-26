@@ -140,7 +140,7 @@ where
                     .expect("could not bind wl_compositor");
                 wl_input_region = Some(wl_compositor.create_region(qh, ()));
 
-                if settings.virtual_keyboard_support.is_some() {
+                if let Some(virtual_keyboard_setting) = settings.virtual_keyboard_support.as_ref() {
                     let virtual_keyboard_manager = globals
                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
                             qh,
@@ -152,7 +152,7 @@ where
                         file,
                         keymap_size,
                         keymap_format,
-                    } = settings.virtual_keyboard_support.as_ref().unwrap();
+                    } = virtual_keyboard_setting;
                     let seat = ev.get_seat();
                     let virtual_keyboard_in =
                         virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
