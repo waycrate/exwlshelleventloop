@@ -1,11 +1,13 @@
 use iced::mouse;
-use iced_runtime::Action;
-use layershellev::DispatchMessage;
+use layershellev::id::Id;
 use layershellev::keyboard::ModifiersState;
-use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, WlRegion};
+use layershellev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
 use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
+use layershellev::{DispatchMessage, WindowWrapper};
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
+
+use crate::actions::IcedNewMenuSettings;
 
 fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
     match code {
@@ -13,7 +15,6 @@ fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
         _ => mouse::Button::Left,
     }
 }
-
 #[derive(Debug, Clone, Copy)]
 pub enum IcedButtonState {
     Pressed(mouse::Button),
@@ -73,7 +74,6 @@ pub enum WindowEvent {
         x: f32,
         y: f32,
     },
-    ScrollStop,
     TouchDown {
         id: i32,
         x: f64,
@@ -95,86 +95,128 @@ pub enum WindowEvent {
         y: f64,
     },
     Ime(layershellev::Ime),
-    Refresh,
-    Closed,
 }
 
+#[allow(unused)]
 #[derive(Debug)]
-pub enum LayerShellEvent<Message> {
-    UpdateInputRegion(WlRegion),
+pub enum IcedLayerEvent<Message: 'static> {
+    RequestRefreshWithWrapper {
+        width: u32,
+        height: u32,
+        fractal_scale: f64,
+        wrapper: WindowWrapper,
+        info: Option<iced_core::window::Id>,
+        is_mouse_surface: bool,
+    },
+    RequestRefresh {
+        width: u32,
+        height: u32,
+        fractal_scale: f64,
+    },
     Window(WindowEvent),
-    UserAction(Action<Message>),
-    NormalDispatch,
+    NormalUpdate,
+    UserEvent(Message),
+    WindowRemoved(iced_core::window::Id),
+    NewMenu((IcedNewMenuSettings, iced_core::window::Id)),
 }
 
-impl From<&DispatchMessage> for WindowEvent {
+#[allow(unused)]
+#[derive(Debug)]
+pub struct MultiWindowIcedLayerEvent<Message: 'static>(pub Option<Id>, pub IcedLayerEvent<Message>);
+
+impl<Message: 'static> From<(Option<Id>, IcedLayerEvent<Message>)>
+    for MultiWindowIcedLayerEvent<Message>
+{
+    fn from((id, message): (Option<Id>, IcedLayerEvent<Message>)) -> Self {
+        MultiWindowIcedLayerEvent(id, message)
+    }
+}
+
+impl<Message: 'static> From<&DispatchMessage> for IcedLayerEvent<Message> {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { .. } => WindowEvent::Refresh,
-            DispatchMessage::Closed => WindowEvent::Closed,
+            DispatchMessage::RequestRefresh {
+                width,
+                height,
+                scale_float,
+                ..
+            } => IcedLayerEvent::RequestRefresh {
+                width: *width,
+                height: *height,
+                fractal_scale: *scale_float,
+            },
             DispatchMessage::MouseEnter {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => WindowEvent::CursorEnter { x: *x, y: *y },
+            } => IcedLayerEvent::Window(WindowEvent::CursorEnter { x: *x, y: *y }),
             DispatchMessage::MouseMotion {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => WindowEvent::CursorMoved { x: *x, y: *y },
-            DispatchMessage::MouseLeave => WindowEvent::CursorLeft,
+            } => IcedLayerEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y }),
+            DispatchMessage::MouseLeave => IcedLayerEvent::Window(WindowEvent::CursorLeft),
             DispatchMessage::MouseButton { state, button, .. } => {
                 let btn = from_u32_to_icedmouse(*button);
                 match state {
-                    WEnum::Value(ButtonState::Pressed) => {
-                        WindowEvent::MouseInput(IcedButtonState::Pressed(btn))
-                    }
-                    WEnum::Value(ButtonState::Released) => {
-                        WindowEvent::MouseInput(IcedButtonState::Released(btn))
-                    }
+                    WEnum::Value(ButtonState::Pressed) => IcedLayerEvent::Window(
+                        WindowEvent::MouseInput(IcedButtonState::Pressed(btn)),
+                    ),
+                    WEnum::Value(ButtonState::Released) => IcedLayerEvent::Window(
+                        WindowEvent::MouseInput(IcedButtonState::Released(btn)),
+                    ),
                     _ => unreachable!(),
                 }
             }
-            DispatchMessage::TouchUp { id, x, y, .. } => WindowEvent::TouchUp {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
-            DispatchMessage::TouchDown { id, x, y, .. } => WindowEvent::TouchDown {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
-            DispatchMessage::TouchMotion { id, x, y, .. } => WindowEvent::TouchMotion {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
-            DispatchMessage::TouchCancel { id, x, y, .. } => WindowEvent::TouchCancel {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
+            DispatchMessage::TouchUp { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchUp {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchDown { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchDown {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchMotion { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchMotion {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
+            DispatchMessage::TouchCancel { id, x, y, .. } => {
+                IcedLayerEvent::Window(WindowEvent::TouchCancel {
+                    id: *id,
+                    x: *x,
+                    y: *y,
+                })
+            }
             DispatchMessage::PreferredScale {
                 scale_u32,
                 scale_float,
-            } => WindowEvent::ScaleFactorChanged {
+            } => IcedLayerEvent::Window(WindowEvent::ScaleFactorChanged {
                 scale_u32: *scale_u32,
                 scale_float: *scale_float,
-            },
+            }),
 
             DispatchMessage::KeyboardInput {
                 event,
                 is_synthetic,
-            } => WindowEvent::KeyBoardInput {
+            } => IcedLayerEvent::Window(WindowEvent::KeyBoardInput {
                 event: event.clone(),
                 is_synthetic: *is_synthetic,
-            },
-            DispatchMessage::Unfocus => WindowEvent::Unfocus,
-            DispatchMessage::Focused(_) => WindowEvent::Focused,
+            }),
+            DispatchMessage::Unfocus => IcedLayerEvent::Window(WindowEvent::Unfocus),
+            DispatchMessage::Focused(_) => IcedLayerEvent::Window(WindowEvent::Focused),
             DispatchMessage::ModifiersChanged(modifiers) => {
-                WindowEvent::ModifiersChanged(*modifiers)
+                IcedLayerEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
             }
+            DispatchMessage::Ime(ime) => IcedLayerEvent::Window(WindowEvent::Ime(ime.clone())),
             DispatchMessage::Axis {
                 horizontal,
                 vertical,
@@ -182,20 +224,20 @@ impl From<&DispatchMessage> for WindowEvent {
                 ..
             } => {
                 if horizontal.stop && vertical.stop {
-                    WindowEvent::ScrollStop
-                } else if vertical.discrete != 0 || horizontal.discrete != 0 {
-                    WindowEvent::Axis {
+                    return Self::NormalUpdate;
+                }
+                let has_scroll = vertical.discrete != 0 || horizontal.discrete != 0;
+                if has_scroll {
+                    return IcedLayerEvent::Window(WindowEvent::Axis {
                         x: (-horizontal.discrete as f64 * scale) as f32,
                         y: (-vertical.discrete as f64 * scale) as f32,
-                    }
-                } else {
-                    WindowEvent::PixelDelta {
-                        x: (-horizontal.absolute * scale) as f32,
-                        y: (-vertical.absolute * scale) as f32,
-                    }
+                    });
                 }
+                IcedLayerEvent::Window(WindowEvent::PixelDelta {
+                    x: (-horizontal.absolute * scale) as f32,
+                    y: (-vertical.absolute * scale) as f32,
+                })
             }
-            DispatchMessage::Ime(ime) => WindowEvent::Ime(ime.clone()),
         }
     }
 }

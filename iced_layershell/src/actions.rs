@@ -1,8 +1,26 @@
+use crate::ime_preedit::ImeState;
 use crate::reexport::{Anchor, Layer, WlRegion};
+use enumflags2::BitFlags;
 use iced::window::Id as IcedId;
+use iced_core::input_method;
+use iced_core::mouse::Interaction;
+use layershellev::id::Id as LayerId;
 use layershellev::{NewInputPanelSettings, NewLayerShellSettings};
 
 use std::sync::Arc;
+
+pub(crate) type LayerShellActionVec = Vec<LayerShellAction>;
+
+#[allow(unused)]
+#[derive(Debug, Clone)]
+pub(crate) enum LayerShellAction {
+    Mouse(Interaction),
+    CustomActionWithId(LayershellCustomActionWithIdInner),
+    RedrawAll,
+    RedrawWindow(LayerId), // maybe one day it is useful, but now useless
+    NewMenu(IcedNewPopupSettings, iced_core::window::Id),
+    ImeWithId(LayerId, input_method::InputMethod, BitFlags<ImeState>),
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
@@ -76,7 +94,7 @@ pub enum LayershellCustomAction {
         id: IcedId,
     },
     /// is same with WindowAction::Close(id)
-    RemoveWindow,
+    RemoveWindow(IcedId),
     ForgetLastOutput,
 }
 
@@ -90,3 +108,11 @@ impl LayershellCustomActionWithId {
         Self(id, action)
     }
 }
+
+// first one means
+#[derive(Debug, Clone)]
+pub(crate) struct LayershellCustomActionWithIdInner(
+    pub Option<LayerId>,        // come from
+    pub Option<LayerId>,        // target if has one
+    pub LayershellCustomAction, // actions
+);
