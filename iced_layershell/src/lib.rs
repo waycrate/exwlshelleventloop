@@ -7,6 +7,7 @@ mod error;
 mod event;
 mod multi_window;
 mod proxy;
+mod user_interface;
 
 pub mod settings;
 

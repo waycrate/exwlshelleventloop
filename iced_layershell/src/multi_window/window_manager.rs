@@ -139,13 +139,11 @@ where
 
         Some((id, self.get_mut(id)?))
     }
+
     pub fn get_alias(&self, id: LayerId) -> Option<(IcedId, &Window<A, C>)> {
         let id = self.aliases.get(&id).copied()?;
 
         Some((id, self.get(id)?))
-    }
-    pub fn get_layer_id(&self, id: IcedId) -> Option<LayerId> {
-        self.back_aliases.get(&id).copied()
     }
 
     pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<A, C>> {

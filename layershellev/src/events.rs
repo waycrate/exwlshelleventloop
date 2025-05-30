@@ -66,8 +66,6 @@ pub enum LayerEvent<'a, T, Message> {
     NormalDispatch,
     /// It return the event you passed with message_receiver, and return it back.
     UserEvent(Message),
-    /// Window is closed by the wayland server.
-    WindowClosed,
 }
 
 /// layershell settings to create a new layershell surface
@@ -286,24 +284,12 @@ pub(crate) enum DispatchMessageInner {
         /// Otherwise, this value is always `false`.
         is_synthetic: bool,
     },
-    RefreshSurface {
-        width: u32,
-        height: u32,
-    },
-    RequestRefresh {
-        width: u32,
-        height: u32,
-        scale_float: f64,
-        is_created: bool,
-    },
     PreferredScale {
         scale_u32: u32,
         scale_float: f64,
     },
     XdgInfoChanged(XdgInfoChangedType),
     Ime(Ime),
-    /// Window is closed by the wayland server.
-    WindowClosed,
 }
 
 /// This tell the DispatchMessage by dispatch
@@ -401,6 +387,7 @@ pub enum DispatchMessage {
         scale_float: f64,
     },
     Ime(Ime),
+    Closed,
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
@@ -471,17 +458,6 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::TouchCancel { id, x, y } => {
                 DispatchMessage::TouchCancel { id, x, y }
             }
-            DispatchMessageInner::RequestRefresh {
-                width,
-                height,
-                scale_float,
-                is_created,
-            } => DispatchMessage::RequestRefresh {
-                width,
-                height,
-                scale_float,
-                is_created,
-            },
             DispatchMessageInner::Axis {
                 time,
                 scale,
@@ -515,11 +491,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 scale_float,
             },
             DispatchMessageInner::Ime(ime) => DispatchMessage::Ime(ime),
-            DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
             DispatchMessageInner::XdgInfoChanged(_) => unimplemented!(),
-            DispatchMessageInner::WindowClosed => {
-                unreachable!("WindowClosed won't be dispatched by DispatchMessage")
-            }
         }
     }
 }
