@@ -210,6 +210,9 @@ use std::fmt::Formatter;
 use std::fmt::Result as FmtResult;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -2726,17 +2729,32 @@ impl<T: 'static> WindowState<T> {
 
         self.loop_handler = Some(event_loop.handle());
 
+        let to_exit = Arc::new(AtomicBool::new(false));
+
         let events: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(Vec::new()));
 
-        std::thread::spawn({
+        let thread = std::thread::spawn({
             let events = events.clone();
+            let to_exit = to_exit.clone();
             move || {
                 let Some(message_receiver) = message_receiver else {
                     return;
                 };
-                for message in message_receiver.iter() {
-                    let mut events_local = events.lock().unwrap();
-                    events_local.push(message);
+                loop {
+                    let message = message_receiver.recv_timeout(Duration::from_millis(100));
+                    if to_exit.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    match message {
+                        Ok(message) => {
+                            let mut events_local = events.lock().unwrap();
+                            events_local.push(message);
+                        }
+                        Err(RecvTimeoutError::Timeout) => {}
+                        Err(RecvTimeoutError::Disconnected) => {
+                            break;
+                        }
+                    }
                 }
             }
         });
@@ -3198,6 +3216,8 @@ impl<T: 'static> WindowState<T> {
                 },
             )
             .expect("Error during event loop!");
+        to_exit.store(true, Ordering::Relaxed);
+        let _ = thread.join();
         Ok(())
     }
 
