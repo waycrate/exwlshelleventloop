@@ -118,7 +118,8 @@ fn main() {
             let mut pangoui = pangoui::PangoUi::default();
             pangoui.set_size((init_w as i32, init_h as i32));
             pangoui.init_draw(current_keytype, file);
-            *ev.get_binding_mut(index).unwrap() = pangoui;
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
+            windowunit.set_binding(pangoui);
             let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
             ReturnData::WlBuffer(pool.create_buffer(
                 0,
@@ -132,19 +133,18 @@ fn main() {
         }
         LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
             let index = index.unwrap();
-            let pangoui = ev.get_binding_mut(index).unwrap();
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
+            let pangoui = windowunit.get_binding_mut().unwrap();
             pangoui.set_size((*width as i32, *height as i32));
             pangoui.repaint(current_keytype);
-            ev.request_next_present(index);
-            let windowunit = ev.get_unit_with_id(index).unwrap();
-            windowunit.refresh();
+            windowunit.request_refresh((*width as i32, *height as i32));
             ReturnData::None
         }
         LayerEvent::RequestMessages(DispatchMessage::MouseButton { state, .. }) => {
             let index = index.unwrap();
-            let key = ev.get_binding_mut(index).unwrap().get_key(button_pos);
-            let windowunit = ev.get_unit_with_id(index).unwrap();
-            match key {
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
+            let pangoui = windowunit.get_binding_mut().unwrap();
+            match pangoui.get_key(button_pos) {
                 Some(otherkeys::CLOSE_KEYBOARD) => {
                     if let WEnum::Value(ButtonState::Pressed) = *state {
                         return ReturnData::None;
@@ -182,11 +182,11 @@ fn main() {
                     if keytype_now != current_keytype {
                         current_keytype = keytype_now;
                         virtuan_keyboard.modifiers(current_keytype.bits(), 0, 0, 0);
-                        let ids: Vec<_> = ev.get_unit_iter().map(WindowStateUnit::id).collect();
-                        for id in ids {
-                            ev.get_binding_mut(id).unwrap().repaint(current_keytype);
+                        for unit in ev.get_unit_iter_mut() {
+                            unit.get_binding_mut().unwrap().repaint(current_keytype);
+                            let (width, height) = unit.get_size();
+                            unit.request_refresh((width as i32, height as i32));
                         }
-                        ev.request_refresh_all(RefreshRequest::NextFrame);
                     }
                     ReturnData::None
                 }
@@ -198,11 +198,11 @@ fn main() {
                 touch_id = *id;
             }
             let index = index.unwrap();
-            let pangoui = ev.get_binding_mut(index).unwrap();
+            let windowunit = ev.get_mut_unit_with_id(index).unwrap();
+            let pangoui = windowunit.get_binding_mut().unwrap();
             let Some(touch_getkey) = pangoui.get_key((*x, *y)) else {
                 return ReturnData::None;
             };
-            let windowunit = ev.get_unit_with_id(index).unwrap();
             touch_key = touch_getkey;
             match touch_getkey {
                 otherkeys::CLOSE_KEYBOARD => ReturnData::RequestExit,
@@ -230,11 +230,11 @@ fn main() {
                     if keytype_now != current_keytype {
                         current_keytype = keytype_now;
                         virtuan_keyboard.modifiers(current_keytype.bits(), 0, 0, 0);
-                        let ids: Vec<_> = ev.get_unit_iter().map(WindowStateUnit::id).collect();
-                        for id in ids {
-                            ev.get_binding_mut(id).unwrap().repaint(current_keytype);
+                        for unit in ev.get_unit_iter_mut() {
+                            unit.get_binding_mut().unwrap().repaint(current_keytype);
+                            let (width, height) = unit.get_size();
+                            unit.request_refresh((width as i32, height as i32));
                         }
-                        ev.request_refresh_all(RefreshRequest::NextFrame);
                     }
                     ReturnData::None
                 }
