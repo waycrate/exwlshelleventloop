@@ -19,7 +19,6 @@ debug = ["iced/debug"]
 time-travel = ["iced/time-travel"]
 unconditional-rendering = ["iced/unconditional-rendering"]
 auto-detect-theme = ["iced/auto-detect-theme"]
-tokio = ["iced/tokio"]
 
 [dependencies]
 iced.workspace = true
