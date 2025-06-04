@@ -16,11 +16,13 @@ jobs:
     build:
         name: Build Binary
         runs-on: ubuntu-latest
+        container:
+          image: archlinux:latest
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - name: Install Deps
-              run: sudo apt install -y libxkbcommon-dev libpango1.0-dev
+              run: pacman -Syu --noconfirm libxkbcommon pango wayland
             - name: Run fmt check
               run: cargo fmt --all -- --check
             - name: Run clippy check
@@ -35,11 +37,13 @@ jobs:
         needs:
             - build
         runs-on: ubuntu-latest
+        container:
+          image: archlinux:latest
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - name: Install Deps
-              run: sudo apt install -y libxkbcommon-dev libpango1.0-dev libwayland-dev
+              run: pacman -Syu --noconfirm libxkbcommon pango wayland
             - name: Publish to crate
               run: |
                 cargo publish -p iced_layershell_macros --token ${{ secrets.CRATES_TOKEN }}
