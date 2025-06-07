@@ -8,7 +8,9 @@ use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
 use iced_layershell::daemon;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
+use iced_layershell::reexport::{
+    Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, NewXdgWindowSettings,
+};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 
@@ -197,21 +199,11 @@ impl Counter {
                 })
             }
             Message::NewWindowRight => {
-                let id = iced::window::Id::unique();
+                let (id, task) = Message::basewindow_open(NewXdgWindowSettings {
+                    title: "hello".to_owned(),
+                });
                 self.ids.insert(id, WindowInfo::Right);
-                Command::done(Message::NewLayerShell {
-                    settings: NewLayerShellSettings {
-                        size: Some((100, 100)),
-                        exclusive_zone: None,
-                        anchor: Anchor::Right | Anchor::Bottom,
-                        layer: Layer::Top,
-                        margin: None,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        use_last_output: false,
-                        ..Default::default()
-                    },
-                    id,
-                })
+                task
             }
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),

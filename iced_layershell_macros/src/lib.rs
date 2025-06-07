@@ -49,6 +49,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     key: u32,
                 },
                 NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced::window::Id },
+                NewBaseWindow { settings: iced_layershell::reexport::NewXdgWindowSettings, id: iced::window::Id },
                 NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, id: iced::window::Id },
                 NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, id: iced::window::Id },
                 NewInputPanel { settings: iced_layershell::reexport::NewInputPanelSettings, id: iced::window::Id },
@@ -58,14 +59,35 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
             let impl_quote = quote! {
                 impl #impl_gen #ident #ty_gen #where_gen {
-                    fn new_layershell(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced::window::Id, iced::Task<Self>) {
+                    fn layershell_open(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced::window::Id, iced::Task<Self>) {
                         let id = iced::window::Id::unique();
                         (
                             id,
-                            iced::Task::done(Self::NewLayerShell {
-                                settings,
-                                id,
-                            })
+                            iced::Task::done(Self::NewLayerShell { settings, id })
+                        )
+
+                    }
+                    fn popup_open(settings: iced_layershell::actions::IcedNewPopupSettings) -> (iced::window::Id, iced::Task<Self>) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            iced::Task::done(Self::NewPopUp { settings, id })
+                        )
+
+                    }
+                    fn basewindow_open(settings: iced_layershell::reexport::NewXdgWindowSettings) -> (iced::window::Id, iced::Task<Self>) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            iced::Task::done(Self::NewBaseWindow { settings, id })
+                        )
+
+                    }
+                    fn menu_open(settings: iced_layershell::actions::IcedNewMenuSettings) -> (iced::window::Id, iced::Task<Self>) {
+                        let id = iced::window::Id::unique();
+                        (
+                            id,
+                            iced::Task::done(Self::NewMenu { settings, id })
                         )
 
                     }
@@ -90,6 +112,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                                 LayershellCustomAction::VirtualKeyboardPressed { time, key })
                             ),
                             Self::NewLayerShell {settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewLayerShell { settings, id })),
+                            Self::NewBaseWindow {settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewBaseWindow { settings, id })),
                             Self::NewPopUp { settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewPopUp { settings, id })),
                             Self::NewMenu { settings, id } =>  Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewMenu {settings, id })),
                             Self::NewInputPanel {settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewInputPanel { settings, id })),
@@ -97,32 +120,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::ForgetLastOutput => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::ForgetLastOutput)),
                             _ => Err(self)
                         }
-                    }
-                }
-                impl #ident #ty_gen #where_gen {
-                    fn layershell_open(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced::window::Id, Self) {
-                        let id = iced::window::Id::unique();
-                        (
-                            id,
-                            Self::NewLayerShell { settings, id }
-                        )
-
-                    }
-                    fn popup_open(settings: iced_layershell::actions::IcedNewPopupSettings) -> (iced::window::Id, Self) {
-                        let id = iced::window::Id::unique();
-                        (
-                            id,
-                            Self::NewPopUp { settings, id }
-                        )
-
-                    }
-                    fn menu_open(settings: iced_layershell::actions::IcedNewMenuSettings) -> (iced::window::Id, Self) {
-                        let id = iced::window::Id::unique();
-                        (
-                            id,
-                            Self::NewMenu { settings, id }
-                        )
-
                     }
                 }
             };

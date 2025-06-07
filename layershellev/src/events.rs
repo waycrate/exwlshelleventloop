@@ -96,6 +96,12 @@ pub struct NewPopUpSettings {
     /// It means where the popup is, on which surface. It is the id of that layershell
     pub id: id::Id,
 }
+/// be used to create a new popup
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct NewXdgWindowSettings {
+    /// the size of the popup
+    pub title: String,
+}
 
 /// input panel settings to create a new input panel surface
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -149,6 +155,7 @@ pub enum ReturnData<INFO> {
     RequestSetCursorShape((String, WlPointer)),
     NewLayerShell((NewLayerShellSettings, id::Id, Option<INFO>)),
     NewPopUp((NewPopUpSettings, id::Id, Option<INFO>)),
+    NewXdgBase((NewXdgWindowSettings, id::Id, Option<INFO>)),
     NewInputPanel((NewInputPanelSettings, id::Id, Option<INFO>)),
     None,
 }

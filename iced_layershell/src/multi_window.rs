@@ -705,6 +705,18 @@ where
                     layer_shell_id,
                     Some(iced_id),
                 )));
+            },
+            LayershellCustomAction::NewBaseWindow {
+                settings,
+                id: iced_id,
+                ..
+            } => {
+                let layer_shell_id = layershellev::id::Id::unique();
+                ev.append_return_data(ReturnData::NewXdgBase((
+                    settings,
+                    layer_shell_id,
+                    Some(iced_id),
+                )));
             }
             LayershellCustomAction::RemoveWindow => {
                 if let Some(layer_shell_id) = layer_shell_id {
