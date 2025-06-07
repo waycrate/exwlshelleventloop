@@ -73,6 +73,7 @@ impl App {
                     offset: Vector { x: 0.0, y: 2.0 },
                     blur_radius: 5.0,
                 },
+                snap: true,
             })
             .into()
     }
