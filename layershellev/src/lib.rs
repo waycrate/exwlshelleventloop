@@ -3157,7 +3157,7 @@ impl<T: 'static> WindowState<T> {
                                             wl_surface,
                                             Shell::XdgTopLevel((toplevel, wl_xdg_surface)),
                                         )
-                                        .size(size.unwrap_or((100, 100)))
+                                        .size(size.unwrap_or((300, 300)))
                                         .viewport(viewport)
                                         .fractional_scale(fractional_scale)
                                         .binding(info)
