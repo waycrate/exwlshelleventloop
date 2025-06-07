@@ -272,6 +272,9 @@ pub mod reexport {
         pub use crate::strtoshape::ShapeName;
         pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
     }
+    pub mod xdg_toplevel {
+        pub use wayland_protocols::xdg::shell::client::xdg_toplevel::XdgToplevel;
+    }
     pub mod wp_viewport {
         pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
     }
@@ -393,6 +396,13 @@ impl Shell {
 
     fn is_popup(&self) -> bool {
         matches!(self, Self::PopUp(_))
+    }
+
+    fn top_level(&self) -> Option<XdgToplevel> {
+        match self {
+            Self::XdgTopLevel((level, _)) => Some(level.clone()),
+            _ => None,
+        }
     }
 }
 
@@ -557,6 +567,7 @@ impl<T> WindowStateUnit<T> {
             display: self.display.clone(),
             wl_surface: self.wl_surface.clone(),
             viewport: self.viewport.clone(),
+            toplevel: self.shell.top_level(),
         }
     }
 }
@@ -947,6 +958,7 @@ pub struct WindowWrapper {
     display: WlDisplay,
     wl_surface: WlSurface,
     pub viewport: Option<WpViewport>,
+    pub toplevel: Option<XdgToplevel>,
 }
 
 /// Define the way layershell program is start
@@ -3107,7 +3119,8 @@ impl<T: 'static> WindowState<T> {
                                 },
                                 ReturnData::NewXdgBase((
                                     NewXdgWindowSettings{
-                                        title
+                                        title,
+                                        size
                                     },
                                     id,
                                     info,
@@ -3118,7 +3131,7 @@ impl<T: 'static> WindowState<T> {
                                     let toplevel =
                                         wl_xdg_surface.get_toplevel(&qh, ());
 
-                                    toplevel.set_title(title);
+                                    toplevel.set_title(title.unwrap_or("".to_owned()));
 
                                     let mut fractional_scale = None;
                                     if let Some(ref fractional_scale_manager) =
@@ -3144,7 +3157,7 @@ impl<T: 'static> WindowState<T> {
                                             wl_surface,
                                             Shell::XdgTopLevel((toplevel, wl_xdg_surface)),
                                         )
-                                        .size((100, 100))
+                                        .size(size.unwrap_or((100, 100)))
                                         .viewport(viewport)
                                         .fractional_scale(fractional_scale)
                                         .binding(info)

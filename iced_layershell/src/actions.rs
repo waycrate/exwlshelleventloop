@@ -4,6 +4,20 @@ use layershellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSet
 
 use std::sync::Arc;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub struct IcedXdgWindowSettings {
+    pub size: Option<(u32, u32)>,
+}
+
+impl Into<NewXdgWindowSettings> for IcedXdgWindowSettings {
+    fn into(self) -> NewXdgWindowSettings {
+        NewXdgWindowSettings {
+            title: None,
+            size: self.size,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
@@ -68,7 +82,7 @@ pub enum LayershellCustomAction {
         id: IcedId,
     },
     NewBaseWindow {
-        settings: NewXdgWindowSettings,
+        settings: IcedXdgWindowSettings,
         id: IcedId,
     },
     NewMenu {

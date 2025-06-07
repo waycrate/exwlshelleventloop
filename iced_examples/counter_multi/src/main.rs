@@ -3,14 +3,12 @@ use std::collections::HashMap;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{Alignment, Element, Event, Length, Task as Command, event};
-use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
+use iced_layershell::actions::{IcedNewMenuSettings, IcedXdgWindowSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
 use iced_layershell::daemon;
-use iced_layershell::reexport::{
-    Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, NewXdgWindowSettings,
-};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 
@@ -33,6 +31,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
+    .title(Counter::title)
     .run()
 }
 
@@ -90,6 +89,14 @@ impl Counter {
             text: text.to_string(),
             ids: HashMap::new(),
         }
+    }
+
+    fn title(&self, id: iced::window::Id) -> Option<String> {
+        println!("gggg");
+        if let Some(WindowInfo::Right) = self.id_info(id) {
+            return Some("hello, it is a normal window".to_owned());
+        }
+        None
     }
 
     fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
@@ -199,9 +206,7 @@ impl Counter {
                 })
             }
             Message::NewWindowRight => {
-                let (id, task) = Message::basewindow_open(NewXdgWindowSettings {
-                    title: "hello".to_owned(),
-                });
+                let (id, task) = Message::basewindow_open(IcedXdgWindowSettings::default());
                 self.ids.insert(id, WindowInfo::Right);
                 task
             }

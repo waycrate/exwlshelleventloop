@@ -4,6 +4,7 @@ use iced_graphics::Viewport;
 use layershellev::WindowWrapper;
 use layershellev::keyboard::ModifiersState;
 use layershellev::reexport::wp_viewport::WpViewport;
+use layershellev::reexport::xdg_toplevel::XdgToplevel;
 
 use crate::event::WindowEvent;
 use iced::window;
@@ -26,12 +27,21 @@ where
     mouse_position: Option<Point>,
     modifiers: ModifiersState,
     wpviewport: WpViewport,
+    toplevel: Option<XdgToplevel>,
+    title: String,
 }
 
 impl<A: Program> State<A>
 where
     A::Theme: DefaultStyle,
 {
+    fn set_title(&mut self, title: &str) {
+        self.title = title.to_string();
+        if let Some(toplevel) = &self.toplevel {
+            toplevel.set_title(title.to_owned());
+        }
+    }
+
     pub fn new(
         id: window::Id,
         application: &Instance<A>,
@@ -50,6 +60,7 @@ where
             .viewport
             .clone()
             .expect("iced_layershell need viewport support to better wayland hidpi");
+        let toplevel = window.toplevel.clone();
         set_wpviewport_destination(&wpviewport, window_size);
         Self {
             id,
@@ -63,8 +74,11 @@ where
             mouse_position: None,
             modifiers: ModifiersState::default(),
             wpviewport,
+            toplevel,
+            title: "".to_owned(),
         }
     }
+
     pub fn modifiers(&self) -> ModifiersState {
         self.modifiers
     }
@@ -158,6 +172,11 @@ where
     }
 
     pub fn synchronize(&mut self, application: &Instance<A>) {
+        let new_title = application.title(self.id);
+        println!("title: {new_title}");
+        if new_title != self.title {
+            self.set_title(&new_title);
+        }
         let new_scale_factor = application.scale_factor(self.id);
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;

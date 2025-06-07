@@ -16,7 +16,7 @@ use crate::settings::Settings;
 use iced_program::Program;
 
 pub trait NameSpace {
-    /// Produces the title of the [`Application`].
+    /// Produces the namespace of the [`Application`].
     fn namespace(&self) -> String;
 }
 

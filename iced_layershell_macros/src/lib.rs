@@ -49,7 +49,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     key: u32,
                 },
                 NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced::window::Id },
-                NewBaseWindow { settings: iced_layershell::reexport::NewXdgWindowSettings, id: iced::window::Id },
+                NewBaseWindow { settings: iced_layershell::actions::IcedXdgWindowSettings, id: iced::window::Id },
                 NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, id: iced::window::Id },
                 NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, id: iced::window::Id },
                 NewInputPanel { settings: iced_layershell::reexport::NewInputPanelSettings, id: iced::window::Id },
@@ -75,7 +75,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         )
 
                     }
-                    fn basewindow_open(settings: iced_layershell::reexport::NewXdgWindowSettings) -> (iced::window::Id, iced::Task<Self>) {
+                    fn basewindow_open(settings: iced_layershell::actions::IcedXdgWindowSettings) -> (iced::window::Id, iced::Task<Self>) {
                         let id = iced::window::Id::unique();
                         (
                             id,
