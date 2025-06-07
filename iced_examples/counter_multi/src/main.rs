@@ -63,7 +63,7 @@ enum Message {
     IncrementPressed,
     DecrementPressed,
     NewWindowLeft,
-    NewWindowRight,
+    NewNormalWindow,
     Close(Id),
     WindowClosed(Id),
     TextInput(String),
@@ -204,7 +204,7 @@ impl Counter {
                     id,
                 })
             }
-            Message::NewWindowRight => {
+            Message::NewNormalWindow => {
                 let (id, task) = Message::base_window_open(IcedXdgWindowSettings::default());
                 self.ids.insert(id, WindowInfo::NormalWindow);
                 task
@@ -219,7 +219,20 @@ impl Counter {
             return button("close left").on_press(Message::Close(id)).into();
         }
         if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
-            return button("close right").on_press(Message::Close(id)).into();
+            return container(
+                column![
+                    text_input("hello", &self.text)
+                        .on_input(Message::TextInput)
+                        .padding(10),
+                    button("close the normal window").on_press(Message::Close(id)),
+                ]
+                .align_x(Alignment::Center)
+                .padding(20),
+            )
+            .center_y(Length::Fill)
+            .center_x(Length::Fill)
+            .height(Length::Fill)
+            .into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
             return container(button("close PopUp").on_press(Message::Close(id)))
@@ -238,7 +251,7 @@ impl Counter {
             button("Decrement").on_press(Message::DecrementPressed),
             text(self.value).size(50),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
-            button("newwindowRight").on_press(Message::NewWindowRight),
+            button("new normal window").on_press(Message::NewNormalWindow),
         ]
         .align_x(Alignment::Center)
         .padding(20)
