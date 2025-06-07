@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{Alignment, Element, Event, Length, Task as Command, event};
-use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
+use iced_layershell::actions::{IcedNewMenuSettings, IcedXdgWindowSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
@@ -20,6 +20,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::update,
         Counter::view,
     )
+    .title(Counter::title)
     .subscription(Counter::subscription)
     .settings(Settings {
         layer_settings: LayerShellSettings {
@@ -44,7 +45,7 @@ struct Counter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowInfo {
     Left,
-    Right,
+    NormalWindow,
     PopUp,
 }
 
@@ -62,7 +63,7 @@ enum Message {
     IncrementPressed,
     DecrementPressed,
     NewWindowLeft,
-    NewWindowRight,
+    NewNormalWindow,
     Close(Id),
     WindowClosed(Id),
     TextInput(String),
@@ -88,6 +89,13 @@ impl Counter {
             text: text.to_string(),
             ids: HashMap::new(),
         }
+    }
+
+    fn title(&self, id: iced::window::Id) -> Option<String> {
+        if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
+            return Some("hello, it is a normal window".to_owned());
+        }
+        None
     }
 
     fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
@@ -196,22 +204,10 @@ impl Counter {
                     id,
                 })
             }
-            Message::NewWindowRight => {
-                let id = iced::window::Id::unique();
-                self.ids.insert(id, WindowInfo::Right);
-                Command::done(Message::NewLayerShell {
-                    settings: NewLayerShellSettings {
-                        size: Some((100, 100)),
-                        exclusive_zone: None,
-                        anchor: Anchor::Right | Anchor::Bottom,
-                        layer: Layer::Top,
-                        margin: None,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        use_last_output: false,
-                        ..Default::default()
-                    },
-                    id,
-                })
+            Message::NewNormalWindow => {
+                let (id, task) = Message::base_window_open(IcedXdgWindowSettings::default());
+                self.ids.insert(id, WindowInfo::NormalWindow);
+                task
             }
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
             _ => unreachable!(),
@@ -222,8 +218,21 @@ impl Counter {
         if let Some(WindowInfo::Left) = self.id_info(id) {
             return button("close left").on_press(Message::Close(id)).into();
         }
-        if let Some(WindowInfo::Right) = self.id_info(id) {
-            return button("close right").on_press(Message::Close(id)).into();
+        if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
+            return container(
+                column![
+                    text_input("hello", &self.text)
+                        .on_input(Message::TextInput)
+                        .padding(10),
+                    button("close the normal window").on_press(Message::Close(id)),
+                ]
+                .align_x(Alignment::Center)
+                .padding(20),
+            )
+            .center_y(Length::Fill)
+            .center_x(Length::Fill)
+            .height(Length::Fill)
+            .into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
             return container(button("close PopUp").on_press(Message::Close(id)))
@@ -242,7 +251,7 @@ impl Counter {
             button("Decrement").on_press(Message::DecrementPressed),
             text(self.value).size(50),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
-            button("newwindowRight").on_press(Message::NewWindowRight),
+            button("new normal window").on_press(Message::NewNormalWindow),
         ]
         .align_x(Alignment::Center)
         .padding(20)

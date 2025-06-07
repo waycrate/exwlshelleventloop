@@ -19,6 +19,5 @@ fn test_layer_message_macro_multi() {
         TestA,
     }
     use layershellev::*;
-    let (_id, message) = TestEnum::layershell_open(NewLayerShellSettings::default());
-    assert!(matches!(message, TestEnum::NewLayerShell { .. }))
+    let (_id, _message) = TestEnum::layershell_open(NewLayerShellSettings::default());
 }

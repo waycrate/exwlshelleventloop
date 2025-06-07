@@ -225,7 +225,9 @@ pub fn with_subscription<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-
+        fn title(&self, state: &Self::State, window: iced_core::window::Id) -> String {
+            self.program.title(state, window)
+        }
         fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
             (self.subscription)(state)
         }
@@ -285,7 +287,9 @@ pub fn with_theme<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-
+        fn title(&self, state: &Self::State, window: iced_core::window::Id) -> String {
+            self.program.title(state, window)
+        }
         fn theme(&self, state: &Self::State, id: iced_core::window::Id) -> Self::Theme {
             (self.theme)(state, id)
         }
@@ -342,7 +346,9 @@ pub fn with_style<P: Program>(
         type Theme = P::Theme;
         type Renderer = P::Renderer;
         type Executor = P::Executor;
-
+        fn title(&self, state: &Self::State, window: iced_core::window::Id) -> String {
+            self.program.title(state, window)
+        }
         fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
             (self.style)(state, theme)
         }
@@ -404,6 +410,9 @@ pub fn with_scale_factor<P: Program>(
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.program.boot()
         }
+        fn title(&self, state: &Self::State, window: iced_core::window::Id) -> String {
+            self.program.title(state, window)
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -441,6 +450,72 @@ pub fn with_scale_factor<P: Program>(
     }
 }
 
+/// Decorates a [`Program`] with the given title function.
+pub fn with_title<P: Program>(
+    program: P,
+    title: impl Fn(&P::State, iced::window::Id) -> Option<String>,
+) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
+    struct WithTitle<P, Title> {
+        program: P,
+        title: Title,
+    }
+
+    impl<P, Title> Program for WithTitle<P, Title>
+    where
+        P: Program,
+        Title: Fn(&P::State, iced::window::Id) -> Option<String>,
+    {
+        type State = P::State;
+        type Message = P::Message;
+        type Theme = P::Theme;
+        type Renderer = P::Renderer;
+        type Executor = P::Executor;
+
+        fn title(&self, state: &Self::State, window: iced::window::Id) -> String {
+            let title = (self.title)(state, window);
+            title.unwrap_or_else(|| self.program.title(state, window))
+        }
+
+        fn name() -> &'static str {
+            P::name()
+        }
+
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
+        }
+
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            self.program.update(state, message)
+        }
+
+        fn view<'a>(
+            &self,
+            state: &'a Self::State,
+            window: iced::window::Id,
+        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+            self.program.view(state, window)
+        }
+
+        fn theme(&self, state: &Self::State, window: iced::window::Id) -> Self::Theme {
+            self.program.theme(state, window)
+        }
+
+        fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            self.program.subscription(state)
+        }
+
+        fn style(&self, state: &Self::State, theme: &Self::Theme) -> iced::theme::Style {
+            self.program.style(state, theme)
+        }
+
+        fn scale_factor(&self, state: &Self::State, window: iced::window::Id) -> f64 {
+            self.program.scale_factor(state, window)
+        }
+    }
+
+    WithTitle { program, title }
+}
+
 pub fn with_executor<P: Program, E: iced_futures::Executor>(
     program: P,
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
@@ -464,7 +539,9 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
         fn name() -> &'static str {
             P::name()
         }
-
+        fn title(&self, state: &Self::State, window: iced_core::window::Id) -> String {
+            self.program.title(state, window)
+        }
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
             self.program.update(state, message)
         }
@@ -609,6 +686,18 @@ impl<P: Program> Daemon<P> {
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_subscription(self.raw, f),
+            settings: self.settings,
+            namespace: self.namespace,
+        }
+    }
+
+    /// Sets the subscription logic of the [`Application`].
+    pub fn title(
+        self,
+        f: impl Fn(&P::State, iced::window::Id) -> Option<String>,
+    ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
+        Daemon {
+            raw: with_title(self.raw, f),
             settings: self.settings,
             namespace: self.namespace,
         }

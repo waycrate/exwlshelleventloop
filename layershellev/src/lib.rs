@@ -110,6 +110,7 @@
 pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
 pub use events::NewPopUpSettings;
+pub use events::NewXdgWindowSettings;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
@@ -159,6 +160,7 @@ use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
     xdg_positioner::XdgPositioner,
     xdg_surface::{self, XdgSurface},
+    xdg_toplevel::{self, XdgToplevel},
     xdg_wm_base::XdgWmBase,
 };
 
@@ -270,6 +272,9 @@ pub mod reexport {
         pub use crate::strtoshape::ShapeName;
         pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
     }
+    pub mod xdg_toplevel {
+        pub use wayland_protocols::xdg::shell::client::xdg_toplevel::XdgToplevel;
+    }
     pub mod wp_viewport {
         pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
     }
@@ -335,6 +340,7 @@ impl ZxdgOutputInfo {
 enum Shell {
     LayerShell(ZwlrLayerSurfaceV1),
     PopUp((XdgPopup, XdgSurface)),
+    XdgTopLevel((XdgToplevel, XdgSurface)),
     InputPanel(#[allow(unused)] ZwpInputPanelSurfaceV1),
 }
 
@@ -364,12 +370,23 @@ impl PartialEq<XdgSurface> for Shell {
         }
     }
 }
-
+impl PartialEq<XdgToplevel> for Shell {
+    fn eq(&self, other: &XdgToplevel) -> bool {
+        match self {
+            Self::XdgTopLevel((level, _)) => level == other,
+            _ => false,
+        }
+    }
+}
 impl Shell {
     fn destroy(&self) {
         match self {
             Self::PopUp((popup, xdg_surface)) => {
                 popup.destroy();
+                xdg_surface.destroy();
+            }
+            Self::XdgTopLevel((top_level, xdg_surface)) => {
+                top_level.destroy();
                 xdg_surface.destroy();
             }
             Self::LayerShell(shell) => shell.destroy(),
@@ -379,6 +396,13 @@ impl Shell {
 
     fn is_popup(&self) -> bool {
         matches!(self, Self::PopUp(_))
+    }
+
+    fn top_level(&self) -> Option<XdgToplevel> {
+        match self {
+            Self::XdgTopLevel((level, _)) => Some(level.clone()),
+            _ => None,
+        }
     }
 }
 
@@ -543,6 +567,7 @@ impl<T> WindowStateUnit<T> {
             display: self.display.clone(),
             wl_surface: self.wl_surface.clone(),
             viewport: self.viewport.clone(),
+            toplevel: self.shell.top_level(),
         }
     }
 }
@@ -933,6 +958,7 @@ pub struct WindowWrapper {
     display: WlDisplay,
     wl_surface: WlSurface,
     pub viewport: Option<WpViewport>,
+    pub toplevel: Option<XdgToplevel>,
 }
 
 /// Define the way layershell program is start
@@ -2102,6 +2128,38 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
     }
 }
 
+impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        surface: &xdg_toplevel::XdgToplevel,
+        event: <xdg_toplevel::XdgToplevel as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
+        match event {
+            xdg_toplevel::Event::Configure { width, height, .. } => {
+                let Some(unit_index) = unit_index else {
+                    return;
+                };
+                if width != 0 && height != 0 {
+                    state.units[unit_index].size = (width as u32, height as u32);
+                }
+
+                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
+            }
+            xdg_toplevel::Event::Close => {
+                let Some(unit_index) = unit_index else {
+                    return;
+                };
+                state.units[unit_index].request_flag.close = true;
+            }
+            _ => {}
+        }
+    }
+}
+
 impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -3059,6 +3117,55 @@ impl<T: 'static> WindowState<T> {
                                         .build(),
                                     );
                                 },
+                                ReturnData::NewXdgBase((
+                                    NewXdgWindowSettings{
+                                        title,
+                                        size
+                                    },
+                                    id,
+                                    info,
+                                )) => {
+                                    let wl_surface = wmcompositer.create_surface(&qh, ());
+                                    let wl_xdg_surface =
+                                        wmbase.get_xdg_surface(&wl_surface, &qh, ());
+                                    let toplevel =
+                                        wl_xdg_surface.get_toplevel(&qh, ());
+
+                                    toplevel.set_title(title.unwrap_or("".to_owned()));
+
+                                    let mut fractional_scale = None;
+                                    if let Some(ref fractional_scale_manager) =
+                                        fractional_scale_manager
+                                    {
+                                        fractional_scale =
+                                            Some(fractional_scale_manager.get_fractional_scale(
+                                                &wl_surface,
+                                                &qh,
+                                                (),
+                                            ));
+                                    }
+                                    wl_surface.commit();
+
+                                    let viewport = viewporter.as_ref().map(|viewport| {
+                                        viewport.get_viewport(&wl_surface, &qh, ())
+                                    });
+                                    window_state.push_window(
+                                        WindowStateUnitBuilder::new(
+                                            id,
+                                            qh.clone(),
+                                            connection.display(),
+                                            wl_surface,
+                                            Shell::XdgTopLevel((toplevel, wl_xdg_surface)),
+                                        )
+                                        .size(size.unwrap_or((100, 100)))
+                                        .viewport(viewport)
+                                        .fractional_scale(fractional_scale)
+                                        .binding(info)
+                                        .becreated(true)
+                                        .build(),
+                                    );
+                                },
+
                                 ReturnData::NewInputPanel((
                                     NewInputPanelSettings {
                                         size: (width, height),

@@ -1,8 +1,22 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
 use iced::window::Id as IcedId;
-use layershellev::{NewInputPanelSettings, NewLayerShellSettings};
+use layershellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
 
 use std::sync::Arc;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub struct IcedXdgWindowSettings {
+    pub size: Option<(u32, u32)>,
+}
+
+impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
+    fn from(val: IcedXdgWindowSettings) -> Self {
+        NewXdgWindowSettings {
+            title: None,
+            size: val.size,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
@@ -65,6 +79,10 @@ pub enum LayershellCustomAction {
     SetInputRegion(ActionCallback),
     NewPopUp {
         settings: IcedNewPopupSettings,
+        id: IcedId,
+    },
+    NewBaseWindow {
+        settings: IcedXdgWindowSettings,
         id: IcedId,
     },
     NewMenu {
