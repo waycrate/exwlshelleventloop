@@ -343,7 +343,7 @@ impl ZxdgOutputInfo {
 enum Shell {
     LayerShell(ZwlrLayerSurfaceV1),
     PopUp((XdgPopup, XdgSurface)),
-    XdgTopLevel((XdgToplevel, XdgSurface)),
+    XdgTopLevel((XdgToplevel, XdgSurface, Option<ZxdgToplevelDecorationV1>)),
     InputPanel(#[allow(unused)] ZwpInputPanelSurfaceV1),
 }
 
@@ -376,7 +376,7 @@ impl PartialEq<XdgSurface> for Shell {
 impl PartialEq<XdgToplevel> for Shell {
     fn eq(&self, other: &XdgToplevel) -> bool {
         match self {
-            Self::XdgTopLevel((level, _)) => level == other,
+            Self::XdgTopLevel((level, _, _)) => level == other,
             _ => false,
         }
     }
@@ -388,7 +388,10 @@ impl Shell {
                 popup.destroy();
                 xdg_surface.destroy();
             }
-            Self::XdgTopLevel((top_level, xdg_surface)) => {
+            Self::XdgTopLevel((top_level, xdg_surface, decoration)) => {
+                if let Some(decoration) = decoration {
+                    decoration.destroy();
+                }
                 top_level.destroy();
                 xdg_surface.destroy();
             }
@@ -403,7 +406,7 @@ impl Shell {
 
     fn top_level(&self) -> Option<XdgToplevel> {
         match self {
-            Self::XdgTopLevel((level, _)) => Some(level.clone()),
+            Self::XdgTopLevel((level, _, _)) => Some(level.clone()),
             _ => None,
         }
     }
@@ -3151,12 +3154,15 @@ impl<T: 'static> WindowState<T> {
 
                                     toplevel.set_title(title.unwrap_or("".to_owned()));
 
-                                    if let Some(decoration_manager) = &zxdg_decoration_manager {
+                                    let decoration = if let Some(decoration_manager) = &zxdg_decoration_manager {
                                         let decoration = decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
                                         use zxdg_toplevel_decoration_v1::Mode;
                                         decoration.set_mode(Mode::ServerSide);
+                                        Some(decoration)
 
-                                    }
+                                    } else {
+                                        None
+                                    };
                                     let mut fractional_scale = None;
                                     if let Some(ref fractional_scale_manager) =
                                         fractional_scale_manager
@@ -3179,7 +3185,7 @@ impl<T: 'static> WindowState<T> {
                                             qh.clone(),
                                             connection.display(),
                                             wl_surface,
-                                            Shell::XdgTopLevel((toplevel, wl_xdg_surface)),
+                                            Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
                                         )
                                         .size(size.unwrap_or((300, 300)))
                                         .viewport(viewport)
