@@ -20,6 +20,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         Counter::update,
         Counter::view,
     )
+    .title(Counter::title)
     .subscription(Counter::subscription)
     .settings(Settings {
         layer_settings: LayerShellSettings {
@@ -31,7 +32,6 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         },
         ..Default::default()
     })
-    .title(Counter::title)
     .run()
 }
 
@@ -45,7 +45,7 @@ struct Counter {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowInfo {
     Left,
-    Right,
+    NormalWindow,
     PopUp,
 }
 
@@ -92,8 +92,7 @@ impl Counter {
     }
 
     fn title(&self, id: iced::window::Id) -> Option<String> {
-        println!("gggg");
-        if let Some(WindowInfo::Right) = self.id_info(id) {
+        if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
             return Some("hello, it is a normal window".to_owned());
         }
         None
@@ -206,8 +205,8 @@ impl Counter {
                 })
             }
             Message::NewWindowRight => {
-                let (id, task) = Message::basewindow_open(IcedXdgWindowSettings::default());
-                self.ids.insert(id, WindowInfo::Right);
+                let (id, task) = Message::base_window_open(IcedXdgWindowSettings::default());
+                self.ids.insert(id, WindowInfo::NormalWindow);
                 task
             }
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
@@ -219,7 +218,7 @@ impl Counter {
         if let Some(WindowInfo::Left) = self.id_info(id) {
             return button("close left").on_press(Message::Close(id)).into();
         }
-        if let Some(WindowInfo::Right) = self.id_info(id) {
+        if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
             return button("close right").on_press(Message::Close(id)).into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {

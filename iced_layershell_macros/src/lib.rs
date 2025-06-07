@@ -75,7 +75,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         )
 
                     }
-                    fn basewindow_open(settings: iced_layershell::actions::IcedXdgWindowSettings) -> (iced::window::Id, iced::Task<Self>) {
+                    fn base_window_open(settings: iced_layershell::actions::IcedXdgWindowSettings) -> (iced::window::Id, iced::Task<Self>) {
                         let id = iced::window::Id::unique();
                         (
                             id,

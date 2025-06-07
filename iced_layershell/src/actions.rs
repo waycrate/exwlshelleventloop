@@ -9,11 +9,11 @@ pub struct IcedXdgWindowSettings {
     pub size: Option<(u32, u32)>,
 }
 
-impl Into<NewXdgWindowSettings> for IcedXdgWindowSettings {
-    fn into(self) -> NewXdgWindowSettings {
+impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
+    fn from(val: IcedXdgWindowSettings) -> Self {
         NewXdgWindowSettings {
             title: None,
-            size: self.size,
+            size: val.size,
         }
     }
 }

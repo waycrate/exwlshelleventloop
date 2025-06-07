@@ -88,7 +88,9 @@ macro_rules! gen_attach {
                         ]),
                     )
                 }
-
+                fn title(&self, state: &Self::State, window: $crate::window::Id) -> String {
+                    state.title(&self.program, window)
+                }
                 fn update(
                     &self,
                     state: &mut Self::State,

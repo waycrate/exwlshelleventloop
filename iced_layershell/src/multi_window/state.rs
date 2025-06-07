@@ -173,7 +173,6 @@ where
 
     pub fn synchronize(&mut self, application: &Instance<A>) {
         let new_title = application.title(self.id);
-        println!("title: {new_title}");
         if new_title != self.title {
             self.set_title(&new_title);
         }
