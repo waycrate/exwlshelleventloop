@@ -198,9 +198,12 @@ use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
     zwp_text_input_v3::{self, ContentHint, ContentPurpose, ZwpTextInputV3},
 };
+use wayland_protocols::xdg::decoration::zv1::client::{
+    zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
+    zxdg_toplevel_decoration_v1::{self, ZxdgToplevelDecorationV1},
+};
 
 pub use calloop;
-
 use calloop::{
     Error as CallLoopError, EventLoop, LoopHandle,
     timer::{TimeoutAction, Timer},
@@ -893,6 +896,9 @@ pub struct WindowState<T> {
     text_input_manager: Option<ZwpTextInputManagerV3>,
     text_input: Option<ZwpTextInputV3>,
     text_inputs: Vec<ZwpTextInputV3>,
+
+    xdg_decoration_manager: Option<ZxdgDecorationManagerV1>,
+
     ime_purpose: ImePurpose,
     ime_allowed: bool,
 }
@@ -1368,6 +1374,8 @@ impl<T> Default for WindowState<T> {
             text_inputs: Vec::new(),
             ime_purpose: ImePurpose::Normal,
             ime_allowed: false,
+
+            xdg_decoration_manager: None,
         }
     }
 }
@@ -2460,6 +2468,9 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelSurfaceV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelV1);
 
+delegate_noop!(@<T> WindowState<T>: ignore ZxdgDecorationManagerV1);
+delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
+
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
     pub fn build(mut self) -> Result<Self, LayerEventError> {
@@ -2503,6 +2514,12 @@ impl<T: 'static> WindowState<T> {
 
         let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qh, 1..=3, ())?; // bind
         // xdg_output_manager
+
+        let decoration_manager = globals
+            .bind::<ZxdgDecorationManagerV1, _, _>(&qh, 1..=1, ())
+            .ok();
+
+        self.xdg_decoration_manager = decoration_manager;
 
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
@@ -2746,6 +2763,7 @@ impl<T: 'static> WindowState<T> {
         let mut init_event = None;
         let wmbase = self.wmbase.take().unwrap();
         let viewporter = self.viewporter.take();
+        let zxdg_decoration_manager = self.xdg_decoration_manager.take();
 
         let cursor_update_context = CursorUpdateContext {
             cursor_manager,
@@ -3133,6 +3151,12 @@ impl<T: 'static> WindowState<T> {
 
                                     toplevel.set_title(title.unwrap_or("".to_owned()));
 
+                                    if let Some(decoration_manager) = &zxdg_decoration_manager {
+                                        let decoration = decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
+                                        use zxdg_toplevel_decoration_v1::Mode;
+                                        decoration.set_mode(Mode::ServerSide);
+
+                                    }
                                     let mut fractional_scale = None;
                                     if let Some(ref fractional_scale_manager) =
                                         fractional_scale_manager
