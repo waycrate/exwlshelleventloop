@@ -211,8 +211,6 @@ use calloop::{
 use calloop_wayland_source::WaylandSource;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::fmt::Result as FmtResult;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
@@ -260,7 +258,7 @@ pub mod reexport {
     }
     pub mod wayland_client {
         pub use wayland_client::{
-            QueueHandle, WEnum,
+            Connection, QueueHandle, WEnum,
             globals::GlobalList,
             protocol::{
                 wl_compositor::WlCompositor,
@@ -819,24 +817,6 @@ pub enum ImePurpose {
     Terminal,
 }
 
-/// a wrapper for implement Debug, so we don't need to implement Debug for WindowState
-pub struct WithConnection(Box<dyn FnOnce() -> Result<Connection, ConnectError>>);
-
-impl Debug for WithConnection {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        f.write_str("WithConnection Callback")
-    }
-}
-
-impl<F> From<F> for WithConnection
-where
-    F: 'static + FnOnce() -> Result<Connection, ConnectError>,
-{
-    fn from(value: F) -> Self {
-        Self(Box::new(value))
-    }
-}
-
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
@@ -846,7 +826,7 @@ pub struct WindowState<T> {
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
-    with_connection: Option<WithConnection>,
+    with_connection: Option<Connection>,
     connection: Option<Connection>,
     event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
@@ -982,6 +962,10 @@ pub enum StartMode {
     AllScreens,
     /// only shown on target screen
     TargetScreen(String),
+
+    /// Target the output
+    /// NOTE: use the same wayland connection
+    TargetOutput(WlOutput),
 }
 
 impl StartMode {
@@ -1311,7 +1295,7 @@ impl<T> WindowState<T> {
     }
 
     /// set a callback to create a wayland connection
-    pub fn with_connection(mut self, with_connection: Option<WithConnection>) -> Self {
+    pub fn with_connection(mut self, with_connection: Option<Connection>) -> Self {
         self.with_connection = with_connection;
         self
     }
@@ -2478,7 +2462,7 @@ impl<T: 'static> WindowState<T> {
     /// build a new WindowState
     pub fn build(mut self) -> Result<Self, LayerEventError> {
         let connection = if let Some(f) = self.with_connection.take() {
-            f.0()?
+            f
         } else {
             Connection::connect_to_env()?
         };
@@ -2553,27 +2537,30 @@ impl<T: 'static> WindowState<T> {
         } else if !self.is_allscreens() {
             let mut output = None;
 
-            if let StartMode::TargetScreen(name) = self.start_mode.clone() {
-                for (_, output_display) in &self.outputs {
-                    let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
-                    self.xdg_info_cache
-                        .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
+            let (binded_output, binded_xdginfo) = match self.start_mode.clone() {
+                StartMode::TargetScreen(name) => {
+                    for (_, output_display) in &self.outputs {
+                        let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
+                        self.xdg_info_cache
+                            .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
+                    }
+                    event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
+                    if let Some(cache) = self
+                        .xdg_info_cache
+                        .iter()
+                        .find(|(_, info)| info.name == *name)
+                        .cloned()
+                    {
+                        output = Some(cache.clone());
+                    }
+                    self.xdg_info_cache.clear();
+                    let binded_output = output.as_ref().map(|(output, _)| output).cloned();
+                    let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo).cloned();
+                    (binded_output, binded_xdginfo)
                 }
-                event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
-                if let Some(cache) = self
-                    .xdg_info_cache
-                    .iter()
-                    .find(|(_, info)| info.name == *name)
-                    .cloned()
-                {
-                    output = Some(cache.clone());
-                }
-                // clear binded_output_name, it is not used anymore
-            }
-
-            self.xdg_info_cache.clear();
-            let binded_output = output.as_ref().map(|(output, _)| output);
-            let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo);
+                StartMode::TargetOutput(output) => (Some(output), None),
+                _ => (None, None),
+            };
 
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
             let layer_shell = globals
@@ -2581,7 +2568,7 @@ impl<T: 'static> WindowState<T> {
                 .unwrap();
             let layer = layer_shell.get_layer_surface(
                 &wl_surface,
-                binded_output,
+                binded_output.as_ref(),
                 self.layer,
                 self.namespace.clone(),
                 &qh,
@@ -2630,7 +2617,7 @@ impl<T: 'static> WindowState<T> {
                     Shell::LayerShell(layer),
                 )
                 .viewport(viewport)
-                .zxdgoutput(binded_xdginfo.cloned())
+                .zxdgoutput(binded_xdginfo)
                 .fractional_scale(fractional_scale)
                 .build(),
             );

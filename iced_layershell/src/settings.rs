@@ -6,7 +6,7 @@ use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 
 pub use layershellev::StartMode;
 
-use layershellev::{WithConnection, reexport::wayland_client::wl_keyboard::KeymapFormat};
+use layershellev::reexport::wayland_client::{Connection, wl_keyboard::KeymapFormat};
 
 #[derive(Debug)]
 pub struct VirtualKeyboardSettings {
@@ -53,7 +53,9 @@ pub struct Settings {
 
     pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
 
-    pub with_connection: Option<WithConnection>,
+    /// set the used wayland connection, all wayland object will share it, and they can be used by
+    /// each other.
+    pub with_connection: Option<Connection>,
 }
 impl Default for Settings {
     fn default() -> Self {

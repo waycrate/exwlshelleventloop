@@ -900,6 +900,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_output_select"
+version = "0.14.0-dev"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+ "libwaysip",
+ "wayland-client",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2420,6 +2431,24 @@ dependencies = [
  "bitflags 2.9.1",
  "libc",
  "redox_syscall 0.5.12",
+]
+
+[[package]]
+name = "libwaysip"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5eef61a9d82cfed0d0897c3b629c9085799c5819e0eea1ab3abc3127535400f"
+dependencies = [
+ "cairo-rs",
+ "memmap2",
+ "pango",
+ "pangocairo",
+ "tempfile",
+ "thiserror 2.0.12",
+ "wayland-client",
+ "wayland-cursor",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]
