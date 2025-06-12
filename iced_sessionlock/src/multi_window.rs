@@ -538,16 +538,13 @@ async fn run_instance<A, E, C>(
                         );
 
                     match ui_state {
-                        user_interface::State::Updated {
-                            redraw_request: Some(_),
-                        } => {
+                        user_interface::State::Updated { redraw_request: _ } => {
                             custom_actions.push(SessionShellAction::RedrawWindow(window.id));
                             is_updated = true;
                         }
                         user_interface::State::Outdated => {
                             uis_stale = true;
                         }
-                        _ => {}
                     }
 
                     debug.event_processing_finished();
