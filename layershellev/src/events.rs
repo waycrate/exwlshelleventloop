@@ -194,7 +194,6 @@ pub enum Ime {
     ///
     /// After getting this event you could receive [`Preedit`][Self::Preedit] and
     /// [`Commit`][Self::Commit] events. You should also start performing IME related requests
-    /// like [`Window::set_ime_cursor_area`].
     Enabled,
 
     /// Notifies when a new composing text should be set at the cursor position.
