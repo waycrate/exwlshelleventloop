@@ -214,7 +214,7 @@ pub enum Ime {
     ///
     /// After receiving this event you won't get any more [`Preedit`][Self::Preedit] or
     /// [`Commit`][Self::Commit] events until the next [`Enabled`][Self::Enabled] event. You should
-    /// also stop issuing IME related requests like [`Window::set_ime_cursor_area`] and clear
+    /// also stop issuing IME related requests and clear
     /// pending preedit text.
     Disabled,
 }

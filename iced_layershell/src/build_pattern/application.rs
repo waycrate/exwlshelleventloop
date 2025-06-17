@@ -16,7 +16,7 @@ use crate::settings::Settings;
 use iced_program::Program;
 
 pub trait NameSpace {
-    /// Produces the namespace of the [`Application`].
+    /// Produces the namespace of the [`SingleApplication`].
     fn namespace(&self) -> String;
 }
 
@@ -35,12 +35,12 @@ where
     }
 }
 
-/// The update logic of some [`Application`].
+/// The update logic of some [`SingleApplication`].
 ///
 /// This trait allows the [`application`] builder to take any closure that
 /// returns any `Into<Task<Message>>`.
 pub trait Update<State, Message> {
-    /// Processes the message and updates the state of the [`Application`].
+    /// Processes the message and updates the state of the [`SingleApplication`].
     fn update(&self, state: &mut State, message: Message) -> impl Into<Task<Message>>;
 }
 
@@ -542,7 +542,7 @@ impl<P: Program> SingleApplication<P> {
         Self { settings, ..self }
     }
 
-    /// Sets the [`Settings::antialiasing`] of the [`Application`].
+    /// Sets the [`Settings::antialiasing`] of the [`SingleApplication`].
     pub fn antialiasing(self, antialiasing: bool) -> Self {
         Self {
             settings: Settings {
@@ -553,7 +553,7 @@ impl<P: Program> SingleApplication<P> {
         }
     }
 
-    /// Sets the default [`Font`] of the [`Application`].
+    /// Sets the default [`Font`] of the [`SingleApplication`].
     pub fn default_font(self, default_font: Font) -> Self {
         Self {
             settings: Settings {
@@ -564,6 +564,7 @@ impl<P: Program> SingleApplication<P> {
         }
     }
 
+    /// Sets the layershell setting of the [`SingleApplication`]
     pub fn layer_settings(self, layer_settings: LayerShellSettings) -> Self {
         Self {
             settings: Settings {
@@ -574,7 +575,7 @@ impl<P: Program> SingleApplication<P> {
         }
     }
 
-    /// Adds a font to the list of fonts that will be loaded at the start of the [`Application`].
+    /// Adds a font to the list of fonts that will be loaded at the start of the [`SingleApplication`].
     pub fn font(mut self, font: impl Into<Cow<'static, [u8]>>) -> Self {
         self.settings.fonts.push(font.into());
         self
@@ -602,7 +603,7 @@ impl<P: Program> SingleApplication<P> {
             namespace: self.namespace,
         }
     }
-    /// Sets the subscription logic of the [`Application`].
+    /// Sets the subscription logic of the [`SingleApplication`].
     pub fn subscription(
         self,
         f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
@@ -615,7 +616,7 @@ impl<P: Program> SingleApplication<P> {
         }
     }
 
-    /// Sets the theme logic of the [`Application`].
+    /// Sets the theme logic of the [`SingleApplication`].
     pub fn theme(
         self,
         f: impl Fn(&P::State) -> P::Theme,
@@ -628,7 +629,7 @@ impl<P: Program> SingleApplication<P> {
         }
     }
 
-    /// Sets the scale factor of the [`Application`].
+    /// Sets the scale factor of the [`SingleApplication`].
     pub fn scale_factor(
         self,
         f: impl Fn(&P::State) -> f64,
@@ -640,7 +641,7 @@ impl<P: Program> SingleApplication<P> {
             namespace: self.namespace,
         }
     }
-    /// Sets the executor of the [`Application`].
+    /// Sets the executor of the [`SingleApplication`].
     pub fn executor<E>(
         self,
     ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>

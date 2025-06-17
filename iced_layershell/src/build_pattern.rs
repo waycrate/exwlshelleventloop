@@ -16,7 +16,11 @@ impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compo
 #[doc = include_str!("./build_pattern/application.md")]
 pub use application::application;
 
+pub use application::SingleApplication;
+
 #[doc = include_str!("./build_pattern/daemon.md")]
 pub use daemon::daemon;
+
+pub use daemon::Daemon;
 
 use crate::actions::LayershellCustomActionWithId;

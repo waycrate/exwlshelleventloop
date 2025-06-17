@@ -15,7 +15,7 @@ use crate::Result;
 use crate::settings::Settings;
 
 pub trait NameSpace {
-    /// Produces the title of the [`Application`].
+    /// Produces the namespace of the [`Daemon`].
     fn namespace(&self) -> String;
 }
 
@@ -34,12 +34,12 @@ where
     }
 }
 
-/// The update logic of some [`Application`].
+/// The update logic of some [`Daemon`].
 ///
-/// This trait allows the [`application`] builder to take any closure that
+/// This trait allows the [`daemon`] builder to take any closure that
 /// returns any `Into<Task<Message>>`.
 pub trait Update<State, Message> {
-    /// Processes the message and updates the state of the [`Application`].
+    /// Processes the message and updates the state of the [`Daemon`].
     fn update(&self, state: &mut State, message: Message) -> impl Into<Task<Message>>;
 }
 
@@ -57,12 +57,12 @@ where
     }
 }
 
-/// The view logic of some [`Application`].
+/// The view logic of some [`Daemon`].
 ///
 /// This trait allows the [`application`] builder to take any closure that
 /// returns any `Into<Element<'_, Message>>`.
 pub trait View<'a, State, Message, Theme, Renderer> {
-    /// Produces the widget of the [`Application`].
+    /// Produces the widget of the [`Daemon`].
     fn view(
         &self,
         state: &'a State,
@@ -86,7 +86,7 @@ where
 }
 
 pub trait Boot<State, Message> {
-    /// Initializes the [`Application`] state.
+    /// Initializes the [`Daemon`] state.
     fn boot(&self) -> (State, Task<Message>);
 }
 
@@ -100,9 +100,9 @@ where
     }
 }
 
-/// The initial state of some [`Application`].
+/// The initial state of some [`Daemon`].
 pub trait IntoBoot<State, Message> {
-    /// Turns some type into the initial state of some [`Application`].
+    /// Turns some type into the initial state of some [`Daemon`].
     fn into_boot(self) -> (State, Task<Message>);
 }
 
@@ -619,7 +619,7 @@ impl<P: Program> Daemon<P> {
         Self { settings, ..self }
     }
 
-    /// Sets the [`Settings::antialiasing`] of the [`Application`].
+    /// Sets the [`Settings::antialiasing`] of the [`Daemon`].
     pub fn antialiasing(self, antialiasing: bool) -> Self {
         Self {
             settings: Settings {
@@ -630,7 +630,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Sets the default [`Font`] of the [`Application`].
+    /// Sets the default [`Font`] of the [`Daemon`].
     pub fn default_font(self, default_font: Font) -> Self {
         Self {
             settings: Settings {
@@ -641,6 +641,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
+    /// Sets the layershell setting of the [`Daemon`]
     pub fn layer_settings(self, layer_settings: LayerShellSettings) -> Self {
         Self {
             settings: Settings {
@@ -651,7 +652,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Adds a font to the list of fonts that will be loaded at the start of the [`Application`].
+    /// Adds a font to the list of fonts that will be loaded at the start of the [`Daemon`].
     pub fn font(mut self, font: impl Into<Cow<'static, [u8]>>) -> Self {
         self.settings.fonts.push(font.into());
         self
@@ -668,7 +669,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Sets the style logic of the [`Application`].
+    /// Sets the style logic of the [`Daemon`].
     pub fn style(
         self,
         f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
@@ -679,7 +680,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
         }
     }
-    /// Sets the subscription logic of the [`Application`].
+    /// Sets the subscription logic of the [`Daemon`].
     pub fn subscription(
         self,
         f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
@@ -691,7 +692,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Sets the subscription logic of the [`Application`].
+    /// Sets the subscription logic of the [`Daemon`].
     pub fn title(
         self,
         f: impl Fn(&P::State, iced::window::Id) -> Option<String>,
@@ -703,7 +704,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Sets the theme logic of the [`Application`].
+    /// Sets the theme logic of the [`Daemon`].
     pub fn theme(
         self,
         f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
@@ -715,7 +716,7 @@ impl<P: Program> Daemon<P> {
         }
     }
 
-    /// Sets the scale factor of the [`Application`].
+    /// Sets the scale factor of the [`Daemon`].
     pub fn scale_factor(
         self,
         f: impl Fn(&P::State, iced_core::window::Id) -> f64,
@@ -726,7 +727,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
         }
     }
-    /// Sets the executor of the [`Application`].
+    /// Sets the executor of the [`Daemon`].
     pub fn executor<E>(
         self,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
