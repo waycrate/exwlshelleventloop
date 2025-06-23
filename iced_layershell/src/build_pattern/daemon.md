@@ -12,7 +12,7 @@ use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
 use iced_layershell::build_pattern::daemon;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption};
 use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
@@ -197,7 +197,7 @@ impl Counter {
                         layer: Layer::Top,
                         margin: None,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        use_last_output: false,
+                        output_option: OutputOption::None,
                         ..Default::default()
                     },
                     id,
@@ -214,7 +214,7 @@ impl Counter {
                         layer: Layer::Top,
                         margin: None,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        use_last_output: false,
+                        output_option: OutputOption::None,
                         ..Default::default()
                     },
                     id,

@@ -111,6 +111,7 @@ pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
 pub use events::NewPopUpSettings;
 pub use events::NewXdgWindowSettings;
+pub use events::OutputOption;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
@@ -2967,31 +2968,39 @@ impl<T: 'static> WindowState<T> {
                                         exclusive_zone,
                                         margin,
                                         keyboard_interactivity,
-                                        use_last_output,
+                                        output_option: output_type,
                                         events_transparent,
                                         namespace,
                                     },
                                     id,
                                     info,
                                 )) => {
-                                    let pos = window_state.surface_pos();
+                                    let output = match output_type {
+                                        OutputOption::Output(output) => Some(output),
+                                        _ => {
+                                            let pos = window_state.surface_pos();
 
-                                    let mut output =
-                                        pos.and_then(|p| window_state.units[p].wl_output.as_ref());
+                                            let mut output =
+                                                pos.and_then(|p| window_state.units[p].wl_output.as_ref());
 
-                                    if window_state.last_wloutput.is_none()
-                                        && window_state.outputs.len() > window_state.last_unit_index
-                                    {
-                                        window_state.last_wloutput = Some(
-                                            window_state.outputs[window_state.last_unit_index]
-                                                .1
-                                                .clone(),
-                                        );
-                                    }
+                                            if window_state.last_wloutput.is_none()
+                                                && window_state.outputs.len() > window_state.last_unit_index
+                                            {
+                                                window_state.last_wloutput = Some(
+                                                    window_state.outputs[window_state.last_unit_index]
+                                                        .1
+                                                        .clone(),
+                                                );
+                                            }
 
-                                    if use_last_output {
-                                        output = window_state.last_wloutput.as_ref();
-                                    }
+                                            if matches!(output_type, events::OutputOption::LastOutput) {
+                                                output = window_state.last_wloutput.as_ref();
+                                            }
+
+                                            output.cloned()
+                                        }
+                                    };
+
 
                                     let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                     let layer_shell = globals
@@ -2999,7 +3008,7 @@ impl<T: 'static> WindowState<T> {
                                         .unwrap();
                                     let layer = layer_shell.get_layer_surface(
                                         &wl_surface,
-                                        output,
+                                        output.as_ref(),
                                         layer,
                                         namespace.unwrap_or_else(|| window_state.namespace.clone()),
                                         &qh,
@@ -3056,7 +3065,7 @@ impl<T: 'static> WindowState<T> {
                                         )
                                         .viewport(viewport)
                                         .fractional_scale(fractional_scale)
-                                        .wl_output(output.cloned())
+                                        .wl_output(output)
                                         .binding(info)
                                         .becreated(true)
                                         .build(),

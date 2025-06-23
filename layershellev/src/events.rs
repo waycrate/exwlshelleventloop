@@ -9,7 +9,7 @@ use wayland_client::{
     protocol::{
         wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
-        wl_output::WlOutput,
+        wl_output::{self, WlOutput},
         wl_pointer::{self, ButtonState, WlPointer},
         wl_shm::WlShm,
     },
@@ -68,6 +68,19 @@ pub enum LayerEvent<'a, T, Message> {
     UserEvent(Message),
 }
 
+/// Define the output for new layershell
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum OutputOption {
+    LastOutput,
+
+    /// NOTE: The output should be in the same connection with the layershellev, that means if you
+    /// want to pass a [wl_output::WlOutput] to create a new layershell, you need to pass your
+    /// connection to layershellev first
+    Output(wl_output::WlOutput),
+    #[default]
+    None,
+}
+
 /// layershell settings to create a new layershell surface
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewLayerShellSettings {
@@ -81,7 +94,7 @@ pub struct NewLayerShellSettings {
     /// follow the last output of the activated surface, used to create some thing like mako, who
     /// will show on the same window, only when the notifications is cleared, it will change the
     /// wl_output.
-    pub use_last_output: bool,
+    pub output_option: OutputOption,
     pub events_transparent: bool,
     pub namespace: Option<String>,
 }
@@ -125,7 +138,7 @@ impl Default for NewLayerShellSettings {
             size: None,
             margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
-            use_last_output: false,
+            output_option: OutputOption::None,
             events_transparent: false,
             namespace: None,
         }

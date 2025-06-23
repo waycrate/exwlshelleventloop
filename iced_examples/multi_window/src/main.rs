@@ -5,7 +5,7 @@ use iced::widget::{
 use iced::window;
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
 use iced_layershell::daemon;
-use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings};
+use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings, OutputOption};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
@@ -82,7 +82,7 @@ impl Example {
                     layer: Layer::Top,
                     margin: None,
                     //keyboard_interactivity: KeyboardInteractivity::None,
-                    use_last_output: false,
+                    output_option: OutputOption::None,
                     ..Default::default()
                 },
                 id,
