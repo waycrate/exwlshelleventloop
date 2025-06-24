@@ -86,22 +86,22 @@ where
     }
 }
 
-pub struct UserInterfaces<A, Message, Theme, Renderer> {
+pub struct UserInterfaces<P: Program> {
     // SAFETY application will only be dropped after all uis are dropped. And we won't
     // allow publicly access to IcedUserInterface<'static, A::Message, A::Theme, A::Renderer>, so
     // reference to application won't be leaked to public.
-    uis: HashMap<Id, IcedUserInterface<'static, Message, Theme, Renderer>>,
-    application: Box<A>,
+    uis: HashMap<Id, IcedUserInterface<'static, P::Message, P::Theme, P::Renderer>>,
+    application: Instance<P>,
 }
 
-impl<P> UserInterfaces<Instance<P>, P::Message, P::Theme, P::Renderer>
+impl<P: Program> UserInterfaces<P>
 where
     P: Program + 'static,
 {
     pub fn new(application: Instance<P>) -> Self {
         Self {
             uis: HashMap::new(),
-            application: Box::new(application),
+            application,
         }
     }
 
@@ -149,17 +149,17 @@ where
     }
 }
 
-impl<A, Message, Theme, Renderer> Drop for UserInterfaces<A, Message, Theme, Renderer> {
+impl<P: Program> Drop for UserInterfaces<P> {
     fn drop(&mut self) {
         // SAFETY drop all references of application before dropping application
         self.uis.clear();
     }
 }
 
-impl<A, Message, Theme, Renderer> UserInterfaceReclaim<Message, Theme, Renderer>
-    for (&mut UserInterfaces<A, Message, Theme, Renderer>, Id)
+impl<P: Program> UserInterfaceReclaim<P::Message, P::Theme, P::Renderer>
+    for (&mut UserInterfaces<P>, Id)
 {
-    fn reclaim(&mut self, ui: IcedUserInterface<'static, Message, Theme, Renderer>) {
+    fn reclaim(&mut self, ui: IcedUserInterface<'static, P::Message, P::Theme, P::Renderer>) {
         self.0.uis.insert(self.1, ui);
     }
 }

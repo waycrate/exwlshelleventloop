@@ -234,7 +234,7 @@ where
     cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f64)>,
     clipboard: LayerShellClipboard,
     wl_input_region: Option<WlRegion>,
-    user_interfaces: UserInterfaces<Instance<P>, P::Message, P::Theme, P::Renderer>,
+    user_interfaces: UserInterfaces<P>,
     waiting_layer_shell_actions: Vec<(Option<IcedId>, LayershellCustomAction)>,
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
@@ -992,7 +992,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_action<P, C>(
-    user_interfaces: &mut UserInterfaces<Instance<P>, P::Message, P::Theme, P::Renderer>,
+    user_interfaces: &mut UserInterfaces<P>,
     compositor: &mut Option<C>,
     event: Action<P::Message>,
     messages: &mut Vec<P::Message>,
