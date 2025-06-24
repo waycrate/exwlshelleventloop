@@ -90,6 +90,7 @@ pub struct UserInterfaces<P: Program> {
     // SAFETY application will only be dropped after all uis are dropped. And we won't
     // allow publicly access to IcedUserInterface<'static, A::Message, A::Theme, A::Renderer>, so
     // reference to application won't be leaked to public.
+    #[allow(clippy::type_complexity)]
     uis: HashMap<Id, IcedUserInterface<'static, P::Message, P::Theme, P::Renderer>>,
     application: Instance<P>,
 }
