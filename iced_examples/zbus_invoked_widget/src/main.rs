@@ -7,7 +7,9 @@ use iced_runtime::Action;
 use iced_runtime::window::Action as WindowAction;
 
 use iced_layershell::daemon;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings};
+use iced_layershell::reexport::{
+    Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption,
+};
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use zbus::{connection, interface};
 
@@ -120,7 +122,7 @@ impl Counter {
                         layer: Layer::Top,
                         margin: Some((100, 100, 100, 100)),
                         keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                        use_last_output: false,
+                        output_option: OutputOption::None,
                         ..Default::default()
                     },
                     id: iced::window::Id::unique(),
