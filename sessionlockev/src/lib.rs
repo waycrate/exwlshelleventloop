@@ -111,6 +111,7 @@ use events::{AxisScroll, DispatchMessageInner};
 
 pub use events::{DispatchMessage, ReturnData, SessionLockEvent};
 
+use wayland_client::protocol::wl_callback::WlCallback;
 use wayland_client::{
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
     delegate_noop,
@@ -161,6 +162,7 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use std::time::Instant;
 
 pub use calloop;
 
@@ -314,8 +316,11 @@ pub struct WindowStateUnit<T> {
     fractional_scale: Option<WpFractionalScaleV1>,
     viewport: Option<WpViewport>,
     binding: Option<T>,
+    qh: QueueHandle<WindowState<T>>,
 
     scale: u32,
+    present_available_state: PresentAvailableState,
+    refresh: RefreshRequest,
 }
 
 impl<T> WindowStateUnit<T> {
@@ -388,14 +393,6 @@ impl<T> WindowStateUnit<T> {
         self.binding.as_mut()
     }
 
-    /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
-    /// and final commit
-    pub fn request_refresh(&self, (width, height): (i32, i32)) {
-        self.wl_surface.attach(self.buffer.as_ref(), 0, 0);
-        self.wl_surface.damage(0, 0, width, height);
-        self.wl_surface.commit();
-    }
-
     pub fn get_size(&self) -> (u32, u32) {
         self.size
     }
@@ -407,8 +404,69 @@ impl<T> WindowStateUnit<T> {
     pub fn scale_float(&self) -> f64 {
         self.scale as f64 / 120.
     }
-}
 
+    /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
+    /// and final commit
+    pub fn request_refresh(&mut self, request: RefreshRequest) {
+        // refresh request in nearest future has the highest priority.
+        match self.refresh {
+            RefreshRequest::NextFrame => {}
+            RefreshRequest::At(instant) => match request {
+                RefreshRequest::NextFrame => self.refresh = request,
+                RefreshRequest::At(other_instant) => {
+                    if other_instant < instant {
+                        self.refresh = request;
+                    }
+                }
+                RefreshRequest::Wait => {}
+            },
+            RefreshRequest::Wait => self.refresh = request,
+        }
+    }
+
+    fn should_refresh(&self) -> bool {
+        match self.refresh {
+            RefreshRequest::NextFrame => true,
+            RefreshRequest::At(instant) => instant <= Instant::now(),
+            RefreshRequest::Wait => false,
+        }
+    }
+
+    pub fn take_present_slot(&mut self) -> bool {
+        if !self.should_refresh() {
+            return false;
+        }
+        if self.present_available_state != PresentAvailableState::Available {
+            return false;
+        }
+        self.refresh = RefreshRequest::Wait;
+        self.present_available_state = PresentAvailableState::Taken;
+        true
+    }
+
+    pub fn reset_present_slot(&mut self) -> bool {
+        if self.present_available_state == PresentAvailableState::Taken {
+            // refresh at next frame.
+            self.refresh = RefreshRequest::NextFrame;
+            self.present_available_state = PresentAvailableState::Available;
+            true
+        } else {
+            false
+        }
+    }
+}
+impl<T: 'static> WindowStateUnit<T> {
+    pub fn request_next_present(&mut self) {
+        match self.present_available_state {
+            PresentAvailableState::Taken => {
+                self.present_available_state = PresentAvailableState::Requested;
+                self.wl_surface
+                    .frame(&self.qh, (self.id, PresentAvailableState::Available));
+            }
+            PresentAvailableState::Requested | PresentAvailableState::Available => {}
+        }
+    }
+}
 #[derive(Debug)]
 pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
@@ -439,6 +497,21 @@ pub struct WindowState<T> {
 
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
+
+    return_data: Vec<ReturnData>,
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RefreshRequest {
+    /// Redraw the next frame.
+    NextFrame,
+
+    /// Redraw at the given time.
+    At(Instant),
+
+    /// No redraw is needed.
+    #[default]
+    Wait,
 }
 
 impl<T> WindowState<T> {
@@ -498,6 +571,10 @@ impl<T> WindowState<T> {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn append_return_data(&mut self, data: ReturnData) {
+        self.return_data.push(data);
+    }
 }
 
 impl<T> Default for WindowState<T> {
@@ -529,12 +606,14 @@ impl<T> Default for WindowState<T> {
 
             finger_locations: HashMap::new(),
             enter_serial: None,
+
+            return_data: Vec::new(),
         }
     }
 }
 
 impl<T> WindowState<T> {
-    fn get_id_list(&self) -> Vec<id::Id> {
+    pub fn get_id_list(&self) -> Vec<id::Id> {
         self.units.iter().map(|unit| unit.id).collect()
     }
     /// it return the iter of units. you can do loop with it
@@ -600,7 +679,28 @@ impl<T> WindowState<T> {
         }
     }
 }
+impl<T: 'static> WindowState<T> {
+    pub fn request_next_present(&mut self, id: id::Id) {
+        self.get_mut_unit_with_id(id)
+            .map(WindowStateUnit::request_next_present);
+    }
 
+    pub fn reset_present_slot(&mut self, id: id::Id) {
+        self.get_mut_unit_with_id(id)
+            .map(WindowStateUnit::reset_present_slot);
+    }
+    pub fn request_refresh_all(&mut self, request: RefreshRequest) {
+        self.units
+            .iter_mut()
+            .for_each(|unit| unit.request_refresh(request));
+    }
+
+    pub fn request_refresh(&mut self, id: id::Id, request: RefreshRequest) {
+        if let Some(unit) = self.get_mut_unit_with_id(id) {
+            unit.request_refresh(request);
+        }
+    }
+}
 impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -1201,10 +1301,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
             };
             state.units[unit_index].size = (width, height);
 
-            state.message.push((
-                Some(state.units[unit_index].id),
-                DispatchMessageInner::RefreshSurface { width, height },
-            ));
+            state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
         }
     }
 }
@@ -1227,6 +1324,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
                 return;
             };
             unit.scale = scale;
+            unit.request_refresh(RefreshRequest::NextFrame);
             state.message.push((
                 Some(unit.id),
                 DispatchMessageInner::PreferredScale {
@@ -1234,6 +1332,36 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
                     scale_u32: scale,
                 },
             ));
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+enum PresentAvailableState {
+    /// A `wl_surface.frame` request has been sent, and there is no callback yet.
+    Requested,
+    /// A notification has been received, it is a good time to start drawing a new frame. Because
+    /// there is no present at first, so the default state is available.
+    #[default]
+    Available,
+    /// Availability is taken.
+    Taken,
+}
+
+impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        _proxy: &WlCallback,
+        event: <WlCallback as Proxy>::Event,
+        data: &(id::Id, PresentAvailableState),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use wayland_client::protocol::wl_callback::Event as WlCallbackEvent;
+        if let WlCallbackEvent::Done { callback_data: _ } = event {
+            if let Some(unit) = state.get_mut_unit_with_id(data.0) {
+                unit.present_available_state = data.1;
+            }
         }
     }
 }
@@ -1329,6 +1457,9 @@ impl<T: 'static> WindowState<T> {
                 fractional_scale,
                 binding: None,
                 scale: 120,
+                present_available_state: PresentAvailableState::Available,
+                refresh: RefreshRequest::Wait,
+                qh: qh.clone(),
             });
         }
         self.connection = Some(connection);
@@ -1461,52 +1592,6 @@ impl<T: 'static> WindowState<T> {
                     std::mem::swap(&mut messages, &mut window_state.message);
                     for msg in messages.iter() {
                         match msg {
-                            (
-                                Some(unit_index),
-                                DispatchMessageInner::RefreshSurface { width, height },
-                            ) => {
-                                let index = window_state
-                                    .units
-                                    .iter()
-                                    .position(|unit| unit.id == *unit_index)
-                                    .unwrap();
-                                if window_state.units[index].buffer.is_none()
-                                    && !window_state.use_display_handle
-                                {
-                                    let Ok(mut file) = tempfile::tempfile() else {
-                                        log::error!("Cannot create new file from tempfile");
-                                        return TimeoutAction::Drop;
-                                    };
-                                    let ReturnData::WlBuffer(buffer) = event_handler(
-                                        SessionLockEvent::RequestBuffer(
-                                            &mut file, &shm, &qh, *width, *height,
-                                        ),
-                                        window_state,
-                                        Some(*unit_index),
-                                    ) else {
-                                        panic!("You cannot return this one");
-                                    };
-                                    let surface = &window_state.units[index].wl_surface;
-                                    surface.attach(Some(&buffer), 0, 0);
-                                    window_state.units[index].buffer = Some(buffer);
-                                } else {
-                                    event_handler(
-                                        SessionLockEvent::RequestMessages(
-                                            &DispatchMessage::RequestRefresh {
-                                                width: *width,
-                                                height: *height,
-                                                scale_float: window_state.units[index]
-                                                    .scale_float(),
-                                            },
-                                        ),
-                                        window_state,
-                                        Some(*unit_index),
-                                    );
-                                }
-                                if let Some(unit) = window_state.get_unit_with_id(*unit_index) {
-                                    unit.wl_surface.commit();
-                                }
-                            }
                             (_, DispatchMessageInner::NewDisplay(display)) => {
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                 //
@@ -1542,6 +1627,9 @@ impl<T: 'static> WindowState<T> {
                                     fractional_scale,
                                     binding: None,
                                     scale: 120,
+                                    present_available_state: PresentAvailableState::Available,
+                                    refresh: RefreshRequest::Wait,
+                                    qh: qh.clone(),
                                 });
                             }
                             _ => {
@@ -1605,48 +1693,14 @@ impl<T: 'static> WindowState<T> {
                             _ => {}
                         }
                     }
-                    let mut return_data = vec![event_handler(
-                        SessionLockEvent::NormalDispatch,
-                        window_state,
-                        None,
-                    )];
+
+                    event_handler(SessionLockEvent::NormalDispatch, window_state, None);
                     loop {
-                        let mut replace_data = Vec::new();
+                        let mut return_data = vec![];
+
+                        std::mem::swap(&mut window_state.return_data, &mut return_data);
                         for data in return_data {
                             match data {
-                                ReturnData::RedrawAllRequest => {
-                                    let idlist = window_state.get_id_list();
-                                    for id in idlist {
-                                        if let Some(unit) = window_state.get_unit_with_id(id) {
-                                            replace_data.push(event_handler(
-                                                SessionLockEvent::RequestMessages(
-                                                    &DispatchMessage::RequestRefresh {
-                                                        width: unit.size.0,
-                                                        height: unit.size.1,
-                                                        scale_float: unit.scale_float(),
-                                                    },
-                                                ),
-                                                window_state,
-                                                Some(id),
-                                            ));
-                                        }
-                                    }
-                                }
-                                ReturnData::RedrawIndexRequest(id) => {
-                                    if let Some(unit) = window_state.get_unit_with_id(id) {
-                                        replace_data.push(event_handler(
-                                            SessionLockEvent::RequestMessages(
-                                                &DispatchMessage::RequestRefresh {
-                                                    width: unit.size.0,
-                                                    height: unit.size.1,
-                                                    scale_float: unit.scale_float(),
-                                                },
-                                            ),
-                                            window_state,
-                                            Some(id),
-                                        ));
-                                    }
-                                }
                                 ReturnData::RequestUnlockAndExist => {
                                     lock.unlock_and_destroy();
                                     connection.roundtrip().expect("should go final roundtrip");
@@ -1667,11 +1721,52 @@ impl<T: 'static> WindowState<T> {
                                 _ => {}
                             }
                         }
-                        replace_data.retain(|x| *x != ReturnData::None);
-                        if replace_data.is_empty() {
+                        window_state.return_data.retain(|x| *x != ReturnData::None);
+                        if window_state.return_data.is_empty() {
                             break;
                         }
-                        return_data = replace_data;
+                    }
+                    for idx in 0..window_state.units.len() {
+                        let unit = &mut window_state.units[idx];
+                        let (width, height) = unit.size;
+                        if width == 0 || height == 0 {
+                            // don't refresh, if size is 0.
+                            continue;
+                        }
+                        if unit.take_present_slot() {
+                            let unit_id = unit.id;
+                            let scale_float = unit.scale_float();
+                            let wl_surface = unit.wl_surface.clone();
+                            if unit.buffer.is_none() && !window_state.use_display_handle {
+                                let Ok(mut file) = tempfile::tempfile() else {
+                                    log::error!("Cannot create new file from tempfile");
+                                    return TimeoutAction::Drop;
+                                };
+                                let ReturnData::WlBuffer(buffer) = event_handler(
+                                    SessionLockEvent::RequestBuffer(
+                                        &mut file, &shm, &qh, width, height,
+                                    ),
+                                    window_state,
+                                    Some(unit_id),
+                                ) else {
+                                    panic!("You cannot return this one");
+                                };
+                                wl_surface.attach(Some(&buffer), 0, 0);
+                                wl_surface.commit();
+                                window_state.units[idx].buffer = Some(buffer);
+                            }
+                            event_handler(
+                                SessionLockEvent::RequestMessages(
+                                    &DispatchMessage::RequestRefresh {
+                                        width,
+                                        height,
+                                        scale_float,
+                                    },
+                                ),
+                                window_state,
+                                Some(unit_id),
+                            );
+                        }
                     }
                     TimeoutAction::ToDuration(Duration::from_millis(50))
                 },

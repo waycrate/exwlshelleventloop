@@ -1,14 +1,22 @@
-use sessionlockev::id::Id;
+use iced::mouse;
+use sessionlockev::DispatchMessage;
 use sessionlockev::keyboard::ModifiersState;
 use sessionlockev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
-use sessionlockev::xkb_keyboard::KeyEvent as SessionLockEvent;
-use sessionlockev::{DispatchMessage, WindowWrapper};
+use sessionlockev::xkb_keyboard::KeyEvent;
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
+use iced_runtime::Action;
+fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
+    match code {
+        273 => mouse::Button::Right,
+        _ => mouse::Button::Left,
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum IcedButtonState {
-    Pressed,
-    Released,
+    Pressed(mouse::Button),
+    Released(mouse::Button),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -49,7 +57,7 @@ pub enum WindowEvent {
         modifiers: IcedModifiers,
     },
     KeyBoardInput {
-        event: SessionLockEvent,
+        event: KeyEvent,
         is_synthetic: bool,
     },
     Unfocus,
@@ -63,6 +71,7 @@ pub enum WindowEvent {
         x: f32,
         y: f32,
     },
+    ScrollStop,
     TouchDown {
         id: i32,
         x: f64,
@@ -83,115 +92,83 @@ pub enum WindowEvent {
         x: f64,
         y: f64,
     },
+    Refresh,
 }
 
 #[derive(Debug)]
 pub enum IcedSessionLockEvent<Message: 'static> {
-    RequestRefreshWithWrapper {
-        width: u32,
-        height: u32,
-        scale_float: f64,
-        wrapper: WindowWrapper,
-    },
-    #[allow(unused)]
-    RequestRefresh {
-        width: u32,
-        height: u32,
-    },
     Window(WindowEvent),
-    NormalUpdate,
-    UserEvent(Message),
+    NormalDispatch,
+    UserAction(Action<Message>),
 }
 
-#[derive(Debug)]
-pub struct MultiWindowIcedSessionLockEvent<Message: 'static>(
-    pub Option<Id>,
-    pub IcedSessionLockEvent<Message>,
-);
-
-impl<Message: 'static> From<(Option<Id>, IcedSessionLockEvent<Message>)>
-    for MultiWindowIcedSessionLockEvent<Message>
-{
-    fn from((id, message): (Option<Id>, IcedSessionLockEvent<Message>)) -> Self {
-        MultiWindowIcedSessionLockEvent(id, message)
-    }
-}
-
-impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> {
+impl From<&DispatchMessage> for WindowEvent {
     fn from(value: &DispatchMessage) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { width, height, .. } => {
-                IcedSessionLockEvent::RequestRefresh {
-                    width: *width,
-                    height: *height,
-                }
-            }
+            DispatchMessage::RequestRefresh { .. } => WindowEvent::Refresh,
             DispatchMessage::MouseEnter {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => IcedSessionLockEvent::Window(WindowEvent::CursorEnter { x: *x, y: *y }),
+            } => WindowEvent::CursorEnter { x: *x, y: *y },
             DispatchMessage::MouseMotion {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => IcedSessionLockEvent::Window(WindowEvent::CursorMoved { x: *x, y: *y }),
-            DispatchMessage::MouseLeave => IcedSessionLockEvent::Window(WindowEvent::CursorLeft),
-            DispatchMessage::MouseButton { state, .. } => match state {
-                WEnum::Value(ButtonState::Pressed) => {
-                    IcedSessionLockEvent::Window(WindowEvent::MouseInput(IcedButtonState::Pressed))
+            } => WindowEvent::CursorMoved { x: *x, y: *y },
+            DispatchMessage::MouseLeave => WindowEvent::CursorLeft,
+            DispatchMessage::MouseButton { state, button, .. } => {
+                let btn = from_u32_to_icedmouse(*button);
+                match state {
+                    WEnum::Value(ButtonState::Pressed) => {
+                        WindowEvent::MouseInput(IcedButtonState::Pressed(btn))
+                    }
+
+                    WEnum::Value(ButtonState::Released) => {
+                        WindowEvent::MouseInput(IcedButtonState::Released(btn))
+                    }
+
+                    _ => unreachable!(),
                 }
-                WEnum::Value(ButtonState::Released) => {
-                    IcedSessionLockEvent::Window(WindowEvent::MouseInput(IcedButtonState::Released))
-                }
-                _ => unreachable!(),
+            }
+            DispatchMessage::TouchUp { id, x, y, .. } => WindowEvent::TouchUp {
+                id: *id,
+                x: *x,
+                y: *y,
             },
-            DispatchMessage::TouchUp { id, x, y, .. } => {
-                IcedSessionLockEvent::Window(WindowEvent::TouchUp {
-                    id: *id,
-                    x: *x,
-                    y: *y,
-                })
-            }
-            DispatchMessage::TouchDown { id, x, y, .. } => {
-                IcedSessionLockEvent::Window(WindowEvent::TouchDown {
-                    id: *id,
-                    x: *x,
-                    y: *y,
-                })
-            }
-            DispatchMessage::TouchMotion { id, x, y, .. } => {
-                IcedSessionLockEvent::Window(WindowEvent::TouchMotion {
-                    id: *id,
-                    x: *x,
-                    y: *y,
-                })
-            }
-            DispatchMessage::TouchCancel { id, x, y, .. } => {
-                IcedSessionLockEvent::Window(WindowEvent::TouchCancel {
-                    id: *id,
-                    x: *x,
-                    y: *y,
-                })
-            }
+            DispatchMessage::TouchDown { id, x, y, .. } => WindowEvent::TouchDown {
+                id: *id,
+                x: *x,
+                y: *y,
+            },
+            DispatchMessage::TouchMotion { id, x, y, .. } => WindowEvent::TouchMotion {
+                id: *id,
+                x: *x,
+                y: *y,
+            },
+            DispatchMessage::TouchCancel { id, x, y, .. } => WindowEvent::TouchCancel {
+                id: *id,
+                x: *x,
+                y: *y,
+            },
             DispatchMessage::PreferredScale {
                 scale_float,
                 scale_u32,
-            } => IcedSessionLockEvent::Window(WindowEvent::ScaleFactorChanged {
+            } => WindowEvent::ScaleFactorChanged {
                 scale_u32: *scale_u32,
                 scale_float: *scale_float,
-            }),
+            },
             DispatchMessage::KeyboardInput {
                 event,
                 is_synthetic,
-            } => IcedSessionLockEvent::Window(WindowEvent::KeyBoardInput {
+            } => WindowEvent::KeyBoardInput {
                 event: event.clone(),
                 is_synthetic: *is_synthetic,
-            }),
-            DispatchMessage::Unfocus => IcedSessionLockEvent::Window(WindowEvent::Unfocus),
-            DispatchMessage::Focused(_) => IcedSessionLockEvent::Window(WindowEvent::Focused),
+            },
+            DispatchMessage::Unfocus => WindowEvent::Unfocus,
+            DispatchMessage::Focused(_) => WindowEvent::Focused,
             DispatchMessage::ModifiersChanged(modifiers) => {
-                IcedSessionLockEvent::Window(WindowEvent::ModifiersChanged(*modifiers))
+                WindowEvent::ModifiersChanged(*modifiers)
             }
             DispatchMessage::Axis {
                 horizontal,
@@ -200,19 +177,19 @@ impl<Message: 'static> From<&DispatchMessage> for IcedSessionLockEvent<Message> 
                 ..
             } => {
                 if horizontal.stop && vertical.stop {
-                    return Self::NormalUpdate;
+                    return Self::ScrollStop;
                 }
                 let has_scroll = vertical.discrete != 0 || horizontal.discrete != 0;
                 if has_scroll {
-                    return IcedSessionLockEvent::Window(WindowEvent::Axis {
+                    return WindowEvent::Axis {
                         x: (-horizontal.discrete as f64 * scale) as f32,
                         y: (-vertical.discrete as f64 * scale) as f32,
-                    });
+                    };
                 }
-                IcedSessionLockEvent::Window(WindowEvent::PixelDelta {
+                WindowEvent::PixelDelta {
                     x: (-horizontal.absolute * scale) as f32,
                     y: (-vertical.absolute * scale) as f32,
-                })
+                }
             }
         }
     }

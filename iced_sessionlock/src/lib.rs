@@ -9,6 +9,7 @@ mod conversion;
 mod error;
 mod event;
 mod proxy;
+mod user_interface;
 
 pub use iced_sessionlock_macros::to_session_message;
 

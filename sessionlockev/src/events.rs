@@ -169,15 +169,6 @@ pub(crate) enum DispatchMessageInner {
         /// Otherwise, this value is always `false`.
         is_synthetic: bool,
     },
-    RefreshSurface {
-        width: u32,
-        height: u32,
-    },
-    RequestRefresh {
-        width: u32,
-        height: u32,
-        scale_float: f64,
-    },
     PreferredScale {
         scale_float: f64,
         scale_u32: u32,
@@ -348,15 +339,6 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 DispatchMessage::TouchCancel { id, x, y }
             }
 
-            DispatchMessageInner::RequestRefresh {
-                width,
-                height,
-                scale_float,
-            } => DispatchMessage::RequestRefresh {
-                width,
-                height,
-                scale_float,
-            },
             DispatchMessageInner::Axis {
                 time,
                 scale,
@@ -389,7 +371,6 @@ impl From<DispatchMessageInner> for DispatchMessage {
             },
             DispatchMessageInner::UnFocused => DispatchMessage::Unfocus,
             DispatchMessageInner::Focused(id) => DispatchMessage::Focused(id),
-            DispatchMessageInner::RefreshSurface { .. } => unimplemented!(),
         }
     }
 }

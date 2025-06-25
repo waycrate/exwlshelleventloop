@@ -3296,8 +3296,7 @@ impl<T: 'static> WindowState<T> {
 
                     for idx in 0..window_state.units.len() {
                         let unit = &mut window_state.units[idx];
-                        let width = unit.size.0;
-                        let height = unit.size.1;
+                        let (width, height) = unit.size;
                         if width == 0 || height == 0 {
                             // don't refresh, if size is 0.
                             continue;
