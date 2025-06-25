@@ -584,6 +584,7 @@ where
             &mut self.waiting_layer_shell_actions,
             &mut should_exit,
             &mut self.window_manager,
+            ev,
         );
         if should_exit {
             ev.append_return_data(ReturnData::RequestExit);
@@ -1000,6 +1001,7 @@ pub(crate) fn run_action<P, C>(
     waiting_layer_shell_actions: &mut Vec<(Option<iced::window::Id>, LayershellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
+    ev: &mut WindowState<IcedId>,
 ) where
     P: IcedProgram + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
@@ -1106,6 +1108,19 @@ pub(crate) fn run_action<P, C>(
 
                 let _ = channel.send(Ok(()));
             }
+        }
+        Action::Reload => {
+            for (iced_id, window) in window_manager.iter_mut() {
+                if let Some(cache) = user_interfaces.remove(&iced_id) {
+                    user_interfaces.build(
+                        iced_id,
+                        cache,
+                        &mut window.renderer,
+                        window.state.viewport().logical_size(),
+                    );
+                }
+            }
+            ev.request_refresh_all(RefreshRequest::NextFrame);
         }
         _ => {}
     }

@@ -491,7 +491,7 @@ where
     }
     fn handle_user_action(&mut self, ev: &mut WindowState<()>, action: Action<P::Message>) {
         let mut should_exit = false;
-        run_action_rw(
+        run_action(
             &mut self.user_interfaces,
             &mut self.compositor,
             action,
@@ -499,6 +499,7 @@ where
             &mut self.clipboard,
             &mut should_exit,
             &mut self.window_manager,
+            ev,
         );
         if should_exit {
             ev.append_return_data(ReturnData::RequestUnlockAndExist);
@@ -680,7 +681,7 @@ pub(crate) fn update<P: Program, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_action_rw<P, C>(
+pub(crate) fn run_action<P, C>(
     user_interfaces: &mut UserInterfaces<P>,
     compositor: &mut Option<C>,
     action: Action<P::Message>,
@@ -688,6 +689,7 @@ pub(crate) fn run_action_rw<P, C>(
     clipboard: &mut SessionLockClipboard,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
+    ev: &mut WindowState<()>,
 ) where
     P: Program + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
@@ -778,7 +780,19 @@ pub(crate) fn run_action_rw<P, C>(
                 let _ = channel.send(Ok(()));
             }
         }
-
+        Action::Reload => {
+            for (iced_id, window) in window_manager.iter_mut() {
+                if let Some(cache) = user_interfaces.remove(&iced_id) {
+                    user_interfaces.build(
+                        iced_id,
+                        cache,
+                        &mut window.renderer,
+                        window.state.viewport().logical_size(),
+                    );
+                }
+            }
+            ev.request_refresh_all(RefreshRequest::NextFrame);
+        }
         _ => {}
     }
 }
