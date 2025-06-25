@@ -50,6 +50,16 @@ where
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
+
+    #[cfg(feature = "debug")]
+    {
+        let proxy = proxy.clone();
+
+        debug::on_hotpatch(move || {
+            proxy.send_action(Action::Reload);
+        });
+    }
+
     let mut runtime: SessionRuntime<P::Executor, P::Message> = {
         let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 

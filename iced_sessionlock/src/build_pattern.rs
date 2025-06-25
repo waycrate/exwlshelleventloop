@@ -19,6 +19,7 @@ mod pattern {
     use crate::DefaultStyle;
 
     use crate::Result;
+    use iced_debug as debug;
     use iced_exdevtools::gen_attach;
     use iced_program::Program;
     gen_attach! { Action = UnLockAction }
@@ -154,7 +155,7 @@ mod pattern {
                 state: &mut Self::State,
                 message: Self::Message,
             ) -> Task<Self::Message> {
-                self.update.update(state, message).into()
+                debug::hot(|| self.update.update(state, message)).into()
             }
             fn boot(&self) -> (Self::State, Task<Self::Message>) {
                 self.boot.boot()
@@ -164,7 +165,7 @@ mod pattern {
                 state: &'a Self::State,
                 window: iced_core::window::Id,
             ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-                self.view.view(state, window).into()
+                debug::hot(|| self.view.view(state, window)).into()
             }
             fn name() -> &'static str {
                 let name = std::any::type_name::<State>();
@@ -580,7 +581,7 @@ mod pattern {
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
-                raw: with_style(self.raw, f),
+                raw: with_style(self.raw, move |state, theme| debug::hot(|| f(state, theme))),
                 settings: self.settings,
             }
         }
@@ -591,7 +592,7 @@ mod pattern {
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
-                raw: with_subscription(self.raw, f),
+                raw: with_subscription(self.raw, move |state| debug::hot(|| f(state))),
                 settings: self.settings,
             }
         }
@@ -603,7 +604,9 @@ mod pattern {
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
-                raw: with_theme(self.raw, f),
+                raw: with_theme(self.raw, move |state, window| {
+                    debug::hot(|| f(state, window))
+                }),
                 settings: self.settings,
             }
         }
@@ -615,7 +618,9 @@ mod pattern {
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
-                raw: with_scale_factor(self.raw, f),
+                raw: with_scale_factor(self.raw, move |state, window| {
+                    debug::hot(|| f(state, window))
+                }),
                 settings: self.settings,
             }
         }

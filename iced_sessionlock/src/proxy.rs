@@ -22,6 +22,11 @@ impl<Message: 'static> IcedProxy<Message> {
     pub fn new(sender: stdmpsc::Sender<Message>) -> Self {
         Self(sender)
     }
+
+    #[allow(unused)]
+    pub fn send_action(&self, action: Message) {
+        self.0.send(action).ok();
+    }
 }
 
 impl<Message: 'static> Sink<Message> for IcedProxy<Message> {

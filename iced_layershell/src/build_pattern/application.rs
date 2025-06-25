@@ -13,6 +13,7 @@ use super::Renderer;
 use crate::Result;
 use crate::settings::Settings;
 
+use iced_debug as debug;
 use iced_program::Program;
 
 pub trait NameSpace {
@@ -167,7 +168,7 @@ where
         }
 
         fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
-            self.update.update(state, message).into()
+            debug::hot(|| self.update.update(state, message)).into()
         }
         fn boot(&self) -> (Self::State, Task<Self::Message>) {
             self.boot.boot()
@@ -177,7 +178,7 @@ where
             state: &'a Self::State,
             _window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            self.view.view(state).into()
+            debug::hot(|| self.view.view(state)).into()
         }
     }
     SingleApplication {
@@ -598,7 +599,7 @@ impl<P: Program> SingleApplication<P> {
     ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
     {
         SingleApplication {
-            raw: with_style(self.raw, f),
+            raw: with_style(self.raw, move |state, theme| f(state, theme)),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -610,7 +611,7 @@ impl<P: Program> SingleApplication<P> {
     ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
     {
         SingleApplication {
-            raw: with_subscription(self.raw, f),
+            raw: with_subscription(self.raw, move |state| debug::hot(|| f(state))),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -623,7 +624,7 @@ impl<P: Program> SingleApplication<P> {
     ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
     {
         SingleApplication {
-            raw: with_theme(self.raw, f),
+            raw: with_theme(self.raw, move |state| debug::hot(|| f(state))),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -636,7 +637,7 @@ impl<P: Program> SingleApplication<P> {
     ) -> SingleApplication<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
     {
         SingleApplication {
-            raw: with_scale_factor(self.raw, f),
+            raw: with_scale_factor(self.raw, move |state| debug::hot(|| f(state))),
             settings: self.settings,
             namespace: self.namespace,
         }

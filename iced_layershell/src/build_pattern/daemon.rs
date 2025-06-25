@@ -675,7 +675,7 @@ impl<P: Program> Daemon<P> {
         f: impl Fn(&P::State, &P::Theme) -> crate::Appearance,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_style(self.raw, f),
+            raw: with_style(self.raw, move |state, theme| f(state, theme)),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -686,7 +686,7 @@ impl<P: Program> Daemon<P> {
         f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_subscription(self.raw, f),
+            raw: with_subscription(self.raw, move |state| f(state)),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -698,7 +698,7 @@ impl<P: Program> Daemon<P> {
         f: impl Fn(&P::State, iced::window::Id) -> Option<String>,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_title(self.raw, f),
+            raw: with_title(self.raw, move |state, id| f(state, id)),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -710,7 +710,7 @@ impl<P: Program> Daemon<P> {
         f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_theme(self.raw, f),
+            raw: with_theme(self.raw, move |state, id| f(state, id)),
             settings: self.settings,
             namespace: self.namespace,
         }
@@ -722,7 +722,7 @@ impl<P: Program> Daemon<P> {
         f: impl Fn(&P::State, iced_core::window::Id) -> f64,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
-            raw: with_scale_factor(self.raw, f),
+            raw: with_scale_factor(self.raw, move |state, id| f(state, id)),
             settings: self.settings,
             namespace: self.namespace,
         }
