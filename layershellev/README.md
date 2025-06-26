@@ -38,8 +38,8 @@ fn main() {
     ev.running(|event, ev, index| {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
-            LayerEvent::InitRequest => ReturnData::RequestBind,
-            LayerEvent::BindProvide(globals, qh) => {
+            LayerShellEvent::InitRequest => ReturnData::RequestBind,
+            LayerShellEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
                 virtual_keyboard_manager = Some(
                     globals
@@ -53,13 +53,13 @@ fn main() {
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::None
             }
-            LayerEvent::XdgInfoChanged(_) => {
+            LayerShellEvent::XdgInfoChanged(_) => {
                 let index = index.unwrap();
                 let unit = ev.get_unit(index);
                 println!("{:?}", unit.get_xdgoutput_info());
                 ReturnData::None
             }
-            LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+            LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
                 draw(file, (init_w, init_h));
                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
                 ReturnData::WlBuffer(pool.create_buffer(
@@ -72,18 +72,18 @@ fn main() {
                     (),
                 ))
             }
-            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
+            LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
                 println!("{width}, {height}");
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-            LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
                 pointer, ..
             }) => ReturnData::RequestSetCursorShape((
                 "crosshair".to_owned(),
                 pointer.clone(),
             )),
-            LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
@@ -91,7 +91,7 @@ fn main() {
                 println!("{time}, {surface_x}, {surface_y}");
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
+            LayerShellEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
                 match index {
                     Some(index) => {
                         let ev_unit = ev.get_unit(index);
