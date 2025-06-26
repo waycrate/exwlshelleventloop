@@ -663,6 +663,11 @@ impl<T> WindowState<T> {
         self.use_display_handle = use_display_handle;
         self
     }
+    /// set a callback to create a wayland connection
+    pub fn with_connection(mut self, connection: Option<Connection>) -> Self {
+        self.connection = connection;
+        self
+    }
 
     fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
         self.units
@@ -1407,23 +1412,17 @@ delegate_noop!(@<T>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, SessonLockEventError> {
-        let connection = Connection::connect_to_env()?;
-        let (globals, _) = registry_queue_init::<BaseState>(&connection)?; // We just need the
-        // global, the
-        // event_queue is
-        // not needed, we
-        // do not need
-        // BaseState after
-        // this anymore
+        let connection = if let Some(connection) = self.connection.take() {
+            connection
+        } else {
+            Connection::connect_to_env()?
+        };
+        let (globals, _) = registry_queue_init::<BaseState>(&connection)?;
 
         let mut event_queue = connection.new_event_queue::<WindowState<T>>();
         let qh = event_queue.handle();
 
-        let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?; // so the first
-        // thing is to
-        // get WlCompositor
-
-        // we need to create more
+        let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?;
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         self.shm = Some(shm);
