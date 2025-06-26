@@ -21,9 +21,18 @@ use iced_runtime::{Action, UserInterface, user_interface};
 
 use iced_futures::{Executor, Runtime};
 
-use iced::{theme, window::RedrawRequest};
+use iced::{
+    Event as IcedEvent,
+    mouse::Cursor,
+    theme,
+    window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
+};
+
 use iced_runtime::debug;
+use sessionlockev::RefreshRequest;
+use sessionlockev::id::Id as SessionLockId;
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
+use window_manager::Window;
 
 use futures::{FutureExt, future::LocalBoxFuture};
 
@@ -149,14 +158,6 @@ where
     });
     Ok(())
 }
-
-use iced::Event as IcedEvent;
-use iced::mouse::Cursor;
-use iced::window::Event as IcedWindowEvent;
-use iced::window::Id as IcedId;
-use sessionlockev::RefreshRequest;
-use sessionlockev::id::Id as SessionLockId;
-use window_manager::Window;
 
 enum ContextState<Context> {
     None,

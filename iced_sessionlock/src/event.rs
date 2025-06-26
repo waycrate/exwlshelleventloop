@@ -96,7 +96,7 @@ pub enum WindowEvent {
 }
 
 #[derive(Debug)]
-pub enum IcedSessionLockEvent<Message: 'static> {
+pub enum IcedSessionLockEvent<Message> {
     Window(WindowEvent),
     NormalDispatch,
     UserAction(Action<Message>),

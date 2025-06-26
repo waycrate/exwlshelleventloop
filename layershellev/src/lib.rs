@@ -25,8 +25,8 @@
 //!     ev.running(|event, ev, index| {
 //!         match event {
 //!             // NOTE: this will send when init, you can request bind extra object from here
-//!             LayerEvent::InitRequest => ReturnData::RequestBind,
-//!             LayerEvent::BindProvide(globals, qh) => {
+//!             LayerShellEvent::InitRequest => ReturnData::RequestBind,
+//!             LayerShellEvent::BindProvide(globals, qh) => {
 //!                 // NOTE: you can get implied wayland object from here
 //!                 let virtual_keyboard_manager = globals
 //!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -38,13 +38,13 @@
 //!                 println!("{:?}", virtual_keyboard_manager);
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::XdgInfoChanged(_) => {
+//!             LayerShellEvent::XdgInfoChanged(_) => {
 //!                 let index = index.unwrap();
 //!                 let unit = ev.get_unit_with_id(index).unwrap();
 //!                 println!("{:?}", unit.get_xdgoutput_info());
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+//!             LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
 //!                 draw(file, (init_w, init_h));
 //!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
 //!                 ReturnData::WlBuffer(pool.create_buffer(
@@ -57,18 +57,18 @@
 //!                     (),
 //!                 ))
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
+//!             LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
 //!                 println!("{width}, {height}");
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-//!             LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
+//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
 //!                 pointer, ..
 //!             }) => ReturnData::RequestSetCursorShape((
 //!                 "crosshair".to_owned(),
 //!                 pointer.clone(),
 //!             )),
-//!             LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
 //!                 time,
 //!                 surface_x,
 //!                 surface_y,
@@ -76,7 +76,7 @@
 //!                 println!("{time}, {surface_x}, {surface_y}");
 //!                 ReturnData::None
 //!             }
-//!             LayerEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!             LayerShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
 //!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
 //!                    ReturnData::RequestExit
 //!                } else {
@@ -123,7 +123,7 @@ use events::DispatchMessageInner;
 
 pub mod id;
 
-pub use events::{AxisScroll, DispatchMessage, Ime, LayerEvent, ReturnData, XdgInfoChangedType};
+pub use events::{AxisScroll, DispatchMessage, Ime, LayerShellEvent, ReturnData, XdgInfoChangedType};
 
 use strtoshape::str_to_shape;
 
@@ -2702,7 +2702,7 @@ impl<T: 'static> WindowState<T> {
         Ok(self)
     }
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// pass a LayerShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
@@ -2714,20 +2714,20 @@ impl<T: 'static> WindowState<T> {
     ) -> Result<(), LayerEventError>
     where
         Message: std::marker::Send + 'static,
-        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
+        F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
             + 'static,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// pass a LayerShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
     ///
     pub fn running<F>(self, event_handler: F) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T> + 'static,
+        F: FnMut(LayerShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T> + 'static,
     {
         self.running_with_proxy_option(None, event_handler)
     }
@@ -2739,7 +2739,7 @@ impl<T: 'static> WindowState<T> {
     ) -> Result<(), LayerEventError>
     where
         Message: std::marker::Send + 'static,
-        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
+        F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
             + 'static,
     {
         let globals = self.globals.take().unwrap();
@@ -2767,18 +2767,18 @@ impl<T: 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_handler(LayerEvent::InitRequest, &mut self, None));
+                    init_event = Some(event_handler(LayerShellEvent::InitRequest, &mut self, None));
                 }
                 Some(ReturnData::RequestBind) => {
                     init_event = Some(event_handler(
-                        LayerEvent::BindProvide(&globals, &qh),
+                        LayerShellEvent::BindProvide(&globals, &qh),
                         &mut self,
                         None,
                     ));
                 }
                 Some(ReturnData::RequestCompositor) => {
                     init_event = Some(event_handler(
-                        LayerEvent::CompositorProvide(&wmcompositer, &qh),
+                        LayerShellEvent::CompositorProvide(&wmcompositer, &qh),
                         &mut self,
                         None,
                     ));
@@ -2839,7 +2839,7 @@ impl<T: 'static> WindowState<T> {
                             (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
                                 window_state.handle_event(
                                     &mut event_handler,
-                                    LayerEvent::XdgInfoChanged(*change_type),
+                                    LayerShellEvent::XdgInfoChanged(*change_type),
                                     *index_info,
                                 );
                             }
@@ -2922,7 +2922,7 @@ impl<T: 'static> WindowState<T> {
                                 let msg: DispatchMessage = msg.clone().into();
                                 window_state.handle_event(
                                     &mut event_handler,
-                                    LayerEvent::RequestMessages(&msg),
+                                    LayerShellEvent::RequestMessages(&msg),
                                     *index_message,
                                 );
                             }
@@ -2936,9 +2936,9 @@ impl<T: 'static> WindowState<T> {
                     std::mem::swap(&mut *local_events, &mut swapped_events);
                     drop(local_events);
                     for event in swapped_events {
-                        window_state.handle_event(&mut event_handler, LayerEvent::UserEvent(event), None);
+                        window_state.handle_event(&mut event_handler, LayerShellEvent::UserEvent(event), None);
                     }
-                    window_state.handle_event(&mut event_handler, LayerEvent::NormalDispatch, None);
+                    window_state.handle_event(&mut event_handler, LayerShellEvent::NormalDispatch, None);
                     loop {
                         let mut return_data = vec![];
                         std::mem::swap(&mut window_state.return_data, &mut return_data);
@@ -3287,7 +3287,7 @@ impl<T: 'static> WindowState<T> {
                     for id in to_be_closed_ids {
                         window_state.handle_event(
                             &mut event_handler,
-                            LayerEvent::RequestMessages(&DispatchMessage::Closed),
+                            LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
                             Some(id),
                         );
                         // event_handler may use unit, only remove it after calling event_handler.
@@ -3312,7 +3312,7 @@ impl<T: 'static> WindowState<T> {
                                     return TimeoutAction::Drop;
                                 };
                                 let ReturnData::WlBuffer(buffer) = event_handler(
-                                    LayerEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
+                                    LayerShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
                                     window_state,
                                     Some(unit_id)) else {
                                     panic!("You cannot return this one");
@@ -3323,7 +3323,7 @@ impl<T: 'static> WindowState<T> {
                             }
                             window_state.handle_event(
                                 &mut event_handler,
-                                LayerEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                                LayerShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                     width,
                                     height,
                                     is_created,
@@ -3366,11 +3366,11 @@ impl<T: 'static> WindowState<T> {
     pub fn handle_event<F, Message>(
         &mut self,
         mut event_handler: F,
-        event: LayerEvent<T, Message>,
+        event: LayerShellEvent<T, Message>,
         unit_id: Option<id::Id>,
     ) where
         Message: std::marker::Send + 'static,
-        F: FnMut(LayerEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
+        F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
     {
         let return_data = event_handler(event, self, unit_id);
         if !matches!(return_data, ReturnData::None) {

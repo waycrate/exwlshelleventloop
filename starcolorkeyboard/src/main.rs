@@ -100,8 +100,8 @@ fn main() {
     let mut touch_key = 0;
 
     ev.running(move |event, ev, index| match event {
-        LayerEvent::InitRequest => ReturnData::RequestBind,
-        LayerEvent::BindProvide(globals, qh) => {
+        LayerShellEvent::InitRequest => ReturnData::RequestBind,
+        LayerShellEvent::BindProvide(globals, qh) => {
             let virtual_keyboard_manager = globals
                 .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(qh, 1..=1, ())
                 .unwrap();
@@ -113,7 +113,7 @@ fn main() {
             virtuan_keyboard = Some(virtual_keyboard_in);
             ReturnData::None
         }
-        LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+        LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
             let index = index.unwrap();
             let mut pangoui = pangoui::PangoUi::default();
             pangoui.set_size((init_w as i32, init_h as i32));
@@ -130,7 +130,7 @@ fn main() {
                 (),
             ))
         }
-        LayerEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
+        LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
             let index = index.unwrap();
             let pangoui = ev.get_binding_mut(index).unwrap();
             pangoui.set_size((*width as i32, *height as i32));
@@ -140,7 +140,7 @@ fn main() {
             windowunit.refresh();
             ReturnData::None
         }
-        LayerEvent::RequestMessages(DispatchMessage::MouseButton { state, .. }) => {
+        LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { state, .. }) => {
             let index = index.unwrap();
             let key = ev.get_binding_mut(index).unwrap().get_key(button_pos);
             let windowunit = ev.get_unit_with_id(index).unwrap();
@@ -193,7 +193,7 @@ fn main() {
                 None => ReturnData::None,
             }
         }
-        LayerEvent::RequestMessages(DispatchMessage::TouchDown { x, y, id, .. }) => {
+        LayerShellEvent::RequestMessages(DispatchMessage::TouchDown { x, y, id, .. }) => {
             if *id != touch_id || touch_id == -1 {
                 touch_id = *id;
             }
@@ -240,7 +240,7 @@ fn main() {
                 }
             }
         }
-        LayerEvent::RequestMessages(DispatchMessage::TouchUp { id, .. }) => {
+        LayerShellEvent::RequestMessages(DispatchMessage::TouchUp { id, .. }) => {
             if *id != touch_id {
                 return ReturnData::None;
             }
@@ -248,7 +248,7 @@ fn main() {
             virtuan_keyboard.key(100, touch_key, KeyState::Released.into());
             ReturnData::None
         }
-        LayerEvent::RequestMessages(DispatchMessage::MouseEnter {
+        LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
             surface_x,
             surface_y,
             ..
@@ -256,7 +256,7 @@ fn main() {
             button_pos = (*surface_x, *surface_y);
             ReturnData::None
         }
-        LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+        LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
             surface_x,
             surface_y,
             ..

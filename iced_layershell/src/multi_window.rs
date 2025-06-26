@@ -36,7 +36,7 @@ use iced_runtime::user_interface;
 use iced_futures::{Executor, Runtime};
 
 use layershellev::{
-    LayerEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState, WindowWrapper,
     calloop::timer::{TimeoutAction, Timer},
     id::Id as LayerShellId,
     reexport::{
@@ -49,7 +49,7 @@ use futures::{FutureExt, future::LocalBoxFuture};
 use window_manager::Window;
 
 use crate::{
-    event::{LayerShellEvent, WindowEvent as LayerShellWindowEvent},
+    event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
     proxy::IcedProxy,
     settings::Settings,
 };
@@ -132,16 +132,16 @@ where
     let _ = ev.running_with_proxy(message_receiver, move |event, ev, layer_shell_id| {
         let mut def_returndata = ReturnData::None;
         match event {
-            LayerEvent::InitRequest => {
+            LayerShellEvent::InitRequest => {
                 def_returndata = ReturnData::RequestBind;
             }
-            LayerEvent::BindProvide(globals, qh) => {
+            LayerShellEvent::BindProvide(globals, qh) => {
                 let wl_compositor = globals
                     .bind::<WlCompositor, _, _>(qh, 1..=1, ())
                     .expect("could not bind wl_compositor");
                 waiting_layer_shell_events.push_back((
                     None,
-                    LayerShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
+                    IcedLayerShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
                 ));
 
                 if let Some(virtual_keyboard_setting) = settings.virtual_keyboard_support.as_ref() {
@@ -164,19 +164,19 @@ where
                     ev.set_virtual_keyboard(virtual_keyboard_in);
                 }
             }
-            LayerEvent::RequestMessages(message) => {
+            LayerShellEvent::RequestMessages(message) => {
                 waiting_layer_shell_events.push_back((
                     layer_shell_id,
-                    LayerShellEvent::Window(LayerShellWindowEvent::from(message)),
+                    IcedLayerShellEvent::Window(LayerShellWindowEvent::from(message)),
                 ));
             }
-            LayerEvent::UserEvent(event) => {
+            LayerShellEvent::UserEvent(event) => {
                 waiting_layer_shell_events
-                    .push_back((layer_shell_id, LayerShellEvent::UserAction(event)));
+                    .push_back((layer_shell_id, IcedLayerShellEvent::UserAction(event)));
             }
-            LayerEvent::NormalDispatch => {
+            LayerShellEvent::NormalDispatch => {
                 waiting_layer_shell_events
-                    .push_back((layer_shell_id, LayerShellEvent::NormalDispatch));
+                    .push_back((layer_shell_id, IcedLayerShellEvent::NormalDispatch));
             }
             _ => {}
         }
@@ -301,8 +301,8 @@ where
         mut self,
         ev: &mut WindowState<IcedId>,
         layer_shell_id: Option<LayerShellId>,
-        layer_shell_event: LayerShellEvent<P::Message>,
-    ) -> (ContextState<Self>, Option<LayerShellEvent<P::Message>>) {
+        layer_shell_event: IcedLayerShellEvent<P::Message>,
+    ) -> (ContextState<Self>, Option<IcedLayerShellEvent<P::Message>>) {
         tracing::debug!(
             "Handle layer shell event, layer_shell_id: {:?}, event: {:?}, waiting actions: {}, messages: {}",
             layer_shell_id,
@@ -310,7 +310,7 @@ where
             self.waiting_layer_shell_actions.len(),
             self.messages.len(),
         );
-        if let LayerShellEvent::Window(LayerShellWindowEvent::Refresh) = layer_shell_event {
+        if let IcedLayerShellEvent::Window(LayerShellWindowEvent::Refresh) = layer_shell_event {
             if self.compositor.is_none() {
                 let Some(layer_shell_window) =
                     layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
@@ -328,18 +328,18 @@ where
         }
 
         match layer_shell_event {
-            LayerShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
-            LayerShellEvent::Window(LayerShellWindowEvent::Refresh) => {
+            IcedLayerShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
+            IcedLayerShellEvent::Window(LayerShellWindowEvent::Refresh) => {
                 self.handle_refresh_event(ev, layer_shell_id)
             }
-            LayerShellEvent::Window(LayerShellWindowEvent::Closed) => {
+            IcedLayerShellEvent::Window(LayerShellWindowEvent::Closed) => {
                 self.handle_closed_event(ev, layer_shell_id)
             }
-            LayerShellEvent::Window(window_event) => {
+            IcedLayerShellEvent::Window(window_event) => {
                 self.handle_window_event(layer_shell_id, window_event)
             }
-            LayerShellEvent::UserAction(user_action) => self.handle_user_action(ev, user_action),
-            LayerShellEvent::NormalDispatch => self.handle_normal_dispatch(ev),
+            IcedLayerShellEvent::UserAction(user_action) => self.handle_user_action(ev, user_action),
+            IcedLayerShellEvent::NormalDispatch => self.handle_normal_dispatch(ev),
         }
 
         // at each interaction try to resolve those waiting actions.

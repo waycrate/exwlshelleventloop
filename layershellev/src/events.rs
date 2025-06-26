@@ -36,7 +36,7 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum LayerEvent<'a, T, Message> {
+pub enum LayerShellEvent<'a, T, Message> {
     /// the first event when start a new gui, program. you can return [ReturnData::None] or
     /// [ReturnData::RequestBind], then it will continue to the next request.
     /// Here only the above two [ReturnData] are acceptable.

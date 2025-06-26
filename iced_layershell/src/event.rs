@@ -100,7 +100,7 @@ pub enum WindowEvent {
 }
 
 #[derive(Debug)]
-pub enum LayerShellEvent<Message> {
+pub enum IcedLayerShellEvent<Message> {
     UpdateInputRegion(WlRegion),
     Window(WindowEvent),
     UserAction(Action<Message>),

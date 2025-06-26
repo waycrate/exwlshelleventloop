@@ -20,8 +20,8 @@ fn main() {
     ev.running(move |event, ev, index| {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
-            LayerEvent::InitRequest => ReturnData::RequestBind,
-            LayerEvent::BindProvide(globals, qh) => {
+            LayerShellEvent::InitRequest => ReturnData::RequestBind,
+            LayerShellEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
                 let virtual_keyboard_manager = globals
                     .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -33,7 +33,7 @@ fn main() {
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::RequestCompositor
             }
-            LayerEvent::CompositorProvide(compositor, qh) => {
+            LayerShellEvent::CompositorProvide(compositor, qh) => {
                 // NOTE: you can set input region to limit area which gets input events
                 // surface outside region becomes transparent for input events
                 // To ignore all input events use region with (0,0) size
@@ -44,13 +44,13 @@ fn main() {
                 }
                 ReturnData::None
             }
-            LayerEvent::XdgInfoChanged(_) => {
+            LayerShellEvent::XdgInfoChanged(_) => {
                 let index = index.unwrap();
                 let unit = ev.get_unit_with_id(index).unwrap();
                 println!("{:?}", unit.get_xdgoutput_info());
                 ReturnData::None
             }
-            LayerEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+            LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
                 draw(file, (init_w, init_h));
                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
                 ReturnData::WlBuffer(pool.create_buffer(
@@ -63,17 +63,17 @@ fn main() {
                     (),
                 ))
             }
-            LayerEvent::RequestMessages(DispatchMessage::RequestRefresh {
+            LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
                 width, height, ..
             }) => {
                 println!("{width}, {height}");
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-            LayerEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
                 ReturnData::RequestSetCursorShape(("crosshair".to_owned(), pointer.clone()))
             }
-            LayerEvent::RequestMessages(DispatchMessage::MouseMotion {
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
@@ -81,7 +81,7 @@ fn main() {
                 println!("{time}, {surface_x}, {surface_y}");
                 ReturnData::None
             }
-            LayerEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+            LayerShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
                     ReturnData::RequestExit
                 } else {

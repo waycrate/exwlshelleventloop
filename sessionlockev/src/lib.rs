@@ -575,6 +575,21 @@ impl<T> WindowState<T> {
     pub fn append_return_data(&mut self, data: ReturnData) {
         self.return_data.push(data);
     }
+
+    pub fn handle_event<F, Message>(
+        &mut self,
+        mut event_handler: F,
+        event: SessionLockEvent<T, Message>,
+        unit_id: Option<id::Id>,
+    ) where
+        Message: std::marker::Send + 'static,
+        F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData,
+    {
+        let return_data = event_handler(event, self, unit_id);
+        if !matches!(return_data, ReturnData::None) {
+            self.append_return_data(return_data);
+        }
+    }
 }
 
 impl<T> Default for WindowState<T> {
@@ -1669,32 +1684,18 @@ impl<T: 'static> WindowState<T> {
                     std::mem::swap(&mut *local_events, &mut swapped_events);
                     drop(local_events);
                     for event in swapped_events {
-                        match event_handler(SessionLockEvent::UserEvent(event), window_state, None)
-                        {
-                            ReturnData::RequestUnlockAndExist => {
-                                lock.unlock_and_destroy();
-                                connection
-                                    .roundtrip()
-                                    .expect("should roundtrip successfully");
-                                signal.stop();
-                                return TimeoutAction::Drop;
-                            }
-                            ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                let Some(serial) = window_state.enter_serial else {
-                                    continue;
-                                };
-                                set_cursor_shape(
-                                    &cursor_update_context,
-                                    shape_name,
-                                    pointer,
-                                    serial,
-                                );
-                            }
-                            _ => {}
-                        }
+                        window_state.handle_event(
+                            &mut event_handler,
+                            SessionLockEvent::UserEvent(event),
+                            None,
+                        );
                     }
 
-                    event_handler(SessionLockEvent::NormalDispatch, window_state, None);
+                    window_state.handle_event(
+                        &mut event_handler,
+                        SessionLockEvent::NormalDispatch,
+                        None,
+                    );
                     loop {
                         let mut return_data = vec![];
 
@@ -1755,7 +1756,8 @@ impl<T: 'static> WindowState<T> {
                                 wl_surface.commit();
                                 window_state.units[idx].buffer = Some(buffer);
                             }
-                            event_handler(
+                            window_state.handle_event(
+                                &mut event_handler,
                                 SessionLockEvent::RequestMessages(
                                     &DispatchMessage::RequestRefresh {
                                         width,
@@ -1763,7 +1765,6 @@ impl<T: 'static> WindowState<T> {
                                         scale_float,
                                     },
                                 ),
-                                window_state,
                                 Some(unit_id),
                             );
                         }
