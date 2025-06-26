@@ -130,7 +130,9 @@ fn main() {
                 (),
             ))
         }
-        LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
+        LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
+            width, height, ..
+        }) => {
             let index = index.unwrap();
             let pangoui = ev.get_binding_mut(index).unwrap();
             pangoui.set_size((*width as i32, *height as i32));

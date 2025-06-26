@@ -338,7 +338,9 @@ where
             IcedLayerShellEvent::Window(window_event) => {
                 self.handle_window_event(layer_shell_id, window_event)
             }
-            IcedLayerShellEvent::UserAction(user_action) => self.handle_user_action(ev, user_action),
+            IcedLayerShellEvent::UserAction(user_action) => {
+                self.handle_user_action(ev, user_action)
+            }
             IcedLayerShellEvent::NormalDispatch => self.handle_normal_dispatch(ev),
         }
 

@@ -123,7 +123,9 @@ use events::DispatchMessageInner;
 
 pub mod id;
 
-pub use events::{AxisScroll, DispatchMessage, Ime, LayerShellEvent, ReturnData, XdgInfoChangedType};
+pub use events::{
+    AxisScroll, DispatchMessage, Ime, LayerShellEvent, ReturnData, XdgInfoChangedType,
+};
 
 use strtoshape::str_to_shape;
 
@@ -2727,7 +2729,8 @@ impl<T: 'static> WindowState<T> {
     ///
     pub fn running<F>(self, event_handler: F) -> Result<(), LayerEventError>
     where
-        F: FnMut(LayerShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T> + 'static,
+        F: FnMut(LayerShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
+            + 'static,
     {
         self.running_with_proxy_option(None, event_handler)
     }

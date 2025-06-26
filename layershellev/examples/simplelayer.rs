@@ -64,12 +64,16 @@ fn main() {
                 ))
             }
             LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
-                width, height, ..
+                width,
+                height,
+                ..
             }) => {
                 println!("{width}, {height}");
                 ReturnData::None
             }
-            LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+            LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => {
+                ReturnData::None
+            }
             LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
                 ReturnData::RequestSetCursorShape(("crosshair".to_owned(), pointer.clone()))
             }
