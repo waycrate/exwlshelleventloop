@@ -217,7 +217,7 @@ pub mod reexport {
     }
     pub mod wayland_client {
         pub use wayland_client::{
-            QueueHandle, WEnum,
+            Connection, QueueHandle, WEnum,
             globals::GlobalList,
             protocol::{
                 wl_keyboard::{self, KeyState},
@@ -664,8 +664,8 @@ impl<T> WindowState<T> {
         self
     }
     /// set a callback to create a wayland connection
-    pub fn with_connection(mut self, connection: Option<Connection>) -> Self {
-        self.connection = connection;
+    pub fn with_connection(mut self, connection_or: Option<Connection>) -> Self {
+        self.connection = connection_or;
         self
     }
 

@@ -87,6 +87,7 @@ where
 
     let ev: WindowState<()> = sessionlockev::WindowState::new()
         .with_use_display_handle(true)
+        .with_connection(settings.with_connection)
         .build()
         .expect("Seems sessionlock is not supported");
 

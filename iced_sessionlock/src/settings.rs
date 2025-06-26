@@ -1,6 +1,6 @@
-use std::borrow::Cow;
-
 use iced::{Font, Pixels};
+use sessionlockev::reexport::wayland_client::Connection;
+use std::borrow::Cow;
 
 #[derive(Debug)]
 pub struct Settings {
@@ -34,6 +34,9 @@ pub struct Settings {
     /// By default, it is disabled.
     ///
     pub antialiasing: bool,
+    /// set the used wayland connection, all wayland object will share it, and they can be used by
+    /// each other.
+    pub with_connection: Option<Connection>,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -43,6 +46,7 @@ impl Default for Settings {
             default_font: Font::default(),
             default_text_size: Pixels(16.0),
             antialiasing: false,
+            with_connection: None,
         }
     }
 }

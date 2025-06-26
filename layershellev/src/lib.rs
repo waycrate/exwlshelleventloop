@@ -1297,8 +1297,8 @@ impl<T> WindowState<T> {
     }
 
     /// set a callback to create a wayland connection
-    pub fn with_connection(mut self, connection: Option<Connection>) -> Self {
-        self.connection = connection;
+    pub fn with_connection(mut self, connection_or: Option<Connection>) -> Self {
+        self.connection = connection_or;
         self
     }
 }
