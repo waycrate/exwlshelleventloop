@@ -145,6 +145,6 @@ struct Greeter {
 impl Greeter {
     async fn say_hello(&mut self, name: &str) -> String {
         self.sender.try_send(Message::NewWindow).ok();
-        format!("Hello {}!", name)
+        format!("Hello {name}!")
     }
 }

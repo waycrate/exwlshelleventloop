@@ -441,8 +441,7 @@ fn byte_slice_to_smol_str(bytes: &[u8]) -> Option<SmolStr> {
         .map(SmolStr::new)
         .map_err(|e| {
             log::warn!(
-                "UTF-8 received from libxkbcommon ({:?}) was invalid: {e}",
-                bytes
+                "UTF-8 received from libxkbcommon ({bytes:?}) was invalid: {e}"
             )
         })
         .ok()

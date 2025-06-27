@@ -429,7 +429,7 @@ where
             }
             Err(error) => match error {
                 compositor::SurfaceError::OutOfMemory => {
-                    panic!("{:?}", error);
+                    panic!("{error:?}");
                 }
                 _ => {
                     // In case of `ev.request_next_present` isn't been called. Reset present_slot.

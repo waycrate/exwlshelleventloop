@@ -1053,7 +1053,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     .active_surfaces
                     .remove(&Some(id))
                     .or_else(|| {
-                        log::warn!("finger[{}] hasn't been down.", id);
+                        log::warn!("finger[{id}] hasn't been down.");
                         None
                     })
                     .and_then(|(_, id)| id);
@@ -1074,7 +1074,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     .active_surfaces
                     .get(&Some(id))
                     .or_else(|| {
-                        log::warn!("finger[{}] hasn't been down.", id);
+                        log::warn!("finger[{id}] hasn't been down.");
                         None
                     })
                     .and_then(|(_, id)| *id);
@@ -1183,7 +1183,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     },
                 )),
                 WEnum::Unknown(unknown) => {
-                    log::warn!(target: "sessionlockev", "unknown pointer axis source: {:x}", unknown);
+                    log::warn!(target: "sessionlockev", "unknown pointer axis source: {unknown:x}");
                 }
             },
             wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
