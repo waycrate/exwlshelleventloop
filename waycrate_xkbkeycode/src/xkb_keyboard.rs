@@ -439,11 +439,7 @@ pub struct XkbComposeState {
 fn byte_slice_to_smol_str(bytes: &[u8]) -> Option<SmolStr> {
     std::str::from_utf8(bytes)
         .map(SmolStr::new)
-        .map_err(|e| {
-            log::warn!(
-                "UTF-8 received from libxkbcommon ({bytes:?}) was invalid: {e}"
-            )
-        })
+        .map_err(|e| log::warn!("UTF-8 received from libxkbcommon ({bytes:?}) was invalid: {e}"))
         .ok()
 }
 
