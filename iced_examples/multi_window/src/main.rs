@@ -192,7 +192,7 @@ impl Example {
 impl Window {
     fn new(count: usize) -> Self {
         Self {
-            title: format!("Window_{}", count),
+            title: format!("Window_{count}"),
             scale_input: "1.0".to_string(),
             current_scale: 1.0,
             theme: Theme::ALL[count % Theme::ALL.len()].clone(),
