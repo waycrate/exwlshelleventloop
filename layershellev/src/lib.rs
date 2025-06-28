@@ -747,6 +747,8 @@ impl<T> WindowStateUnit<T> {
     }
 
     pub fn request_refresh(&mut self, request: RefreshRequest) {
+        // NOTE: if request directly, the state will always be available
+        self.present_available_state = PresentAvailableState::Available;
         // refresh request in nearest future has the highest priority.
         match self.request_flag.refresh {
             RefreshRequest::NextFrame => {}
@@ -3292,7 +3294,9 @@ impl<T: 'static> WindowState<T> {
                             // don't refresh, if size is 0.
                             continue;
                         }
-                        if unit.take_present_slot() {
+                        let take_present_slot = unit.take_present_slot();
+                        if take_present_slot {
+                            unit.reset_present_slot();
                             let unit_id = unit.id;
                             let is_created = unit.becreated;
                             let scale_float = unit.scale_float();

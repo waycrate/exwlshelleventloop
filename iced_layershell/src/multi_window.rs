@@ -809,7 +809,6 @@ where
             return;
         }
 
-        let mut uis_stale = false;
         let mut rebuilds = Vec::new();
         for (iced_id, window) in self.window_manager.iter_mut() {
             let interact_span = debug::interact(iced_id);
@@ -845,7 +844,6 @@ where
             #[cfg(not(feature = "unconditional-rendering"))]
             let unconditional_rendering = false;
             if Self::handle_ui_state(ev, window, ui_state, unconditional_rendering, false) {
-                uis_stale = true;
                 rebuilds.push((iced_id, window));
             }
 
@@ -860,7 +858,7 @@ where
             interact_span.finish();
         }
 
-        if !self.messages.is_empty() || uis_stale {
+        if !self.messages.is_empty() {
             ev.request_refresh_all(RefreshRequest::NextFrame);
             let (caches, application) = self.user_interfaces.extract_all();
 
