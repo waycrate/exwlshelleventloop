@@ -408,8 +408,6 @@ impl<T> WindowStateUnit<T> {
     /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
     /// and final commit
     pub fn request_refresh(&mut self, request: RefreshRequest) {
-        // NOTE: if request directly, the state will always be available
-        self.present_available_state = PresentAvailableState::Available;
         // refresh request in nearest future has the highest priority.
         match self.refresh {
             RefreshRequest::NextFrame => {}
@@ -448,8 +446,6 @@ impl<T> WindowStateUnit<T> {
 
     pub fn reset_present_slot(&mut self) -> bool {
         if self.present_available_state == PresentAvailableState::Taken {
-            // refresh at next frame.
-            self.refresh = RefreshRequest::NextFrame;
             self.present_available_state = PresentAvailableState::Available;
             true
         } else {
@@ -1735,9 +1731,7 @@ impl<T: 'static> WindowState<T> {
                             // don't refresh, if size is 0.
                             continue;
                         }
-                        let take_present_slot = unit.take_present_slot();
-                        if take_present_slot {
-                            unit.reset_present_slot();
+                        if unit.take_present_slot() {
                             let unit_id = unit.id;
                             let scale_float = unit.scale_float();
                             let wl_surface = unit.wl_surface.clone();
@@ -1770,6 +1764,8 @@ impl<T: 'static> WindowState<T> {
                                 ),
                                 Some(unit_id),
                             );
+                            // reset if the slot is not used
+                            window_state.units[idx].reset_present_slot();
                         }
                     }
                     TimeoutAction::ToDuration(Duration::from_millis(50))

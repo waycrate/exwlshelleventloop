@@ -432,8 +432,6 @@ where
                     panic!("{error:?}");
                 }
                 _ => {
-                    // In case of `ev.request_next_present` isn't been called. Reset present_slot.
-                    ev.reset_present_slot(session_lock_id);
                     tracing::error!("Error {error:?} when presenting surface.");
                 }
             },
