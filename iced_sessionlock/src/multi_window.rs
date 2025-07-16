@@ -727,23 +727,20 @@ pub(crate) fn run_action<P, C>(
         Action::Widget(action) => {
             let mut current_operation = Some(action);
 
-            'operate: while let Some(mut operation) = current_operation.take() {
+            while let Some(mut operation) = current_operation.take() {
+                // kind of suboptimal that we have to iterate over all windows, but since an operation does not have
+                // a window id associated with it, this is the best we can do for now
                 for (id, window) in window_manager.iter_mut() {
                     if let Some(mut ui) = user_interfaces.ui_mut(&id) {
                         ui.operate(&window.renderer, operation.as_mut());
+                    }
+                }
 
-                        match operation.finish() {
-                            operation::Outcome::None => {}
-                            operation::Outcome::Some(_message) => {
-                                //proxy.send_event(message).ok();
-
-                                // operation completed, don't need to try to operate on rest of UIs
-                                break 'operate;
-                            }
-                            operation::Outcome::Chain(next) => {
-                                current_operation = Some(next);
-                            }
-                        }
+                match operation.finish() {
+                    operation::Outcome::None => {}
+                    operation::Outcome::Some(()) => {}
+                    operation::Outcome::Chain(next) => {
+                        current_operation = Some(next);
                     }
                 }
             }
