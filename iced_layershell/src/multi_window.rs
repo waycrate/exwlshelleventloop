@@ -687,6 +687,7 @@ where
                 layer_shell_window
                     .get_wlsurface()
                     .set_input_region(self.wl_input_region.as_ref());
+                layer_shell_window.get_wlsurface().commit();
             }
             LayershellCustomAction::VirtualKeyboardPressed { time, key } => {
                 use layershellev::reexport::wayland_client::KeyState;
