@@ -2608,7 +2608,7 @@ impl<T: 'static> WindowState<T> {
                 .viewport(viewport)
                 .zxdgoutput(binded_xdginfo)
                 .fractional_scale(fractional_scale)
-                .wl_output(binded_output.clone()) 
+                .wl_output(binded_output.clone())
                 .build(),
             );
         } else {
