@@ -67,7 +67,7 @@ impl Counter {
         }
     }
 
-    fn view(&self, _id: iced::window::Id) -> Element<Message> {
+    fn view(&self, _id: iced::window::Id) -> Element<'_, Message> {
         column![
             Space::with_height(Length::Fill),
             button("Increment").on_press(Message::IncrementPressed),

@@ -50,7 +50,7 @@ impl Panel {
         Task::none()
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         container(LoadingBar::default()).into()
     }
 }
@@ -158,25 +158,25 @@ where
     ) {
         let bounds = layout.bounds();
 
-        if let Event::Window(window::Event::RedrawRequested(now)) = event {
-            if is_visible(&bounds) {
-                let state = state.state.downcast_mut::<LoadingBarState>();
-                let duration = (*now - state.last_update).as_secs_f32();
-                let increment = if self.rate == Duration::ZERO {
-                    0.0
-                } else {
-                    duration * 1.0 / self.rate.as_secs_f32()
-                };
+        if let Event::Window(window::Event::RedrawRequested(now)) = event
+            && is_visible(&bounds)
+        {
+            let state = state.state.downcast_mut::<LoadingBarState>();
+            let duration = (*now - state.last_update).as_secs_f32();
+            let increment = if self.rate == Duration::ZERO {
+                0.0
+            } else {
+                duration * 1.0 / self.rate.as_secs_f32()
+            };
 
-                state.t += increment;
+            state.t += increment;
 
-                if state.t > 1.0 {
-                    state.t -= 1.0;
-                }
-
-                shell.request_redraw();
-                state.last_update = *now;
+            if state.t > 1.0 {
+                state.t -= 1.0;
             }
+
+            shell.request_redraw();
+            state.last_update = *now;
         }
     }
 }

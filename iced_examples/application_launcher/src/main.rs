@@ -154,7 +154,7 @@ impl Launcher {
         }
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         let re = regex::Regex::new(&self.text).ok();
         let text_ip: Element<Message> = text_input("put the launcher name", &self.text)
             .padding(10)

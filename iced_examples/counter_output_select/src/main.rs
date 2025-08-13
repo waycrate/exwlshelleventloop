@@ -132,7 +132,7 @@ fn update(counter: &mut Counter, message: Message) -> Command<Message> {
     }
 }
 
-fn view(counter: &Counter) -> Element<Message> {
+fn view(counter: &Counter) -> Element<'_, Message> {
     let center = column![
         button("Increment").on_press(Message::IncrementPressed),
         text(counter.value).size(50),

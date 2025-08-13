@@ -216,7 +216,7 @@ impl Counter {
         }
     }
 
-    fn view(&self, id: iced::window::Id) -> Element<Message> {
+    fn view(&self, id: iced::window::Id) -> Element<'_, Message> {
         if let Some(WindowInfo::Left) = self.id_info(id) {
             return button("close left").on_press(Message::Close(id)).into();
         }

@@ -121,7 +121,7 @@ impl KeyboardView {
             text_color: theme.palette().text,
         }
     }
-    fn view(&self) -> iced::Element<Message> {
+    fn view(&self) -> iced::Element<'_, Message> {
         canvas(self).height(Length::Fill).width(Length::Fill).into()
     }
 
@@ -317,25 +317,23 @@ impl canvas::Program<Message> for KeyboardView {
         let Event::Mouse(mouse_event) = event else {
             return None;
         };
-        if let iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) = mouse_event {
-            if let Some(click_position) = cursor.position_in(bounds) {
-                for (label, key_coords) in state.iter() {
-                    // Determine the position of the click
-                    let key_position = key_coords.position;
-                    let key_size = key_coords.size;
+        if let iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left) = mouse_event
+            && let Some(click_position) = cursor.position_in(bounds)
+        {
+            for (label, key_coords) in state.iter() {
+                // Determine the position of the click
+                let key_position = key_coords.position;
+                let key_size = key_coords.size;
 
-                    if click_position.x >= key_position.x
-                        && click_position.x <= key_position.x + key_size.width
-                        && click_position.y >= key_position.y
-                        && click_position.y <= key_position.y + key_size.height
-                    {
-                        // Clear the cache
-                        self.draw_cache.clear();
-                        if let Some(key_code) = get_key_code(label) {
-                            return Some(canvas::Action::publish(Message::InputKeyPressed(
-                                key_code,
-                            )));
-                        }
+                if click_position.x >= key_position.x
+                    && click_position.x <= key_position.x + key_size.width
+                    && click_position.y >= key_position.y
+                    && click_position.y <= key_position.y + key_size.height
+                {
+                    // Clear the cache
+                    self.draw_cache.clear();
+                    if let Some(key_code) = get_key_code(label) {
+                        return Some(canvas::Action::publish(Message::InputKeyPressed(key_code)));
                     }
                 }
             }

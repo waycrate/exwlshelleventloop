@@ -1376,10 +1376,10 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
         _qhandle: &QueueHandle<Self>,
     ) {
         use wayland_client::protocol::wl_callback::Event as WlCallbackEvent;
-        if let WlCallbackEvent::Done { callback_data: _ } = event {
-            if let Some(unit) = state.get_mut_unit_with_id(data.0) {
-                unit.present_available_state = data.1;
-            }
+        if let WlCallbackEvent::Done { callback_data: _ } = event
+            && let Some(unit) = state.get_mut_unit_with_id(data.0)
+        {
+            unit.present_available_state = data.1;
         }
     }
 }

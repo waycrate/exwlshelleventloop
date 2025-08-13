@@ -48,7 +48,7 @@ impl Panel {
         }
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         let bottom_vec: Vec<Element<Message>> = self
             .apps
             .iter()

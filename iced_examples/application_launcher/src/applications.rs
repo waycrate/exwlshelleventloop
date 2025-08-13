@@ -34,7 +34,7 @@ impl App {
         &self.name
     }
 
-    fn icon(&self) -> Element<Message> {
+    fn icon(&self) -> Element<'_, Message> {
         match &self.icon {
             Some(path) => {
                 if path
@@ -67,7 +67,7 @@ impl App {
         }
     }
 
-    pub fn view(&self, index: usize, selected: bool) -> Element<Message> {
+    pub fn view(&self, index: usize, selected: bool) -> Element<'_, Message> {
         button(
             row![
                 self.icon(),

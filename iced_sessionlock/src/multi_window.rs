@@ -244,21 +244,20 @@ where
             session_lock_event,
             self.messages.len(),
         );
-        if let IcedSessionLockEvent::Window(WindowEvent::Refresh) = session_lock_event {
-            if self.compositor.is_none() {
-                let Some(layer_shell_window) =
-                    session_lock_id.and_then(|lid| ev.get_unit_with_id(lid))
-                else {
-                    tracing::error!("layer shell window not found: {:?}", session_lock_id);
-                    return (ContextState::Context(self), None);
-                };
-                tracing::debug!("creating compositor");
-                let context_state = ContextState::Future(
-                    self.create_compositor(Arc::new(layer_shell_window.gen_wrapper()))
-                        .boxed_local(),
-                );
-                return (context_state, Some(session_lock_event));
-            }
+        if let IcedSessionLockEvent::Window(WindowEvent::Refresh) = session_lock_event
+            && self.compositor.is_none()
+        {
+            let Some(layer_shell_window) = session_lock_id.and_then(|lid| ev.get_unit_with_id(lid))
+            else {
+                tracing::error!("layer shell window not found: {:?}", session_lock_id);
+                return (ContextState::Context(self), None);
+            };
+            tracing::debug!("creating compositor");
+            let context_state = ContextState::Future(
+                self.create_compositor(Arc::new(layer_shell_window.gen_wrapper()))
+                    .boxed_local(),
+            );
+            return (context_state, Some(session_lock_event));
         }
         match session_lock_event {
             IcedSessionLockEvent::Window(WindowEvent::Refresh) => {

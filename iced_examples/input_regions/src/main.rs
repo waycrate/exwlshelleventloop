@@ -60,7 +60,7 @@ impl InputRegionExample {
         }
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         row![
             button(if self.0 { "Set region" } else { "Reset region" }).on_press(Message::SetRegion)
         ]

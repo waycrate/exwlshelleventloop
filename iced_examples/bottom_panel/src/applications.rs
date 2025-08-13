@@ -22,7 +22,7 @@ impl App {
         self.app_info.launch(&[], AppLaunchContext::NONE).unwrap()
     }
 
-    fn icon(&self) -> Element<Message> {
+    fn icon(&self) -> Element<'_, Message> {
         match &self.icon {
             Some(path) => {
                 if path
@@ -48,7 +48,7 @@ impl App {
         }
     }
 
-    pub fn view(&self, index: usize, _selected: bool) -> Element<Message> {
+    pub fn view(&self, index: usize, _selected: bool) -> Element<'_, Message> {
         button(row![self.icon(),].spacing(10))
             .on_press(Message::Launch(index))
             .width(Length::Fill)

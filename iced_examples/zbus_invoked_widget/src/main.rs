@@ -57,7 +57,7 @@ impl Counter {
     fn namespace() -> String {
         String::from("Counter - Iced")
     }
-    fn view(&self, id: iced::window::Id) -> Element<Message> {
+    fn view(&self, id: iced::window::Id) -> Element<'_, Message> {
         container(
             column![
                 container(button(text("hello")).on_press(Message::CloseWindow(id)))
