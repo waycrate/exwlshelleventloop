@@ -13,7 +13,7 @@ tempfile.workspace = true
 
 xkbcommon = "0.8.0"
 
-cairo-rs = "0.20.5"
+cairo-rs = "0.21.1"
 pango = "0.20.4"
 pangocairo = "0.20.4"
 
