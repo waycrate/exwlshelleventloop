@@ -40,7 +40,7 @@ where
         wayland_scale_factor: f64,
         window: &WindowWrapper,
     ) -> Self {
-        let application_scale_factor = application.scale_factor(id);
+        let application_scale_factor = application.scale_factor(id) as f64;
         let theme = application.theme(id);
         let appearance = application.style(&theme);
 
@@ -155,7 +155,7 @@ where
     }
 
     pub fn synchronize(&mut self, application: &Instance<A>) {
-        let new_scale_factor = application.scale_factor(self.id);
+        let new_scale_factor = application.scale_factor(self.id) as f64;
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;
             self.resize_viewport();
@@ -199,7 +199,7 @@ fn viewport(
         (window_size.width as f64 * wayland_scale_factor).ceil() as u32,
         (window_size.height as f64 * wayland_scale_factor).ceil() as u32,
     );
-    Viewport::with_physical_size(physical_size, factor)
+    Viewport::with_physical_size(physical_size, factor as f32)
 }
 
 fn set_wpviewport_destination(wpviewport: &WpViewport, window_size: Size<u32>) {

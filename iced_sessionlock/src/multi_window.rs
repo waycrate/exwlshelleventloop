@@ -6,7 +6,6 @@ use crate::{
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
-    f64,
     sync::Arc,
     task::Poll,
 };
@@ -179,7 +178,7 @@ where
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
-    cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f64)>,
+    cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f32)>,
     clipboard: SessionLockClipboard,
     user_interfaces: UserInterfaces<P>,
     iced_events: Vec<(IcedId, IcedEvent)>,

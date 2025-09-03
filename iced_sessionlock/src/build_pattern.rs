@@ -237,7 +237,7 @@ mod pattern {
                 self.program.style(state, theme)
             }
 
-            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
                 self.program.scale_factor(state, window)
             }
             fn name() -> &'static str {
@@ -300,7 +300,7 @@ mod pattern {
                 self.program.style(state, theme)
             }
 
-            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
                 self.program.scale_factor(state, window)
             }
             fn name() -> &'static str {
@@ -364,7 +364,7 @@ mod pattern {
                 self.program.style(state, theme)
             }
 
-            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
                 self.program.scale_factor(state, window)
             }
             fn name() -> &'static str {
@@ -424,7 +424,7 @@ mod pattern {
                 self.program.theme(state, window)
             }
 
-            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
                 self.program.scale_factor(state, window)
             }
             fn name() -> &'static str {
@@ -437,7 +437,7 @@ mod pattern {
 
     pub fn with_scale_factor<P: Program>(
         program: P,
-        f: impl Fn(&P::State, iced_core::window::Id) -> f64,
+        f: impl Fn(&P::State, iced_core::window::Id) -> f32,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
         struct WithScaleFactor<P, F> {
             program: P,
@@ -446,7 +446,7 @@ mod pattern {
 
         impl<P: Program, F> Program for WithScaleFactor<P, F>
         where
-            F: Fn(&P::State, iced_core::window::Id) -> f64,
+            F: Fn(&P::State, iced_core::window::Id) -> f32,
         {
             type State = P::State;
             type Message = P::Message;
@@ -484,7 +484,7 @@ mod pattern {
                 self.program.style(state, theme)
             }
 
-            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+            fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
                 (self.scale_factor)(state, window)
             }
             fn name() -> &'static str {
@@ -614,7 +614,7 @@ mod pattern {
         /// Sets the scale factor of the [`Application`].
         pub fn scale_factor(
             self,
-            f: impl Fn(&P::State, iced_core::window::Id) -> f64,
+            f: impl Fn(&P::State, iced_core::window::Id) -> f32,
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {

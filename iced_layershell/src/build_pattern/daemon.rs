@@ -258,7 +258,7 @@ pub fn with_subscription<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
     }
@@ -320,7 +320,7 @@ pub fn with_theme<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
     }
@@ -380,7 +380,7 @@ pub fn with_style<P: Program>(
             self.program.theme(state, id)
         }
 
-        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
     }
@@ -390,7 +390,7 @@ pub fn with_style<P: Program>(
 
 pub fn with_scale_factor<P: Program>(
     program: P,
-    f: impl Fn(&P::State, iced_core::window::Id) -> f64,
+    f: impl Fn(&P::State, iced_core::window::Id) -> f32,
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
     struct WithScaleFactor<P, F> {
         program: P,
@@ -399,7 +399,7 @@ pub fn with_scale_factor<P: Program>(
 
     impl<P: Program, F> Program for WithScaleFactor<P, F>
     where
-        F: Fn(&P::State, iced_core::window::Id) -> f64,
+        F: Fn(&P::State, iced_core::window::Id) -> f32,
     {
         type State = P::State;
         type Message = P::Message;
@@ -439,7 +439,7 @@ pub fn with_scale_factor<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             (self.scale_factor)(state, window)
         }
     }
@@ -508,7 +508,7 @@ pub fn with_title<P: Program>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State, window: iced::window::Id) -> f64 {
+        fn scale_factor(&self, state: &Self::State, window: iced::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
     }
@@ -569,7 +569,7 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
             self.program.style(state, theme)
         }
 
-        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f64 {
+        fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
     }
@@ -725,7 +725,7 @@ impl<P: Program> Daemon<P> {
     /// Sets the scale factor of the [`Daemon`].
     pub fn scale_factor(
         self,
-        f: impl Fn(&P::State, iced_core::window::Id) -> f64,
+        f: impl Fn(&P::State, iced_core::window::Id) -> f32,
     ) -> Daemon<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>> {
         Daemon {
             raw: with_scale_factor(self.raw, move |state, id| f(state, id)),

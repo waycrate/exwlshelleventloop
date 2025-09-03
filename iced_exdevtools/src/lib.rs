@@ -119,7 +119,7 @@ macro_rules! gen_attach {
                     self.program.style(state.state(), theme)
                 }
 
-                fn scale_factor(&self, state: &Self::State, id: $crate::window::Id) -> f64 {
+                fn scale_factor(&self, state: &Self::State, id: $crate::window::Id) -> f32 {
                     self.program.scale_factor(state.state(), id)
                 }
             }
@@ -404,7 +404,7 @@ where
         program.style(self.state(), theme)
     }
 
-    pub fn scale_factor(&self, program: &P, window: window::Id) -> f64 {
+    pub fn scale_factor(&self, program: &P, window: window::Id) -> f32 {
         program.scale_factor(self.state(), window)
     }
 

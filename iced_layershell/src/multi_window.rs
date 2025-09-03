@@ -10,7 +10,7 @@ use crate::{
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
-    f64, mem,
+    mem,
     os::fd::AsFd,
     sync::Arc,
     task::Poll,
@@ -241,7 +241,7 @@ where
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
-    cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f64)>,
+    cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f32)>,
     clipboard: LayerShellClipboard,
     wl_input_region: Option<WlRegion>,
     user_interfaces: UserInterfaces<P>,
