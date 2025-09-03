@@ -14,7 +14,7 @@ tempfile.workspace = true
 xkbcommon = "0.8.0"
 
 cairo-rs = "0.20.5"
-pango = "0.20.4"
+pango = "0.21.1"
 pangocairo = "0.20.4"
 
 serde_json = "1.0"
