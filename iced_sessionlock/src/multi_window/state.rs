@@ -22,8 +22,10 @@ where
     window_size: Size<u32>,
     viewport: Viewport,
     viewport_version: usize,
-    theme: A::Theme,
-    appearance: Appearance,
+    theme: Option<A::Theme>,
+    default_theme: A::Theme,
+    theme_mode: iced::theme::Mode,
+    style: Appearance,
     mouse_position: Option<Point>,
     modifiers: ModifiersState,
     wpviewport: WpViewport,
@@ -39,10 +41,16 @@ where
         (width, height): (u32, u32),
         wayland_scale_factor: f64,
         window: &WindowWrapper,
+        system_theme: iced::theme::Mode,
     ) -> Self {
         let application_scale_factor = application.scale_factor(id) as f64;
         let theme = application.theme(id);
-        let appearance = application.style(&theme);
+        let theme_mode = theme
+            .as_ref()
+            .map(iced::theme::Base::mode)
+            .unwrap_or_default();
+        let default_theme = <A::Theme as iced::theme::Base>::default(system_theme);
+        let style = application.style(&default_theme);
 
         let window_size = Size::new(width, height);
         let viewport = viewport(window_size, wayland_scale_factor, application_scale_factor);
@@ -60,7 +68,9 @@ where
             viewport,
             viewport_version: 0,
             theme,
-            appearance,
+            style,
+            default_theme,
+            theme_mode,
             mouse_position: None,
             modifiers: ModifiersState::default(),
             wpviewport,
@@ -108,15 +118,20 @@ where
     }
 
     pub fn text_color(&self) -> Color {
-        self.appearance.text_color
+        self.style.text_color
     }
 
     pub fn background_color(&self) -> Color {
-        self.appearance.background_color
+        self.style.background_color
     }
 
     pub fn theme(&self) -> &A::Theme {
-        &self.theme
+        self.theme.as_ref().unwrap_or(&self.default_theme)
+    }
+
+    #[allow(unused)]
+    pub fn theme_mode(&self) -> iced::theme::Mode {
+        self.theme_mode
     }
 
     pub fn cursor(&self) -> IcedMouse::Cursor {
@@ -125,7 +140,7 @@ where
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }
 
-    pub fn update(&mut self, event: &WindowEvent) {
+    pub fn update(&mut self, event: &WindowEvent, application: &Instance<A>) {
         match event {
             WindowEvent::CursorLeft => {
                 self.mouse_position = None;
@@ -150,6 +165,12 @@ where
                 self.wayland_scale_factor = *scale_float;
                 self.resize_viewport();
             }
+            WindowEvent::ThemeChanged(mode) => {
+                self.default_theme = <A::Theme as iced::theme::Base>::default(*mode);
+                if self.theme.is_none() {
+                    self.style = application.style(&self.default_theme);
+                }
+            }
             _ => {}
         }
     }
@@ -161,7 +182,7 @@ where
             self.resize_viewport();
         }
         self.theme = application.theme(self.id);
-        self.appearance = application.style(&self.theme);
+        self.style = application.style(self.theme());
     }
 
     fn resize_viewport(&mut self) {

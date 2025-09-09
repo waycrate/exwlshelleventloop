@@ -93,6 +93,7 @@ pub enum WindowEvent {
         y: f64,
     },
     Refresh,
+    ThemeChanged(iced::theme::Mode),
 }
 
 #[derive(Debug)]

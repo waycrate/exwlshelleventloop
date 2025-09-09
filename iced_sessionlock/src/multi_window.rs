@@ -33,7 +33,7 @@ use sessionlockev::id::Id as SessionLockId;
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 use window_manager::Window;
 
-use futures::{FutureExt, future::LocalBoxFuture};
+use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
 
 use crate::{event::IcedSessionLockEvent, proxy::IcedProxy, settings::Settings};
 
@@ -83,6 +83,30 @@ where
     runtime.track(iced_futures::subscription::into_recipes(
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
+    let system_theme = {
+        let to_mode = |color_scheme| match color_scheme {
+            mundy::ColorScheme::NoPreference => theme::Mode::None,
+            mundy::ColorScheme::Light => theme::Mode::Light,
+            mundy::ColorScheme::Dark => theme::Mode::Dark,
+        };
+
+        runtime.run(
+            mundy::Preferences::stream(mundy::Interest::ColorScheme)
+                .map(move |preferences| {
+                    Action::System(iced_runtime::system::Action::NotifyTheme(to_mode(
+                        preferences.color_scheme,
+                    )))
+                })
+                .boxed(),
+        );
+
+        mundy::Preferences::once_blocking(
+            mundy::Interest::ColorScheme,
+            core::time::Duration::from_millis(200),
+        )
+        .map(|preferences| to_mode(preferences.color_scheme))
+        .unwrap_or_default()
+    };
 
     let ev: WindowState<()> = sessionlockev::WindowState::new()
         .with_use_display_handle(true)
@@ -95,7 +119,13 @@ where
         P,
         <P as iced::Program>::Executor,
         <P::Renderer as iced_graphics::compositor::Default>::Compositor,
-    >::new(application, compositor_settings, runtime, settings.fonts);
+    >::new(
+        application,
+        compositor_settings,
+        runtime,
+        settings.fonts,
+        system_theme,
+    );
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
     let mut waiting_session_lock_events = VecDeque::new();
@@ -175,6 +205,7 @@ where
 {
     compositor_settings: iced_graphics::Settings,
     runtime: SessionRuntime<E, P::Message>,
+    system_theme: iced::theme::Mode,
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
@@ -198,10 +229,12 @@ where
         compositor_settings: iced_graphics::Settings,
         runtime: SessionRuntime<E, P::Message>,
         fonts: Vec<Cow<'static, [u8]>>,
+        system_theme: iced::theme::Mode,
     ) -> Self {
         Self {
             compositor_settings,
             runtime,
+            system_theme,
             fonts,
             compositor: Default::default(),
             window_manager: WindowManager::new(),
@@ -322,6 +355,7 @@ where
                 self.compositor
                     .as_mut()
                     .expect("It should have been created"),
+                self.system_theme,
             );
 
             self.user_interfaces.build(
@@ -447,7 +481,9 @@ where
         // In previous implementation, event without layer_shell_id won't call `update` here, but
         // will broadcast to the application. I'm not sure why, but I think it is
         // reasonable to call `update` here.
-        window.state.update(&event);
+        window
+            .state
+            .update(&event, self.user_interfaces.application());
         if let Some(event) = conversion::window_event(
             &event,
             window.state.application_scale_factor(),
@@ -507,6 +543,8 @@ where
             &mut self.clipboard,
             &mut should_exit,
             &mut self.window_manager,
+            &mut self.system_theme,
+            &mut self.runtime,
             ev,
         );
         if should_exit {
@@ -687,7 +725,7 @@ pub(crate) fn update<P: Program, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_action<P, C>(
+pub(crate) fn run_action<P, C, E: Executor>(
     user_interfaces: &mut UserInterfaces<P>,
     compositor: &mut Option<C>,
     action: Action<P::Message>,
@@ -695,6 +733,8 @@ pub(crate) fn run_action<P, C>(
     clipboard: &mut SessionLockClipboard,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
+    system_theme: &mut iced::theme::Mode,
+    runtime: &mut SessionRuntime<E, P::Message>,
     ev: &mut WindowState<()>,
 ) where
     P: Program + 'static,
@@ -775,6 +815,27 @@ pub(crate) fn run_action<P, C>(
                 _ => {}
             }
         }
+        Action::System(action) => match action {
+            iced_runtime::system::Action::GetTheme(channel) => {
+                let _ = channel.send(*system_theme);
+            }
+            iced_runtime::system::Action::NotifyTheme(mode) => {
+                if mode != *system_theme {
+                    *system_theme = mode;
+
+                    runtime.broadcast(iced_futures::subscription::Event::SystemThemeChanged(mode));
+                }
+
+                for (_id, window) in window_manager.iter_mut() {
+                    window.state.update(
+                        &WindowEvent::ThemeChanged(mode),
+                        user_interfaces.application(),
+                    );
+                }
+            }
+
+            _ => {}
+        },
         Action::LoadFont { bytes, channel } => {
             // TODO: Error handling (?)
             if let Some(compositor) = compositor {

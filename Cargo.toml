@@ -46,6 +46,8 @@ wayland-protocols = { version = "0.32.5", default-features = false, features = [
   "staging",
   "client",
 ] }
+
+mundy = "0.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["std", "env-filter"] }
 
 wayland-cursor = "0.31.7"

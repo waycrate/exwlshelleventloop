@@ -107,6 +107,38 @@ mod pattern {
             self
         }
     }
+
+    /// The theme logic of some [`Application`].
+    ///
+    /// Any implementors of this trait can be provided as an argument to
+    /// [`Application::theme`].
+    ///
+    /// `iced` provides two implementors:
+    /// - the built-in [`iced::Theme`] itself
+    /// - and any `Fn(&State, iced::window::Id) -> impl Into<Option<iced::Theme>>`.
+    pub trait ThemeFn<State, Theme> {
+        /// Returns the theme of the [`Daemon`] for the current state and window.
+        ///
+        /// If `None` is returned, `iced` will try to use a theme that
+        /// matches the system color scheme.
+        fn theme(&self, state: &State, window: iced::window::Id) -> Option<Theme>;
+    }
+
+    impl<State> ThemeFn<State, iced::Theme> for iced::Theme {
+        fn theme(&self, _state: &State, _window: iced::window::Id) -> Option<iced::Theme> {
+            Some(self.clone())
+        }
+    }
+
+    impl<F, T, State, Theme> ThemeFn<State, Theme> for F
+    where
+        F: Fn(&State) -> T,
+        T: Into<Option<Theme>>,
+    {
+        fn theme(&self, state: &State, _window: iced::window::Id) -> Option<Theme> {
+            (self)(state).into()
+        }
+    }
     #[derive(Debug)]
     pub struct Application<A: Program> {
         raw: A,
@@ -121,7 +153,7 @@ mod pattern {
     where
         State: 'static,
         Message: 'static + TryInto<UnLockAction, Error = Message> + Send + std::fmt::Debug,
-        Theme: Default + DefaultStyle,
+        Theme: DefaultStyle,
         Renderer: self::Renderer,
     {
         use std::marker::PhantomData;
@@ -138,7 +170,7 @@ mod pattern {
             for Instance<State, Message, Theme, Renderer, Update, View, Boot>
         where
             Message: 'static + TryInto<UnLockAction, Error = Message> + Send + std::fmt::Debug,
-            Theme: Default + DefaultStyle,
+            Theme: DefaultStyle,
             Renderer: self::Renderer,
             Update: self::Update<State, Message>,
             Boot: self::Boot<State, Message>,
@@ -229,7 +261,11 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+            fn theme(
+                &self,
+                state: &Self::State,
+                window: iced_core::window::Id,
+            ) -> Option<Self::Theme> {
                 self.program.theme(state, window)
             }
 
@@ -292,7 +328,11 @@ mod pattern {
                 self.program.view(state, window)
             }
 
-            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+            fn theme(
+                &self,
+                state: &Self::State,
+                window: iced_core::window::Id,
+            ) -> Option<Self::Theme> {
                 self.program.theme(state, window)
             }
 
@@ -316,7 +356,7 @@ mod pattern {
 
     pub fn with_theme<P: Program>(
         program: P,
-        f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
+        f: impl Fn(&P::State, iced_core::window::Id) -> Option<P::Theme>,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
         struct WithTheme<P, F> {
             program: P,
@@ -325,7 +365,7 @@ mod pattern {
 
         impl<P: Program, F> Program for WithTheme<P, F>
         where
-            F: Fn(&P::State, iced_core::window::Id) -> P::Theme,
+            F: Fn(&P::State, iced_core::window::Id) -> Option<P::Theme>,
         {
             type State = P::State;
             type Message = P::Message;
@@ -333,7 +373,11 @@ mod pattern {
             type Renderer = P::Renderer;
             type Executor = P::Executor;
 
-            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+            fn theme(
+                &self,
+                state: &Self::State,
+                window: iced_core::window::Id,
+            ) -> Option<Self::Theme> {
                 (self.theme)(state, window)
             }
             fn boot(&self) -> (Self::State, Task<Self::Message>) {
@@ -420,7 +464,11 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+            fn theme(
+                &self,
+                state: &Self::State,
+                window: iced_core::window::Id,
+            ) -> Option<Self::Theme> {
                 self.program.theme(state, window)
             }
 
@@ -476,7 +524,11 @@ mod pattern {
                 self.program.subscription(state)
             }
 
-            fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Self::Theme {
+            fn theme(
+                &self,
+                state: &Self::State,
+                window: iced_core::window::Id,
+            ) -> Option<Self::Theme> {
                 self.program.theme(state, window)
             }
 
@@ -600,12 +652,12 @@ mod pattern {
         /// Sets the theme logic of the [`Application`].
         pub fn theme(
             self,
-            f: impl Fn(&P::State, iced_core::window::Id) -> P::Theme,
+            f: impl ThemeFn<P::State, P::Theme>,
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {
                 raw: with_theme(self.raw, move |state, window| {
-                    debug::hot(|| f(state, window))
+                    debug::hot(|| f.theme(state, window))
                 }),
                 settings: self.settings,
             }

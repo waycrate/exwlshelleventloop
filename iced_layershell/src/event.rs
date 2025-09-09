@@ -97,6 +97,7 @@ pub enum WindowEvent {
     Ime(layershellev::Ime),
     Refresh,
     Closed,
+    ThemeChanged(iced::theme::Mode),
 }
 
 #[derive(Debug)]

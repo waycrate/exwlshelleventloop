@@ -45,7 +45,7 @@ use layershellev::{
     },
 };
 
-use futures::{FutureExt, future::LocalBoxFuture};
+use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
 use window_manager::Window;
 
 use crate::{
@@ -118,11 +118,42 @@ where
         .build()
         .expect("Cannot create layershell");
 
+    let system_theme = {
+        let to_mode = |color_scheme| match color_scheme {
+            mundy::ColorScheme::NoPreference => theme::Mode::None,
+            mundy::ColorScheme::Light => theme::Mode::Light,
+            mundy::ColorScheme::Dark => theme::Mode::Dark,
+        };
+
+        runtime.run(
+            mundy::Preferences::stream(mundy::Interest::ColorScheme)
+                .map(move |preferences| {
+                    Action::System(iced_runtime::system::Action::NotifyTheme(to_mode(
+                        preferences.color_scheme,
+                    )))
+                })
+                .boxed(),
+        );
+
+        mundy::Preferences::once_blocking(
+            mundy::Interest::ColorScheme,
+            core::time::Duration::from_millis(200),
+        )
+        .map(|preferences| to_mode(preferences.color_scheme))
+        .unwrap_or_default()
+    };
+
     let context = Context::<
         P,
         <P as iced::Program>::Executor,
         <P::Renderer as iced_graphics::compositor::Default>::Compositor,
-    >::new(application, compositor_settings, runtime, settings.fonts);
+    >::new(
+        application,
+        compositor_settings,
+        runtime,
+        settings.fonts,
+        system_theme,
+    );
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
 
@@ -238,6 +269,7 @@ where
 {
     compositor_settings: iced_graphics::Settings,
     runtime: MultiRuntime<E, P::Message>,
+    system_theme: iced::theme::Mode,
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
@@ -263,10 +295,12 @@ where
         compositor_settings: iced_graphics::Settings,
         runtime: MultiRuntime<E, P::Message>,
         fonts: Vec<Cow<'static, [u8]>>,
+        system_theme: iced::theme::Mode,
     ) -> Self {
         Self {
             compositor_settings,
             runtime,
+            system_theme,
             fonts,
             compositor: Default::default(),
             window_manager: WindowManager::new(),
@@ -394,13 +428,6 @@ where
                 .copied()
                 .unwrap_or_else(IcedId::unique);
 
-            debug::theme_changed(|| {
-                if self.window_manager.is_empty() {
-                    theme::Base::palette(&self.user_interfaces.application().theme(iced_id))
-                } else {
-                    None
-                }
-            });
             let window = self.window_manager.insert(
                 iced_id,
                 (width, height),
@@ -410,6 +437,7 @@ where
                 self.compositor
                     .as_mut()
                     .expect("It should have been created"),
+                self.system_theme,
             );
 
             self.user_interfaces.build(
@@ -572,7 +600,9 @@ where
         // In previous implementation, event without layer_shell_id won't call `update` here, but
         // will broadcast to the application. I'm not sure why, but I think it is
         // reasonable to call `update` here.
-        window.state.update(&event);
+        window
+            .state
+            .update(&event, self.user_interfaces.application());
         if let Some(event) = conversion::window_event(
             &event,
             window.state.application_scale_factor(),
@@ -593,6 +623,8 @@ where
             &mut self.waiting_layer_shell_actions,
             &mut should_exit,
             &mut self.window_manager,
+            &mut self.system_theme,
+            &mut self.runtime,
             ev,
         );
         if should_exit {
@@ -1000,7 +1032,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn run_action<P, C>(
+pub(crate) fn run_action<P, C, E: Executor>(
     user_interfaces: &mut UserInterfaces<P>,
     compositor: &mut Option<C>,
     event: Action<P::Message>,
@@ -1009,6 +1041,8 @@ pub(crate) fn run_action<P, C>(
     waiting_layer_shell_actions: &mut Vec<(Option<iced::window::Id>, LayershellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
+    system_theme: &mut iced::theme::Mode,
+    runtime: &mut MultiRuntime<E, P::Message>,
     ev: &mut WindowState<IcedId>,
 ) where
     P: IcedProgram + 'static,
@@ -1103,6 +1137,27 @@ pub(crate) fn run_action<P, C>(
             }
             _ => {}
         },
+        Action::System(action) => match action {
+            iced_runtime::system::Action::GetTheme(channel) => {
+                let _ = channel.send(*system_theme);
+            }
+            iced_runtime::system::Action::NotifyTheme(mode) => {
+                if mode != *system_theme {
+                    *system_theme = mode;
+
+                    runtime.broadcast(iced_futures::subscription::Event::SystemThemeChanged(mode));
+                }
+
+                for (_id, window) in window_manager.iter_mut() {
+                    window.state.update(
+                        &LayerShellWindowEvent::ThemeChanged(mode),
+                        user_interfaces.application(),
+                    );
+                }
+            }
+
+            _ => {}
+        },
         Action::Exit => {
             *should_exit = true;
         }
@@ -1127,6 +1182,5 @@ pub(crate) fn run_action<P, C>(
             }
             ev.request_refresh_all(RefreshRequest::NextFrame);
         }
-        _ => {}
     }
 }

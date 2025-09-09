@@ -83,6 +83,7 @@ where
         self.entries.first_key_value().map(|(_, v)| v)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn insert(
         &mut self,
         id: IcedId,
@@ -91,9 +92,10 @@ where
         window: Arc<WindowWrapper>,
         application: &Instance<A>,
         compositor: &mut C,
+        system_theme: iced::theme::Mode,
     ) -> &mut Window<A, C> {
         let layerid = window.id();
-        let state = State::new(id, application, size, fractal_scale, &window);
+        let state = State::new(id, application, size, fractal_scale, &window, system_theme);
         let physical_size = state.viewport().physical_size();
         let surface = compositor.create_surface(window, physical_size.width, physical_size.height);
         let renderer = compositor.create_renderer();

@@ -111,7 +111,11 @@ macro_rules! gen_attach {
                     state.subscription(&self.program)
                 }
 
-                fn theme(&self, state: &Self::State, window: $crate::window::Id) -> Self::Theme {
+                fn theme(
+                    &self,
+                    state: &Self::State,
+                    window: $crate::window::Id,
+                ) -> Option<Self::Theme> {
                     self.program.theme(state.state(), window)
                 }
 
@@ -330,14 +334,12 @@ where
             }
         };
 
-        let theme = program.theme(state, window);
-
-        let derive_theme = move || {
+        fn derive_theme<T: theme::Base>(theme: &T) -> Theme {
             theme
                 .palette()
                 .map(|palette| Theme::custom("iced devtools", palette))
-                .unwrap_or_default()
-        };
+                .unwrap_or(Theme::Dark)
+        }
 
         let mode = match &self.mode {
             Mode::None => None,
@@ -361,23 +363,27 @@ where
                 Some(setup)
             }
         }
-        .map(|mode| themer(derive_theme(), Element::from(mode).map(Event::Message)));
+        .map(|mode| themer(derive_theme, Element::from(mode).map(Event::Message)));
 
-        let notification = self.show_notification.then(|| {
-            themer(
-                derive_theme(),
-                bottom_right(opaque(
-                    container(text("Press F12 to open debug metrics"))
-                        .padding(10)
-                        .style(container::dark),
-                )),
-            )
-        });
+        let notification = self
+            .show_notification
+            .then(|| text("Press F12 to open debug metrics"))
+            .or_else(|| {
+                debug::is_stale()
+                    .then(|| text("Types have changed. Restart to re-enable hotpatching."))
+            });
 
         stack![view]
             .height(Fill)
             .push_maybe(mode.map(opaque))
-            .push_maybe(notification)
+            .push_maybe(notification.map(|notification| {
+                themer(
+                    derive_theme,
+                    bottom_right(opaque(
+                        container(notification).padding(10).style(container::dark),
+                    )),
+                )
+            }))
             .into()
     }
 
@@ -396,7 +402,7 @@ where
         Subscription::batch([subscription, hotkeys, commands])
     }
 
-    pub fn theme(&self, program: &P, window: window::Id) -> P::Theme {
+    pub fn theme(&self, program: &P, window: window::Id) -> Option<P::Theme> {
         program.theme(self.state(), window)
     }
 
