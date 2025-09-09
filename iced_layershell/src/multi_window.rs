@@ -1154,6 +1154,8 @@ pub(crate) fn run_action<P, C, E: Executor>(
                         user_interfaces.application(),
                     );
                 }
+
+                ev.request_refresh_all(RefreshRequest::NextFrame);
             }
 
             _ => {}
