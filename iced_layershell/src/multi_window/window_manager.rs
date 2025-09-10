@@ -14,49 +14,49 @@ use iced::window::Id as IcedId;
 use iced_program::Instance;
 use iced_program::Program;
 
-pub struct Window<A, C>
+pub struct Window<P, C>
 where
-    A: Program,
-    C: Compositor<Renderer = A::Renderer>,
-    A::Theme: DefaultStyle,
+    P: Program,
+    C: Compositor<Renderer = P::Renderer>,
+    P::Theme: DefaultStyle,
 {
     pub id: LayerId,
     #[allow(unused)]
     pub iced_id: IcedId,
-    pub renderer: A::Renderer,
+    pub renderer: P::Renderer,
     pub surface: C::Surface,
-    pub state: State<A>,
+    pub state: State<P>,
     pub mouse_interaction: mouse::Interaction,
-    preedit: Option<Preedit<A::Renderer>>,
+    preedit: Option<Preedit<P::Renderer>>,
     ime_state: Option<(iced_core::Point, input_method::Purpose)>,
 }
 
-pub struct WindowManager<A: Program, C: Compositor>
+pub struct WindowManager<P: Program, C: Compositor>
 where
-    C: Compositor<Renderer = A::Renderer>,
-    A::Theme: DefaultStyle,
+    C: Compositor<Renderer = P::Renderer>,
+    P::Theme: DefaultStyle,
 {
     aliases: BTreeMap<LayerId, IcedId>,
     back_aliases: BTreeMap<IcedId, LayerId>,
-    entries: BTreeMap<IcedId, Window<A, C>>,
+    entries: BTreeMap<IcedId, Window<P, C>>,
 }
 
-impl<A, C> Default for WindowManager<A, C>
+impl<P, C> Default for WindowManager<P, C>
 where
-    A: Program,
-    C: Compositor<Renderer = A::Renderer>,
-    A::Theme: DefaultStyle,
+    P: Program,
+    C: Compositor<Renderer = P::Renderer>,
+    P::Theme: DefaultStyle,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<A, C> WindowManager<A, C>
+impl<P, C> WindowManager<P, C>
 where
-    A: Program,
-    C: Compositor<Renderer = A::Renderer>,
-    A::Theme: DefaultStyle,
+    P: Program,
+    C: Compositor<Renderer = P::Renderer>,
+    P::Theme: DefaultStyle,
 {
     pub fn new() -> Self {
         Self {
@@ -79,7 +79,7 @@ where
         self.entries.remove(&id);
     }
 
-    pub fn first(&self) -> Option<&Window<A, C>> {
+    pub fn first(&self) -> Option<&Window<P, C>> {
         self.entries.first_key_value().map(|(_, v)| v)
     }
 
@@ -90,10 +90,10 @@ where
         size: (u32, u32),
         fractal_scale: f64,
         window: Arc<WindowWrapper>,
-        application: &Instance<A>,
+        application: &Instance<P>,
         compositor: &mut C,
         system_theme: iced::theme::Mode,
-    ) -> &mut Window<A, C> {
+    ) -> &mut Window<P, C> {
         let layerid = window.id();
         let state = State::new(id, application, size, fractal_scale, &window, system_theme);
         let physical_size = state.viewport().physical_size();
@@ -124,34 +124,34 @@ where
         self.entries.is_empty()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (IcedId, &mut Window<A, C>)> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (IcedId, &mut Window<P, C>)> {
         self.entries.iter_mut().map(|(k, v)| (*k, v))
     }
 
-    pub fn first_window(&self) -> Option<(&IcedId, &Window<A, C>)> {
+    pub fn first_window(&self) -> Option<(&IcedId, &Window<P, C>)> {
         self.entries.iter().next()
     }
 
-    pub fn last_window(&self) -> Option<(&IcedId, &Window<A, C>)> {
+    pub fn last_window(&self) -> Option<(&IcedId, &Window<P, C>)> {
         self.entries.iter().last()
     }
 
-    pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<A, C>)> {
+    pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<P, C>)> {
         let id = self.aliases.get(&id).copied()?;
 
         Some((id, self.get_mut(id)?))
     }
 
-    pub fn get_alias(&self, id: LayerId) -> Option<(IcedId, &Window<A, C>)> {
+    pub fn get_alias(&self, id: LayerId) -> Option<(IcedId, &Window<P, C>)> {
         let id = self.aliases.get(&id).copied()?;
 
         Some((id, self.get(id)?))
     }
 
-    pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<A, C>> {
+    pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<P, C>> {
         self.entries.get_mut(&id)
     }
-    pub fn get(&self, id: IcedId) -> Option<&Window<A, C>> {
+    pub fn get(&self, id: IcedId) -> Option<&Window<P, C>> {
         self.entries.get(&id)
     }
 }

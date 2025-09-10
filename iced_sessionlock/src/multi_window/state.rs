@@ -10,9 +10,9 @@ use sessionlockev::reexport::wp_viewport::WpViewport;
 use crate::event::WindowEvent;
 use iced::window;
 
-pub struct State<A: Program>
+pub struct State<P: Program>
 where
-    A::Theme: DefaultStyle,
+    P::Theme: DefaultStyle,
 {
     id: window::Id,
     application_scale_factor: f64,
@@ -22,8 +22,8 @@ where
     window_size: Size<u32>,
     viewport: Viewport,
     viewport_version: usize,
-    theme: Option<A::Theme>,
-    default_theme: A::Theme,
+    theme: Option<P::Theme>,
+    default_theme: P::Theme,
     theme_mode: iced::theme::Mode,
     style: Appearance,
     mouse_position: Option<Point>,
@@ -31,13 +31,13 @@ where
     wpviewport: WpViewport,
 }
 
-impl<A: Program> State<A>
+impl<P: Program> State<P>
 where
-    A::Theme: DefaultStyle,
+    P::Theme: DefaultStyle,
 {
     pub fn new(
         id: window::Id,
-        application: &Instance<A>,
+        application: &Instance<P>,
         (width, height): (u32, u32),
         wayland_scale_factor: f64,
         window: &WindowWrapper,
@@ -49,7 +49,7 @@ where
             .as_ref()
             .map(iced::theme::Base::mode)
             .unwrap_or_default();
-        let default_theme = <A::Theme as iced::theme::Base>::default(system_theme);
+        let default_theme = <P::Theme as iced::theme::Base>::default(system_theme);
         let style = application.style(&default_theme);
 
         let window_size = Size::new(width, height);
@@ -125,7 +125,7 @@ where
         self.style.background_color
     }
 
-    pub fn theme(&self) -> &A::Theme {
+    pub fn theme(&self) -> &P::Theme {
         self.theme.as_ref().unwrap_or(&self.default_theme)
     }
 
@@ -140,7 +140,7 @@ where
             .unwrap_or(IcedMouse::Cursor::Unavailable)
     }
 
-    pub fn update(&mut self, event: &WindowEvent, application: &Instance<A>) {
+    pub fn update(&mut self, event: &WindowEvent, application: &Instance<P>) {
         match event {
             WindowEvent::CursorLeft => {
                 self.mouse_position = None;
@@ -166,7 +166,7 @@ where
                 self.resize_viewport();
             }
             WindowEvent::ThemeChanged(mode) => {
-                self.default_theme = <A::Theme as iced::theme::Base>::default(*mode);
+                self.default_theme = <P::Theme as iced::theme::Base>::default(*mode);
                 if self.theme.is_none() {
                     self.style = application.style(&self.default_theme);
                 }
@@ -175,7 +175,7 @@ where
         }
     }
 
-    pub fn synchronize(&mut self, application: &Instance<A>) {
+    pub fn synchronize(&mut self, application: &Instance<P>) {
         let new_scale_factor = application.scale_factor(self.id) as f64;
         if self.application_scale_factor != new_scale_factor {
             self.application_scale_factor = new_scale_factor;
