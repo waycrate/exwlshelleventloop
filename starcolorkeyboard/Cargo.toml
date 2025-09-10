@@ -11,7 +11,7 @@ edition.workspace = true
 layershellev.workspace = true
 tempfile.workspace = true
 
-xkbcommon = "0.8.0"
+xkbcommon = "0.9.0"
 
 cairo-rs = "0.21.1"
 pango = "0.21.1"
