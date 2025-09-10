@@ -119,7 +119,7 @@ checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 name = "application-launcher"
 version = "0.14.0-dev"
 dependencies = [
- "gio 0.20.12",
+ "gio 0.21.1",
  "iced",
  "iced_layershell",
  "iced_runtime",
@@ -457,7 +457,7 @@ dependencies = [
 name = "bottom_panel"
 version = "0.14.0-dev"
 dependencies = [
- "gio 0.20.12",
+ "gio 0.21.1",
  "iced",
  "iced_layershell",
  "iced_runtime",
@@ -1531,7 +1531,7 @@ dependencies = [
  "gobject-sys 0.20.10",
  "libc",
  "system-deps 7.0.5",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3866,7 +3866,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
