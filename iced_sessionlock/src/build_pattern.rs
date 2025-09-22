@@ -3,10 +3,6 @@ use std::borrow::Cow;
 use iced::Font;
 
 /// The renderer of iced program.
-pub trait Renderer: iced_core::text::Renderer + iced_graphics::compositor::Default {}
-
-impl<T> Renderer for T where T: iced_core::text::Renderer + iced_graphics::compositor::Default {}
-
 pub use pattern::application;
 
 mod pattern {
@@ -154,7 +150,7 @@ mod pattern {
         State: 'static,
         Message: 'static + TryInto<UnLockAction, Error = Message> + Send + std::fmt::Debug,
         Theme: DefaultStyle,
-        Renderer: self::Renderer,
+        Renderer: iced_program::Renderer,
     {
         use std::marker::PhantomData;
         struct Instance<State, Message, Theme, Renderer, Update, View, Boot> {
@@ -171,7 +167,7 @@ mod pattern {
         where
             Message: 'static + TryInto<UnLockAction, Error = Message> + Send + std::fmt::Debug,
             Theme: DefaultStyle,
-            Renderer: self::Renderer,
+            Renderer: iced_program::Renderer,
             Update: self::Update<State, Message>,
             Boot: self::Boot<State, Message>,
             View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
@@ -203,6 +199,13 @@ mod pattern {
                 let name = std::any::type_name::<State>();
 
                 name.split("::").next().unwrap_or("a_cool_application")
+            }
+            fn settings(&self) -> iced::Settings {
+                Default::default()
+            }
+
+            fn window(&self) -> Option<iced_core::window::Settings> {
+                None
             }
         }
         Application {
@@ -279,6 +282,13 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
+            fn settings(&self) -> iced::Settings {
+                Default::default()
+            }
+
+            fn window(&self) -> Option<iced_core::window::Settings> {
+                None
+            }
         }
 
         WithExecutor {
@@ -345,6 +355,13 @@ mod pattern {
             }
             fn name() -> &'static str {
                 P::name()
+            }
+            fn settings(&self) -> iced::Settings {
+                Default::default()
+            }
+
+            fn window(&self) -> Option<iced_core::window::Settings> {
+                None
             }
         }
 
@@ -414,6 +431,13 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
+            fn settings(&self) -> iced::Settings {
+                Default::default()
+            }
+
+            fn window(&self) -> Option<iced_core::window::Settings> {
+                None
+            }
         }
 
         WithTheme { program, theme: f }
@@ -478,6 +502,13 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
+            fn settings(&self) -> iced::Settings {
+                Default::default()
+            }
+
+            fn window(&self) -> Option<iced_core::window::Settings> {
+                None
+            }
         }
 
         WithStyle { program, style: f }
@@ -541,6 +572,13 @@ mod pattern {
             }
             fn name() -> &'static str {
                 P::name()
+            }
+            fn settings(&self) -> iced::Settings {
+                Default::default()
+            }
+
+            fn window(&self) -> Option<iced_core::window::Settings> {
+                None
             }
         }
 

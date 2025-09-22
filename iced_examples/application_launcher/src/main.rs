@@ -1,4 +1,5 @@
 use applications::{App, all_apps};
+use iced::widget::operation::focus;
 use iced::widget::{column, scrollable, text_input};
 use iced::{Element, Event, Length, Task as Command, event};
 mod applications;
@@ -10,8 +11,8 @@ use iced_runtime::Action;
 
 use std::sync::LazyLock;
 
-static SCROLLABLE_ID: LazyLock<scrollable::Id> = LazyLock::new(scrollable::Id::unique);
-static INPUT_ID: LazyLock<text_input::Id> = LazyLock::new(text_input::Id::unique);
+static SCROLLABLE_ID: LazyLock<iced::widget::Id> = LazyLock::new(iced::widget::Id::unique);
+static INPUT_ID: LazyLock<iced::widget::Id> = LazyLock::new(iced::widget::Id::unique);
 
 fn main() -> Result<(), iced_layershell::Error> {
     application(
@@ -64,7 +65,7 @@ impl Launcher {
                 apps: all_apps(),
                 scrollpos: 0,
             },
-            text_input::focus(INPUT_ID.clone()),
+            focus(INPUT_ID.clone()),
         )
     }
 
@@ -149,7 +150,7 @@ impl Launcher {
                         _ => {}
                     }
                 }
-                text_input::focus(INPUT_ID.clone())
+                focus(INPUT_ID.clone())
             }
         }
     }

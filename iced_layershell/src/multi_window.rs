@@ -338,9 +338,8 @@ where
         layer_shell_event: IcedLayerShellEvent<P::Message>,
     ) -> (ContextState<Self>, Option<IcedLayerShellEvent<P::Message>>) {
         tracing::debug!(
-            "Handle layer shell event, layer_shell_id: {:?}, event: {:?}, waiting actions: {}, messages: {}",
+            "Handle layer shell event, layer_shell_id: {:?},  waiting actions: {}, messages: {}",
             layer_shell_id,
-            layer_shell_event,
             self.waiting_layer_shell_actions.len(),
             self.messages.len(),
         );
@@ -1014,10 +1013,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     P::Message: 'static,
 {
     for message in messages.drain(..) {
-        let update_span = debug::update(&message);
         let task = runtime.enter(|| application.update(message));
-        debug::tasks_spawned(task.units());
-        update_span.finish();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);
