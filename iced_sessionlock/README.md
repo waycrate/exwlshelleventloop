@@ -78,7 +78,7 @@ impl Counter {
 
     fn view(&self, _id: iced::window::Id) -> Element<Message> {
         column![
-            Space::with_height(Length::Fill),
+            Space::new().height(Length::Fill),
             button("Increment").on_press(Message::IncrementPressed),
             button("Lock").on_press(Message::UnLock),
             text(self.value).size(50),
@@ -86,7 +86,7 @@ impl Counter {
                 .on_input(Message::TextInput)
                 .padding(10),
             button("Decrement").on_press(Message::DecrementPressed),
-            Space::with_height(Length::Fill),
+            Space::new().height(Length::Fill),
         ]
         .padding(20)
         .align_x(Alignment::Center)
