@@ -77,16 +77,10 @@ macro_rules! gen_attach {
                     )
                 }
 
-                fn settings(&self) -> $crate::IcedSettings {
-                    $crate::IcedSettings::default()
-                }
-
-                fn window(&self) -> Option<$crate::core::window::Settings> {
-                    None
-                }
                 fn title(&self, state: &Self::State, window: $crate::window::Id) -> String {
                     state.title(&self.program, window)
                 }
+
                 fn update(
                     &self,
                     state: &mut Self::State,
@@ -105,6 +99,14 @@ macro_rules! gen_attach {
 
                 fn subscription(&self, state: &Self::State) -> $crate::Subscription<Self::Message> {
                     state.subscription(&self.program)
+                }
+
+                fn settings(&self) -> $crate::IcedSettings {
+                    self.program.settings()
+                }
+
+                fn window(&self) -> Option<$crate::core::window::Settings> {
+                    self.program.window()
                 }
 
                 fn theme(
