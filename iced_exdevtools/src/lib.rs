@@ -42,8 +42,7 @@ macro_rules! gen_attach {
         where
             P: $crate::Program + 'static,
             P::Message: $crate::MaybeDebug + Send + 'static + TryInto<$Action, Error = P::Message>,
-            $crate::Event<P>:
-                TryInto<$Action, Error = $crate::Event<P>> + std::fmt::Debug + Send + 'static,
+            $crate::Event<P>: TryInto<$Action, Error = $crate::Event<P>> + Send + 'static,
         {
             struct Attach<P> {
                 program: P,

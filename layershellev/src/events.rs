@@ -43,12 +43,12 @@ pub enum LayerShellEvent<'a, T, Message> {
     InitRequest,
     /// if the info of the XdgOutput is changed, it will send the event
     XdgInfoChanged(XdgInfoChangedType),
-    /// After you return [ReturnData::RequestBind] in the [LayerEvent::InitRequest] stage, next
-    /// event is [LayerEvent::BindProvide], you can use the GlobalList and QueueHandle to create
+    /// After you return [ReturnData::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
+    /// event is [LayerShellEvent::BindProvide], you can use the GlobalList and QueueHandle to create
     /// new wayland objects.
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
     /// After you return [ReturnData::RequestCompositor] in the init stage, next
-    /// event is [LayerEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
+    /// event is [LayerShellEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
     /// create new wayland objects.
     CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
     /// create a new buffer after request. if you use display_handle, you do not need to care about
@@ -174,7 +174,7 @@ pub enum ReturnData<INFO> {
     None,
 }
 
-/// this tell the what kind of information passed by [LayerEvent::XdgInfoChanged]
+/// this tell the what kind of information passed by [LayerShellEvent::XdgInfoChanged]
 #[derive(Debug, Clone, Copy)]
 pub enum XdgInfoChangedType {
     Position,
