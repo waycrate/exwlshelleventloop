@@ -271,9 +271,8 @@ where
         session_lock_event: IcedSessionLockEvent<P::Message>,
     ) -> (ContextState<Self>, Option<IcedSessionLockEvent<P::Message>>) {
         tracing::debug!(
-            "Handle sessionlock event, sessionlockev: {:?}, event: {:?}, messages: {}",
+            "Handle sessionlock event, sessionlockev: {:?}, messages: {}",
             session_lock_id,
-            session_lock_event,
             self.messages.len(),
         );
         if let IcedSessionLockEvent::Window(WindowEvent::Refresh) = session_lock_event
@@ -708,10 +707,7 @@ pub(crate) fn update<P: Program, E: Executor>(
     P::Message: 'static,
 {
     for message in messages.drain(..) {
-        let update_span = debug::update(&message);
         let task = runtime.enter(|| application.update(message));
-        debug::tasks_spawned(task.units());
-        update_span.finish();
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {
             runtime.run(stream);

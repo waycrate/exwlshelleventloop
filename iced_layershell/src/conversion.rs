@@ -147,7 +147,7 @@ pub fn window_event(
         LayerShellEvent::Ime(event) => Some(IcedEvent::InputMethod(match event {
             layershellev::Ime::Enabled => input_method::Event::Opened,
             layershellev::Ime::Preedit(content, size) => {
-                input_method::Event::Preedit(content.clone(), size.map(|(start, end)| (start..end)))
+                input_method::Event::Preedit(content.clone(), size.map(|(start, end)| start..end))
             }
             layershellev::Ime::Commit(content) => input_method::Event::Commit(content.clone()),
             layershellev::Ime::Disabled => input_method::Event::Closed,

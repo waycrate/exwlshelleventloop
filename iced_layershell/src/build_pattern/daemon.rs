@@ -8,8 +8,6 @@ use crate::actions::LayershellCustomActionWithId;
 use crate::DefaultStyle;
 use crate::settings::LayerShellSettings;
 
-use super::Renderer;
-
 use crate::Result;
 
 use crate::settings::Settings;
@@ -162,7 +160,7 @@ where
     Message:
         'static + TryInto<LayershellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle,
-    Renderer: self::Renderer,
+    Renderer: iced_program::Renderer,
 {
     use std::marker::PhantomData;
     struct Instance<State, Message, Theme, Renderer, Update, View, Boot> {
@@ -182,7 +180,7 @@ where
             + Send
             + std::fmt::Debug,
         Theme: DefaultStyle,
-        Renderer: self::Renderer,
+        Renderer: iced_program::Renderer,
         Update: self::Update<State, Message>,
         Boot: self::Boot<State, Message>,
         View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
@@ -213,6 +211,13 @@ where
             let name = std::any::type_name::<State>();
 
             name.split("::").next().unwrap_or("a_cool_application")
+        }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
         }
     }
     Daemon {
@@ -285,6 +290,13 @@ pub fn with_subscription<P: Program>(
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
+        }
     }
 
     WithSubscription {
@@ -347,6 +359,13 @@ pub fn with_theme<P: Program>(
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
+        }
     }
 
     WithTheme { program, theme: f }
@@ -407,6 +426,13 @@ pub fn with_style<P: Program>(
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
+        }
     }
 
     WithStyle { program, style: f }
@@ -465,6 +491,13 @@ pub fn with_scale_factor<P: Program>(
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             (self.scale_factor)(state, window)
+        }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
         }
     }
 
@@ -535,6 +568,13 @@ pub fn with_title<P: Program>(
         fn scale_factor(&self, state: &Self::State, window: iced::window::Id) -> f32 {
             self.program.scale_factor(state, window)
         }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
+        }
     }
 
     WithTitle { program, title }
@@ -595,6 +635,13 @@ pub fn with_executor<P: Program, E: iced_futures::Executor>(
 
         fn scale_factor(&self, state: &Self::State, window: iced_core::window::Id) -> f32 {
             self.program.scale_factor(state, window)
+        }
+        fn settings(&self) -> iced::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
         }
     }
 

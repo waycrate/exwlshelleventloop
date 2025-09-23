@@ -1,6 +1,6 @@
 use iced::alignment::Vertical;
 use iced::widget::{
-    button, center, column, container, horizontal_space, row, scrollable, text, text_input,
+    button, center, column, container, operation, row, scrollable, space, text, text_input,
 };
 use iced::window;
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
@@ -111,7 +111,7 @@ impl Example {
             Message::CloseWindow(id) => iced::window::close(id),
             Message::WindowOpened(id) => {
                 let window = Window::new(self.windows.len() + 1);
-                let focus_input = text_input::focus(format!("input-{id}"));
+                let focus_input = operation::focus(format!("input-{id}"));
 
                 self.windows.insert(id, window);
 
@@ -158,7 +158,7 @@ impl Example {
         if let Some(window) = self.windows.get(&window_id) {
             center(window.view(window_id)).into()
         } else {
-            horizontal_space().into()
+            space::horizontal().into()
         }
     }
 
