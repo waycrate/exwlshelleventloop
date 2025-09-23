@@ -71,17 +71,17 @@ rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 
-iced = { git = "https://github.com/iced-rs/iced.git", default-features = false, branch = "feature/test-recorder" }
-iced_runtime = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
+iced = { git = "https://github.com/iced-rs/iced.git", default-features = false }
+iced_runtime = { git = "https://github.com/iced-rs/iced.git" }
 #iced_style = "0.13"
-iced_core = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_program = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_renderer = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_futures = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_graphics = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_debug = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_devtools = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
-iced_widget = { git = "https://github.com/iced-rs/iced.git", branch = "feature/test-recorder" }
+iced_core = { git = "https://github.com/iced-rs/iced.git" }
+iced_program = { git = "https://github.com/iced-rs/iced.git" }
+iced_renderer = { git = "https://github.com/iced-rs/iced.git" }
+iced_futures = { git = "https://github.com/iced-rs/iced.git" }
+iced_graphics = { git = "https://github.com/iced-rs/iced.git" }
+iced_debug = { git = "https://github.com/iced-rs/iced.git" }
+iced_devtools = { git = "https://github.com/iced-rs/iced.git" }
+iced_widget = { git = "https://github.com/iced-rs/iced.git" }
 window_clipboard = "0.4.1"
 
 bitflags = "2.9.0"

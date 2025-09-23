@@ -10,7 +10,7 @@ pub use crate::core::{Alignment::Center, Color, Element, Length::Fill};
 pub use crate::futures::Subscription;
 pub use crate::program::Program;
 pub use crate::runtime::Task;
-
+pub use crate::program::message::MaybeDebug;
 pub use crate::core::Settings as IcedSettings;
 
 pub use iced_devtools::{DevTools, Event};
@@ -22,7 +22,7 @@ macro_rules! gen_attach {
     ) => {
         impl<P: $crate::Program> TryInto<$Action> for $crate::Event<P>
         where
-            P::Message: std::fmt::Debug + Send + 'static + TryInto<$Action, Error = P::Message>,
+            P::Message: $crate::MaybeDebug + 'static + TryInto<$Action, Error = P::Message>,
         {
             type Error = Self;
             fn try_into(self) -> std::result::Result<$Action, Self::Error> {
@@ -41,7 +41,7 @@ macro_rules! gen_attach {
         fn attach<P>(program: P) -> impl $crate::Program<Message = $crate::Event<P>>
         where
             P: $crate::Program + 'static,
-            P::Message: std::fmt::Debug + Send + 'static + TryInto<$Action, Error = P::Message>,
+            P::Message: $crate::MaybeDebug + Send + 'static + TryInto<$Action, Error = P::Message>,
             $crate::Event<P>:
                 TryInto<$Action, Error = $crate::Event<P>> + std::fmt::Debug + Send + 'static,
         {
@@ -52,7 +52,7 @@ macro_rules! gen_attach {
             impl<P> $crate::Program for Attach<P>
             where
                 P: $crate::Program + 'static,
-                P::Message: std::fmt::Debug,
+                P::Message: $crate::MaybeDebug,
             {
                 type State = $crate::DevTools<P>;
                 type Message = $crate::Event<P>;
