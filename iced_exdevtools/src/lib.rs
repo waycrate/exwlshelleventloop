@@ -4,14 +4,14 @@ use iced_program::runtime;
 use iced_program::runtime::futures;
 pub use iced_widget::core;
 
+pub use crate::core::Settings as IcedSettings;
 pub use crate::core::theme::{self, Base, Theme};
 pub use crate::core::window;
 pub use crate::core::{Alignment::Center, Color, Element, Length::Fill};
 pub use crate::futures::Subscription;
 pub use crate::program::Program;
-pub use crate::runtime::Task;
 pub use crate::program::message::MaybeDebug;
-pub use crate::core::Settings as IcedSettings;
+pub use crate::runtime::Task;
 
 pub use iced_devtools::{DevTools, Event};
 
