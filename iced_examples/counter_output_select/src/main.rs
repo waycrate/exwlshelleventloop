@@ -6,40 +6,18 @@ use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
 
-use libwaysip::{SelectionType, WaysipConnection, get_area};
-use wayland_client::{
-    Connection, Dispatch, QueueHandle,
-    globals::{GlobalListContents, registry_queue_init},
-    protocol::wl_registry,
-};
-
-struct State {}
-
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for State {
-    fn event(
-        _: &mut State,
-        _: &wl_registry::WlRegistry,
-        _: wl_registry::Event,
-        _: &GlobalListContents,
-        _: &Connection,
-        _: &QueueHandle<State>,
-    ) {
-    }
-}
+use libwaysip::{SelectionType, WaySip};
+use wayland_client::Connection;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     let connection = Connection::connect_to_env().unwrap();
-    let (globals, _) = registry_queue_init::<State>(&connection).unwrap();
 
-    let area_info = get_area(
-        Some(WaysipConnection {
-            connection: &connection,
-            globals: &globals,
-        }),
-        SelectionType::Screen,
-    )
-    .unwrap()
-    .unwrap();
+    let area_info = WaySip::new()
+        .with_connection(connection.clone())
+        .with_selection_type(SelectionType::Screen)
+        .get()
+        .unwrap()
+        .unwrap();
     let output = area_info.selected_screen_info().wl_output.clone();
     application(Counter::default, namespace, update, view)
         .style(style)
