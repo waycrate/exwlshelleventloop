@@ -16,4 +16,4 @@ iced = { workspace = true, features = ["thread-pool"] }
 iced_runtime.workspace = true
 iced_layershell = { workspace = true, features = ["debug"] }
 wayland-client.workspace = true
-libwaysip = "0.4.0"
+libwaysip = "0.5.0"
