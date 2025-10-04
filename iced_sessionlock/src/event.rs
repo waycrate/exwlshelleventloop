@@ -9,6 +9,7 @@ use iced_runtime::Action;
 fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
     match code {
         273 => mouse::Button::Right,
+        274 => mouse::Button::Middle,
         _ => mouse::Button::Left,
     }
 }

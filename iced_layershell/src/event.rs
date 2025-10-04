@@ -10,6 +10,7 @@ use iced_core::keyboard::Modifiers as IcedModifiers;
 fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
     match code {
         273 => mouse::Button::Right,
+        274 => mouse::Button::Middle,
         _ => mouse::Button::Left,
     }
 }
