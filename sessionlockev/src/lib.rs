@@ -176,7 +176,7 @@ use wayland_client::backend::WaylandError;
 
 /// return the error during running the eventloop
 #[derive(Debug, thiserror::Error)]
-pub enum SessonLockEventError {
+pub enum SessionLockEventError {
     #[error("connect error")]
     ConnectError(#[from] ConnectError),
     #[error("Global Error")]
@@ -1409,7 +1409,7 @@ delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 impl<T: 'static> WindowState<T> {
-    pub fn build(mut self) -> Result<Self, SessonLockEventError> {
+    pub fn build(mut self) -> Result<Self, SessionLockEventError> {
         let connection = if let Some(connection) = self.connection.take() {
             connection
         } else {
@@ -1494,7 +1494,7 @@ impl<T: 'static> WindowState<T> {
         self,
         message_receiver: std::sync::mpsc::Receiver<Message>,
         event_handler: F,
-    ) -> Result<(), SessonLockEventError>
+    ) -> Result<(), SessionLockEventError>
     where
         Message: std::marker::Send + 'static,
         F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData
@@ -1507,7 +1507,7 @@ impl<T: 'static> WindowState<T> {
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
-    pub fn running<F>(self, event_handler: F) -> Result<(), SessonLockEventError>
+    pub fn running<F>(self, event_handler: F) -> Result<(), SessionLockEventError>
     where
         F: FnMut(SessionLockEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData
             + 'static,
@@ -1519,7 +1519,7 @@ impl<T: 'static> WindowState<T> {
         mut self,
         message_receiver: Option<std::sync::mpsc::Receiver<Message>>,
         mut event_handler: F,
-    ) -> Result<(), SessonLockEventError>
+    ) -> Result<(), SessionLockEventError>
     where
         Message: std::marker::Send + 'static,
         F: FnMut(SessionLockEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData
