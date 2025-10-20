@@ -944,6 +944,7 @@ where
                 redraw_request,
                 input_method,
                 mouse_interaction,
+                ..
             } => {
                 if unconditional_rendering {
                     ev.request_refresh(window.id, RefreshRequest::NextFrame);
