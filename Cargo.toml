@@ -95,7 +95,7 @@ memmap2 = "0.9.5"
 tracing = "0.1.40"
 futures = "0.3.31"
 
-darling = { version = "0.20.10", features = ["suggestions"] }
+darling = { version = "0.21.3", features = ["suggestions"] }
 manyhow = { version = "0.11.4", features = ["darling"] }
 proc-macro2 = "1.0.89"
 quote = "1.0.37"
