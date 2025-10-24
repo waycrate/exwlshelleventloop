@@ -13,6 +13,8 @@ use std::{
 use crate::{clipboard::SessionLockClipboard, conversion, error::Error};
 
 use super::DefaultStyle;
+#[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
+use iced::theme::Mode;
 use iced_graphics::{Compositor, compositor};
 
 use iced_core::{Size, time::Instant};
@@ -83,6 +85,7 @@ where
     runtime.track(iced_futures::subscription::into_recipes(
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
+    #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
     let system_theme = {
         let to_mode = |color_scheme| match color_scheme {
             mundy::ColorScheme::NoPreference => theme::Mode::None,
@@ -110,6 +113,9 @@ where
             .map(|preferences| to_mode(preferences.color_scheme))
             .unwrap_or_default()
     };
+
+    #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
+    let system_theme = Mode::default();
 
     let ev: WindowState<()> = sessionlockev::WindowState::new()
         .with_use_display_handle(true)

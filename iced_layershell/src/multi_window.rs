@@ -21,6 +21,8 @@ use crate::{
     actions::LayershellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
 };
 
+#[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
+use iced::theme::Mode;
 use iced::{
     Event as IcedEvent, theme,
     window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
@@ -118,6 +120,7 @@ where
         .build()
         .expect("Cannot create layershell");
 
+    #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
     let system_theme = {
         let to_mode = |color_scheme| match color_scheme {
             mundy::ColorScheme::NoPreference => theme::Mode::None,
@@ -145,6 +148,9 @@ where
             .map(|preferences| to_mode(preferences.color_scheme))
             .unwrap_or_default()
     };
+
+    #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
+    let system_theme = Mode::default();
 
     let context = Context::<
         P,
