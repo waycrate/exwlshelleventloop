@@ -1961,6 +1961,7 @@ dependencies = [
  "iced_debug",
  "iced_program",
  "log",
+ "mundy",
  "rustc-hash 2.1.1",
  "thiserror 2.0.17",
  "tracing",
