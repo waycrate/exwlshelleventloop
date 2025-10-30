@@ -766,17 +766,22 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
             capabilities: WEnum::Value(capabilities),
         } = event
         {
+            if capabilities.is_empty() && state.keyboard_state.is_some() {
+                let keyboard = state.keyboard_state.take().unwrap();
+                drop(keyboard);
+            }
             if capabilities.contains(wl_seat::Capability::Keyboard) {
                 if state.keyboard_state.is_none() {
                     state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
                 } else {
                     let keyboard = state.keyboard_state.take().unwrap();
                     drop(keyboard);
-                    if let Some(surface_id) = state.current_surface_id() {
-                        state
-                            .message
-                            .push((Some(surface_id), DispatchMessageInner::UnFocused));
-                    }
+                    state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
+                }
+                if let Some(surface_id) = state.current_surface_id() {
+                    state
+                        .message
+                        .push((Some(surface_id), DispatchMessageInner::UnFocused));
                 }
             }
             if capabilities.contains(wl_seat::Capability::Pointer) {
@@ -784,7 +789,9 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                     state.pointer = Some(seat.get_pointer(qh, ()));
                 } else {
                     let pointer = state.pointer.take().unwrap();
-                    pointer.release();
+                    if pointer.version() >= 3 {
+                        pointer.release();
+                    }
                 }
             }
             if capabilities.contains(wl_seat::Capability::Touch) {
@@ -810,6 +817,10 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
+        if state.keyboard_state.is_none() {
+            return;
+        }
+
         use keyboard::*;
         use xkb_keyboard::ElementState;
         let surface_id = state.current_surface_id();
