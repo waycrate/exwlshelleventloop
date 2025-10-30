@@ -15,7 +15,7 @@ use crate::{clipboard::SessionLockClipboard, conversion, error::Error};
 use super::DefaultStyle;
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
 use iced::theme::Mode;
-use iced_graphics::{Compositor, compositor};
+use iced_graphics::{Compositor, Shell, compositor};
 
 use iced_core::{Size, time::Instant};
 use iced_runtime::{Action, UserInterface, user_interface};
@@ -70,6 +70,7 @@ where
         });
     }
 
+    let proxy_back = proxy.clone();
     let mut runtime: SessionRuntime<P::Executor, P::Message> = {
         let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
@@ -134,6 +135,7 @@ where
         runtime,
         settings.fonts,
         system_theme,
+        proxy_back,
     );
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
@@ -223,6 +225,7 @@ where
     user_interfaces: UserInterfaces<P>,
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
+    proxy: IcedProxy<Action<P::Message>>,
 }
 
 impl<P, E, C> Context<P, E, C>
@@ -239,6 +242,7 @@ where
         runtime: SessionRuntime<E, P::Message>,
         fonts: Vec<Cow<'static, [u8]>>,
         system_theme: iced::theme::Mode,
+        proxy: IcedProxy<Action<P::Message>>,
     ) -> Self {
         Self {
             compositor_settings,
@@ -252,11 +256,13 @@ where
             user_interfaces: UserInterfaces::new(application),
             iced_events: Default::default(),
             messages: Default::default(),
+            proxy,
         }
     }
 
     async fn create_compositor(mut self, window: Arc<WindowWrapper>) -> Self {
-        let mut new_compositor = C::new(self.compositor_settings, window.clone())
+        let shell = Shell::new(self.proxy.clone());
+        let mut new_compositor = C::new(self.compositor_settings, window.clone(), shell)
             .await
             .expect("Cannot create compositer");
         for font in self.fonts.clone() {
@@ -765,6 +771,18 @@ pub(crate) fn run_action<P, C, E: Executor>(
             }
             clipboard::Action::Write { target, contents } => {
                 clipboard.write(target, contents);
+            }
+        },
+        Action::Image(action) => match action {
+            iced_runtime::image::Action::Allocate(handle, sender) => {
+                use iced_core::Renderer as _;
+
+                // TODO: Shared image cache in compositor
+                if let Some((_id, window)) = window_manager.iter_mut().next() {
+                    window.renderer.allocate_image(&handle, move |allocation| {
+                        let _ = sender.send(allocation);
+                    });
+                }
             }
         },
         Action::Widget(action) => {

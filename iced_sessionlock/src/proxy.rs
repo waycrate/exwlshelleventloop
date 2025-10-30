@@ -3,8 +3,10 @@ use futures::{
     channel::mpsc,
     task::{Context, Poll},
 };
-use std::pin::Pin;
+use iced_graphics::shell;
 
+use iced_runtime::{Action, window};
+use std::pin::Pin;
 use std::sync::mpsc as stdmpsc;
 
 /// An event loop proxy that implements `Sink`.
@@ -18,25 +20,24 @@ impl<Message: 'static> Clone for IcedProxy<Message> {
     }
 }
 
-impl<Message: 'static> IcedProxy<Message> {
-    pub fn new(sender: stdmpsc::Sender<Message>) -> Self {
+impl<T: 'static> IcedProxy<T> {
+    pub fn new(sender: stdmpsc::Sender<T>) -> Self {
         Self(sender)
     }
-
     #[allow(unused)]
-    pub fn send_action(&self, action: Message) {
+    pub fn send_action(&self, action: T) {
         self.0.send(action).ok();
     }
 }
 
-impl<Message: 'static> Sink<Message> for IcedProxy<Message> {
+impl<Message: 'static> Sink<Action<Message>> for IcedProxy<Action<Message>> {
     type Error = mpsc::SendError;
 
     fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(self: Pin<&mut Self>, message: Message) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, message: Action<Message>) -> Result<(), Self::Error> {
         self.0.send(message).ok();
         Ok(())
     }
@@ -47,5 +48,18 @@ impl<Message: 'static> Sink<Message> for IcedProxy<Message> {
 
     fn poll_close(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
+    }
+}
+
+impl<T> shell::Notifier for IcedProxy<Action<T>>
+where
+    T: Send,
+{
+    fn request_redraw(&self) {
+        self.send_action(Action::Window(window::Action::RedrawAll));
+    }
+
+    fn invalidate_layout(&self) {
+        self.send_action(Action::Window(window::Action::RelayoutAll));
     }
 }

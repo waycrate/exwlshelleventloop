@@ -27,7 +27,7 @@ use iced::{
     Event as IcedEvent, theme,
     window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
 };
-use iced_graphics::{Compositor, compositor};
+use iced_graphics::{Compositor, Shell, compositor};
 use iced_runtime::Action;
 
 use iced_runtime::debug;
@@ -90,6 +90,7 @@ where
         });
     }
 
+    let proxy_back = proxy.clone();
     let mut runtime: MultiRuntime<P::Executor, P::Message> = {
         let executor = P::Executor::new().map_err(Error::ExecutorCreationFailed)?;
 
@@ -162,6 +163,7 @@ where
         runtime,
         settings.fonts,
         system_theme,
+        proxy_back,
     );
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
@@ -289,6 +291,7 @@ where
     waiting_layer_shell_actions: Vec<(Option<IcedId>, LayershellCustomAction)>,
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
+    proxy: IcedProxy<Action<P::Message>>,
 }
 
 impl<P, E, C> Context<P, E, C>
@@ -305,6 +308,7 @@ where
         runtime: MultiRuntime<E, P::Message>,
         fonts: Vec<Cow<'static, [u8]>>,
         system_theme: iced::theme::Mode,
+        proxy: IcedProxy<Action<P::Message>>,
     ) -> Self {
         Self {
             compositor_settings,
@@ -320,11 +324,13 @@ where
             waiting_layer_shell_actions: Default::default(),
             iced_events: Default::default(),
             messages: Default::default(),
+            proxy,
         }
     }
 
     async fn create_compositor(mut self, window: Arc<WindowWrapper>) -> Self {
-        let mut new_compositor = C::new(self.compositor_settings, window.clone())
+        let shell = Shell::new(self.proxy.clone());
+        let mut new_compositor = C::new(self.compositor_settings, window.clone(), shell)
             .await
             .expect("Cannot create compositer");
         for font in self.fonts.clone() {
@@ -1071,7 +1077,18 @@ pub(crate) fn run_action<P, C, E: Executor>(
                 messages.push(stream);
             }
         },
+        Action::Image(action) => match action {
+            iced_runtime::image::Action::Allocate(handle, sender) => {
+                use iced_core::Renderer as _;
 
+                // TODO: Shared image cache in compositor
+                if let Some((_id, window)) = window_manager.iter_mut().next() {
+                    window.renderer.allocate_image(&handle, move |allocation| {
+                        let _ = sender.send(allocation);
+                    });
+                }
+            }
+        },
         Action::Clipboard(action) => match action {
             clipboard::Action::Read { target, channel } => {
                 let _ = channel.send(clipboard.read(target));
