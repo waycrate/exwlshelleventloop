@@ -1552,7 +1552,9 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                     state.pointer = Some(seat.get_pointer(qh, ()));
                 } else {
                     let pointer = state.pointer.take().unwrap();
-                    pointer.release();
+                    if pointer.version() >= 3 {
+                        pointer.release();
+                    }
                 }
             }
             if capabilities.contains(wl_seat::Capability::Touch) {
@@ -1587,6 +1589,10 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
+        if state.keyboard_state.is_none() {
+            return;
+        }
+
         use keyboard::*;
         use xkb_keyboard::ElementState;
         let surface_id = state.current_surface_id();
