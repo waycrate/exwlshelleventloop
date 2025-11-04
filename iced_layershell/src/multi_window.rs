@@ -1,4 +1,3 @@
-mod state;
 use crate::{
     DefaultStyle,
     actions::{IcedNewPopupSettings, LayershellCustomActionWithId, MenuDirection},
@@ -6,6 +5,37 @@ use crate::{
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
     user_interface::UserInterfaces,
+};
+use crate::{
+    actions::LayershellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
+};
+use crate::{
+    event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
+    proxy::IcedProxy,
+    settings::Settings,
+};
+use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
+#[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
+use iced::theme::Mode;
+use iced::{
+    Event as IcedEvent, theme,
+    window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
+};
+use iced_core::{Size, mouse::Cursor, time::Instant};
+use iced_futures::{Executor, Runtime};
+use iced_graphics::{Compositor, Shell, compositor};
+use iced_program::Instance;
+use iced_program::Program as IcedProgram;
+use iced_runtime::Action;
+use iced_runtime::user_interface;
+use layershellev::{
+    LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    calloop::timer::{TimeoutAction, Timer},
+    id::Id as LayerShellId,
+    reexport::{
+        wayland_client::{WlCompositor, WlRegion},
+        zwp_virtual_keyboard_v1,
+    },
 };
 use std::{
     borrow::Cow,
@@ -16,52 +46,12 @@ use std::{
     task::Poll,
     time::Duration,
 };
-
-use crate::{
-    actions::LayershellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
-};
-
-#[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
-use iced::theme::Mode;
-use iced::{
-    Event as IcedEvent, theme,
-    window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
-};
-use iced_graphics::{Compositor, Shell, compositor};
-use iced_runtime::Action;
-
-use iced_runtime::debug;
-
-use iced_core::{Size, mouse::Cursor, time::Instant};
-use iced_runtime::user_interface;
-
-use iced_futures::{Executor, Runtime};
-
-use layershellev::{
-    LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState, WindowWrapper,
-    calloop::timer::{TimeoutAction, Timer},
-    id::Id as LayerShellId,
-    reexport::{
-        wayland_client::{WlCompositor, WlRegion},
-        zwp_virtual_keyboard_v1,
-    },
-};
-
-use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
 use window_manager::Window;
 
-use crate::{
-    event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
-    proxy::IcedProxy,
-    settings::Settings,
-};
-
+mod state;
 mod window_manager;
 
 type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
-
-use iced_program::Instance;
-use iced_program::Program as IcedProgram;
 
 // a dispatch loop, another is listen loop
 pub fn run<P>(
@@ -78,14 +68,14 @@ where
     use futures::task;
     let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
 
-    let boot_span = debug::boot();
+    let boot_span = iced_debug::boot();
     let proxy = IcedProxy::new(message_sender);
 
     #[cfg(feature = "debug")]
     {
         let proxy = proxy.clone();
 
-        debug::on_hotpatch(move || {
+        iced_debug::on_hotpatch(move || {
             proxy.send_action(Action::Reload);
         });
     }
@@ -427,7 +417,7 @@ where
                 || window_size.height != height
                 || window.state.wayland_scale_factor() != scale_float
             {
-                let layout_span = debug::layout(iced_id);
+                let layout_span = iced_debug::layout(iced_id);
                 window.state.update_view_port(width, height, scale_float);
                 if let Some(ui) = self.user_interfaces.ui_mut(&iced_id) {
                     ui.relayout(window.state.viewport().logical_size(), &mut window.renderer);
@@ -488,7 +478,7 @@ where
             Instant::now(),
         )));
 
-        let draw_span = debug::draw(iced_id);
+        let draw_span = iced_debug::draw(iced_id);
         let (ui_state, statuses) = ui.update(
             &events,
             cursor,
@@ -548,7 +538,7 @@ where
 
         window.draw_preedit();
 
-        let present_span = debug::present(iced_id);
+        let present_span = iced_debug::present(iced_id);
         match compositor.present(
             &mut window.renderer,
             &mut window.surface,
@@ -855,7 +845,7 @@ where
 
         let mut rebuilds = Vec::new();
         for (iced_id, window) in self.window_manager.iter_mut() {
-            let interact_span = debug::interact(iced_id);
+            let interact_span = iced_debug::interact(iced_id);
             let mut window_events = vec![];
 
             self.iced_events.retain(|(window_id, event)| {
@@ -912,7 +902,7 @@ where
             for (_, window) in self.window_manager.iter_mut() {
                 window.state.synchronize(application);
             }
-            debug::theme_changed(|| {
+            iced_debug::theme_changed(|| {
                 self.window_manager
                     .first()
                     .and_then(|window| theme::Base::palette(window.state.theme()))
@@ -1039,7 +1029,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     let subscription = runtime.enter(|| application.subscription());
     let recipes = iced_futures::subscription::into_recipes(subscription.map(Action::Output));
 
-    debug::subscriptions_tracked(recipes.len());
+    iced_debug::subscriptions_tracked(recipes.len());
     runtime.track(recipes);
 }
 
