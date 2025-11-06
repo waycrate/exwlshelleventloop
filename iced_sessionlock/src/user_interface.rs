@@ -4,9 +4,11 @@ use iced::{Event, Program, Size, event::Status, mouse::Cursor, window::Id};
 use iced_core::{Clipboard, renderer::Style, widget::Operation};
 use iced_program::Instance;
 use iced_runtime::{
-    UserInterface as IcedUserInterface, debug,
+    UserInterface as IcedUserInterface,
     user_interface::{Cache, State},
 };
+
+use iced_debug as debug;
 
 pub(crate) trait UserInterfaceReclaim<Message, Theme, Renderer> {
     fn reclaim(&mut self, ui: IcedUserInterface<'static, Message, Theme, Renderer>);

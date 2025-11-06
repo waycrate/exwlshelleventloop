@@ -29,7 +29,7 @@ use iced::{
     window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
 };
 
-use iced_runtime::debug;
+use iced_debug as debug;
 use sessionlockev::RefreshRequest;
 use sessionlockev::id::Id as SessionLockId;
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
