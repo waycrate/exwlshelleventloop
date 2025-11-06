@@ -1,12 +1,11 @@
-use std::{collections::HashMap, mem};
-
 use iced::{Event, Program, Size, event::Status, mouse::Cursor, window::Id};
 use iced_core::{Clipboard, renderer::Style, widget::Operation};
 use iced_program::Instance;
 use iced_runtime::{
-    UserInterface as IcedUserInterface, debug,
+    UserInterface as IcedUserInterface,
     user_interface::{Cache, State},
 };
+use std::{collections::HashMap, mem};
 
 pub(crate) trait UserInterfaceReclaim<Message, Theme, Renderer> {
     fn reclaim(&mut self, ui: IcedUserInterface<'static, Message, Theme, Renderer>);
@@ -137,11 +136,11 @@ where
     }
 
     pub fn build(&mut self, id: Id, cache: Cache, renderer: &mut P::Renderer, size: Size) {
-        let view_span = debug::view(id);
+        let view_span = iced_debug::view(id);
         let view = self.application.view(id);
         view_span.finish();
 
-        let layout_span = debug::layout(id);
+        let layout_span = iced_debug::layout(id);
         let ui = IcedUserInterface::build(view, size, cache, renderer);
         layout_span.finish();
         // SAFETY ui won't outlive application.
