@@ -881,16 +881,18 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                     };
                     state.message.push((surface_id, event));
                 }
+
                 match pressed_state {
                     ElementState::Pressed => {
                         let delay = match keyboard_state.repeat_info {
                             RepeatInfo::Repeat { delay, .. } => delay,
                             RepeatInfo::Disable => return,
                         };
-                        if !keyboard_state
+
+                        if keyboard_state
                             .xkb_context
                             .keymap_mut()
-                            .is_some_and(|keymap| keymap.key_repeats(key))
+                            .is_none_or(|keymap| !keymap.key_repeats(key))
                         {
                             return;
                         }
@@ -906,7 +908,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         let timer = Timer::from_duration(delay);
 
                         if let Some(looph) = state.loop_handler.as_ref() {
-                            looph
+                            keyboard_state.repeat_token = looph
                                 .insert_source(timer, move |_, _, state| {
                                     let keyboard_state = match state.keyboard_state.as_mut() {
                                         Some(keyboard_state) => keyboard_state,
