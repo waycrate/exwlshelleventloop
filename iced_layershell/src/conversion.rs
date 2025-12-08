@@ -89,6 +89,7 @@ pub fn window_event(
                     text,
                     modified_key,
                     physical_key,
+                    repeat: false,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
                     key,
@@ -170,8 +171,8 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
     match interaction {
         Interaction::None => Shape::Default.name().to_owned(),
         Interaction::Idle => Shape::Wait.name().to_owned(),
+        Interaction::Wait => Shape::Wait.name().to_owned(),
         Interaction::Pointer => Shape::Pointer.name().to_owned(),
-        Interaction::Working => Shape::Pointer.name().to_owned(),
         Interaction::Grab => Shape::Grab.name().to_owned(),
         Interaction::Text => Shape::Text.name().to_owned(),
         Interaction::ZoomIn => Shape::ZoomIn.name().to_owned(),
@@ -187,6 +188,7 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::ZoomOut => Shape::ZoomOut.name().to_owned(),
         Interaction::ResizingDiagonallyUp => Shape::NwseResize.name().to_owned(),
         Interaction::ResizingDiagonallyDown => Shape::NwseResize.name().to_owned(),
+        _ => Shape::Default.name().to_owned(),
     }
 }
 

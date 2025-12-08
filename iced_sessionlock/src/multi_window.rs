@@ -262,9 +262,14 @@ where
 
     async fn create_compositor(mut self, window: Arc<WindowWrapper>) -> Self {
         let shell = Shell::new(self.proxy.clone());
-        let mut new_compositor = C::new(self.compositor_settings, window.clone(), shell)
-            .await
-            .expect("Cannot create compositer");
+        let mut new_compositor = C::new(
+            self.compositor_settings,
+            window.clone(),
+            window.clone(),
+            shell,
+        )
+        .await
+        .expect("Cannot create compositer");
         for font in self.fonts.clone() {
             new_compositor.load_font(font);
         }

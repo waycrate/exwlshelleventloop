@@ -320,9 +320,14 @@ where
 
     async fn create_compositor(mut self, window: Arc<WindowWrapper>) -> Self {
         let shell = Shell::new(self.proxy.clone());
-        let mut new_compositor = C::new(self.compositor_settings, window.clone(), shell)
-            .await
-            .expect("Cannot create compositer");
+        let mut new_compositor = C::new(
+            self.compositor_settings,
+            window.clone(),
+            window.clone(),
+            shell,
+        )
+        .await
+        .expect("Cannot create compositer");
         for font in self.fonts.clone() {
             new_compositor.load_font(font);
         }
@@ -971,9 +976,9 @@ where
                             }
                         }
                         iced_core::InputMethod::Enabled {
-                            position,
                             purpose,
                             preedit: _,
+                            cursor,
                         } => {
                             if ime_flags.contains(ImeState::Allowed) {
                                 ev.set_ime_allowed(true);
@@ -982,7 +987,7 @@ where
                             if ime_flags.contains(ImeState::Update) {
                                 ev.set_ime_purpose(conversion::ime_purpose(purpose));
                                 ev.set_ime_cursor_area(
-                                    layershellev::dpi::LogicalPosition::new(position.x, position.y),
+                                    layershellev::dpi::LogicalPosition::new(cursor.x, cursor.y),
                                     layershellev::dpi::LogicalSize {
                                         width: 10,
                                         height: 10,

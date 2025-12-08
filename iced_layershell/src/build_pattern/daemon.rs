@@ -682,6 +682,7 @@ impl<P: Program> Daemon<P> {
             } else {
                 None
             },
+            ..Default::default()
         };
         use layershellev::StartMode;
         assert!(

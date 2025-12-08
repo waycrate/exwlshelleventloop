@@ -617,6 +617,7 @@ mod pattern {
                 } else {
                     None
                 },
+                ..Default::default()
             };
             crate::multi_window::run(program, settings, renderer_settings)
         }

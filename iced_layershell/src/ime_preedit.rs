@@ -8,7 +8,7 @@ pub struct Preedit<Renderer>
 where
     Renderer: text::Renderer,
 {
-    position: Point,
+    cursor: Rectangle,
     content: Renderer::Paragraph,
     spans: Vec<text::Span<'static, (), Renderer::Font>>,
 }
@@ -28,7 +28,7 @@ where
 {
     pub fn new() -> Self {
         Self {
-            position: Point::ORIGIN,
+            cursor: Rectangle::default(),
             spans: Vec::new(),
             content: Renderer::Paragraph::default(),
         }
@@ -36,12 +36,12 @@ where
 
     pub fn update(
         &mut self,
-        position: Point,
+        cursor: Rectangle,
         preedit: &input_method::Preedit,
         background: Color,
         renderer: &Renderer,
     ) {
-        self.position = position;
+        self.cursor = cursor;
 
         let spans = match &preedit.selection {
             Some(selection) => {
@@ -94,7 +94,7 @@ where
         }
 
         let mut bounds = Rectangle::new(
-            self.position - Vector::new(0.0, self.content.min_height()),
+            self.cursor.position() - Vector::new(0.0, self.content.min_height()),
             self.content.min_bounds(),
         );
 
