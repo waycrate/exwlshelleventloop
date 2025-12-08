@@ -171,7 +171,7 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
         Interaction::ZoomOut => Shape::ZoomOut.name().to_owned(),
         Interaction::ResizingDiagonallyUp => Shape::NwseResize.name().to_owned(),
         Interaction::ResizingDiagonallyDown => Shape::NwseResize.name().to_owned(),
-        _ => Shape::Default.name().to_owned()
+        _ => Shape::Default.name().to_owned(),
     }
 }
 

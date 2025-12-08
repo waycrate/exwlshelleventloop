@@ -216,9 +216,9 @@ where
         }
     }
 
-    fn update_ime(&mut self, position: iced_core::Rectangle, purpose: input_method::Purpose) {
-        if self.ime_state != Some((position, purpose)) {
-            self.ime_state = Some((position, purpose));
+    fn update_ime(&mut self, cursor: iced_core::Rectangle, purpose: input_method::Purpose) {
+        if self.ime_state != Some((cursor, purpose)) {
+            self.ime_state = Some((cursor, purpose));
         }
     }
 
