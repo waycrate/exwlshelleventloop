@@ -989,8 +989,8 @@ where
                                 ev.set_ime_cursor_area(
                                     layershellev::dpi::LogicalPosition::new(cursor.x, cursor.y),
                                     layershellev::dpi::LogicalSize {
-                                        width: 10,
-                                        height: 10,
+                                        width: cursor.width,
+                                        height: cursor.height,
                                     },
                                     window.id,
                                 );
