@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 keywords.workspace = true
+description = "A macro lib for exshelleventloop"
 
 [features]
 time-travel = ["iced_program/time-travel"]

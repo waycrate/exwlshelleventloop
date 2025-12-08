@@ -56,6 +56,7 @@ jobs:
               run: |
                 cargo publish -p iced_layershell_macros
                 cargo publish -p iced_sessionlock_macros
+                cargo publish -p iced_exdevtools
                 cargo publish -p waycrate_xkbkeycode
                 cargo publish -p layershellev
                 cargo publish -p sessionlockev
