@@ -30,7 +30,6 @@ use iced_runtime::Action;
 use iced_runtime::user_interface;
 use layershellev::{
     LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState, WindowWrapper,
-    calloop::timer::{TimeoutAction, Timer},
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -733,18 +732,11 @@ where
                 use layershellev::reexport::wayland_client::KeyState;
                 let ky = ev.get_virtual_keyboard().unwrap();
                 ky.key(time, key, KeyState::Pressed.into());
-
-                let eh = ev.get_loop_handler().unwrap();
-                eh.insert_source(
-                    Timer::from_duration(Duration::from_micros(100)),
-                    move |_, _, state| {
-                        let ky = state.get_virtual_keyboard().unwrap();
-
-                        ky.key(time, key, KeyState::Released.into());
-                        TimeoutAction::Drop
-                    },
-                )
-                .ok();
+                ev.set_virtual_key_release(layershellev::VirtualKeyRelease {
+                    delay: Duration::from_micros(100),
+                    time,
+                    key,
+                });
             }
             LayershellCustomAction::NewLayerShell {
                 settings,

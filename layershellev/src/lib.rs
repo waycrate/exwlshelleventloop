@@ -827,6 +827,13 @@ struct KeyboardTokenState {
     pressed_state: ElementState,
 }
 
+#[derive(Debug)]
+pub struct VirtualKeyRelease {
+    pub delay: Duration,
+    pub time: u32,
+    pub key: u32,
+}
+
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
@@ -870,9 +877,10 @@ pub struct WindowState<T> {
 
     // settings
     use_display_handle: bool,
-    loop_handler: Option<LoopHandle<'static, Self>>,
     repeat_delay: Option<KeyboardTokenState>,
     to_remove_tokens: Vec<RegistrationToken>,
+
+    to_be_released_key: Option<VirtualKeyRelease>,
 
     last_unit_index: usize,
     last_wloutput: Option<WlOutput>,
@@ -1350,9 +1358,9 @@ impl<T> Default for WindowState<T> {
             margin: None,
 
             use_display_handle: false,
-            loop_handler: None,
             repeat_delay: None,
             to_remove_tokens: Vec::new(),
+            to_be_released_key: None,
 
             last_wloutput: None,
             last_unit_index: 0,
@@ -1390,9 +1398,8 @@ impl<T> WindowState<T> {
         self.virtual_keyboard.as_ref()
     }
 
-    /// with loop_handler you can do more thing
-    pub fn get_loop_handler(&self) -> Option<&LoopHandle<'static, Self>> {
-        self.loop_handler.as_ref()
+    pub fn set_virtual_key_release(&mut self, key_info: VirtualKeyRelease) {
+        self.to_be_released_key = Some(key_info);
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit]
@@ -1624,7 +1631,6 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
             wl_keyboard::Event::Enter { .. } => {
                 if let Some(token) = keyboard_state.repeat_token.take() {
                     state.to_remove_tokens.push(token);
-                    //loop_handle.remove(token);
                 }
             }
             wl_keyboard::Event::Leave { .. } => {
@@ -1682,7 +1688,6 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
 
                         if let Some(token) = keyboard_state.repeat_token.take() {
                             state.to_remove_tokens.push(token);
-                            //loop_handle.remove(token);
                         }
                         state.repeat_delay = Some(KeyboardTokenState {
                             delay,
@@ -1703,7 +1708,6 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
 
                             if let Some(token) = keyboard_state.repeat_token.take() {
                                 state.to_remove_tokens.push(token);
-                                //loop_handle.remove(token);
                             }
                         }
                     }
@@ -1733,11 +1737,9 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 keyboard_state.repeat_info = if rate == 0 {
                     // Stop the repeat once we get a disable event.
                     keyboard_state.current_repeat = None;
-                    if let (Some(token), Some(loop_handle)) = (
-                        keyboard_state.repeat_token.take(),
-                        state.loop_handler.as_ref(),
-                    ) {
-                        loop_handle.remove(token);
+
+                    if let Some(token) = keyboard_state.repeat_token.take() {
+                        state.to_remove_tokens.push(token);
                     }
                     RepeatInfo::Disable
                 } else {
@@ -3335,6 +3337,22 @@ impl<T: 'static> WindowState<T> {
                         looph.remove(*token);
                     }
                     window_state.to_remove_tokens.clear();
+                    if let Some(VirtualKeyRelease { delay, time, key }) =
+                        window_state.to_be_released_key
+                    {
+                        looph
+                            .insert_source(
+                                Timer::from_duration(delay),
+                                move |_, _, r_window_state| {
+                                    let state = &mut r_window_state.raw;
+                                    let ky = state.get_virtual_keyboard().unwrap();
+
+                                    ky.key(time, key, KeyState::Released.into());
+                                    TimeoutAction::Drop
+                                },
+                            )
+                            .ok();
+                    }
                     if let Some(KeyboardTokenState {
                         key,
                         delay,
