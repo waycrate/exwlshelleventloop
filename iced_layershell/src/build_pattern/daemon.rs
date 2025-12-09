@@ -737,10 +737,10 @@ impl<P: Program> Daemon<P> {
     }
 
     /// set the default_text_size
-    pub fn default_text_size(self, default_text_size: iced::Pixels) -> Self {
+    pub fn default_text_size<Pixels: Into<iced::Pixels>>(self, default_text_size: Pixels) -> Self {
         Self {
             settings: Settings {
-                default_text_size,
+                default_text_size: default_text_size.into(),
                 ..self.settings
             },
             ..self
