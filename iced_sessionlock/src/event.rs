@@ -94,6 +94,7 @@ pub enum WindowEvent {
         y: f64,
     },
     Refresh,
+    Closed,
     ThemeChanged(iced::theme::Mode),
 }
 
@@ -108,6 +109,7 @@ impl From<&DispatchMessage> for WindowEvent {
     fn from(value: &DispatchMessage) -> Self {
         match value {
             DispatchMessage::RequestRefresh { .. } => WindowEvent::Refresh,
+            DispatchMessage::Closed => WindowEvent::Closed,
             DispatchMessage::MouseEnter {
                 surface_x: x,
                 surface_y: y,

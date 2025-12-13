@@ -267,6 +267,8 @@ pub enum DispatchMessage {
         scale_float: f64,
         scale_u32: u32,
     },
+    // because wlouput is dead, the window is closed
+    Closed,
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {

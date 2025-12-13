@@ -508,6 +508,7 @@ pub struct WindowState<T> {
     // settings:
     to_remove_tokens: Vec<RegistrationToken>,
     repeat_delay: Option<KeyboardTokenState>,
+    closed_ids: Vec<id::Id>,
 
     // keyboard
     use_display_handle: bool,
@@ -631,6 +632,7 @@ impl<T> Default for WindowState<T> {
 
             to_remove_tokens: Vec::new(),
             repeat_delay: None,
+            closed_ids: Vec::new(),
 
             use_display_handle: false,
 
@@ -761,7 +763,12 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
             }
             wl_registry::Event::GlobalRemove { name } => {
                 state.outputs.retain(|x| x.0 != name);
-                state.units.retain(|unit| unit.wl_surface.is_alive());
+                let removed_states = state
+                    .units
+                    .extract_if(.., |unit| !unit.wl_surface.is_alive());
+                for deleled in removed_states.into_iter() {
+                    state.closed_ids.push(deleled.id);
+                }
             }
 
             _ => {}
@@ -1729,6 +1736,16 @@ impl<T: 'static> WindowState<T> {
                             break;
                         }
                     }
+                    let closed_ids = window_state.closed_ids.clone();
+                    for id in closed_ids {
+                        window_state.handle_event(
+                            &mut *event_handler,
+                            SessionLockEvent::RequestMessages(&DispatchMessage::Closed),
+                            Some(id),
+                        );
+                    }
+                    window_state.closed_ids.clear();
+
                     for idx in 0..window_state.units.len() {
                         let unit = &mut window_state.units[idx];
                         let (width, height) = unit.size;

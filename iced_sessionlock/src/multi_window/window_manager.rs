@@ -56,7 +56,18 @@ where
             entries: BTreeMap::new(),
         }
     }
-
+    pub fn remove(&mut self, id: IcedId) {
+        let remove_alias = self
+            .aliases
+            .iter()
+            .find(|(_, oriid)| **oriid == id)
+            .map(|(layid, _)| *layid);
+        if let Some(oriid) = remove_alias {
+            self.aliases.remove(&oriid);
+        }
+        self.back_aliases.remove(&id);
+        self.entries.remove(&id);
+    }
     #[allow(clippy::too_many_arguments)]
     pub fn insert(
         &mut self,
@@ -108,7 +119,11 @@ where
         Some((id, self.get_mut(id)?))
     }
 
-    pub fn get_iced_id(&self, id: IcedId) -> Option<SessionId> {
+    pub fn get_iced_id(&self, id: SessionId) -> Option<IcedId> {
+        self.aliases.get(&id).copied()
+    }
+
+    pub fn get_session_id(&self, id: IcedId) -> Option<SessionId> {
         self.back_aliases.get(&id).copied()
     }
 

@@ -879,6 +879,7 @@ pub struct WindowState<T> {
     use_display_handle: bool,
     repeat_delay: Option<KeyboardTokenState>,
     to_remove_tokens: Vec<RegistrationToken>,
+    closed_ids: Vec<id::Id>,
 
     to_be_released_key: Option<VirtualKeyRelease>,
 
@@ -1361,6 +1362,7 @@ impl<T> Default for WindowState<T> {
             repeat_delay: None,
             to_remove_tokens: Vec::new(),
             to_be_released_key: None,
+            closed_ids: Vec::new(),
 
             last_wloutput: None,
             last_unit_index: 0,
@@ -1530,7 +1532,12 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                     state.last_wloutput.take();
                 }
                 state.outputs.retain(|x| x.0 != name);
-                state.units.retain(|unit| unit.wl_surface.is_alive());
+                let removed_states = state
+                    .units
+                    .extract_if(.., |unit| !unit.wl_surface.is_alive());
+                for deleled in removed_states.into_iter() {
+                    state.closed_ids.push(deleled.id);
+                }
             }
 
             _ => {}
@@ -3279,6 +3286,18 @@ impl<T: 'static> WindowState<T> {
                         // event_handler may use unit, only remove it after calling event_handler.
                         window_state.remove_shell(id);
                     }
+
+                    // NOTE: this is for those closed because wl_output is dead.
+                    let closed_ids = window_state.closed_ids.clone();
+                    for id in closed_ids {
+                        window_state.handle_event(
+                            &mut *event_handler,
+                            LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
+                            Some(id),
+                        );
+                    }
+                    window_state.closed_ids.clear();
+
 
                     for idx in 0..window_state.units.len() {
                         let unit = &mut window_state.units[idx];

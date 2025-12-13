@@ -278,7 +278,6 @@ where
         self
     }
 
-    #[allow(unused)]
     fn remove_compositor(&mut self) {
         self.compositor = None;
         self.clipboard = SessionLockClipboard::unconnected();
@@ -314,7 +313,9 @@ where
             IcedSessionLockEvent::Window(WindowEvent::Refresh) => {
                 self.handle_refresh_event(ev, session_lock_id)
             }
-
+            IcedSessionLockEvent::Window(WindowEvent::Closed) => {
+                self.handle_closed_event(session_lock_id)
+            }
             IcedSessionLockEvent::Window(window_event) => {
                 self.handle_window_event(session_lock_id, window_event)
             }
@@ -488,6 +489,28 @@ where
             },
         }
     }
+
+    fn handle_closed_event(&mut self, session_lock_id: Option<SessionLockId>) {
+        let Some(session_lock_id) = session_lock_id else {
+            return;
+        };
+        let Some(iced_id) = self.window_manager.get_iced_id(session_lock_id) else {
+            return;
+        };
+        self.cached_layer_dimensions.remove(&iced_id);
+        self.window_manager.remove(iced_id);
+        self.user_interfaces.remove(&iced_id);
+        self.runtime
+            .broadcast(iced_futures::subscription::Event::Interaction {
+                window: iced_id,
+                event: IcedEvent::Window(IcedWindowEvent::Closed),
+                status: iced_core::event::Status::Ignored,
+            });
+        if self.window_manager.is_empty() {
+            self.remove_compositor();
+        }
+    }
+
     fn handle_window_event(&mut self, session_lock_id: Option<SessionLockId>, event: WindowEvent) {
         let id_and_window = if let Some(layer_shell_id) = session_lock_id {
             self.window_manager.get_mut_alias(layer_shell_id)
