@@ -58,7 +58,7 @@ where
         let wpviewport = window
             .viewport
             .clone()
-            .expect("iced_layershell need viewport support to better wayland hidpi");
+            .expect("iced_sessionlock need viewport support to better wayland hidpi");
         set_wpviewport_destination(&wpviewport, window_size);
         Self {
             id,
