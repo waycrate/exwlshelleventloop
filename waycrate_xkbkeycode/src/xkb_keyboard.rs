@@ -10,7 +10,11 @@ use std::{
     ptr::{self, NonNull},
     time::Duration,
 };
-use wayland_client::{Proxy, protocol::wl_keyboard::WlKeyboard};
+use wayland_client::{Dispatch, QueueHandle};
+use wayland_client::{
+    Proxy,
+    protocol::{wl_keyboard::WlKeyboard, wl_seat::WlSeat},
+};
 
 use crate::keymap;
 
@@ -81,6 +85,17 @@ impl KeyboardState {
             current_repeat: None,
             repeat_token: None,
         }
+    }
+    pub fn update<U, D>(self, seat: &WlSeat, qh: &QueueHandle<D>, udata: U) -> Self
+    where
+        D: Dispatch<WlKeyboard, U> + 'static,
+        U: Send + Sync + 'static,
+    {
+        if self.keyboard.version() >= 3 {
+            drop(self);
+            return Self::new(seat.get_keyboard(qh, udata));
+        }
+        self
     }
 }
 

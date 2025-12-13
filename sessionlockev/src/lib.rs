@@ -792,8 +792,7 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                     state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
                 } else {
                     let keyboard = state.keyboard_state.take().unwrap();
-                    drop(keyboard);
-                    state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
+                    state.keyboard_state = Some(keyboard.update(seat, qh, ()));
                 }
                 if let Some(surface_id) = state.current_surface_id() {
                     state

@@ -1559,7 +1559,7 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                 } else {
                     keyboard_installing = false;
                     let keyboard = state.keyboard_state.take().unwrap();
-                    drop(keyboard);
+                    state.keyboard_state = Some(keyboard.update(seat, qh, ()));
                     if let Some(surface_id) = state.current_surface_id() {
                         state
                             .message
