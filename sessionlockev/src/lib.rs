@@ -1456,6 +1456,7 @@ impl<T: 'static> WindowState<T> {
                 qh: qh.clone(),
             });
         }
+        self.viewporter = viewporter;
         self.connection = Some(connection);
         self.event_queue = Some(event_queue);
         self.wl_compositor = Some(wmcompositer);
