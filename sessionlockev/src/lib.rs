@@ -97,8 +97,10 @@
 
 mod events;
 
+use calloop::RegistrationToken;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
+use waycrate_xkbkeycode::xkb_keyboard::ElementState;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
 mod strtoshape;
@@ -161,6 +163,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc::RecvTimeoutError;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -465,6 +468,15 @@ impl<T: 'static> WindowStateUnit<T> {
         }
     }
 }
+
+#[derive(Debug)]
+struct KeyboardTokenState {
+    delay: Duration,
+    key: u32,
+    surface_id: Option<id::Id>,
+    pressed_state: ElementState,
+}
+
 #[derive(Debug)]
 pub struct WindowState<T> {
     outputs: Vec<(u32, wl_output::WlOutput)>,
@@ -489,9 +501,12 @@ pub struct WindowState<T> {
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
 
+    // settings:
+    to_remove_tokens: Vec<RegistrationToken>,
+    repeat_delay: Option<KeyboardTokenState>,
+
     // keyboard
     use_display_handle: bool,
-    loop_handler: Option<LoopHandle<'static, Self>>,
 
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
@@ -513,10 +528,6 @@ pub enum RefreshRequest {
 }
 
 impl<T> WindowState<T> {
-    /// with loop_handler you can do more thing
-    pub fn get_loop_handler(&self) -> Option<&LoopHandle<'static, Self>> {
-        self.loop_handler.as_ref()
-    }
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat.as_ref().unwrap()
@@ -614,8 +625,10 @@ impl<T> Default for WindowState<T> {
             pointer: None,
             touch: None,
 
+            to_remove_tokens: Vec::new(),
+            repeat_delay: None,
+
             use_display_handle: false,
-            loop_handler: None,
 
             finger_locations: HashMap::new(),
             enter_serial: None,
@@ -837,11 +850,8 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 _ => unreachable!(),
             },
             wl_keyboard::Event::Enter { .. } => {
-                if let (Some(token), Some(loop_handle)) = (
-                    keyboard_state.repeat_token.take(),
-                    state.loop_handler.as_ref(),
-                ) {
-                    loop_handle.remove(token);
+                if let Some(token) = keyboard_state.repeat_token.take() {
+                    state.to_remove_tokens.push(token);
                 }
             }
             wl_keyboard::Event::Leave { .. } => {
@@ -853,11 +863,8 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 state
                     .message
                     .push((surface_id, DispatchMessageInner::UnFocused));
-                if let (Some(token), Some(loop_handle)) = (
-                    keyboard_state.repeat_token.take(),
-                    state.loop_handler.as_ref(),
-                ) {
-                    loop_handle.remove(token);
+                if let Some(token) = keyboard_state.repeat_token.take() {
+                    state.to_remove_tokens.push(token);
                 }
             }
             wl_keyboard::Event::Key {
@@ -899,52 +906,16 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
 
                         keyboard_state.current_repeat = Some(key);
 
-                        if let (Some(token), Some(loop_handle)) = (
-                            keyboard_state.repeat_token.take(),
-                            state.loop_handler.as_ref(),
-                        ) {
-                            loop_handle.remove(token);
+                        if let Some(token) = keyboard_state.repeat_token.take() {
+                            state.to_remove_tokens.push(token);
                         }
-                        let timer = Timer::from_duration(delay);
 
-                        if let Some(looph) = state.loop_handler.as_ref() {
-                            keyboard_state.repeat_token = looph
-                                .insert_source(timer, move |_, _, state| {
-                                    let keyboard_state = match state.keyboard_state.as_mut() {
-                                        Some(keyboard_state) => keyboard_state,
-                                        None => return TimeoutAction::Drop,
-                                    };
-                                    let repeat_keycode = match keyboard_state.current_repeat {
-                                        Some(repeat_keycode) => repeat_keycode,
-                                        None => return TimeoutAction::Drop,
-                                    };
-                                    // NOTE: not the same key
-                                    if repeat_keycode != key {
-                                        return TimeoutAction::Drop;
-                                    }
-                                    if let Some(mut key_context) =
-                                        keyboard_state.xkb_context.key_context()
-                                    {
-                                        let event = key_context.process_key_event(
-                                            repeat_keycode,
-                                            pressed_state,
-                                            false,
-                                        );
-                                        let event = DispatchMessageInner::KeyboardInput {
-                                            event,
-                                            is_synthetic: false,
-                                        };
-                                        state.message.push((surface_id, event));
-                                    }
-                                    match keyboard_state.repeat_info {
-                                        RepeatInfo::Repeat { gap, .. } => {
-                                            TimeoutAction::ToDuration(gap)
-                                        }
-                                        RepeatInfo::Disable => TimeoutAction::Drop,
-                                    }
-                                })
-                                .ok();
-                        }
+                        state.repeat_delay = Some(KeyboardTokenState {
+                            delay,
+                            key,
+                            surface_id,
+                            pressed_state,
+                        });
                     }
                     ElementState::Released => {
                         if keyboard_state.repeat_info != RepeatInfo::Disable
@@ -955,11 +926,8 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                             && Some(key) == keyboard_state.current_repeat
                         {
                             keyboard_state.current_repeat = None;
-                            if let (Some(token), Some(loop_handle)) = (
-                                keyboard_state.repeat_token.take(),
-                                state.loop_handler.as_ref(),
-                            ) {
-                                loop_handle.remove(token);
+                            if let Some(token) = keyboard_state.repeat_token.take() {
+                                state.to_remove_tokens.push(token);
                             }
                         }
                     }
@@ -989,11 +957,8 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 keyboard_state.repeat_info = if rate == 0 {
                     // Stop the repeat once we get a disable event.
                     keyboard_state.current_repeat = None;
-                    if let (Some(token), Some(loop_handle)) = (
-                        keyboard_state.repeat_token.take(),
-                        state.loop_handler.as_ref(),
-                    ) {
-                        loop_handle.remove(token);
+                    if let Some(token) = keyboard_state.repeat_token.take() {
+                        state.to_remove_tokens.push(token);
                     }
                     RepeatInfo::Disable
                 } else {
@@ -1539,8 +1504,8 @@ impl<T: 'static> WindowState<T> {
             + 'static,
     {
         let globals = self.globals.take().unwrap();
-        let event_queue = self.event_queue.take().unwrap();
-        let qh = event_queue.handle();
+        let mut event_queue_origin = self.event_queue.take().unwrap();
+        let qh = event_queue_origin.handle();
         let wmcompositer = self.wl_compositor.take().unwrap();
         let shm = self.shm.take().unwrap();
         let fractional_scale_manager = self.fractional_scale_manager.take();
@@ -1579,32 +1544,53 @@ impl<T: 'static> WindowState<T> {
         }
 
         self.message.clear();
-        let mut event_loop: EventLoop<Self> =
+
+        struct EventWrapper<Raw, F> {
+            raw: Raw,
+            fun: F,
+            loop_handle: LoopHandle<'static, Self>,
+        }
+
+        let mut event_loop: EventLoop<_> =
             EventLoop::try_new().expect("Failed to initialize the event loop");
 
+        let event_queue = connection.new_event_queue::<EventWrapper<Self, F>>();
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
             .expect("Failed to init Wayland Source");
-
-        self.loop_handler = Some(event_loop.handle());
+        let mut state = EventWrapper {
+            raw: self,
+            fun: event_handler,
+            loop_handle: event_loop.handle(),
+        };
+        //self.loop_handler = Some(event_loop.handle());
         let to_exit = Arc::new(AtomicBool::new(false));
 
         let events: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(Vec::new()));
 
-        let to_exit2 = to_exit.clone();
-        let events_2 = events.clone();
-        let thread = std::thread::spawn(move || {
-            let to_exit = to_exit2;
-            let events = events_2;
-            let Some(message_receiver) = message_receiver else {
-                return;
-            };
-            for message in message_receiver.iter() {
-                if to_exit.load(Ordering::Relaxed) {
-                    break;
+        let thread = std::thread::spawn({
+            let events = events.clone();
+            let to_exit = to_exit.clone();
+            move || {
+                let Some(message_receiver) = message_receiver else {
+                    return;
+                };
+                loop {
+                    let message = message_receiver.recv_timeout(Duration::from_millis(100));
+                    if to_exit.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    match message {
+                        Ok(message) => {
+                            let mut events_local = events.lock().unwrap();
+                            events_local.push(message);
+                        }
+                        Err(RecvTimeoutError::Timeout) => {}
+                        Err(RecvTimeoutError::Disconnected) => {
+                            break;
+                        }
+                    }
                 }
-                let mut events_local = events.lock().unwrap();
-                events_local.push(message);
             }
         });
         let signal = event_loop.get_signal();
@@ -1612,7 +1598,9 @@ impl<T: 'static> WindowState<T> {
             .handle()
             .insert_source(
                 Timer::from_duration(Duration::from_millis(50)),
-                move |_, _, window_state| {
+                move |_, _, r_window_state| {
+                    let window_state = &mut r_window_state.raw;
+                    let event_handler = &mut r_window_state.fun;
                     let mut messages = Vec::new();
                     std::mem::swap(&mut messages, &mut window_state.message);
                     for msg in messages.iter() {
@@ -1695,14 +1683,14 @@ impl<T: 'static> WindowState<T> {
                     drop(local_events);
                     for event in swapped_events {
                         window_state.handle_event(
-                            &mut event_handler,
+                            &mut *event_handler,
                             SessionLockEvent::UserEvent(event),
                             None,
                         );
                     }
 
                     window_state.handle_event(
-                        &mut event_handler,
+                        &mut *event_handler,
                         SessionLockEvent::NormalDispatch,
                         None,
                     );
@@ -1767,7 +1755,7 @@ impl<T: 'static> WindowState<T> {
                                 window_state.units[idx].buffer = Some(buffer);
                             }
                             window_state.handle_event(
-                                &mut event_handler,
+                                &mut *event_handler,
                                 SessionLockEvent::RequestMessages(
                                     &DispatchMessage::RequestRefresh {
                                         width,
@@ -1788,11 +1776,72 @@ impl<T: 'static> WindowState<T> {
         event_loop
             .run(
                 std::time::Duration::from_millis(20),
-                &mut self,
-                |_window_state| {
-                    // Finally, this is where you can insert the processing you need
-                    // to do do between each waiting event eg. drawing logic if
-                    // you're doing a GUI app.
+                &mut state,
+                move |r_window_state| {
+                    let window_state = &mut r_window_state.raw;
+                    let _ = event_queue_origin.roundtrip(window_state);
+                    let looph = &r_window_state.loop_handle;
+                    for token in window_state.to_remove_tokens.iter() {
+                        looph.remove(*token);
+                    }
+                    window_state.to_remove_tokens.clear();
+
+                    if let Some(KeyboardTokenState {
+                        key,
+                        delay,
+                        surface_id,
+                        pressed_state,
+                    }) = window_state.repeat_delay.take()
+                    {
+                        let timer = Timer::from_duration(delay);
+                        let keyboard_state = window_state.keyboard_state.as_mut().unwrap();
+                        keyboard_state.repeat_token = looph
+                            .insert_source(timer, move |_, _, r_window_state| {
+                                let state = &mut r_window_state.raw;
+                                let event_handler = &mut r_window_state.fun;
+                                let keyboard_state = match state.keyboard_state.as_mut() {
+                                    Some(keyboard_state) => keyboard_state,
+                                    None => return TimeoutAction::Drop,
+                                };
+                                let repeat_keycode = match keyboard_state.current_repeat {
+                                    Some(repeat_keycode) => repeat_keycode,
+                                    None => return TimeoutAction::Drop,
+                                };
+                                // NOTE: not the same key
+                                if repeat_keycode != key {
+                                    return TimeoutAction::Drop;
+                                }
+                                if let Some(mut key_context) =
+                                    keyboard_state.xkb_context.key_context()
+                                {
+                                    let event = key_context.process_key_event(
+                                        repeat_keycode,
+                                        pressed_state,
+                                        false,
+                                    );
+                                    let event = DispatchMessageInner::KeyboardInput {
+                                        event,
+                                        is_synthetic: false,
+                                    };
+                                    state.message.push((surface_id, event));
+                                }
+                                let repeat_info = keyboard_state.repeat_info;
+
+                                let _ = keyboard_state;
+                                state.handle_event(
+                                    &mut *event_handler,
+                                    SessionLockEvent::NormalDispatch,
+                                    None,
+                                );
+                                match repeat_info {
+                                    RepeatInfo::Repeat { gap, .. } => {
+                                        TimeoutAction::ToDuration(gap)
+                                    }
+                                    RepeatInfo::Disable => TimeoutAction::Drop,
+                                }
+                            })
+                            .ok();
+                    }
                 },
             )
             .expect("Error during event loop!");
