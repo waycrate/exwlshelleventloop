@@ -41,6 +41,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 SetInputRegion{ id: iced::window::Id, callback: iced_layershell::actions::ActionCallback },
                 AnchorSizeChange{id: iced::window::Id, anchor:iced_layershell::reexport::Anchor, size: (u32, u32)},
                 LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
+                /// Margin: top, left, bottom, right
                 MarginChange{id: iced::window::Id, margin: (i32, i32, i32, i32)},
                 SizeChange{id: iced::window::Id, size: (u32, u32)},
                 ExclusiveZoneChange{id: iced::window::Id, zone_size: i32},
@@ -129,8 +130,10 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
             let additional_variants = quote! {
                 AnchorChange(iced_layershell::reexport::Anchor),
                 SetInputRegion(iced_layershell::actions::ActionCallback),
+                // Ancher and Size (width, height)
                 AnchorSizeChange(iced_layershell::reexport::Anchor, (u32, u32)),
                 LayerChange(iced_layershell::reexport::Layer),
+                /// Margin: top, left, bottom, right
                 MarginChange((i32, i32, i32, i32)),
                 SizeChange((u32, u32)),
                 ExclusiveZoneChange(i32),

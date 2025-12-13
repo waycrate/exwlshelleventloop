@@ -79,7 +79,6 @@ fn update(counter: &mut Counter, message: Message) -> Command<Message> {
             counter.text = text;
             Command::none()
         }
-
         Message::Direction(direction) => match direction {
             WindowDirection::Left => Command::done(Message::AnchorSizeChange(
                 Anchor::Left | Anchor::Top | Anchor::Bottom,
