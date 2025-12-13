@@ -396,6 +396,10 @@ impl<T> WindowStateUnit<T> {
         self.binding.as_mut()
     }
 
+    pub fn get_binding(&self) -> Option<&T> {
+        self.binding.as_ref()
+    }
+
     pub fn get_size(&self) -> (u32, u32) {
         self.size
     }
