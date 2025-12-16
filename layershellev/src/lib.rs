@@ -1623,10 +1623,11 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         use keyboard::*;
         use xkb_keyboard::ElementState;
         let surface_id = state.current_surface_id();
-        let keyboard_state = state.keyboard_state.as_mut().unwrap();
+
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
                 WEnum::Value(KeymapFormat::XkbV1) => {
+                    let keyboard_state = state.keyboard_state.as_mut().unwrap();
                     let context = &mut keyboard_state.xkb_context;
                     context.set_keymap_from_fd(fd, size as usize)
                 }
@@ -1635,12 +1636,15 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 }
                 _ => unreachable!(),
             },
-            wl_keyboard::Event::Enter { .. } => {
+            wl_keyboard::Event::Enter { surface, .. } => {
+                state.update_current_surface(Some(surface));
+                let keyboard_state = state.keyboard_state.as_mut().unwrap();
                 if let Some(token) = keyboard_state.repeat_token.take() {
                     state.to_remove_tokens.push(token);
                 }
             }
             wl_keyboard::Event::Leave { .. } => {
+                let keyboard_state = state.keyboard_state.as_mut().unwrap();
                 keyboard_state.current_repeat = None;
                 state.message.push((
                     surface_id,
@@ -1666,6 +1670,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         return;
                     }
                 };
+                let keyboard_state = state.keyboard_state.as_mut().unwrap();
                 let key = key + 8;
                 if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
                     let event = key_context.process_key_event(key, pressed_state, false);
@@ -1727,6 +1732,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 group,
                 ..
             } => {
+                let keyboard_state = state.keyboard_state.as_mut().unwrap();
                 let xkb_context = &mut keyboard_state.xkb_context;
                 let xkb_state = match xkb_context.state_mut() {
                     Some(state) => state,
@@ -1741,6 +1747,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 ))
             }
             wl_keyboard::Event::RepeatInfo { rate, delay } => {
+                let keyboard_state = state.keyboard_state.as_mut().unwrap();
                 keyboard_state.repeat_info = if rate == 0 {
                     // Stop the repeat once we get a disable event.
                     keyboard_state.current_repeat = None;
