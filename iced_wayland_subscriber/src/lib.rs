@@ -141,6 +141,7 @@ delegate_noop!(SubscribeState: ignore ZxdgOutputManagerV1);
 #[derive(Debug, Clone)]
 pub enum WaylandEvents {
     OutputInsert(OutputInfo),
+    DispatchError(String),
 }
 
 #[derive(Debug, Clone)]
@@ -178,7 +179,7 @@ impl<'a, 'b> QueuePoll<'a, 'b> {
 async fn async_dispatch(
     event_queue: &mut EventQueue<SubscribeState>,
     state: &mut SubscribeState,
-) -> WaylandEvents {
+) -> Result<WaylandEvents, wayland_client::DispatchError> {
     let poll_conn = QueuePoll::new(event_queue, state);
     poll_conn.await
 }
@@ -186,7 +187,7 @@ async fn async_dispatch(
 use std::task::Poll;
 
 impl<'a, 'b> Future for QueuePoll<'a, 'b> {
-    type Output = WaylandEvents;
+    type Output = Result<WaylandEvents, wayland_client::DispatchError>;
     fn poll(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -195,7 +196,9 @@ impl<'a, 'b> Future for QueuePoll<'a, 'b> {
         let state = unsafe { ManuallyDrop::take(&mut poll_init.state) };
         let queue = unsafe { ManuallyDrop::take(&mut poll_init.queue) };
         if state.events.is_empty() {
-            queue.roundtrip(state).unwrap();
+            if let Err(e) = queue.roundtrip(state) {
+                return Poll::Ready(Err(e));
+            };
             poll_init.queue = ManuallyDrop::new(queue);
             poll_init.state = ManuallyDrop::new(state);
             cx.waker().wake_by_ref();
@@ -204,7 +207,7 @@ impl<'a, 'b> Future for QueuePoll<'a, 'b> {
             let event = state.events.pop().unwrap();
             poll_init.queue = ManuallyDrop::new(queue);
             poll_init.state = ManuallyDrop::new(state);
-            Poll::Ready(event)
+            Poll::Ready(Ok(event))
         }
     }
 }
@@ -228,9 +231,18 @@ pub fn listen(connection: HashConnection) -> iced::Subscription<WaylandEvents> {
 
             display.get_registry(&qhandle, ());
             loop {
-                let event = async_dispatch(&mut event_queue, &mut state).await;
-
-                output.send(event).await.ok();
+                match async_dispatch(&mut event_queue, &mut state).await {
+                    Ok(event) => {
+                        output.send(event).await.ok();
+                    }
+                    Err(e) => {
+                        output
+                            .send(WaylandEvents::DispatchError(e.to_string()))
+                            .await
+                            .ok();
+                        break;
+                    }
+                }
             }
         })
     })
