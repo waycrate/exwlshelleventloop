@@ -11,4 +11,4 @@ iced = { workspace = true, features = ["advanced"] }
 wayland-client.workspace = true
 
 wayland-protocols.workspace = true
-#wayland-protocols-wlr.workspace = true
+thiserror.workspace = true

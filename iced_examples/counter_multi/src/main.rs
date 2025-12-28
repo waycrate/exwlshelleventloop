@@ -13,7 +13,7 @@ use iced_layershell::reexport::{
 };
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
-use iced_wayland_subscriber::{OutputInfo, WaylandEvents};
+use iced_wayland_subscriber::{OutputInfo, WaylandEvent};
 use wayland_client::Connection;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
@@ -66,6 +66,22 @@ enum WindowDirection {
     Bottom(Id),
 }
 
+#[derive(Debug, Clone)]
+enum WayEvent {
+    OutputInsert(OutputInfo),
+    #[allow(unused)]
+    Stop(String),
+}
+
+impl From<WaylandEvent> for WayEvent {
+    fn from(value: WaylandEvent) -> Self {
+        match value {
+            WaylandEvent::Stop(e) => WayEvent::Stop(e.to_string()),
+            WaylandEvent::OutputInsert(output) => WayEvent::OutputInsert(output),
+        }
+    }
+}
+
 #[to_layer_message(multi)]
 #[derive(Debug, Clone)]
 enum Message {
@@ -78,7 +94,7 @@ enum Message {
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
-    Wayland(WaylandEvents),
+    Wayland(WayEvent),
 }
 
 impl Counter {
@@ -125,7 +141,8 @@ impl Counter {
         iced::Subscription::batch(vec![
             event::listen().map(Message::IcedEvent),
             iced::window::close_events().map(Message::WindowClosed),
-            iced_wayland_subscriber::listen(self.connection.clone().into()).map(Message::Wayland),
+            iced_wayland_subscriber::listen(self.connection.clone())
+                .map(|message| Message::Wayland(message.into())),
         ])
     }
 
@@ -165,7 +182,7 @@ impl Counter {
                 }
                 Command::none()
             }
-            Message::Wayland(WaylandEvents::OutputInsert(OutputInfo { wl_output, .. })) => {
+            Message::Wayland(WayEvent::OutputInsert(OutputInfo { wl_output, .. })) => {
                 let id = iced::window::Id::unique();
                 self.ids.insert(id, WindowInfo::TopBar);
                 Command::done(Message::NewLayerShell {

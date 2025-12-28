@@ -1915,6 +1915,7 @@ version = "0.14.2"
 dependencies = [
  "futures",
  "iced",
+ "thiserror 2.0.17",
  "wayland-client",
  "wayland-protocols",
 ]
