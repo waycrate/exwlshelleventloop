@@ -7,7 +7,7 @@ use iced_debug as debug;
 use iced_program::Program;
 use std::time::Instant;
 
-/// Creates an [`Application`] with an `update` function that also
+/// Creates an [`SingleApplication`] with an `update` function that also
 /// takes the [`Instant`] of each `Message`.
 ///
 /// This constructor is useful to create animated applications that
