@@ -356,6 +356,9 @@ where
                     ui.relayout(window.state.viewport().logical_size(), &mut window.renderer);
                 }
                 layout_span.finish();
+                events.push(IcedEvent::Window(IcedWindowEvent::Resized(
+                    window.state.window_size_f32(),
+                )));
             }
             (id, window)
         } else {
