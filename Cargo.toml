@@ -6,6 +6,7 @@ members = [
   "iced_layershell_macros",
   "iced_sessionlock",
   "iced_sessionlock_macros",
+  "iced_wayland_subscriber",
   "starcolorkeyboard",
   "sessionlockev",
   "waycrate_xkbkeycode",
@@ -29,7 +30,7 @@ readme = "README.md"
 [workspace.dependencies]
 layershellev = { version = "0.14.2", path = "./layershellev" }
 sessionlockev = { version = "0.14.2", path = "./sessionlockev" }
-
+iced_wayland_subscriber = { version = "0.14.2", path = "./iced_wayland_subscriber" }
 iced_layershell = { version = "0.14.2", path = "./iced_layershell" }
 iced_exdevtools = { version = "0.14.2", path = "./iced_exdevtools" }
 iced_layershell_macros = { version = "0.14.2", path = "./iced_layershell_macros" }

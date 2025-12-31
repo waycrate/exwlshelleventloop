@@ -1,0 +1,14 @@
+[package]
+name = "iced_wayland_subscriber"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures.workspace = true
+iced = { workspace = true, features = ["advanced"] }
+wayland-client.workspace = true
+
+wayland-protocols.workspace = true
+thiserror.workspace = true

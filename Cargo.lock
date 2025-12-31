@@ -814,7 +814,9 @@ dependencies = [
  "iced",
  "iced_layershell",
  "iced_runtime",
+ "iced_wayland_subscriber",
  "tracing-subscriber",
+ "wayland-client",
 ]
 
 [[package]]
@@ -1905,6 +1907,17 @@ dependencies = [
  "iced_runtime",
  "tempfile",
  "xkbcommon",
+]
+
+[[package]]
+name = "iced_wayland_subscriber"
+version = "0.14.2"
+dependencies = [
+ "futures",
+ "iced",
+ "thiserror 2.0.17",
+ "wayland-client",
+ "wayland-protocols",
 ]
 
 [[package]]
