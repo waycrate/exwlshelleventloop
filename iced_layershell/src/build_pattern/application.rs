@@ -1,3 +1,5 @@
+mod time;
+
 use std::borrow::Cow;
 
 use iced::Font;
@@ -13,6 +15,8 @@ use crate::settings::Settings;
 
 use iced_debug as debug;
 use iced_program::Program;
+
+pub use time::timed;
 
 pub trait NameSpace {
     /// Produces the namespace of the [`SingleApplication`].
@@ -38,16 +42,16 @@ where
 ///
 /// This trait allows the [`application`] builder to take any closure that
 /// returns any `Into<Task<Message>>`.
-pub trait Update<State, Message> {
+pub trait UpdateFn<State, Message> {
     /// Processes the message and updates the state of the [`SingleApplication`].
     fn update(&self, state: &mut State, message: Message) -> impl Into<Task<Message>>;
 }
 
-impl<State, Message> Update<State, Message> for () {
+impl<State, Message> UpdateFn<State, Message> for () {
     fn update(&self, _state: &mut State, _message: Message) -> impl Into<Task<Message>> {}
 }
 
-impl<T, State, Message, C> Update<State, Message> for T
+impl<T, State, Message, C> UpdateFn<State, Message> for T
 where
     T: Fn(&mut State, Message) -> C,
     C: Into<Task<Message>>,
@@ -61,28 +65,28 @@ where
 ///
 /// This trait allows the [`application`] builder to take any closure that
 /// returns any `Into<Element<'_, Message>>`.
-pub trait View<'a, State, Message, Theme, Renderer> {
+pub trait ViewFn<'a, State, Message, Theme, Renderer> {
     /// Produces the widget of the [`Application`].
-    fn view(&self, state: &'a State) -> impl Into<Element<'a, Message, Theme, Renderer>>;
+    fn view(&self, state: &'a State) -> Element<'a, Message, Theme, Renderer>;
 }
 
-impl<'a, T, State, Message, Theme, Renderer, Widget> View<'a, State, Message, Theme, Renderer> for T
+impl<'a, T, State, Message, Theme, Renderer, Widget> ViewFn<'a, State, Message, Theme, Renderer> for T
 where
     T: Fn(&'a State) -> Widget,
     State: 'static,
     Widget: Into<Element<'a, Message, Theme, Renderer>>,
 {
-    fn view(&self, state: &'a State) -> impl Into<Element<'a, Message, Theme, Renderer>> {
-        self(state)
+    fn view(&self, state: &'a State) -> Element<'a, Message, Theme, Renderer> {
+        self(state).into()
     }
 }
 
-pub trait Boot<State, Message> {
+pub trait BootFn<State, Message> {
     /// Initializes the [`SingleApplication`] state.
     fn boot(&self) -> (State, Task<Message>);
 }
 
-impl<T, C, State, Message> Boot<State, Message> for T
+impl<T, C, State, Message> BootFn<State, Message> for T
 where
     T: Fn() -> C,
     C: IntoBoot<State, Message>,
@@ -150,10 +154,10 @@ pub struct SingleApplication<A: Program> {
 }
 
 pub fn application<State, Message, Theme, Renderer>(
-    boot: impl Boot<State, Message>,
+    boot: impl BootFn<State, Message>,
     namespace: impl NameSpace,
-    update: impl Update<State, Message>,
-    view: impl for<'a> self::View<'a, State, Message, Theme, Renderer>,
+    update: impl UpdateFn<State, Message>,
+    view: impl for<'a> self::ViewFn<'a, State, Message, Theme, Renderer>,
 ) -> SingleApplication<impl Program<Message = Message, Theme = Theme, State = State>>
 where
     State: 'static,
@@ -163,24 +167,24 @@ where
     Renderer: iced_program::Renderer,
 {
     use std::marker::PhantomData;
-    struct Instance<State, Message, Theme, Renderer, Update, View, Boot> {
-        update: Update,
-        view: View,
-        boot: Boot,
+    struct Instance<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn> {
+        update: UpdateFn,
+        view: ViewFn,
+        boot: BootFn,
         _state: PhantomData<State>,
         _message: PhantomData<Message>,
         _theme: PhantomData<Theme>,
         _renderer: PhantomData<Renderer>,
     }
-    impl<State, Message, Theme, Renderer, Update, View, Boot> Program
-        for Instance<State, Message, Theme, Renderer, Update, View, Boot>
+    impl<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn> Program
+        for Instance<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn>
     where
         Message: 'static + TryInto<LayershellCustomActionWithId, Error = Message> + Send,
         Theme: DefaultStyle,
         Renderer: iced_program::Renderer,
-        Update: self::Update<State, Message>,
-        Boot: self::Boot<State, Message>,
-        View: for<'a> self::View<'a, State, Message, Theme, Renderer>,
+        UpdateFn: self::UpdateFn<State, Message>,
+        BootFn: self::BootFn<State, Message>,
+        ViewFn: for<'a> self::ViewFn<'a, State, Message, Theme, Renderer>,
     {
         type State = State;
         type Renderer = Renderer;
@@ -205,7 +209,7 @@ where
             state: &'a Self::State,
             _window: iced::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-            debug::hot(|| self.view.view(state)).into()
+            debug::hot(|| self.view.view(state))
         }
 
         fn settings(&self) -> iced::Settings {

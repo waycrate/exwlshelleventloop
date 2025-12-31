@@ -12,6 +12,9 @@ gen_attach! {Action = LayershellCustomActionWithId}
 #[doc = include_str!("./build_pattern/application.md")]
 pub use application::application;
 
+/// It is the same with the timed in iced
+pub use application::timed;
+
 pub use application::SingleApplication;
 
 #[doc = include_str!("./build_pattern/daemon.md")]
