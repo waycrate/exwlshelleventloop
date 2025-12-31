@@ -70,7 +70,8 @@ pub trait ViewFn<'a, State, Message, Theme, Renderer> {
     fn view(&self, state: &'a State) -> Element<'a, Message, Theme, Renderer>;
 }
 
-impl<'a, T, State, Message, Theme, Renderer, Widget> ViewFn<'a, State, Message, Theme, Renderer> for T
+impl<'a, T, State, Message, Theme, Renderer, Widget> ViewFn<'a, State, Message, Theme, Renderer>
+    for T
 where
     T: Fn(&'a State) -> Widget,
     State: 'static,

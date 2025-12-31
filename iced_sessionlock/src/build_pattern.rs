@@ -56,7 +56,8 @@ mod pattern {
         ) -> Element<'a, Message, Theme, Renderer>;
     }
 
-    impl<'a, T, State, Message, Theme, Renderer, Widget> ViewFn<'a, State, Message, Theme, Renderer> for T
+    impl<'a, T, State, Message, Theme, Renderer, Widget> ViewFn<'a, State, Message, Theme, Renderer>
+        for T
     where
         T: Fn(&'a State, iced_core::window::Id) -> Widget,
         State: 'static,
