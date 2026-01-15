@@ -1528,7 +1528,14 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                 {
                     state.last_wloutput.take();
                 }
-                state.outputs.retain(|x| x.0 != name);
+
+                let outputs_removed = state.outputs.extract_if(.., |o| o.0 == name);
+                for output_removed in outputs_removed {
+                    state
+                        .xdg_info_cache
+                        .retain(|info| info.0.id() != output_removed.1.id());
+                }
+
                 let removed_states = state
                     .units
                     .extract_if(.., |unit| !unit.wl_surface.is_alive());
@@ -2175,7 +2182,7 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if state.is_with_target() && !state.init_finished {
+        if !state.init_finished {
             let Some((_, xdg_info)) = state
                 .xdg_info_cache
                 .iter_mut()
@@ -2500,6 +2507,12 @@ impl<T: 'static> WindowState<T> {
 
         // do the step before, you get empty list
 
+        for (_, output_display) in &self.outputs {
+            let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
+            self.xdg_info_cache
+                .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
+        }
+        event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
         // so it is the same way, to get surface detach to protocol, first get the shell, like wmbase
         // or layer_shell or session-shell, then get `surface` from the wl_surface you get before, and
         // set it
@@ -2519,12 +2532,6 @@ impl<T: 'static> WindowState<T> {
 
             let (binded_output, binded_xdginfo) = match self.start_mode.clone() {
                 StartMode::TargetScreen(name) => {
-                    for (_, output_display) in &self.outputs {
-                        let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
-                        self.xdg_info_cache
-                            .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
-                    }
-                    event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
                     if let Some(cache) = self
                         .xdg_info_cache
                         .iter()
@@ -2533,7 +2540,7 @@ impl<T: 'static> WindowState<T> {
                     {
                         output = Some(cache.clone());
                     }
-                    self.xdg_info_cache.clear();
+                    // self.xdg_info_cache.clear();
                     let binded_output = output.as_ref().map(|(output, _)| output).cloned();
                     let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo).cloned();
                     (binded_output, binded_xdginfo)
@@ -2963,6 +2970,11 @@ impl<T: 'static> WindowState<T> {
                                 )) => {
                                     let output = match output_type {
                                         OutputOption::Output(output) => Some(output),
+                                        OutputOption::OutputName(name) => {
+                                            window_state.xdg_info_cache.iter()
+                                                .find(|(_, info)| info.name == *name)
+                                                .map(|(output, _)| output.clone())
+                                        }
                                         _ => {
                                             let pos = window_state.surface_pos();
 
