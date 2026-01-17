@@ -210,7 +210,7 @@ use wayland_protocols::xdg::decoration::zv1::client::{
 pub use calloop;
 use calloop::{
     Error as CallLoopError, EventLoop, LoopHandle, RegistrationToken,
-    channel::{self,Channel},
+    channel::{self, Channel},
     timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
