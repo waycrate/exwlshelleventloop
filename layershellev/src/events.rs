@@ -73,6 +73,8 @@ pub enum LayerShellEvent<'a, T, Message> {
 pub enum OutputOption {
     LastOutput,
 
+    OutputName(String),
+
     /// NOTE: The output should be in the same connection with the layershellev, that means if you
     /// want to pass a [wl_output::WlOutput] to create a new layershell, you need to pass your
     /// connection to layershellev first
