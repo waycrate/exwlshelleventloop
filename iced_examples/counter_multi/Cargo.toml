@@ -16,3 +16,5 @@ iced.workspace = true
 iced_runtime.workspace = true
 iced_layershell = { workspace = true, features = ["debug"] }
 tracing-subscriber.workspace = true
+iced_wayland_subscriber.workspace = true
+wayland-client.workspace = true

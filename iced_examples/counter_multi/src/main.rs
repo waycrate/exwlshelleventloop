@@ -13,11 +13,15 @@ use iced_layershell::reexport::{
 };
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
+use iced_wayland_subscriber::{OutputInfo, WaylandEvent};
+use wayland_client::Connection;
 
 pub fn main() -> Result<(), iced_layershell::Error> {
     tracing_subscriber::fmt().init();
+    let connection = Connection::connect_to_env().unwrap();
+    let connection2 = connection.clone();
     daemon(
-        || Counter::new("hello"),
+        move || Counter::new("hello", connection.clone()),
         Counter::namespace,
         Counter::update,
         Counter::view,
@@ -32,16 +36,18 @@ pub fn main() -> Result<(), iced_layershell::Error> {
             start_mode: StartMode::AllScreens,
             ..Default::default()
         },
+        with_connection: Some(connection2),
         ..Default::default()
     })
     .run()
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Counter {
     value: i32,
     text: String,
     ids: HashMap<iced::window::Id, WindowInfo>,
+    connection: Connection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,6 +55,7 @@ enum WindowInfo {
     Left,
     NormalWindow,
     PopUp,
+    TopBar,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -57,6 +64,22 @@ enum WindowDirection {
     Left(Id),
     Right(Id),
     Bottom(Id),
+}
+
+#[derive(Debug, Clone)]
+enum WayEvent {
+    OutputInsert(OutputInfo),
+    #[allow(unused)]
+    Stop(String),
+}
+
+impl From<WaylandEvent> for WayEvent {
+    fn from(value: WaylandEvent) -> Self {
+        match value {
+            WaylandEvent::Stop(e) => WayEvent::Stop(e.to_string()),
+            WaylandEvent::OutputInsert(output) => WayEvent::OutputInsert(output),
+        }
+    }
 }
 
 #[to_layer_message(multi)]
@@ -71,6 +94,7 @@ enum Message {
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
+    Wayland(WayEvent),
 }
 
 impl Counter {
@@ -85,11 +109,12 @@ impl Counter {
 }
 
 impl Counter {
-    fn new(text: &str) -> Self {
+    fn new(text: &str, connection: Connection) -> Self {
         Self {
             value: 0,
             text: text.to_string(),
             ids: HashMap::new(),
+            connection,
         }
     }
 
@@ -116,6 +141,8 @@ impl Counter {
         iced::Subscription::batch(vec![
             event::listen().map(Message::IcedEvent),
             iced::window::close_events().map(Message::WindowClosed),
+            iced_wayland_subscriber::listen(self.connection.clone())
+                .map(|message| Message::Wayland(message.into())),
         ])
     }
 
@@ -154,6 +181,21 @@ impl Counter {
                     _ => {}
                 }
                 Command::none()
+            }
+            Message::Wayland(WayEvent::OutputInsert(OutputInfo { wl_output, .. })) => {
+                let id = iced::window::Id::unique();
+                self.ids.insert(id, WindowInfo::TopBar);
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        anchor: Anchor::Left | Anchor::Right | Anchor::Top,
+                        layer: Layer::Top,
+                        exclusive_zone: Some(30),
+                        size: Some((0, 30)),
+                        output_option: OutputOption::Output(wl_output),
+                        ..Default::default()
+                    },
+                    id,
+                })
             }
             Message::IncrementPressed => {
                 self.value += 1;
@@ -235,6 +277,9 @@ impl Counter {
             .center_x(Length::Fill)
             .height(Length::Fill)
             .into();
+        }
+        if let Some(WindowInfo::TopBar) = self.id_info(id) {
+            return text("hello here is topbar").into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
             return container(button("close PopUp").on_press(Message::Close(id)))
