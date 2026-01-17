@@ -210,16 +210,13 @@ use wayland_protocols::xdg::decoration::zv1::client::{
 pub use calloop;
 use calloop::{
     Error as CallLoopError, EventLoop, LoopHandle, RegistrationToken,
+    channel::{self,Channel},
     timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::sync::mpsc::RecvTimeoutError;
+
 use std::time::Duration;
 use std::time::Instant;
 
@@ -2692,7 +2689,7 @@ impl<T: 'static> WindowState<T> {
     /// Different with running, it receiver a receiver
     pub fn running_with_proxy<F, Message>(
         self,
-        message_receiver: std::sync::mpsc::Receiver<Message>,
+        message_receiver: Channel<Message>,
         event_handler: F,
     ) -> Result<(), LayerEventError>
     where
@@ -2718,7 +2715,7 @@ impl<T: 'static> WindowState<T> {
 
     fn running_with_proxy_option<F, Message>(
         mut self,
-        message_receiver: Option<std::sync::mpsc::Receiver<Message>>,
+        message_receiver: Option<Channel<Message>>,
         mut event_handler: F,
     ) -> Result<(), LayerEventError>
     where
@@ -2789,38 +2786,26 @@ impl<T: 'static> WindowState<T> {
             fun: event_handler,
             loop_handle: event_loop.handle(),
         };
-
-        let to_exit = Arc::new(AtomicBool::new(false));
-
-        let events: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(Vec::new()));
-
-        let thread = std::thread::spawn({
-            let events = events.clone();
-            let to_exit = to_exit.clone();
-            move || {
-                let Some(message_receiver) = message_receiver else {
-                    return;
-                };
-                loop {
-                    let message = message_receiver.recv_timeout(Duration::from_millis(100));
-                    if to_exit.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    match message {
-                        Ok(message) => {
-                            let mut events_local = events.lock().unwrap();
-                            events_local.push(message);
-                        }
-                        Err(RecvTimeoutError::Timeout) => {}
-                        Err(RecvTimeoutError::Disconnected) => {
-                            break;
-                        }
-                    }
-                }
-            }
-        });
-
         let signal = event_loop.get_signal();
+
+        if let Some(channel) = message_receiver {
+            event_loop
+                .handle()
+                .insert_source(channel, |event, _, r_window_state| {
+                    let channel::Event::Msg(event) = event else {
+                        return;
+                    };
+                    let window_state = &mut r_window_state.raw;
+                    let event_handler = &mut r_window_state.fun;
+                    window_state.handle_event(
+                        &mut *event_handler,
+                        LayerShellEvent::UserEvent(event),
+                        None,
+                    );
+                })
+                .expect("We need message state");
+        }
+
         event_loop
             .handle()
             .insert_source(
@@ -2834,7 +2819,7 @@ impl<T: 'static> WindowState<T> {
                         match msg {
                             (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
                                 window_state.handle_event(
-                                     &mut *event_handler,
+                                    &mut *event_handler,
                                     LayerShellEvent::XdgInfoChanged(*change_type),
                                     *index_info,
                                 );
@@ -2856,8 +2841,9 @@ impl<T: 'static> WindowState<T> {
                                     (),
                                 );
                                 layer.set_anchor(window_state.anchor);
-                                layer
-                                    .set_keyboard_interactivity(window_state.keyboard_interactivity);
+                                layer.set_keyboard_interactivity(
+                                    window_state.keyboard_interactivity,
+                                );
                                 if let Some((init_w, init_h)) = window_state.size {
                                     layer.set_size(init_w, init_h);
                                 }
@@ -2925,15 +2911,15 @@ impl<T: 'static> WindowState<T> {
                         }
                     }
 
-                    let mut local_events = events.lock().expect(
-                        "This events only used in this callback, so it should always can be unlocked",
-                    );
-                    let mut swapped_events: Vec<Message> = vec![];
-                    std::mem::swap(&mut *local_events, &mut swapped_events);
-                    drop(local_events);
-                    for event in swapped_events {
-                        window_state.handle_event(&mut *event_handler, LayerShellEvent::UserEvent(event), None);
-                    }
+                    //let mut local_events = events.lock().expect(
+                    //    "This events only used in this callback, so it should always can be unlocked",
+                    //);
+                    //let mut swapped_events: Vec<Message> = vec![];
+                    //std::mem::swap(&mut *local_events, &mut swapped_events);
+                    //drop(local_events);
+                    //for event in swapped_events {
+                    //    window_state.handle_event(&mut *event_handler, LayerShellEvent::UserEvent(event), None);
+                    //}
                     window_state.handle_event(
                         &mut *event_handler,
                         LayerShellEvent::NormalDispatch,
@@ -2980,27 +2966,32 @@ impl<T: 'static> WindowState<T> {
                                         _ => {
                                             let pos = window_state.surface_pos();
 
-                                            let mut output =
-                                                pos.and_then(|p| window_state.units[p].wl_output.as_ref());
+                                            let mut output = pos.and_then(|p| {
+                                                window_state.units[p].wl_output.as_ref()
+                                            });
 
                                             if window_state.last_wloutput.is_none()
-                                                && window_state.outputs.len() > window_state.last_unit_index
+                                                && window_state.outputs.len()
+                                                    > window_state.last_unit_index
                                             {
                                                 window_state.last_wloutput = Some(
-                                                    window_state.outputs[window_state.last_unit_index]
+                                                    window_state.outputs
+                                                        [window_state.last_unit_index]
                                                         .1
                                                         .clone(),
                                                 );
                                             }
 
-                                            if matches!(output_type, events::OutputOption::LastOutput) {
+                                            if matches!(
+                                                output_type,
+                                                events::OutputOption::LastOutput
+                                            ) {
                                                 output = window_state.last_wloutput.as_ref();
                                             }
 
                                             output.cloned()
                                         }
                                     };
-
 
                                     let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                     let layer_shell = globals
@@ -3133,29 +3124,27 @@ impl<T: 'static> WindowState<T> {
                                         .becreated(true)
                                         .build(),
                                     );
-                                },
+                                }
                                 ReturnData::NewXdgBase((
-                                    NewXdgWindowSettings{
-                                        title,
-                                        size
-                                    },
+                                    NewXdgWindowSettings { title, size },
                                     id,
                                     info,
                                 )) => {
                                     let wl_surface = wmcompositer.create_surface(&qh, ());
                                     let wl_xdg_surface =
                                         wmbase.get_xdg_surface(&wl_surface, &qh, ());
-                                    let toplevel =
-                                        wl_xdg_surface.get_toplevel(&qh, ());
+                                    let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
 
                                     toplevel.set_title(title.unwrap_or("".to_owned()));
 
-                                    let decoration = if let Some(decoration_manager) = &zxdg_decoration_manager {
-                                        let decoration = decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
+                                    let decoration = if let Some(decoration_manager) =
+                                        &zxdg_decoration_manager
+                                    {
+                                        let decoration = decoration_manager
+                                            .get_toplevel_decoration(&toplevel, &qh, ());
                                         use zxdg_toplevel_decoration_v1::Mode;
                                         decoration.set_mode(Mode::ServerSide);
                                         Some(decoration)
-
                                     } else {
                                         None
                                     };
@@ -3181,7 +3170,11 @@ impl<T: 'static> WindowState<T> {
                                             qh.clone(),
                                             connection.display(),
                                             wl_surface,
-                                            Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
+                                            Shell::XdgTopLevel((
+                                                toplevel,
+                                                wl_xdg_surface,
+                                                decoration,
+                                            )),
                                         )
                                         .size(size.unwrap_or((300, 300)))
                                         .viewport(viewport)
@@ -3190,7 +3183,7 @@ impl<T: 'static> WindowState<T> {
                                         .becreated(true)
                                         .build(),
                                     );
-                                },
+                                }
 
                                 ReturnData::NewInputPanel((
                                     NewInputPanelSettings {
@@ -3203,13 +3196,17 @@ impl<T: 'static> WindowState<T> {
                                 )) => {
                                     let pos = window_state.surface_pos();
 
-                                    let mut output = pos.and_then(|p| window_state.units[p].wl_output.as_ref());
+                                    let mut output =
+                                        pos.and_then(|p| window_state.units[p].wl_output.as_ref());
 
                                     if window_state.last_wloutput.is_none()
                                         && window_state.outputs.len() > window_state.last_unit_index
                                     {
-                                        window_state.last_wloutput =
-                                            Some(window_state.outputs[window_state.last_unit_index].1.clone());
+                                        window_state.last_wloutput = Some(
+                                            window_state.outputs[window_state.last_unit_index]
+                                                .1
+                                                .clone(),
+                                        );
                                     }
 
                                     if use_last_output {
@@ -3242,7 +3239,9 @@ impl<T: 'static> WindowState<T> {
                                     wl_surface.commit();
 
                                     let mut fractional_scale = None;
-                                    if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                    if let Some(ref fractional_scale_manager) =
+                                        fractional_scale_manager
+                                    {
                                         fractional_scale =
                                             Some(fractional_scale_manager.get_fractional_scale(
                                                 &wl_surface,
@@ -3251,9 +3250,9 @@ impl<T: 'static> WindowState<T> {
                                             ));
                                     }
 
-                                    let viewport = viewporter
-                                        .as_ref()
-                                        .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                                    let viewport = viewporter.as_ref().map(|viewport| {
+                                        viewport.get_viewport(&wl_surface, &qh, ())
+                                    });
                                     window_state.push_window(
                                         WindowStateUnitBuilder::new(
                                             id,
@@ -3269,7 +3268,7 @@ impl<T: 'static> WindowState<T> {
                                         .becreated(true)
                                         .build(),
                                     );
-                                },
+                                }
                                 _ => {}
                             }
                         }
@@ -3305,7 +3304,6 @@ impl<T: 'static> WindowState<T> {
                     }
                     window_state.closed_ids.clear();
 
-
                     for idx in 0..window_state.units.len() {
                         let unit = &mut window_state.units[idx];
                         let (width, height) = unit.size;
@@ -3324,9 +3322,12 @@ impl<T: 'static> WindowState<T> {
                                     return TimeoutAction::Drop;
                                 };
                                 let ReturnData::WlBuffer(buffer) = event_handler(
-                                    LayerShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
+                                    LayerShellEvent::RequestBuffer(
+                                        &mut file, &shm, &qh, width, height,
+                                    ),
                                     window_state,
-                                    Some(unit_id)) else {
+                                    Some(unit_id),
+                                ) else {
                                     panic!("You cannot return this one");
                                 };
                                 wl_surface.attach(Some(&buffer), 0, 0);
@@ -3335,12 +3336,14 @@ impl<T: 'static> WindowState<T> {
                             }
                             window_state.handle_event(
                                 &mut *event_handler,
-                                LayerShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                                    width,
-                                    height,
-                                    is_created,
-                                    scale_float,
-                                }),
+                                LayerShellEvent::RequestMessages(
+                                    &DispatchMessage::RequestRefresh {
+                                        width,
+                                        height,
+                                        is_created,
+                                        scale_float,
+                                    },
+                                ),
                                 Some(unit_id),
                             );
                             // reset if the slot is not used
@@ -3438,8 +3441,6 @@ impl<T: 'static> WindowState<T> {
                 },
             )
             .expect("Error during event loop!");
-        to_exit.store(true, Ordering::Relaxed);
-        let _ = thread.join();
         Ok(())
     }
 

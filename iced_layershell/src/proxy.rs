@@ -5,13 +5,13 @@ use futures::{
 };
 use iced_graphics::shell;
 use iced_runtime::{Action, window};
+use layershellev::calloop::channel::Sender as WlSender;
 use std::pin::Pin;
-use std::sync::mpsc as stdmpsc;
 
 /// An event loop proxy that implements `Sink`.
 /// NOTE: not proxy anything now
 #[derive(Debug)]
-pub struct IcedProxy<Message: 'static>(stdmpsc::Sender<Message>);
+pub struct IcedProxy<Message: 'static>(WlSender<Message>);
 
 impl<Message: 'static> Clone for IcedProxy<Message> {
     fn clone(&self) -> Self {
@@ -20,7 +20,7 @@ impl<Message: 'static> Clone for IcedProxy<Message> {
 }
 
 impl<T: 'static> IcedProxy<T> {
-    pub fn new(sender: stdmpsc::Sender<T>) -> Self {
+    pub fn new(sender: WlSender<T>) -> Self {
         Self(sender)
     }
     #[allow(unused)]

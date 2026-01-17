@@ -56,8 +56,9 @@ where
     P::Message: 'static + TryInto<UnLockAction, Error = P::Message>,
 {
     use futures::task;
+    use sessionlockev::calloop::channel::channel;
 
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
+    let (message_sender, message_receiver) = channel::<Action<P::Message>>();
     let boot_span = debug::boot();
     let proxy = IcedProxy::new(message_sender);
 

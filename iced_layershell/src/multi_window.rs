@@ -65,7 +65,8 @@ where
     P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
 {
     use futures::task;
-    let (message_sender, message_receiver) = std::sync::mpsc::channel::<Action<P::Message>>();
+    use layershellev::calloop::channel::channel;
+    let (message_sender, message_receiver) = channel::<Action<P::Message>>();
 
     let boot_span = iced_debug::boot();
     let proxy = IcedProxy::new(message_sender);
