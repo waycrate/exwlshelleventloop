@@ -60,6 +60,7 @@ jobs:
                 cargo publish -p waycrate_xkbkeycode
                 cargo publish -p layershellev
                 cargo publish -p sessionlockev
+                cargo publish -p iced_wayland_subscriber
                 cargo publish -p iced_layershell
                 cargo publish -p iced_sessionlock
               env:
