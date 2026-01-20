@@ -2185,14 +2185,11 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if !state.init_finished {
-            let Some((_, xdg_info)) = state
-                .xdg_info_cache
-                .iter_mut()
-                .find(|(_, info)| info.zxdgoutput == *proxy)
-            else {
-                return;
-            };
+        if let Some((_, xdg_info)) = state
+            .xdg_info_cache
+            .iter_mut()
+            .find(|(_, info)| info.zxdgoutput == *proxy)
+        {
             match event {
                 zxdg_output_v1::Event::LogicalSize { width, height } => {
                     xdg_info.logical_size = (width, height);
@@ -2200,16 +2197,16 @@ impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
                 zxdg_output_v1::Event::LogicalPosition { x, y } => {
                     xdg_info.position = (x, y);
                 }
-                zxdg_output_v1::Event::Name { name } => {
-                    xdg_info.name = name;
+                zxdg_output_v1::Event::Name { ref name } => {
+                    xdg_info.name = name.clone();
                 }
-                zxdg_output_v1::Event::Description { description } => {
-                    xdg_info.description = description;
+                zxdg_output_v1::Event::Description { ref description } => {
+                    xdg_info.description = description.clone();
                 }
                 _ => {}
             };
-            return;
         }
+
         let Some(index) = state.units.iter().position(|info| {
             info.zxdgoutput
                 .as_ref()
@@ -2847,6 +2844,10 @@ impl<T: 'static> WindowState<T> {
                                 );
                             }
                             (_, DispatchMessageInner::NewDisplay(output_display)) => {
+                                let zxdgoutput =
+                                    xdg_output_manager.get_xdg_output(output_display, &qh, ());
+
+                                window_state.xdg_info_cache.push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput.clone())));
                                 if !window_state.is_allscreens() {
                                     continue;
                                 }
@@ -2884,8 +2885,6 @@ impl<T: 'static> WindowState<T> {
                                 }
                                 wl_surface.commit();
 
-                                let zxdgoutput =
-                                    xdg_output_manager.get_xdg_output(output_display, &qh, ());
                                 let mut fractional_scale = None;
                                 if let Some(ref fractional_scale_manager) = fractional_scale_manager
                                 {
