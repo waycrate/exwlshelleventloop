@@ -2847,7 +2847,10 @@ impl<T: 'static> WindowState<T> {
                                 let zxdgoutput =
                                     xdg_output_manager.get_xdg_output(output_display, &qh, ());
 
-                                window_state.xdg_info_cache.push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput.clone())));
+                                window_state.xdg_info_cache.push((
+                                    output_display.clone(),
+                                    ZxdgOutputInfo::new(zxdgoutput.clone()),
+                                ));
                                 if !window_state.is_allscreens() {
                                     continue;
                                 }
@@ -2984,7 +2987,9 @@ impl<T: 'static> WindowState<T> {
                                     let output = match output_type {
                                         OutputOption::Output(output) => Some(output),
                                         OutputOption::OutputName(name) => {
-                                            window_state.xdg_info_cache.iter()
+                                            window_state
+                                                .xdg_info_cache
+                                                .iter()
                                                 .find(|(_, info)| info.name == *name)
                                                 .map(|(output, _)| output.clone())
                                         }
