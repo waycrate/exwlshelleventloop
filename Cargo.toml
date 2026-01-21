@@ -7,7 +7,6 @@ members = [
   "iced_sessionlock",
   "iced_sessionlock_macros",
   "iced_wayland_subscriber",
-  "starcolorkeyboard",
   "sessionlockev",
   "waycrate_xkbkeycode",
   "iced_exdevtools",

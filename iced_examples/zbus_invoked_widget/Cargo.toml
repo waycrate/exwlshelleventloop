@@ -8,6 +8,7 @@ repository.workspace = true
 description.workspace = true
 keywords.workspace = true
 readme.workspace = true
+publish = false
 
 [dependencies]
 iced.workspace = true

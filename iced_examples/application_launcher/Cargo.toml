@@ -8,17 +8,17 @@ repository.workspace = true
 description.workspace = true
 keywords.workspace = true
 readme.workspace = true
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 iced = { workspace = true, features = [
-	"tokio",
-	"debug",
-	"image",
-	"advanced",
-	"image",
-	"svg",
+  "tokio",
+  "debug",
+  "advanced",
+  "image",
+  "svg",
 ] }
 iced_runtime.workspace = true
 iced_layershell.workspace = true

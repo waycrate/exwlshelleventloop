@@ -54,15 +54,7 @@ jobs:
               id: auth
             - name: Publish to crate
               run: |
-                cargo publish -p iced_layershell_macros
-                cargo publish -p iced_sessionlock_macros
-                cargo publish -p iced_exdevtools
-                cargo publish -p waycrate_xkbkeycode
-                cargo publish -p layershellev
-                cargo publish -p sessionlockev
-                cargo publish -p iced_wayland_subscriber
-                cargo publish -p iced_layershell
-                cargo publish -p iced_sessionlock
+                cargo publish --workspace
               env:
                 CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
             - uses: softprops/action-gh-release@v2
