@@ -2537,7 +2537,6 @@ impl<T: 'static> WindowState<T> {
                     {
                         output = Some(cache.clone());
                     }
-                    // self.xdg_info_cache.clear();
                     let binded_output = output.as_ref().map(|(output, _)| output).cloned();
                     let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo).cloned();
                     (binded_output, binded_xdginfo)
@@ -2920,15 +2919,6 @@ impl<T: 'static> WindowState<T> {
                         }
                     }
 
-                    //let mut local_events = events.lock().expect(
-                    //    "This events only used in this callback, so it should always can be unlocked",
-                    //);
-                    //let mut swapped_events: Vec<Message> = vec![];
-                    //std::mem::swap(&mut *local_events, &mut swapped_events);
-                    //drop(local_events);
-                    //for event in swapped_events {
-                    //    window_state.handle_event(&mut *event_handler, LayerShellEvent::UserEvent(event), None);
-                    //}
                     window_state.handle_event(
                         &mut *event_handler,
                         LayerShellEvent::NormalDispatch,
@@ -2972,13 +2962,11 @@ impl<T: 'static> WindowState<T> {
                                 )) => {
                                     let output = match output_type {
                                         OutputOption::Output(output) => Some(output),
-                                        OutputOption::OutputName(name) => {
-                                            window_state
-                                                .xdg_info_cache
-                                                .iter()
-                                                .find(|(_, info)| info.name == *name)
-                                                .map(|(output, _)| output.clone())
-                                        }
+                                        OutputOption::OutputName(name) => window_state
+                                            .xdg_info_cache
+                                            .iter()
+                                            .find(|(_, info)| info.name == *name)
+                                            .map(|(output, _)| output.clone()),
                                         _ => {
                                             let pos = window_state.surface_pos();
 
