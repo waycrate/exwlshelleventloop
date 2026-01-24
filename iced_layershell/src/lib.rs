@@ -19,6 +19,11 @@ pub mod reexport {
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
     pub use layershellev::reexport::wayland_client::{WlRegion, wl_keyboard};
+    pub mod core {
+        pub use iced_core::*;
+    }
+    pub use iced_core::window::Id as IcedId;
+    pub use iced_runtime::Task;
 }
 
 mod ime_preedit;

@@ -37,58 +37,58 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
     let (additional_variants, impl_quote) = match is_multi {
         true => {
             let additional_variants = quote! {
-                AnchorChange{id: iced::window::Id, anchor: iced_layershell::reexport::Anchor},
-                SetInputRegion{ id: iced::window::Id, callback: iced_layershell::actions::ActionCallback },
-                AnchorSizeChange{id: iced::window::Id, anchor:iced_layershell::reexport::Anchor, size: (u32, u32)},
-                LayerChange{id: iced::window::Id, layer:iced_layershell::reexport::Layer},
+                AnchorChange{id: iced_layershell::reexport::IcedId, anchor: iced_layershell::reexport::Anchor},
+                SetInputRegion{ id: iced_layershell::reexport::IcedId, callback: iced_layershell::actions::ActionCallback },
+                AnchorSizeChange{id: iced_layershell::reexport::IcedId, anchor:iced_layershell::reexport::Anchor, size: (u32, u32)},
+                LayerChange{id: iced_layershell::reexport::IcedId, layer:iced_layershell::reexport::Layer},
                 /// Margin: top, left, bottom, right
-                MarginChange{id: iced::window::Id, margin: (i32, i32, i32, i32)},
-                SizeChange{id: iced::window::Id, size: (u32, u32)},
-                ExclusiveZoneChange{id: iced::window::Id, zone_size: i32},
+                MarginChange{id: iced_layershell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+                SizeChange{id: iced_layershell::reexport::IcedId, size: (u32, u32)},
+                ExclusiveZoneChange{id: iced_layershell::reexport::IcedId, zone_size: i32},
                 VirtualKeyboardPressed {
                     time: u32,
                     key: u32,
                 },
-                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced::window::Id },
-                NewBaseWindow { settings: iced_layershell::actions::IcedXdgWindowSettings, id: iced::window::Id },
-                NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, id: iced::window::Id },
-                NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, id: iced::window::Id },
-                NewInputPanel { settings: iced_layershell::reexport::NewInputPanelSettings, id: iced::window::Id },
-                RemoveWindow(iced::window::Id),
+                NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced_layershell::reexport::IcedId },
+                NewBaseWindow { settings: iced_layershell::actions::IcedXdgWindowSettings, id: iced_layershell::reexport::IcedId },
+                NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, id: iced_layershell::reexport::IcedId },
+                NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, id: iced_layershell::reexport::IcedId },
+                NewInputPanel { settings: iced_layershell::reexport::NewInputPanelSettings, id: iced_layershell::reexport::IcedId },
+                RemoveWindow(iced_layershell::reexport::IcedId),
                 ForgetLastOutput,
             };
 
             let impl_quote = quote! {
                 impl #impl_gen #ident #ty_gen #where_gen {
-                    fn layershell_open(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced::window::Id, iced::Task<Self>) {
-                        let id = iced::window::Id::unique();
+                    fn layershell_open(settings: iced_layershell::reexport::NewLayerShellSettings) -> (iced_layershell::reexport::IcedId, iced_layershell::reexport::Task<Self>) {
+                        let id = iced_layershell::reexport::IcedId::unique();
                         (
                             id,
-                            iced::Task::done(Self::NewLayerShell { settings, id })
+                            iced_layershell::reexport::Task::done(Self::NewLayerShell { settings, id })
                         )
 
                     }
-                    fn popup_open(settings: iced_layershell::actions::IcedNewPopupSettings) -> (iced::window::Id, iced::Task<Self>) {
-                        let id = iced::window::Id::unique();
+                    fn popup_open(settings: iced_layershell::actions::IcedNewPopupSettings) -> (iced_layershell::reexport::IcedId, iced_layershell::reexport::Task<Self>) {
+                        let id = iced_layershell::reexport::IcedId::unique();
                         (
                             id,
-                            iced::Task::done(Self::NewPopUp { settings, id })
+                            iced_layershell::reexport::Task::done(Self::NewPopUp { settings, id })
                         )
 
                     }
-                    fn base_window_open(settings: iced_layershell::actions::IcedXdgWindowSettings) -> (iced::window::Id, iced::Task<Self>) {
-                        let id = iced::window::Id::unique();
+                    fn base_window_open(settings: iced_layershell::actions::IcedXdgWindowSettings) -> (iced_layershell::reexport::IcedId, iced_layershell::reexport::Task<Self>) {
+                        let id = iced_layershell::reexport::IcedId::unique();
                         (
                             id,
-                            iced::Task::done(Self::NewBaseWindow { settings, id })
+                            iced_layershell::reexport::Task::done(Self::NewBaseWindow { settings, id })
                         )
 
                     }
-                    fn menu_open(settings: iced_layershell::actions::IcedNewMenuSettings) -> (iced::window::Id, iced::Task<Self>) {
-                        let id = iced::window::Id::unique();
+                    fn menu_open(settings: iced_layershell::actions::IcedNewMenuSettings) -> (iced_layershell::reexport::IcedId, iced_layershell::reexport::Task<Self>) {
+                        let id = iced_layershell::reexport::IcedId::unique();
                         (
                             id,
-                            iced::Task::done(Self::NewMenu { settings, id })
+                            iced_layershell::reexport::Task::done(Self::NewMenu { settings, id })
                         )
 
                     }
