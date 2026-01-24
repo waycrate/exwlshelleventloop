@@ -144,7 +144,8 @@ struct Greeter {
 #[interface(name = "org.zbus.MyGreeter1")]
 impl Greeter {
     async fn say_hello(&mut self, name: &str) -> String {
-        self.sender.try_send(Message::NewWindow).ok();
+        use futures::SinkExt;
+        self.sender.send(Message::NewWindow).await.ok();
         format!("Hello {name}!")
     }
 }

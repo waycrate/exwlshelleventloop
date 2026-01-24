@@ -11,6 +11,5 @@ readme.workspace = true
 publish = false
 
 [dependencies]
-
 iced = { workspace = true, features = ["image", "svg", "advanced"] }
 iced_layershell.workspace = true
