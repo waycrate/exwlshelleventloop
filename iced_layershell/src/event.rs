@@ -1,4 +1,4 @@
-use iced::mouse;
+use iced_core::mouse;
 use iced_runtime::Action;
 use layershellev::DispatchMessage;
 use layershellev::keyboard::ModifiersState;
@@ -98,7 +98,7 @@ pub enum WindowEvent {
     Ime(layershellev::Ime),
     Refresh,
     Closed,
-    ThemeChanged(iced::theme::Mode),
+    ThemeChanged(iced_core::theme::Mode),
 }
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use iced::{Font, Pixels};
+use iced_core::{Font, Pixels};
 use sessionlockev::reexport::wayland_client::Connection;
 use std::borrow::Cow;
 

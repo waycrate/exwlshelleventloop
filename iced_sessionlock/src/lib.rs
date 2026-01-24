@@ -15,8 +15,8 @@ pub use iced_sessionlock_macros::to_session_message;
 
 pub use error::Error;
 
-use iced::theme::Base as DefaultStyle;
-use iced::theme::Style as Appearance;
+use iced_core::theme::Base as DefaultStyle;
+use iced_core::theme::Style as Appearance;
 
 pub type Result = std::result::Result<(), error::Error>;
 

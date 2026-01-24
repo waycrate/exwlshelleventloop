@@ -16,8 +16,8 @@ use crate::{
 };
 use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
-use iced::theme::Mode;
-use iced::{
+use iced_core::theme::Mode;
+use iced_core::{
     Event as IcedEvent, theme,
     window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
 };
@@ -97,7 +97,7 @@ where
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
 
-    let ev: WindowState<iced::window::Id> = layershellev::WindowState::new(namespace)
+    let ev: WindowState<iced_core::window::Id> = layershellev::WindowState::new(namespace)
         .with_start_mode(settings.layer_settings.start_mode)
         .with_use_display_handle(true)
         .with_events_transparent(settings.layer_settings.events_transparent)
@@ -145,7 +145,7 @@ where
 
     let context = Context::<
         P,
-        <P as iced::Program>::Executor,
+        <P as iced_program::Program>::Executor,
         <P::Renderer as iced_graphics::compositor::Default>::Compositor,
     >::new(
         application,
@@ -270,7 +270,7 @@ where
 {
     compositor_settings: iced_graphics::Settings,
     runtime: MultiRuntime<E, P::Message>,
-    system_theme: iced::theme::Mode,
+    system_theme: iced_core::theme::Mode,
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
@@ -297,7 +297,7 @@ where
         compositor_settings: iced_graphics::Settings,
         runtime: MultiRuntime<E, P::Message>,
         fonts: Vec<Cow<'static, [u8]>>,
-        system_theme: iced::theme::Mode,
+        system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
     ) -> Self {
         Self {
@@ -1041,10 +1041,10 @@ pub(crate) fn run_action<P, C, E: Executor>(
     event: Action<P::Message>,
     messages: &mut Vec<P::Message>,
     clipboard: &mut LayerShellClipboard,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced::window::Id>, LayershellCustomAction)>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayershellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
-    system_theme: &mut iced::theme::Mode,
+    system_theme: &mut iced_core::theme::Mode,
     runtime: &mut MultiRuntime<E, P::Message>,
     ev: &mut WindowState<IcedId>,
 ) where

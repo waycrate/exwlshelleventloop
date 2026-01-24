@@ -1,4 +1,4 @@
-use iced::mouse;
+use iced_core::mouse;
 use sessionlockev::DispatchMessage;
 use sessionlockev::keyboard::ModifiersState;
 use sessionlockev::reexport::wayland_client::{ButtonState, KeyState, WEnum};
@@ -95,7 +95,7 @@ pub enum WindowEvent {
     },
     Refresh,
     Closed,
-    ThemeChanged(iced::theme::Mode),
+    ThemeChanged(iced_core::theme::Mode),
 }
 
 #[derive(Debug)]

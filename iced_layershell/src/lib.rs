@@ -28,9 +28,9 @@ pub use iced_layershell_macros::to_layer_message;
 pub use error::Error;
 
 pub type Result = std::result::Result<(), error::Error>;
-use iced::theme::Style as Appearance;
+use iced_core::theme::Style as Appearance;
 
-use iced::theme::Base as DefaultStyle;
+use iced_core::theme::Base as DefaultStyle;
 
 // layershell application
 pub use build_pattern::application;

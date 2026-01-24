@@ -1780,7 +1780,6 @@ version = "0.14.2"
 dependencies = [
  "enumflags2",
  "futures",
- "iced",
  "iced_core",
  "iced_debug",
  "iced_devtools",
@@ -1851,7 +1850,6 @@ name = "iced_sessionlock"
 version = "0.14.2"
 dependencies = [
  "futures",
- "iced",
  "iced_core",
  "iced_debug",
  "iced_exdevtools",

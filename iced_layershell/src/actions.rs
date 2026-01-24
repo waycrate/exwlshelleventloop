@@ -1,5 +1,5 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
-use iced::window::Id as IcedId;
+use iced_core::window::Id as IcedId;
 use layershellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
 
 use std::sync::Arc;

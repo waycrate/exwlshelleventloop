@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fs::File};
 
-use iced::{Font, Pixels};
+use iced_core::{Font, Pixels};
 
 use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
 

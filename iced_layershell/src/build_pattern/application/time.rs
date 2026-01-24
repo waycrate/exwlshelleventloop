@@ -1,10 +1,10 @@
 use super::{BootFn, NameSpace, SingleApplication, ViewFn};
 use crate::DefaultStyle;
-use iced::Subscription;
-use iced::Task;
 use iced_core::Element;
 use iced_debug as debug;
+use iced_futures::Subscription;
 use iced_program::Program;
+use iced_runtime::Task;
 use std::time::Instant;
 
 /// Creates an [`SingleApplication`] with an `update` function that also
@@ -67,7 +67,7 @@ where
             name.split("::").next().unwrap_or("a_cool_application")
         }
 
-        fn settings(&self) -> iced::Settings {
+        fn settings(&self) -> iced_core::Settings {
             Default::default()
         }
 
@@ -97,7 +97,7 @@ where
         fn view<'a>(
             &self,
             state: &'a Self::State,
-            _window: iced::window::Id,
+            _window: iced_core::window::Id,
         ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
             debug::hot(|| {
                 self.view

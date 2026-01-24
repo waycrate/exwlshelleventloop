@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use iced::Font;
+use iced_core::Font;
 
 /// The renderer of iced program.
 pub use pattern::application;
@@ -8,7 +8,8 @@ pub use pattern::application;
 mod pattern {
     use super::*;
     use crate::settings::Settings;
-    use iced::{Element, Task};
+    use iced_core::Element;
+    use iced_runtime::Task;
 
     use crate::actions::UnLockAction;
 
@@ -118,11 +119,15 @@ mod pattern {
         ///
         /// If `None` is returned, `iced` will try to use a theme that
         /// matches the system color scheme.
-        fn theme(&self, state: &State, window: iced::window::Id) -> Option<Theme>;
+        fn theme(&self, state: &State, window: iced_core::window::Id) -> Option<Theme>;
     }
 
-    impl<State> ThemeFn<State, iced::Theme> for iced::Theme {
-        fn theme(&self, _state: &State, _window: iced::window::Id) -> Option<iced::Theme> {
+    impl<State> ThemeFn<State, iced_core::Theme> for iced_core::Theme {
+        fn theme(
+            &self,
+            _state: &State,
+            _window: iced_core::window::Id,
+        ) -> Option<iced_core::Theme> {
             Some(self.clone())
         }
     }
@@ -132,7 +137,7 @@ mod pattern {
         F: Fn(&State) -> T,
         T: Into<Option<Theme>>,
     {
-        fn theme(&self, state: &State, _window: iced::window::Id) -> Option<Theme> {
+        fn theme(&self, state: &State, _window: iced_core::window::Id) -> Option<Theme> {
             (self)(state).into()
         }
     }
@@ -201,7 +206,7 @@ mod pattern {
 
                 name.split("::").next().unwrap_or("a_cool_application")
             }
-            fn settings(&self) -> iced::Settings {
+            fn settings(&self) -> iced_core::Settings {
                 Default::default()
             }
 
@@ -261,7 +266,10 @@ mod pattern {
                 self.program.view(state, window)
             }
 
-            fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            fn subscription(
+                &self,
+                state: &Self::State,
+            ) -> iced_futures::Subscription<Self::Message> {
                 self.program.subscription(state)
             }
 
@@ -283,7 +291,7 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
-            fn settings(&self) -> iced::Settings {
+            fn settings(&self) -> iced_core::Settings {
                 Default::default()
             }
 
@@ -300,7 +308,7 @@ mod pattern {
 
     pub fn with_subscription<P: Program>(
         program: P,
-        f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
+        f: impl Fn(&P::State) -> iced_futures::Subscription<P::Message>,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
         struct WithSubscription<P, F> {
             program: P,
@@ -309,7 +317,7 @@ mod pattern {
 
         impl<P: Program, F> Program for WithSubscription<P, F>
         where
-            F: Fn(&P::State) -> iced::Subscription<P::Message>,
+            F: Fn(&P::State) -> iced_futures::Subscription<P::Message>,
         {
             type State = P::State;
             type Message = P::Message;
@@ -317,7 +325,10 @@ mod pattern {
             type Renderer = P::Renderer;
             type Executor = P::Executor;
 
-            fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            fn subscription(
+                &self,
+                state: &Self::State,
+            ) -> iced_futures::Subscription<Self::Message> {
                 (self.subscription)(state)
             }
 
@@ -357,7 +368,7 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
-            fn settings(&self) -> iced::Settings {
+            fn settings(&self) -> iced_core::Settings {
                 Default::default()
             }
 
@@ -418,7 +429,10 @@ mod pattern {
                 self.program.view(state, window)
             }
 
-            fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            fn subscription(
+                &self,
+                state: &Self::State,
+            ) -> iced_futures::Subscription<Self::Message> {
                 self.program.subscription(state)
             }
 
@@ -432,7 +446,7 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
-            fn settings(&self) -> iced::Settings {
+            fn settings(&self) -> iced_core::Settings {
                 Default::default()
             }
 
@@ -485,7 +499,10 @@ mod pattern {
                 self.program.view(state, window)
             }
 
-            fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            fn subscription(
+                &self,
+                state: &Self::State,
+            ) -> iced_futures::Subscription<Self::Message> {
                 self.program.subscription(state)
             }
 
@@ -503,7 +520,7 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
-            fn settings(&self) -> iced::Settings {
+            fn settings(&self) -> iced_core::Settings {
                 Default::default()
             }
 
@@ -552,7 +569,10 @@ mod pattern {
                 self.program.view(state, window)
             }
 
-            fn subscription(&self, state: &Self::State) -> iced::Subscription<Self::Message> {
+            fn subscription(
+                &self,
+                state: &Self::State,
+            ) -> iced_futures::Subscription<Self::Message> {
                 self.program.subscription(state)
             }
 
@@ -574,7 +594,7 @@ mod pattern {
             fn name() -> &'static str {
                 P::name()
             }
-            fn settings(&self) -> iced::Settings {
+            fn settings(&self) -> iced_core::Settings {
                 Default::default()
             }
 
@@ -656,7 +676,7 @@ mod pattern {
         }
 
         /// set the default_text_size
-        pub fn default_text_size<Pixels: Into<iced::Pixels>>(
+        pub fn default_text_size<Pixels: Into<iced_core::Pixels>>(
             self,
             default_text_size: Pixels,
         ) -> Self {
@@ -683,7 +703,7 @@ mod pattern {
         /// Sets the subscription logic of the [`Application`].
         pub fn subscription(
             self,
-            f: impl Fn(&P::State) -> iced::Subscription<P::Message>,
+            f: impl Fn(&P::State) -> iced_futures::Subscription<P::Message>,
         ) -> Application<impl Program<State = P::State, Message = P::Message, Theme = P::Theme>>
         {
             Application {

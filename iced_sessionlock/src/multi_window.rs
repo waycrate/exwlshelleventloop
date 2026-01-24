@@ -14,7 +14,7 @@ use crate::{clipboard::SessionLockClipboard, conversion, error::Error};
 
 use super::DefaultStyle;
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
-use iced::theme::Mode;
+use iced_core::theme::Mode;
 use iced_graphics::{Compositor, Shell, compositor};
 
 use iced_core::{Size, time::Instant};
@@ -22,7 +22,7 @@ use iced_runtime::{Action, UserInterface, user_interface};
 
 use iced_futures::{Executor, Runtime};
 
-use iced::{
+use iced_core::{
     Event as IcedEvent,
     mouse::Cursor,
     theme,
@@ -128,7 +128,7 @@ where
     let mut task_context = task::Context::from_waker(task::noop_waker_ref());
     let context = Context::<
         P,
-        <P as iced::Program>::Executor,
+        <P as iced_program::Program>::Executor,
         <P::Renderer as iced_graphics::compositor::Default>::Compositor,
     >::new(
         application,
@@ -217,7 +217,7 @@ where
 {
     compositor_settings: iced_graphics::Settings,
     runtime: SessionRuntime<E, P::Message>,
-    system_theme: iced::theme::Mode,
+    system_theme: iced_core::theme::Mode,
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
@@ -242,7 +242,7 @@ where
         compositor_settings: iced_graphics::Settings,
         runtime: SessionRuntime<E, P::Message>,
         fonts: Vec<Cow<'static, [u8]>>,
-        system_theme: iced::theme::Mode,
+        system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
     ) -> Self {
         Self {
@@ -697,8 +697,8 @@ where
 pub fn build_user_interfaces<'a, P: Program, C>(
     application: &'a Instance<P>,
     window_manager: &mut WindowManager<P, C>,
-    mut cached_user_interfaces: HashMap<iced::window::Id, user_interface::Cache>,
-) -> HashMap<iced::window::Id, UserInterface<'a, P::Message, P::Theme, P::Renderer>>
+    mut cached_user_interfaces: HashMap<iced_core::window::Id, user_interface::Cache>,
+) -> HashMap<iced_core::window::Id, UserInterface<'a, P::Message, P::Theme, P::Renderer>>
 where
     C: Compositor<Renderer = P::Renderer>,
     P::Theme: DefaultStyle,
@@ -729,7 +729,7 @@ fn build_user_interface<'a, A: Program>(
     cache: user_interface::Cache,
     renderer: &mut A::Renderer,
     size: Size,
-    id: iced::window::Id,
+    id: iced_core::window::Id,
 ) -> UserInterface<'a, A::Message, A::Theme, A::Renderer>
 where
     A::Theme: DefaultStyle,
@@ -776,7 +776,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     clipboard: &mut SessionLockClipboard,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
-    system_theme: &mut iced::theme::Mode,
+    system_theme: &mut iced_core::theme::Mode,
     runtime: &mut SessionRuntime<E, P::Message>,
     ev: &mut WindowState<()>,
 ) where

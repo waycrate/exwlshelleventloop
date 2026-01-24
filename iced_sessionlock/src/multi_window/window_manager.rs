@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use super::state::State;
 use crate::DefaultStyle;
-use iced::mouse;
-use iced::window::Id as IcedId;
+use iced_core::mouse;
+use iced_core::window::Id as IcedId;
 use iced_graphics::Compositor;
 use iced_program::Instance;
 use iced_program::Program;
@@ -77,7 +77,7 @@ where
         window: Arc<WindowWrapper>,
         application: &Instance<P>,
         compositor: &mut C,
-        system_theme: iced::theme::Mode,
+        system_theme: iced_core::theme::Mode,
     ) -> &mut Window<P, C> {
         let layerid = window.id();
         let state = State::new(id, application, size, fractal_scale, &window, system_theme);

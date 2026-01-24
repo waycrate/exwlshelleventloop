@@ -1,5 +1,5 @@
 use crate::{Appearance, DefaultStyle};
-use iced_core::{Color, Point, Size, mouse as IcedMouse};
+use iced_core::{Color, Point, Size, mouse as IcedMouse, window};
 use iced_graphics::Viewport;
 use iced_program::Instance;
 use iced_program::Program;
@@ -8,7 +8,6 @@ use sessionlockev::keyboard::ModifiersState;
 use sessionlockev::reexport::wp_viewport::WpViewport;
 
 use crate::event::WindowEvent;
-use iced::window;
 
 pub struct State<P: Program>
 where
@@ -24,7 +23,7 @@ where
     viewport_version: usize,
     theme: Option<P::Theme>,
     default_theme: P::Theme,
-    theme_mode: iced::theme::Mode,
+    theme_mode: iced_core::theme::Mode,
     style: Appearance,
     mouse_position: Option<Point>,
     modifiers: ModifiersState,
@@ -41,15 +40,15 @@ where
         (width, height): (u32, u32),
         wayland_scale_factor: f64,
         window: &WindowWrapper,
-        system_theme: iced::theme::Mode,
+        system_theme: iced_core::theme::Mode,
     ) -> Self {
         let application_scale_factor = application.scale_factor(id) as f64;
         let theme = application.theme(id);
         let theme_mode = theme
             .as_ref()
-            .map(iced::theme::Base::mode)
+            .map(iced_core::theme::Base::mode)
             .unwrap_or_default();
-        let default_theme = <P::Theme as iced::theme::Base>::default(system_theme);
+        let default_theme = <P::Theme as iced_core::theme::Base>::default(system_theme);
         let style = application.style(&default_theme);
 
         let window_size = Size::new(width, height);
@@ -130,7 +129,7 @@ where
     }
 
     #[allow(unused)]
-    pub fn theme_mode(&self) -> iced::theme::Mode {
+    pub fn theme_mode(&self) -> iced_core::theme::Mode {
         self.theme_mode
     }
 
@@ -166,7 +165,7 @@ where
                 self.resize_viewport();
             }
             WindowEvent::ThemeChanged(mode) => {
-                self.default_theme = <P::Theme as iced::theme::Base>::default(*mode);
+                self.default_theme = <P::Theme as iced_core::theme::Base>::default(*mode);
                 if self.theme.is_none() {
                     self.style = application.style(&self.default_theme);
                 }

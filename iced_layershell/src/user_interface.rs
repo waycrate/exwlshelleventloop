@@ -1,6 +1,6 @@
-use iced::{Event, Program, Size, event::Status, mouse::Cursor, window::Id};
 use iced_core::{Clipboard, renderer::Style, widget::Operation};
-use iced_program::Instance;
+use iced_core::{Event, Size, event::Status, mouse::Cursor, window::Id};
+use iced_program::{Instance, Program};
 use iced_runtime::{
     UserInterface as IcedUserInterface,
     user_interface::{Cache, State},
