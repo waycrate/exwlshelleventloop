@@ -2809,395 +2809,141 @@ impl<T: 'static> WindowState<T> {
                 .expect("We need message state");
         }
 
-        event_loop
-            .handle()
-            .insert_source(
-                Timer::from_duration(Duration::from_millis(50)),
-                move |_, _, r_window_state| {
-                    let window_state = &mut r_window_state.raw;
-                    let event_handler = &mut r_window_state.fun;
-                    let mut messages = Vec::new();
-                    std::mem::swap(&mut messages, &mut window_state.message);
-                    for msg in messages.iter() {
-                        match msg {
-                            (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
-                                window_state.handle_event(
-                                    &mut *event_handler,
-                                    LayerShellEvent::XdgInfoChanged(*change_type),
-                                    *index_info,
-                                );
-                            }
-                            (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                                let zxdgoutput =
-                                    xdg_output_manager.get_xdg_output(output_display, &qh, ());
-
-                                window_state.xdg_info_cache.push((
-                                    output_display.clone(),
-                                    ZxdgOutputInfo::new(zxdgoutput.clone()),
-                                ));
-                                if !window_state.is_allscreens() {
-                                    continue;
-                                }
-                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                let layer_shell = globals
-                                    .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
-                                    .unwrap();
-                                let layer = layer_shell.get_layer_surface(
-                                    &wl_surface,
-                                    Some(output_display),
-                                    window_state.layer,
-                                    window_state.namespace.clone(),
-                                    &qh,
-                                    (),
-                                );
-                                layer.set_anchor(window_state.anchor);
-                                layer.set_keyboard_interactivity(
-                                    window_state.keyboard_interactivity,
-                                );
-                                if let Some((init_w, init_h)) = window_state.size {
-                                    layer.set_size(init_w, init_h);
-                                }
-
-                                if let Some(zone) = window_state.exclusive_zone {
-                                    layer.set_exclusive_zone(zone);
-                                }
-
-                                if let Some((top, right, bottom, left)) = window_state.margin {
-                                    layer.set_margin(top, right, bottom, left);
-                                }
-
-                                if window_state.events_transparent {
-                                    let region = wmcompositer.create_region(&qh, ());
-                                    wl_surface.set_input_region(Some(&region));
-                                    region.destroy();
-                                }
-                                wl_surface.commit();
-
-                                let mut fractional_scale = None;
-                                if let Some(ref fractional_scale_manager) = fractional_scale_manager
-                                {
-                                    fractional_scale =
-                                        Some(fractional_scale_manager.get_fractional_scale(
-                                            &wl_surface,
-                                            &qh,
-                                            (),
-                                        ));
-                                }
-                                let viewport = viewporter
-                                    .as_ref()
-                                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                                // and if you need to reconfigure it, you need to commit the wl_surface again
-                                // so because this is just an example, so we just commit it once
-                                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-
-                                window_state.push_window(
-                                    WindowStateUnitBuilder::new(
-                                        id::Id::unique(),
-                                        qh.clone(),
-                                        connection.display(),
-                                        wl_surface,
-                                        Shell::LayerShell(layer),
-                                    )
-                                    .viewport(viewport)
-                                    .zxdgoutput(Some(ZxdgOutputInfo::new(zxdgoutput)))
-                                    .fractional_scale(fractional_scale)
-                                    .wl_output(Some(output_display.clone()))
-                                    .build(),
-                                );
-                            }
-                            _ => {
-                                let (index_message, msg) = msg;
-
-                                let msg: DispatchMessage = msg.clone().into();
-                                window_state.handle_event(
-                                    &mut *event_handler,
-                                    LayerShellEvent::RequestMessages(&msg),
-                                    *index_message,
-                                );
-                            }
-                        }
+        let process_window_state = |window_state: &mut WindowState<T>, event_handler: &mut F| {
+            let mut messages = Vec::new();
+            std::mem::swap(&mut messages, &mut window_state.message);
+            for msg in messages.iter() {
+                match msg {
+                    (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
+                        window_state.handle_event(
+                            &mut *event_handler,
+                            LayerShellEvent::XdgInfoChanged(*change_type),
+                            *index_info,
+                        );
                     }
+                    (_, DispatchMessageInner::NewDisplay(output_display)) => {
+                        let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
 
-                    window_state.handle_event(
-                        &mut *event_handler,
-                        LayerShellEvent::NormalDispatch,
-                        None,
-                    );
-                    loop {
-                        let mut return_data = vec![];
-                        std::mem::swap(&mut window_state.return_data, &mut return_data);
+                        window_state.xdg_info_cache.push((
+                            output_display.clone(),
+                            ZxdgOutputInfo::new(zxdgoutput.clone()),
+                        ));
+                        if !window_state.is_allscreens() {
+                            continue;
+                        }
+                        let wl_surface = wmcompositer.create_surface(&qh, ());
+                        let layer_shell = globals
+                            .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
+                            .unwrap();
+                        let layer = layer_shell.get_layer_surface(
+                            &wl_surface,
+                            Some(output_display),
+                            window_state.layer,
+                            window_state.namespace.clone(),
+                            &qh,
+                            (),
+                        );
+                        layer.set_anchor(window_state.anchor);
+                        layer.set_keyboard_interactivity(window_state.keyboard_interactivity);
+                        if let Some((init_w, init_h)) = window_state.size {
+                            layer.set_size(init_w, init_h);
+                        }
 
-                        for data in return_data {
-                            match data {
-                                ReturnData::RequestExit => {
-                                    signal.stop();
-                                    return TimeoutAction::Drop;
-                                }
-                                ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                    let Some(serial) = window_state.enter_serial else {
-                                        continue;
-                                    };
-                                    set_cursor_shape(
-                                        &cursor_update_context,
-                                        shape_name,
-                                        pointer,
-                                        serial,
-                                    );
-                                }
-                                ReturnData::NewLayerShell((
-                                    NewLayerShellSettings {
-                                        size,
-                                        layer,
-                                        anchor,
-                                        exclusive_zone,
-                                        margin,
-                                        keyboard_interactivity,
-                                        output_option: output_type,
-                                        events_transparent,
-                                        namespace,
-                                    },
-                                    id,
-                                    info,
-                                )) => {
-                                    let output = match output_type {
-                                        OutputOption::Output(output) => Some(output),
-                                        OutputOption::OutputName(name) => window_state
-                                            .xdg_info_cache
-                                            .iter()
-                                            .find(|(_, info)| info.name == *name)
-                                            .map(|(output, _)| output.clone()),
-                                        _ => {
-                                            let pos = window_state.surface_pos();
+                        if let Some(zone) = window_state.exclusive_zone {
+                            layer.set_exclusive_zone(zone);
+                        }
 
-                                            let mut output = pos.and_then(|p| {
-                                                window_state.units[p].wl_output.as_ref()
-                                            });
+                        if let Some((top, right, bottom, left)) = window_state.margin {
+                            layer.set_margin(top, right, bottom, left);
+                        }
 
-                                            if window_state.last_wloutput.is_none()
-                                                && window_state.outputs.len()
-                                                    > window_state.last_unit_index
-                                            {
-                                                window_state.last_wloutput = Some(
-                                                    window_state.outputs
-                                                        [window_state.last_unit_index]
-                                                        .1
-                                                        .clone(),
-                                                );
-                                            }
+                        if window_state.events_transparent {
+                            let region = wmcompositer.create_region(&qh, ());
+                            wl_surface.set_input_region(Some(&region));
+                            region.destroy();
+                        }
+                        wl_surface.commit();
 
-                                            if matches!(
-                                                output_type,
-                                                events::OutputOption::LastOutput
-                                            ) {
-                                                output = window_state.last_wloutput.as_ref();
-                                            }
+                        let mut fractional_scale = None;
+                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
+                                &wl_surface,
+                                &qh,
+                                (),
+                            ));
+                        }
+                        let viewport = viewporter
+                            .as_ref()
+                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
-                                            output.cloned()
-                                        }
-                                    };
+                        window_state.push_window(
+                            WindowStateUnitBuilder::new(
+                                id::Id::unique(),
+                                qh.clone(),
+                                connection.display(),
+                                wl_surface,
+                                Shell::LayerShell(layer),
+                            )
+                            .viewport(viewport)
+                            .zxdgoutput(Some(ZxdgOutputInfo::new(zxdgoutput)))
+                            .fractional_scale(fractional_scale)
+                            .wl_output(Some(output_display.clone()))
+                            .build(),
+                        );
+                    }
+                    _ => {
+                        let (index_message, msg) = msg;
 
-                                    let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                    let layer_shell = globals
-                                        .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
-                                        .unwrap();
-                                    let layer = layer_shell.get_layer_surface(
-                                        &wl_surface,
-                                        output.as_ref(),
-                                        layer,
-                                        namespace.unwrap_or_else(|| window_state.namespace.clone()),
-                                        &qh,
-                                        (),
-                                    );
-                                    layer.set_anchor(anchor);
-                                    layer.set_keyboard_interactivity(keyboard_interactivity);
-                                    if let Some((init_w, init_h)) = size {
-                                        layer.set_size(init_w, init_h);
-                                    }
+                        let msg: DispatchMessage = msg.clone().into();
+                        window_state.handle_event(
+                            &mut *event_handler,
+                            LayerShellEvent::RequestMessages(&msg),
+                            *index_message,
+                        );
+                    }
+                }
+            }
 
-                                    if let Some(zone) = exclusive_zone {
-                                        layer.set_exclusive_zone(zone);
-                                    }
+            window_state.handle_event(&mut *event_handler, LayerShellEvent::NormalDispatch, None);
+            loop {
+                let mut return_data = vec![];
+                std::mem::swap(&mut window_state.return_data, &mut return_data);
 
-                                    if let Some((top, right, bottom, left)) = margin {
-                                        layer.set_margin(top, right, bottom, left);
-                                    }
-
-                                    if events_transparent {
-                                        let region = wmcompositer.create_region(&qh, ());
-                                        wl_surface.set_input_region(Some(&region));
-                                        region.destroy();
-                                    }
-
-                                    wl_surface.commit();
-
-                                    let mut fractional_scale = None;
-                                    if let Some(ref fractional_scale_manager) =
-                                        fractional_scale_manager
-                                    {
-                                        fractional_scale =
-                                            Some(fractional_scale_manager.get_fractional_scale(
-                                                &wl_surface,
-                                                &qh,
-                                                (),
-                                            ));
-                                    }
-                                    let viewport = viewporter.as_ref().map(|viewport| {
-                                        viewport.get_viewport(&wl_surface, &qh, ())
-                                    });
-                                    // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                                    // and if you need to reconfigure it, you need to commit the wl_surface again
-                                    // so because this is just an example, so we just commit it once
-                                    // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-
-                                    window_state.push_window(
-                                        WindowStateUnitBuilder::new(
-                                            id,
-                                            qh.clone(),
-                                            connection.display(),
-                                            wl_surface,
-                                            Shell::LayerShell(layer),
-                                        )
-                                        .viewport(viewport)
-                                        .fractional_scale(fractional_scale)
-                                        .wl_output(output)
-                                        .binding(info)
-                                        .becreated(true)
-                                        .build(),
-                                    );
-                                }
-                                ReturnData::NewPopUp((
-                                    NewPopUpSettings {
-                                        size: (width, height),
-                                        position: (x, y),
-                                        id,
-                                    },
-                                    targetid,
-                                    info,
-                                )) => {
-                                    let Some(index) = window_state
-                                        .units
-                                        .iter()
-                                        .position(|unit| !unit.is_popup() && unit.id == id)
-                                    else {
-                                        continue;
-                                    };
-                                    let wl_surface = wmcompositer.create_surface(&qh, ());
-                                    let positioner = wmbase.create_positioner(&qh, ());
-                                    positioner.set_size(width as i32, height as i32);
-                                    positioner.set_anchor_rect(x, y, width as i32, height as i32);
-                                    let wl_xdg_surface =
-                                        wmbase.get_xdg_surface(&wl_surface, &qh, ());
-                                    let popup =
-                                        wl_xdg_surface.get_popup(None, &positioner, &qh, ());
-
-                                    let Shell::LayerShell(shell) = &window_state.units[index].shell
-                                    else {
-                                        unreachable!()
-                                    };
-                                    shell.get_popup(&popup);
-
-                                    let mut fractional_scale = None;
-                                    if let Some(ref fractional_scale_manager) =
-                                        fractional_scale_manager
-                                    {
-                                        fractional_scale =
-                                            Some(fractional_scale_manager.get_fractional_scale(
-                                                &wl_surface,
-                                                &qh,
-                                                (),
-                                            ));
-                                    }
-                                    wl_surface.commit();
-
-                                    let viewport = viewporter.as_ref().map(|viewport| {
-                                        viewport.get_viewport(&wl_surface, &qh, ())
-                                    });
-                                    window_state.push_window(
-                                        WindowStateUnitBuilder::new(
-                                            targetid,
-                                            qh.clone(),
-                                            connection.display(),
-                                            wl_surface,
-                                            Shell::PopUp((popup, wl_xdg_surface)),
-                                        )
-                                        .size((width, height))
-                                        .viewport(viewport)
-                                        .fractional_scale(fractional_scale)
-                                        .binding(info)
-                                        .becreated(true)
-                                        .build(),
-                                    );
-                                }
-                                ReturnData::NewXdgBase((
-                                    NewXdgWindowSettings { title, size },
-                                    id,
-                                    info,
-                                )) => {
-                                    let wl_surface = wmcompositer.create_surface(&qh, ());
-                                    let wl_xdg_surface =
-                                        wmbase.get_xdg_surface(&wl_surface, &qh, ());
-                                    let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
-
-                                    toplevel.set_title(title.unwrap_or("".to_owned()));
-
-                                    let decoration = if let Some(decoration_manager) =
-                                        &zxdg_decoration_manager
-                                    {
-                                        let decoration = decoration_manager
-                                            .get_toplevel_decoration(&toplevel, &qh, ());
-                                        use zxdg_toplevel_decoration_v1::Mode;
-                                        decoration.set_mode(Mode::ServerSide);
-                                        Some(decoration)
-                                    } else {
-                                        None
-                                    };
-                                    let mut fractional_scale = None;
-                                    if let Some(ref fractional_scale_manager) =
-                                        fractional_scale_manager
-                                    {
-                                        fractional_scale =
-                                            Some(fractional_scale_manager.get_fractional_scale(
-                                                &wl_surface,
-                                                &qh,
-                                                (),
-                                            ));
-                                    }
-                                    wl_surface.commit();
-
-                                    let viewport = viewporter.as_ref().map(|viewport| {
-                                        viewport.get_viewport(&wl_surface, &qh, ())
-                                    });
-                                    window_state.push_window(
-                                        WindowStateUnitBuilder::new(
-                                            id,
-                                            qh.clone(),
-                                            connection.display(),
-                                            wl_surface,
-                                            Shell::XdgTopLevel((
-                                                toplevel,
-                                                wl_xdg_surface,
-                                                decoration,
-                                            )),
-                                        )
-                                        .size(size.unwrap_or((300, 300)))
-                                        .viewport(viewport)
-                                        .fractional_scale(fractional_scale)
-                                        .binding(info)
-                                        .becreated(true)
-                                        .build(),
-                                    );
-                                }
-
-                                ReturnData::NewInputPanel((
-                                    NewInputPanelSettings {
-                                        size: (width, height),
-                                        keyboard,
-                                        use_last_output,
-                                    },
-                                    id,
-                                    info,
-                                )) => {
+                for data in return_data {
+                    match data {
+                        ReturnData::RequestExit => {
+                            signal.stop();
+                            return true;
+                        }
+                        ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
+                            let Some(serial) = window_state.enter_serial else {
+                                continue;
+                            };
+                            set_cursor_shape(&cursor_update_context, shape_name, pointer, serial);
+                        }
+                        ReturnData::NewLayerShell((
+                            NewLayerShellSettings {
+                                size,
+                                layer,
+                                anchor,
+                                exclusive_zone,
+                                margin,
+                                keyboard_interactivity,
+                                output_option: output_type,
+                                events_transparent,
+                                namespace,
+                            },
+                            id,
+                            info,
+                        )) => {
+                            let output = match output_type {
+                                OutputOption::Output(output) => Some(output),
+                                OutputOption::OutputName(name) => window_state
+                                    .xdg_info_cache
+                                    .iter()
+                                    .find(|(_, info)| info.name == *name)
+                                    .map(|(output, _)| output.clone()),
+                                _ => {
                                     let pos = window_state.surface_pos();
 
                                     let mut output =
@@ -3213,7 +2959,7 @@ impl<T: 'static> WindowState<T> {
                                         );
                                     }
 
-                                    if use_last_output {
+                                    if matches!(output_type, events::OutputOption::LastOutput) {
                                         output = window_state.last_wloutput.as_ref();
                                     }
 
@@ -3221,150 +2967,361 @@ impl<T: 'static> WindowState<T> {
                                         output = window_state.outputs.first().map(|(_, o)| o);
                                     }
 
-                                    let Some(output) = output else {
-                                        log::warn!("no WlOutput, skip creating input panel");
-                                        continue;
-                                    };
-
-                                    let wl_surface = wmcompositer.create_surface(&qh, ());
-                                    let input_panel = globals
-                                        .bind::<ZwpInputPanelV1, _, _>(&qh, 1..=1, ())
-                                        .unwrap();
-                                    let input_panel_surface =
-                                        input_panel.get_input_panel_surface(&wl_surface, &qh, ());
-                                    if keyboard {
-                                        input_panel_surface.set_toplevel(
-                                            output,
-                                            ZwpInputPanelPosition::CenterBottom as u32,
-                                        );
-                                    } else {
-                                        input_panel_surface.set_overlay_panel();
-                                    }
-                                    wl_surface.commit();
-
-                                    let mut fractional_scale = None;
-                                    if let Some(ref fractional_scale_manager) =
-                                        fractional_scale_manager
-                                    {
-                                        fractional_scale =
-                                            Some(fractional_scale_manager.get_fractional_scale(
-                                                &wl_surface,
-                                                &qh,
-                                                (),
-                                            ));
-                                    }
-
-                                    let viewport = viewporter.as_ref().map(|viewport| {
-                                        viewport.get_viewport(&wl_surface, &qh, ())
-                                    });
-                                    window_state.push_window(
-                                        WindowStateUnitBuilder::new(
-                                            id,
-                                            qh.clone(),
-                                            connection.display(),
-                                            wl_surface,
-                                            Shell::InputPanel(input_panel_surface),
-                                        )
-                                        .size((width, height))
-                                        .viewport(viewport)
-                                        .fractional_scale(fractional_scale)
-                                        .binding(info)
-                                        .becreated(true)
-                                        .build(),
-                                    );
+                                    output.cloned()
                                 }
-                                _ => {}
-                            }
-                        }
-                        if window_state.return_data.is_empty() {
-                            break;
-                        }
-                    }
+                            };
 
-                    let to_be_closed_ids: Vec<_> = window_state
-                        .units
-                        .iter()
-                        .filter(|unit| unit.request_flag.close)
-                        .map(WindowStateUnit::id)
-                        .collect();
-                    for id in to_be_closed_ids {
-                        window_state.handle_event(
-                            &mut *event_handler,
-                            LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
-                            Some(id),
-                        );
-                        // event_handler may use unit, only remove it after calling event_handler.
-                        window_state.remove_shell(id);
-                    }
-
-                    // NOTE: this is for those closed because wl_output is dead.
-                    let closed_ids = window_state.closed_ids.clone();
-                    for id in closed_ids {
-                        window_state.handle_event(
-                            &mut *event_handler,
-                            LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
-                            Some(id),
-                        );
-                    }
-                    window_state.closed_ids.clear();
-
-                    for idx in 0..window_state.units.len() {
-                        let unit = &mut window_state.units[idx];
-                        let (width, height) = unit.size;
-                        if width == 0 || height == 0 {
-                            // don't refresh, if size is 0.
-                            continue;
-                        }
-                        if unit.take_present_slot() {
-                            let unit_id = unit.id;
-                            let is_created = unit.becreated;
-                            let scale_float = unit.scale_float();
-                            let wl_surface = unit.wl_surface.clone();
-                            if unit.buffer.is_none() && !window_state.use_display_handle {
-                                let Ok(mut file) = tempfile::tempfile() else {
-                                    log::error!("Cannot create new file from tempfile");
-                                    return TimeoutAction::Drop;
-                                };
-                                let ReturnData::WlBuffer(buffer) = event_handler(
-                                    LayerShellEvent::RequestBuffer(
-                                        &mut file, &shm, &qh, width, height,
-                                    ),
-                                    window_state,
-                                    Some(unit_id),
-                                ) else {
-                                    panic!("You cannot return this one");
-                                };
-                                wl_surface.attach(Some(&buffer), 0, 0);
-                                wl_surface.commit();
-                                window_state.units[idx].buffer = Some(buffer);
-                            }
-                            window_state.handle_event(
-                                &mut *event_handler,
-                                LayerShellEvent::RequestMessages(
-                                    &DispatchMessage::RequestRefresh {
-                                        width,
-                                        height,
-                                        is_created,
-                                        scale_float,
-                                    },
-                                ),
-                                Some(unit_id),
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let layer_shell = globals
+                                .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
+                                .unwrap();
+                            let layer = layer_shell.get_layer_surface(
+                                &wl_surface,
+                                output.as_ref(),
+                                layer,
+                                namespace.unwrap_or_else(|| window_state.namespace.clone()),
+                                &qh,
+                                (),
                             );
-                            // reset if the slot is not used
-                            window_state.units[idx].reset_present_slot();
+                            layer.set_anchor(anchor);
+                            layer.set_keyboard_interactivity(keyboard_interactivity);
+                            if let Some((init_w, init_h)) = size {
+                                layer.set_size(init_w, init_h);
+                            }
+
+                            if let Some(zone) = exclusive_zone {
+                                layer.set_exclusive_zone(zone);
+                            }
+
+                            if let Some((top, right, bottom, left)) = margin {
+                                layer.set_margin(top, right, bottom, left);
+                            }
+
+                            if events_transparent {
+                                let region = wmcompositer.create_region(&qh, ());
+                                wl_surface.set_input_region(Some(&region));
+                                region.destroy();
+                            }
+
+                            wl_surface.commit();
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+
+                            window_state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    Shell::LayerShell(layer),
+                                )
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .wl_output(output)
+                                .binding(info)
+                                .becreated(true)
+                                .build(),
+                            );
                         }
+                        ReturnData::NewPopUp((
+                            NewPopUpSettings {
+                                size: (width, height),
+                                position: (x, y),
+                                id,
+                            },
+                            targetid,
+                            info,
+                        )) => {
+                            let Some(index) = window_state
+                                .units
+                                .iter()
+                                .position(|unit| !unit.is_popup() && unit.id == id)
+                            else {
+                                continue;
+                            };
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let positioner = wmbase.create_positioner(&qh, ());
+                            positioner.set_size(width as i32, height as i32);
+                            positioner.set_anchor_rect(x, y, width as i32, height as i32);
+                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
+                            let popup = wl_xdg_surface.get_popup(None, &positioner, &qh, ());
+
+                            let Shell::LayerShell(shell) = &window_state.units[index].shell else {
+                                unreachable!()
+                            };
+                            shell.get_popup(&popup);
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            wl_surface.commit();
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            window_state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    targetid,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    Shell::PopUp((popup, wl_xdg_surface)),
+                                )
+                                .size((width, height))
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .binding(info)
+                                .becreated(true)
+                                .build(),
+                            );
+                        }
+                        ReturnData::NewXdgBase((
+                            NewXdgWindowSettings { title, size },
+                            id,
+                            info,
+                        )) => {
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
+                            let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
+
+                            toplevel.set_title(title.unwrap_or("".to_owned()));
+
+                            let decoration = if let Some(decoration_manager) =
+                                &zxdg_decoration_manager
+                            {
+                                let decoration =
+                                    decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
+                                use zxdg_toplevel_decoration_v1::Mode;
+                                decoration.set_mode(Mode::ServerSide);
+                                Some(decoration)
+                            } else {
+                                None
+                            };
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            wl_surface.commit();
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            window_state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
+                                )
+                                .size(size.unwrap_or((300, 300)))
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .binding(info)
+                                .becreated(true)
+                                .build(),
+                            );
+                        }
+
+                        ReturnData::NewInputPanel((
+                            NewInputPanelSettings {
+                                size: (width, height),
+                                keyboard,
+                                use_last_output,
+                            },
+                            id,
+                            info,
+                        )) => {
+                            let pos = window_state.surface_pos();
+
+                            let mut output =
+                                pos.and_then(|p| window_state.units[p].wl_output.as_ref());
+
+                            if window_state.last_wloutput.is_none()
+                                && window_state.outputs.len() > window_state.last_unit_index
+                            {
+                                window_state.last_wloutput = Some(
+                                    window_state.outputs[window_state.last_unit_index].1.clone(),
+                                );
+                            }
+
+                            if use_last_output {
+                                output = window_state.last_wloutput.as_ref();
+                            }
+
+                            if output.is_none() {
+                                output = window_state.outputs.first().map(|(_, o)| o);
+                            }
+
+                            let Some(output) = output else {
+                                log::warn!("no WlOutput, skip creating input panel");
+                                continue;
+                            };
+
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let input_panel = globals
+                                .bind::<ZwpInputPanelV1, _, _>(&qh, 1..=1, ())
+                                .unwrap();
+                            let input_panel_surface =
+                                input_panel.get_input_panel_surface(&wl_surface, &qh, ());
+                            if keyboard {
+                                input_panel_surface.set_toplevel(
+                                    output,
+                                    ZwpInputPanelPosition::CenterBottom as u32,
+                                );
+                            } else {
+                                input_panel_surface.set_overlay_panel();
+                            }
+                            wl_surface.commit();
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            window_state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    Shell::InputPanel(input_panel_surface),
+                                )
+                                .size((width, height))
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .binding(info)
+                                .becreated(true)
+                                .build(),
+                            );
+                        }
+                        _ => {}
                     }
-                    TimeoutAction::ToDuration(std::time::Duration::from_millis(50))
-                },
-            )
-            .expect("Cannot insert_source");
+                }
+                // added guard to match `sessionlockev`.
+                window_state
+                    .return_data
+                    .retain(|data| !matches!(data, ReturnData::None));
+                if window_state.return_data.is_empty() {
+                    break;
+                }
+            }
+
+            let to_be_closed_ids: Vec<_> = window_state
+                .units
+                .iter()
+                .filter(|unit| unit.request_flag.close)
+                .map(WindowStateUnit::id)
+                .collect();
+            for id in to_be_closed_ids {
+                window_state.handle_event(
+                    &mut *event_handler,
+                    LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
+                    Some(id),
+                );
+                window_state.remove_shell(id);
+            }
+
+            let closed_ids = window_state.closed_ids.clone();
+            for id in closed_ids {
+                window_state.handle_event(
+                    &mut *event_handler,
+                    LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
+                    Some(id),
+                );
+            }
+            window_state.closed_ids.clear();
+
+            for idx in 0..window_state.units.len() {
+                let unit = &mut window_state.units[idx];
+                let (width, height) = unit.size;
+                if width == 0 || height == 0 {
+                    continue;
+                }
+                if unit.take_present_slot() {
+                    let unit_id = unit.id;
+                    let is_created = unit.becreated;
+                    let scale_float = unit.scale_float();
+                    let wl_surface = unit.wl_surface.clone();
+                    if unit.buffer.is_none() && !window_state.use_display_handle {
+                        let Ok(mut file) = tempfile::tempfile() else {
+                            log::error!("Cannot create new file from tempfile");
+                            // note: could lead to infinite loop or spam log
+                            // if the error is persistent.
+                            return false;
+                        };
+                        let ReturnData::WlBuffer(buffer) = event_handler(
+                            LayerShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
+                            window_state,
+                            Some(unit_id),
+                        ) else {
+                            panic!("You cannot return this one");
+                        };
+                        wl_surface.attach(Some(&buffer), 0, 0);
+                        wl_surface.commit();
+                        window_state.units[idx].buffer = Some(buffer);
+                    }
+                    window_state.handle_event(
+                        &mut *event_handler,
+                        LayerShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                            width,
+                            height,
+                            is_created,
+                            scale_float,
+                        }),
+                        Some(unit_id),
+                    );
+                    window_state.units[idx].reset_present_slot();
+                }
+            }
+
+            false
+        };
         event_loop
             .run(
+                // scheduler now relies on this duration. If no wayland events
+                // are recieved, At(instant) *could* be serviced up to ~20ms late.
+                // technically an improvement over previous 50ms timer, but
+                // semantically different given event loop callback.
                 std::time::Duration::from_millis(20),
                 &mut state,
                 move |r_window_state| {
                     let window_state = &mut r_window_state.raw;
                     let _ = event_queue_origin.roundtrip(window_state);
+                    let event_handler = &mut r_window_state.fun;
+                    if process_window_state(window_state, event_handler) {
+                        return;
+                    }
                     let looph = &r_window_state.loop_handle;
                     for token in window_state.to_remove_tokens.iter() {
                         looph.remove(*token);

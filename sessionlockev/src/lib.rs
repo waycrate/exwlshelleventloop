@@ -1597,183 +1597,155 @@ impl<T: 'static> WindowState<T> {
                 })
                 .expect("We need message state");
         }
-        event_loop
-            .handle()
-            .insert_source(
-                Timer::from_duration(Duration::from_millis(50)),
-                move |_, _, r_window_state| {
-                    let window_state = &mut r_window_state.raw;
-                    let event_handler = &mut r_window_state.fun;
-                    let mut messages = Vec::new();
-                    std::mem::swap(&mut messages, &mut window_state.message);
-                    for msg in messages.iter() {
-                        match msg {
-                            (_, DispatchMessageInner::NewDisplay(display)) => {
-                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                //
-                                wl_surface.commit();
-                                let session_lock_surface =
-                                    lock.get_lock_surface(&wl_surface, display, &qh, ());
 
-                                let mut fractional_scale = None;
-                                if let Some(ref fractional_scale_manager) = fractional_scale_manager
-                                {
-                                    fractional_scale =
-                                        Some(fractional_scale_manager.get_fractional_scale(
-                                            &wl_surface,
-                                            &qh,
-                                            (),
-                                        ));
-                                }
-                                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                                // and if you need to reconfigure it, you need to commit the wl_surface again
-                                // so because this is just an example, so we just commit it once
-                                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-                                let viewport = viewporter
-                                    .as_ref()
-                                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                                window_state.push_window(WindowStateUnit {
-                                    id: id::Id::unique(),
-                                    display: connection.display(),
-                                    wl_surface,
-                                    size: (0, 0),
-                                    buffer: None,
-                                    session_shell: session_lock_surface,
-                                    viewport,
-                                    fractional_scale,
-                                    binding: None,
-                                    scale: 120,
-                                    present_available_state: PresentAvailableState::Available,
-                                    refresh: RefreshRequest::Wait,
-                                    qh: qh.clone(),
-                                });
-                            }
-                            _ => {
-                                let (index_message, msg) = msg;
-                                let msg: DispatchMessage = msg.clone().into();
-                                match event_handler(
-                                    SessionLockEvent::RequestMessages(&msg),
-                                    window_state,
-                                    *index_message,
-                                ) {
-                                    ReturnData::RequestUnlockAndExist => {
-                                        lock.unlock_and_destroy();
-                                        connection
-                                            .roundtrip()
-                                            .expect("should roundtrip successfully");
-                                        signal.stop();
-                                        return TimeoutAction::Drop;
-                                    }
-                                    ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                        let Some(serial) = window_state.enter_serial else {
-                                            continue;
-                                        };
-                                        set_cursor_shape(
-                                            &cursor_update_context,
-                                            shape_name,
-                                            pointer,
-                                            serial,
-                                        );
-                                    }
-                                    _ => {}
-                                }
-                            }
+        let process_window_state = |window_state: &mut WindowState<T>, event_handler: &mut F| {
+            let mut messages = Vec::new();
+            std::mem::swap(&mut messages, &mut window_state.message);
+            for msg in messages.iter() {
+                match msg {
+                    (_, DispatchMessageInner::NewDisplay(display)) => {
+                        let wl_surface = wmcompositer.create_surface(&qh, ());
+                        wl_surface.commit();
+                        let session_lock_surface =
+                            lock.get_lock_surface(&wl_surface, display, &qh, ());
+
+                        let mut fractional_scale = None;
+                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
+                                &wl_surface,
+                                &qh,
+                                (),
+                            ));
                         }
+                        let viewport = viewporter
+                            .as_ref()
+                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                        window_state.push_window(WindowStateUnit {
+                            id: id::Id::unique(),
+                            display: connection.display(),
+                            wl_surface,
+                            size: (0, 0),
+                            buffer: None,
+                            session_shell: session_lock_surface,
+                            viewport,
+                            fractional_scale,
+                            binding: None,
+                            scale: 120,
+                            present_available_state: PresentAvailableState::Available,
+                            refresh: RefreshRequest::Wait,
+                            qh: qh.clone(),
+                        });
+                    }
+                    _ => {
+                        let (index_message, msg) = msg;
+                        let msg: DispatchMessage = msg.clone().into();
+                        match event_handler(
+                            SessionLockEvent::RequestMessages(&msg),
+                            window_state,
+                            *index_message,
+                        ) {
+                            ReturnData::RequestUnlockAndExist => {
+                                lock.unlock_and_destroy();
+                                connection
+                                    .roundtrip()
+                                    .expect("should roundtrip successfully");
+                                signal.stop();
+                                return true;
+                            }
+                            ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
+                                let Some(serial) = window_state.enter_serial else {
+                                    continue;
+                                };
+                                set_cursor_shape(
+                                    &cursor_update_context,
+                                    shape_name,
+                                    pointer,
+                                    serial,
+                                );
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            window_state.handle_event(&mut *event_handler, SessionLockEvent::NormalDispatch, None);
+            loop {
+                let mut return_data = vec![];
+
+                std::mem::swap(&mut window_state.return_data, &mut return_data);
+                for data in return_data {
+                    match data {
+                        ReturnData::RequestUnlockAndExist => {
+                            lock.unlock_and_destroy();
+                            connection.roundtrip().expect("should go final roundtrip");
+                            signal.stop();
+                            return true;
+                        }
+                        ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
+                            let Some(serial) = window_state.enter_serial else {
+                                continue;
+                            };
+                            set_cursor_shape(&cursor_update_context, shape_name, pointer, serial);
+                        }
+                        _ => {}
+                    }
+                }
+                window_state.return_data.retain(|x| *x != ReturnData::None);
+                if window_state.return_data.is_empty() {
+                    break;
+                }
+            }
+            let closed_ids = window_state.closed_ids.clone();
+            for id in closed_ids {
+                window_state.handle_event(
+                    &mut *event_handler,
+                    SessionLockEvent::RequestMessages(&DispatchMessage::Closed),
+                    Some(id),
+                );
+            }
+            window_state.closed_ids.clear();
+
+            for idx in 0..window_state.units.len() {
+                let unit = &mut window_state.units[idx];
+                let (width, height) = unit.size;
+                if width == 0 || height == 0 {
+                    continue;
+                }
+                if unit.take_present_slot() {
+                    let unit_id = unit.id;
+                    let scale_float = unit.scale_float();
+                    let wl_surface = unit.wl_surface.clone();
+                    if unit.buffer.is_none() && !window_state.use_display_handle {
+                        let Ok(mut file) = tempfile::tempfile() else {
+                            log::error!("Cannot create new file from tempfile");
+                            return false;
+                        };
+                        let ReturnData::WlBuffer(buffer) = event_handler(
+                            SessionLockEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
+                            window_state,
+                            Some(unit_id),
+                        ) else {
+                            panic!("You cannot return this one");
+                        };
+                        wl_surface.attach(Some(&buffer), 0, 0);
+                        wl_surface.commit();
+                        window_state.units[idx].buffer = Some(buffer);
                     }
                     window_state.handle_event(
                         &mut *event_handler,
-                        SessionLockEvent::NormalDispatch,
-                        None,
+                        SessionLockEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                            width,
+                            height,
+                            scale_float,
+                        }),
+                        Some(unit_id),
                     );
-                    loop {
-                        let mut return_data = vec![];
+                    window_state.units[idx].reset_present_slot();
+                }
+            }
 
-                        std::mem::swap(&mut window_state.return_data, &mut return_data);
-                        for data in return_data {
-                            match data {
-                                ReturnData::RequestUnlockAndExist => {
-                                    lock.unlock_and_destroy();
-                                    connection.roundtrip().expect("should go final roundtrip");
-                                    signal.stop();
-                                    return TimeoutAction::Drop;
-                                }
-                                ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
-                                    let Some(serial) = window_state.enter_serial else {
-                                        continue;
-                                    };
-                                    set_cursor_shape(
-                                        &cursor_update_context,
-                                        shape_name,
-                                        pointer,
-                                        serial,
-                                    );
-                                }
-                                _ => {}
-                            }
-                        }
-                        window_state.return_data.retain(|x| *x != ReturnData::None);
-                        if window_state.return_data.is_empty() {
-                            break;
-                        }
-                    }
-                    let closed_ids = window_state.closed_ids.clone();
-                    for id in closed_ids {
-                        window_state.handle_event(
-                            &mut *event_handler,
-                            SessionLockEvent::RequestMessages(&DispatchMessage::Closed),
-                            Some(id),
-                        );
-                    }
-                    window_state.closed_ids.clear();
-
-                    for idx in 0..window_state.units.len() {
-                        let unit = &mut window_state.units[idx];
-                        let (width, height) = unit.size;
-                        if width == 0 || height == 0 {
-                            // don't refresh, if size is 0.
-                            continue;
-                        }
-                        if unit.take_present_slot() {
-                            let unit_id = unit.id;
-                            let scale_float = unit.scale_float();
-                            let wl_surface = unit.wl_surface.clone();
-                            if unit.buffer.is_none() && !window_state.use_display_handle {
-                                let Ok(mut file) = tempfile::tempfile() else {
-                                    log::error!("Cannot create new file from tempfile");
-                                    return TimeoutAction::Drop;
-                                };
-                                let ReturnData::WlBuffer(buffer) = event_handler(
-                                    SessionLockEvent::RequestBuffer(
-                                        &mut file, &shm, &qh, width, height,
-                                    ),
-                                    window_state,
-                                    Some(unit_id),
-                                ) else {
-                                    panic!("You cannot return this one");
-                                };
-                                wl_surface.attach(Some(&buffer), 0, 0);
-                                wl_surface.commit();
-                                window_state.units[idx].buffer = Some(buffer);
-                            }
-                            window_state.handle_event(
-                                &mut *event_handler,
-                                SessionLockEvent::RequestMessages(
-                                    &DispatchMessage::RequestRefresh {
-                                        width,
-                                        height,
-                                        scale_float,
-                                    },
-                                ),
-                                Some(unit_id),
-                            );
-                            // reset if the slot is not used
-                            window_state.units[idx].reset_present_slot();
-                        }
-                    }
-                    TimeoutAction::ToDuration(Duration::from_millis(50))
-                },
-            )
-            .expect("Cannot insert source");
+            false
+        };
         event_loop
             .run(
                 std::time::Duration::from_millis(20),
@@ -1781,6 +1753,10 @@ impl<T: 'static> WindowState<T> {
                 move |r_window_state| {
                     let window_state = &mut r_window_state.raw;
                     let _ = event_queue_origin.roundtrip(window_state);
+                    let event_handler = &mut r_window_state.fun;
+                    if process_window_state(window_state, event_handler) {
+                        return;
+                    }
                     let looph = &r_window_state.loop_handle;
                     for token in window_state.to_remove_tokens.iter() {
                         looph.remove(*token);
