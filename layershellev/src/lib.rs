@@ -3310,7 +3310,7 @@ impl<T: 'static> WindowState<T> {
         event_loop
             .run(
                 // scheduler now relies on this duration. If no wayland events
-                // are recieved, At(instant) *could* be serviced up to ~20ms late.
+                // are received, At(instant) *could* be serviced up to ~20ms late.
                 // technically an improvement over previous 50ms timer, but
                 // semantically different given event loop callback.
                 std::time::Duration::from_millis(20),
