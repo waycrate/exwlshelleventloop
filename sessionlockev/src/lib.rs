@@ -665,7 +665,8 @@ impl<T> WindowState<T> {
         self.units.iter().find(|unit| unit.id == id)
     }
 
-    fn current_surface_id(&self) -> Option<id::Id> {
+    /// get the current focused id
+    pub fn current_surface_id(&self) -> Option<id::Id> {
         self.units
             .iter()
             .find(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())

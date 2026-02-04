@@ -566,7 +566,9 @@ where
                     }
                 }
 
-                if mouse_interaction != window.mouse_interaction {
+                if ev.current_surface_id().is_some_and(|id| id == window.id)
+                    && mouse_interaction != window.mouse_interaction
+                {
                     if let Some(pointer) = ev.get_pointer() {
                         ev.append_return_data(ReturnData::RequestSetCursorShape((
                             conversion::mouse_interaction(mouse_interaction),
