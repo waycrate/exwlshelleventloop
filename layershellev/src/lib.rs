@@ -165,7 +165,7 @@ use wayland_protocols::xdg::shell::client::{
     xdg_positioner::XdgPositioner,
     xdg_surface::{self, XdgSurface},
     xdg_toplevel::{self, XdgToplevel},
-    xdg_wm_base::XdgWmBase,
+    xdg_wm_base::{self, XdgWmBase},
 };
 
 use wayland_protocols::{
@@ -2443,7 +2443,24 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
-delegate_noop!(@<T> WindowState<T>: ignore XdgWmBase);
+
+// we need to reply to the ping event otherwise
+// top-level windows will be marked as unresponsive
+// by the compositor.
+impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
+    fn event(
+        _state: &mut Self,
+        proxy: &XdgWmBase,
+        event: xdg_wm_base::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        if let xdg_wm_base::Event::Ping { serial } = event {
+            proxy.pong(serial);
+        }
+    }
+}
 
 delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelSurfaceV1);
