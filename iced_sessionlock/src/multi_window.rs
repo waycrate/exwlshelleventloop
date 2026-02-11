@@ -655,8 +655,17 @@ where
             ev.request_refresh_all(RefreshRequest::NextFrame);
             let (caches, application) = self.user_interfaces.extract_all();
 
+            let mut should_exit = false;
             // Update application
-            update(application, &mut self.runtime, &mut self.messages);
+            update(
+                application,
+                &mut self.runtime,
+                &mut self.messages,
+                &mut should_exit,
+            );
+            if should_exit {
+                ev.append_return_data(ReturnData::RequestUnlockAndExist);
+            }
 
             for (_, window) in self.window_manager.iter_mut() {
                 window.state.synchronize(application);
@@ -744,16 +753,29 @@ where
     user_interface
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn update<P: Program, E: Executor>(
     application: &mut Instance<P>,
     runtime: &mut SessionRuntime<E, P::Message>,
     messages: &mut Vec<P::Message>,
+    should_exit: &mut bool,
 ) where
     P::Theme: DefaultStyle,
-    P::Message: 'static,
+    P::Message: 'static + TryInto<UnLockAction, Error = P::Message>,
 {
     for message in messages.drain(..) {
+        // NOTE: avoid something like
+        // match message {
+        // Message::Unlock => Task::done(message)
+        // }
+        // Now if it is a unique command, it will be operated immediately
+        let message = match message.try_into() {
+            Ok(action) => {
+                let _: UnLockAction = action;
+                *should_exit = true;
+                continue;
+            }
+            Err(message) => message,
+        };
         let task = runtime.enter(|| application.update(message));
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {

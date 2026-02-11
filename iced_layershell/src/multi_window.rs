@@ -898,7 +898,12 @@ where
             let (caches, application) = self.user_interfaces.extract_all();
 
             // Update application
-            update(application, &mut self.runtime, &mut self.messages);
+            update(
+                application,
+                &mut self.runtime,
+                &mut self.messages,
+                &mut self.waiting_layer_shell_actions,
+            );
 
             for (_, window) in self.window_manager.iter_mut() {
                 window.state.synchronize(application);
@@ -1010,16 +1015,29 @@ where
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn update<P: IcedProgram, E: Executor>(
     application: &mut Instance<P>,
     runtime: &mut MultiRuntime<E, P::Message>,
     messages: &mut Vec<P::Message>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayershellCustomAction)>,
 ) where
     P::Theme: DefaultStyle,
-    P::Message: 'static,
+    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
 {
     for message in messages.drain(..) {
+        // NOTE: avoid something like
+        // match message {
+        // Message::Unlock => Task::done(message)
+        // }
+        // Now if it is a unique command, it will be operated immediately
+        let message = match message.try_into() {
+            Ok(action) => {
+                let LayershellCustomActionWithId(id, action) = action;
+                waiting_layer_shell_actions.push((id, action));
+                continue;
+            }
+            Err(message) => message,
+        };
         let task = runtime.enter(|| application.update(message));
 
         if let Some(stream) = iced_runtime::task::into_stream(task) {

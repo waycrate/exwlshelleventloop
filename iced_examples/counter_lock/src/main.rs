@@ -63,7 +63,7 @@ impl Counter {
                 self.text = text;
                 Command::none()
             }
-            Message::UnLock => Command::done(message),
+            _ => unreachable!(),
         }
     }
 
