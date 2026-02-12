@@ -755,6 +755,8 @@ where
                 use layershellev::reexport::wayland_client::KeyState;
                 let ky = ev.get_virtual_keyboard().unwrap();
                 ky.key(time, key, KeyState::Pressed.into());
+                // NOTE: add delay time
+                let time = time + 100;
                 ev.set_virtual_key_release(layershellev::VirtualKeyRelease {
                     delay: Duration::from_micros(100),
                     time,
