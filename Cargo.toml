@@ -19,7 +19,7 @@ authors = [
   "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2024"
-version = "0.15.0-rc1"
+version = "0.15.0"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"
 description = "Wayland extra shell lib"
@@ -27,15 +27,15 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-layershellev = { version = "0.15.0-rc1", path = "./layershellev" }
-sessionlockev = { version = "0.15.0-rc1", path = "./sessionlockev" }
-iced_wayland_subscriber = { version = "0.15.0-rc1", path = "./iced_wayland_subscriber" }
-iced_layershell = { version = "0.15.0-rc1", path = "./iced_layershell" }
-iced_exdevtools = { version = "0.15.0-rc1", path = "./iced_exdevtools" }
-iced_layershell_macros = { version = "0.15.0-rc1", path = "./iced_layershell_macros" }
-iced_sessionlock = { version = "0.15.0-rc1", path = "./iced_sessionlock" }
-iced_sessionlock_macros = { version = "0.15.0-rc1", path = "./iced_sessionlock_macros" }
-waycrate_xkbkeycode = { version = "0.15.0-rc1", path = "./waycrate_xkbkeycode" }
+layershellev = { version = "0.15.0", path = "./layershellev" }
+sessionlockev = { version = "0.15.0", path = "./sessionlockev" }
+iced_wayland_subscriber = { version = "0.15.0", path = "./iced_wayland_subscriber" }
+iced_layershell = { version = "0.15.0", path = "./iced_layershell" }
+iced_exdevtools = { version = "0.15.0", path = "./iced_exdevtools" }
+iced_layershell_macros = { version = "0.15.0", path = "./iced_layershell_macros" }
+iced_sessionlock = { version = "0.15.0", path = "./iced_sessionlock" }
+iced_sessionlock_macros = { version = "0.15.0", path = "./iced_sessionlock_macros" }
+waycrate_xkbkeycode = { version = "0.15.0", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.25.0"
 thiserror = "2.0.12"
