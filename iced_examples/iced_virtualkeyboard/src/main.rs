@@ -13,6 +13,7 @@ use std::ffi::CString;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::time::Instant;
 use xkbcommon::xkb;
 
 use std::sync::LazyLock;
@@ -78,23 +79,26 @@ struct KeyCoords {
     size: Size,
 }
 
-#[derive(Default)]
 struct KeyboardView {
     draw_cache: Cache,
+    time: Instant,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    InputKeyPressed(u32),
+    InputKeyPressed { time_stamp: u32, key: u32 },
 }
 
 impl TryInto<LayershellCustomActionWithId> for Message {
     type Error = Self;
     fn try_into(self) -> Result<LayershellCustomActionWithId, Self::Error> {
-        let Message::InputKeyPressed(key) = self;
+        let Message::InputKeyPressed { time_stamp, key } = self;
         Ok(LayershellCustomActionWithId(
             None,
-            LayershellCustomAction::VirtualKeyboardPressed { time: 100, key },
+            LayershellCustomAction::VirtualKeyboardPressed {
+                time: time_stamp,
+                key,
+            },
         ))
     }
 }
@@ -103,15 +107,14 @@ impl KeyboardView {
     fn new() -> (Self, Command<Message>) {
         (
             Self {
-                ..Default::default()
+                draw_cache: Cache::default(),
+                time: Instant::now(),
             },
             Command::none(),
         )
     }
-    fn update(&mut self, message: Message) -> Command<Message> {
-        match message {
-            Message::InputKeyPressed(_) => Command::done(message),
-        }
+    fn update(&mut self, _message: Message) -> Command<Message> {
+        Command::none()
     }
 
     fn style(&self, theme: &iced::Theme) -> iced::theme::Style {
@@ -330,10 +333,15 @@ impl canvas::Program<Message> for KeyboardView {
                     && click_position.y >= key_position.y
                     && click_position.y <= key_position.y + key_size.height
                 {
+                    let current_time = Instant::now();
+                    let time_stamp = (current_time - self.time).as_millis();
                     // Clear the cache
                     self.draw_cache.clear();
                     if let Some(key_code) = get_key_code(label) {
-                        return Some(canvas::Action::publish(Message::InputKeyPressed(key_code)));
+                        return Some(canvas::Action::publish(Message::InputKeyPressed {
+                            key: key_code,
+                            time_stamp: time_stamp as u32,
+                        }));
                     }
                 }
             }
