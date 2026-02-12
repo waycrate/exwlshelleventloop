@@ -17,8 +17,6 @@ where
     id: window::Id,
     application_scale_factor: f64,
     wayland_scale_factor: f64,
-    /// viewport_logical_size = window_size / application_scale_factor,
-    /// viewport_physical_size = window_size * wayland_scal_factor,
     window_size: Size<u32>,
     viewport: Viewport,
     viewport_version: usize,

@@ -29,7 +29,8 @@ use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
 use layershellev::{
-    LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DisplayWrapper, LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
+    WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -318,16 +319,15 @@ where
         }
     }
 
-    async fn create_compositor(mut self, window: Arc<WindowWrapper>) -> Self {
+    async fn create_compositor(
+        mut self,
+        window: Arc<WindowWrapper>,
+        display: DisplayWrapper,
+    ) -> Self {
         let shell = Shell::new(self.proxy.clone());
-        let mut new_compositor = C::new(
-            self.compositor_settings,
-            window.clone(),
-            window.clone(),
-            shell,
-        )
-        .await
-        .expect("Cannot create compositer");
+        let mut new_compositor = C::new(self.compositor_settings, display, window.clone(), shell)
+            .await
+            .expect("Cannot create compositer");
         for font in self.fonts.clone() {
             new_compositor.load_font(font);
         }
@@ -363,8 +363,11 @@ where
             };
             tracing::debug!("creating compositor");
             let context_state = ContextState::Future(
-                self.create_compositor(Arc::new(layer_shell_window.gen_wrapper()))
-                    .boxed_local(),
+                self.create_compositor(
+                    Arc::new(layer_shell_window.gen_wrapper()),
+                    ev.display_wrapper(),
+                )
+                .boxed_local(),
             );
             return (context_state, Some(layer_shell_event));
         }

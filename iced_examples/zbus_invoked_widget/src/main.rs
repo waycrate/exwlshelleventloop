@@ -31,6 +31,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         ..Default::default()
     })
     .subscription(Counter::subscription)
+    .theme(Counter::theme)
     .run()
 }
 
@@ -98,6 +99,9 @@ impl Counter {
             }),
             iced::window::close_events().map(Message::WindowClosed),
         ])
+    }
+    fn theme(&self, _id: iced::window::Id) -> Option<iced::Theme> {
+        Some(iced::Theme::TokyoNight)
     }
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {

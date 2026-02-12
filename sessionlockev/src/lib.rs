@@ -370,7 +370,33 @@ impl<T> WindowStateUnit<T> {
         .into())
     }
 }
+#[derive(Debug, Clone)]
+pub struct DisplayWrapper {
+    display: WlDisplay,
+}
 
+impl DisplayWrapper {
+    #[inline]
+    pub fn raw_display_handle_rwh_06(
+        &self,
+    ) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into())
+    }
+}
+
+impl rwh_06::HasDisplayHandle for DisplayWrapper {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_display_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+    }
+}
 /// This is the unit, binding to per screen.
 /// Because ext-session-shell is so unique, on surface bind to only one
 /// wl_output, only one buffer, only one output, so it will store
@@ -486,6 +512,7 @@ pub struct WindowState<T> {
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
+    display: Option<WlDisplay>,
     connection: Option<Connection>,
     event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
@@ -612,6 +639,7 @@ impl<T> Default for WindowState<T> {
             units: Vec::new(),
             message: Vec::new(),
 
+            display: None,
             connection: None,
             event_queue: None,
             wl_compositor: None,
@@ -714,6 +742,11 @@ impl<T> WindowState<T> {
     }
 }
 impl<T: 'static> WindowState<T> {
+    pub fn display_wrapper(&self) -> DisplayWrapper {
+        DisplayWrapper {
+            display: self.display.clone().expect("You should it after build"),
+        }
+    }
     pub fn request_next_present(&mut self, id: id::Id) {
         self.get_mut_unit_with_id(id)
             .map(WindowStateUnit::request_next_present);
@@ -1407,6 +1440,7 @@ impl<T: 'static> WindowState<T> {
         } else {
             Connection::connect_to_env()?
         };
+        self.display = Some(connection.display());
         let (globals, _) = registry_queue_init::<BaseState>(&connection)?;
 
         let mut event_queue = connection.new_event_queue::<WindowState<T>>();

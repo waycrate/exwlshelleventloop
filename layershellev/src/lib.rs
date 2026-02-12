@@ -907,6 +907,7 @@ impl<T> WindowState<T> {
     pub fn append_return_data(&mut self, data: ReturnData<T>) {
         self.return_data.push(data);
     }
+
     /// remove a shell, destroy the surface
     fn remove_shell(&mut self, id: id::Id) -> Option<()> {
         let index = self
@@ -935,6 +936,11 @@ impl<T> WindowState<T> {
 pub type WindowStateSimple = WindowState<()>;
 
 impl<T> WindowState<T> {
+    pub fn display_wrapper(&self) -> DisplayWrapper {
+        DisplayWrapper {
+            display: self.display.clone().expect("You should it after build"),
+        }
+    }
     // return the first window
     // I will use it in iced
     pub fn main_window(&self) -> &WindowStateUnit<T> {
@@ -1167,6 +1173,34 @@ impl rwh_06::HasWindowHandle for WindowWrapper {
 }
 
 impl rwh_06::HasDisplayHandle for WindowWrapper {
+    fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
+        let raw = self.raw_display_handle_rwh_06()?;
+
+        // SAFETY: The window handle will never be deallocated while the window is alive,
+        // and the main thread safety requirements are upheld internally by each platform.
+        Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DisplayWrapper {
+    display: WlDisplay,
+}
+
+impl DisplayWrapper {
+    #[inline]
+    pub fn raw_display_handle_rwh_06(
+        &self,
+    ) -> Result<rwh_06::RawDisplayHandle, rwh_06::HandleError> {
+        Ok(rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into())
+    }
+}
+
+impl rwh_06::HasDisplayHandle for DisplayWrapper {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 

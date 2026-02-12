@@ -30,8 +30,8 @@ use iced_core::{
 };
 
 use iced_debug as debug;
-use sessionlockev::RefreshRequest;
 use sessionlockev::id::Id as SessionLockId;
+use sessionlockev::{DisplayWrapper, RefreshRequest};
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 use window_manager::Window;
 
@@ -261,16 +261,15 @@ where
         }
     }
 
-    async fn create_compositor(mut self, window: Arc<WindowWrapper>) -> Self {
+    async fn create_compositor(
+        mut self,
+        window: Arc<WindowWrapper>,
+        display: DisplayWrapper,
+    ) -> Self {
         let shell = Shell::new(self.proxy.clone());
-        let mut new_compositor = C::new(
-            self.compositor_settings,
-            window.clone(),
-            window.clone(),
-            shell,
-        )
-        .await
-        .expect("Cannot create compositer");
+        let mut new_compositor = C::new(self.compositor_settings, display, window.clone(), shell)
+            .await
+            .expect("Cannot create compositer");
         for font in self.fonts.clone() {
             new_compositor.load_font(font);
         }
@@ -305,8 +304,11 @@ where
             };
             tracing::debug!("creating compositor");
             let context_state = ContextState::Future(
-                self.create_compositor(Arc::new(layer_shell_window.gen_wrapper()))
-                    .boxed_local(),
+                self.create_compositor(
+                    Arc::new(layer_shell_window.gen_wrapper()),
+                    ev.display_wrapper(),
+                )
+                .boxed_local(),
             );
             return (context_state, Some(session_lock_event));
         }
