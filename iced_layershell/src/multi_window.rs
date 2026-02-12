@@ -443,6 +443,8 @@ where
                 .copied()
                 .unwrap_or_else(IcedId::unique);
 
+            let is_first = self.window_manager.is_empty();
+
             let window = self.window_manager.insert(
                 iced_id,
                 (width, height),
@@ -454,6 +456,20 @@ where
                     .expect("It should have been created"),
                 self.system_theme,
             );
+
+            iced_debug::theme_changed(|| {
+                if is_first {
+                    theme::Base::palette(window.state.theme())
+                } else {
+                    None
+                }
+            });
+
+            let theme = window.state.theme().mode();
+            if self.system_theme != theme {
+                self.runtime
+                    .broadcast(iced_futures::subscription::Event::SystemThemeChanged(theme));
+            }
 
             self.user_interfaces.build(
                 iced_id,

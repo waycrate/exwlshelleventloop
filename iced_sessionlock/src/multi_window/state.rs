@@ -49,7 +49,7 @@ where
             .map(iced_core::theme::Base::mode)
             .unwrap_or_default();
         let default_theme = <P::Theme as iced_core::theme::Base>::default(system_theme);
-        let style = application.style(&default_theme);
+        let style = application.style(&theme.as_ref().unwrap_or(&default_theme));
 
         let window_size = Size::new(width, height);
         let viewport = viewport(window_size, wayland_scale_factor, application_scale_factor);
