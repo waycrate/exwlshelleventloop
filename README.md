@@ -47,8 +47,3 @@ With this crate, you can use iced to build your kde-shell, notification applicat
 iced binding for sessionlock
 
 Session lock is the wayland protocol for lock. This protocol is supported in river, sway and etc. We use it make a beautiful lock program in [twenty](https://github.com/waycrate/twenty). You can also use it to build your sessionlock. This will become very easy to use our crate with pam crate.
-
-
-## Help Us
-
-in iced 0.13, there will be breaking changes, we need someone who are familiar with iced to help us. And text-input-v3 and input-method also not handled, we also need some help since ime feature will be support in iced 0.13, we think this feature is very important, we need prepare for it.
