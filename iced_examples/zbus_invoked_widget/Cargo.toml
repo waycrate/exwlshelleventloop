@@ -15,5 +15,5 @@ iced.workspace = true
 iced_runtime.workspace = true
 iced_layershell.workspace = true
 
-zbus = "5.13.2"
+zbus = "5.14.0"
 futures = "0.3.31"
