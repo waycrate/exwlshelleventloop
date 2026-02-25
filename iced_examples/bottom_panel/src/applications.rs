@@ -1,35 +1,34 @@
 use std::path::PathBuf;
-use std::str::FromStr;
+use std::sync::LazyLock;
 
-use gio::{AppLaunchContext, DesktopAppInfo};
-
-use crate::Message;
-use gio::prelude::*;
+use crate::{Message, systemd};
+use freedesktop_desktop_entry::{self as fde, IconSource};
 use iced::border::Radius;
-use iced::widget::{button, image, row, svg};
+use iced::widget::{button, image, svg};
 use iced::{Background, Border, Element, Length, Shadow, Vector};
 
+static LOCALE: LazyLock<Vec<String>> = LazyLock::new(fde::get_languages_from_env);
 static DEFAULT_ICON: &[u8] = include_bytes!("../misc/text-plain.svg");
 
 #[derive(Debug, Clone)]
 pub struct App {
-    app_info: DesktopAppInfo,
+    id: String,
+    cmds: Vec<String>,
+    description: String,
     icon: Option<PathBuf>,
 }
 
 impl App {
-    pub fn launch(&self) {
-        self.app_info.launch(&[], AppLaunchContext::NONE).unwrap()
+    pub async fn launch(&self) {
+        if let Err(err) = systemd::launch(&self.id, &self.cmds, &self.description).await {
+            tracing::error!("{err}");
+        };
     }
 
     fn icon(&self) -> Element<'_, Message> {
         match &self.icon {
             Some(path) => {
-                if path
-                    .as_os_str()
-                    .to_str()
-                    .is_some_and(|pathname| pathname.ends_with("png"))
-                {
+                if path.extension().is_some_and(|ext| ext == "png") {
                     image(image::Handle::from_path(path))
                         .width(Length::Fixed(80.))
                         .height(Length::Fixed(80.))
@@ -49,7 +48,7 @@ impl App {
     }
 
     pub fn view(&self, index: usize, _selected: bool) -> Element<'_, Message> {
-        button(row![self.icon(),].spacing(10))
+        button(self.icon())
             .on_press(Message::Launch(index))
             .width(Length::Fill)
             .height(Length::Fill)
@@ -81,9 +80,21 @@ impl App {
 
 static ICONS_SIZE: &[&str] = &["256x256", "256x256"];
 
-static THEMES_LIST: &[&str] = &["yaru"];
+static THEMES_LIST: &[&str] = &["yaru", "breeze", "Adwaita"];
 
 fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
+    let top_icon_path = xdg::BaseDirectories::with_prefix("icons");
+
+    // NOTE: shit application icon place
+    if let Some(iconpath) = top_icon_path.find_data_file(format!("{iconname}.svg")) {
+        return Some(iconpath);
+    }
+
+    // NOTE: shit application icon place
+    if let Some(iconpath) = top_icon_path.find_data_file(format!("{iconname}.png")) {
+        return Some(iconpath);
+    }
+
     let scalable_icon_path = xdg::BaseDirectories::with_prefix("icons/hicolor/scalable/apps");
     if let Some(iconpath) = scalable_icon_path.find_data_file(format!("{iconname}.svg")) {
         return Some(iconpath);
@@ -114,28 +125,36 @@ fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
     None
 }
 
-fn get_icon_path(iconname: &str) -> Option<PathBuf> {
-    if iconname.contains('/') {
-        PathBuf::from_str(iconname).ok()
-    } else {
-        get_icon_path_from_xdgicon(iconname)
+fn get_icon_path(iconname: fde::IconSource) -> Option<PathBuf> {
+    match iconname {
+        IconSource::Name(name) => get_icon_path_from_xdgicon(name.as_str()),
+        IconSource::Path(path) => Some(path),
     }
 }
+
 pub fn all_apps() -> Vec<App> {
-    gio::AppInfo::all()
+    let desktop_entries = fde::desktop_entries(&LOCALE);
+    desktop_entries
         .iter()
-        .filter(|app| app.should_show() && app.downcast_ref::<DesktopAppInfo>().is_some())
-        .map(|app| app.clone().downcast::<DesktopAppInfo>().unwrap())
+        .filter(|entry| !entry.no_display() && !entry.hidden())
         .take(10)
-        .map(|app| App {
-            app_info: app.clone(),
-            icon: match &app.icon() {
-                None => None,
-                Some(icon) => {
-                    let iconname = gio::prelude::IconExt::to_string(icon).unwrap();
-                    get_icon_path(iconname.as_str())
-                }
-            },
+        .flat_map(|entry| {
+            let cmds = entry.parse_exec().ok()?;
+            let id = entry.id().to_string();
+            let name = entry.name(&LOCALE).map(|n| n.to_string())?;
+            let description = entry
+                .comment(&LOCALE)
+                .map(|c| c.to_string())
+                .unwrap_or(format!("Run {name}"));
+            let icon = get_icon_path(fde::IconSource::from_unknown(
+                entry.icon().unwrap_or_default(),
+            ));
+            Some(App {
+                id,
+                description,
+                cmds,
+                icon,
+            })
         })
         .collect()
 }

@@ -433,13 +433,16 @@ dependencies = [
 name = "bottom_panel"
 version = "0.15.0"
 dependencies = [
- "gio",
+ "anyhow",
+ "freedesktop-desktop-entry",
  "iced",
  "iced_layershell",
  "iced_runtime",
  "regex",
+ "serde",
  "tracing",
  "xdg",
+ "zbus",
 ]
 
 [[package]]

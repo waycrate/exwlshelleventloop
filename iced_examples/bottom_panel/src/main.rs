@@ -1,4 +1,5 @@
 mod applications;
+mod systemd;
 use applications::{App, all_apps};
 use iced::widget::{container, row};
 use iced::{Color, Element, Task};
@@ -28,6 +29,7 @@ struct Panel {
 #[derive(Debug, Clone)]
 enum Message {
     Launch(usize),
+    LaunchFinished,
 }
 
 impl Panel {
@@ -41,9 +43,13 @@ impl Panel {
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Launch(index) => {
-                self.apps[index].launch();
-                Task::none()
+                let app = self.apps[index].clone();
+                Task::future(async move {
+                    app.launch().await;
+                    Message::LaunchFinished
+                })
             }
+            Message::LaunchFinished => Task::none(),
             _ => unreachable!(),
         }
     }

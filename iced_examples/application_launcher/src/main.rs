@@ -33,7 +33,6 @@ fn main() -> Result<(), iced_layershell::Error> {
     })
     .subscription(Launcher::subscription)
     .run()?;
-    std::thread::sleep(std::time::Duration::from_millis(1));
     Ok(())
 }
 
