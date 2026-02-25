@@ -1,8 +1,9 @@
+mod applications;
+mod systemd;
 use applications::{App, all_apps};
 use iced::widget::operation::focus;
 use iced::widget::{column, scrollable, text_input};
 use iced::{Element, Event, Length, Task as Command, event};
-mod applications;
 use iced_layershell::actions::LayershellCustomActionWithId;
 use iced_layershell::application;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
@@ -55,6 +56,7 @@ enum Message {
     SearchSubmit,
     Launch(usize),
     IcedEvent(Event),
+    LaunchDone,
 }
 
 impl Launcher {
@@ -81,6 +83,7 @@ impl Launcher {
         use iced_runtime::keyboard;
         use keyboard::key::Named;
         match message {
+            Message::LaunchDone => Command::none(),
             Message::SearchSubmit => {
                 let re = regex::Regex::new(&self.text).ok();
                 let index = self
@@ -99,8 +102,14 @@ impl Launcher {
                     .enumerate()
                     .find(|(index, _)| *index == self.scrollpos);
                 if let Some((_, (_, app))) = index {
-                    app.launch();
-                    iced_runtime::task::effect(Action::Exit)
+                    let app = app.clone();
+                    Command::batch(vec![
+                        Command::future(async move {
+                            app.launch().await;
+                            Message::LaunchDone
+                        }),
+                        iced_runtime::task::effect(Action::Exit),
+                    ])
                 } else {
                     Command::none()
                 }
@@ -111,8 +120,14 @@ impl Launcher {
                 Command::none()
             }
             Message::Launch(index) => {
-                self.apps[index].launch();
-                iced_runtime::task::effect(Action::Exit)
+                let app = self.apps[index].clone();
+                Command::batch(vec![
+                    Command::future(async move {
+                        app.launch().await;
+                        Message::LaunchDone
+                    }),
+                    iced_runtime::task::effect(Action::Exit),
+                ])
             }
             Message::IcedEvent(event) => {
                 let mut len = self.apps.len();

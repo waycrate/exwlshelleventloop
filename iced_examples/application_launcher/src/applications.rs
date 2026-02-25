@@ -1,32 +1,33 @@
 use std::path::PathBuf;
-use std::str::FromStr;
+use std::sync::LazyLock;
 
-use gio::{AppLaunchContext, DesktopAppInfo};
+use crate::systemd;
 
-use gio::prelude::*;
+use super::Message;
+use freedesktop_desktop_entry::{self as fde, IconSource};
 use iced::Pixels;
 use iced::widget::{button, column, image, row, svg, text};
 use iced::{Element, Length};
 
-use crate::Message;
+static LOCALE: LazyLock<Vec<String>> = LazyLock::new(fde::get_languages_from_env);
 
 static DEFAULT_ICON: &[u8] = include_bytes!("../misc/text-plain.svg");
-
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct App {
-    appinfo: DesktopAppInfo,
+    id: String,
     name: String,
-    descriptions: Option<gio::glib::GString>,
+    cmds: Vec<String>,
+    description: String,
     pub categrades: Option<Vec<String>>,
-    pub actions: Option<Vec<gio::glib::GString>>,
+    pub actions: Option<Vec<String>>,
     icon: Option<PathBuf>,
 }
 
 impl App {
-    pub fn launch(&self) {
-        if let Err(err) = self.appinfo.launch(&[], AppLaunchContext::NONE) {
-            println!("{err}");
+    pub async fn launch(&self) {
+        if let Err(err) = systemd::launch(&self.id, &self.cmds, &self.description).await {
+            tracing::error!("{err}");
         };
     }
 
@@ -37,11 +38,7 @@ impl App {
     fn icon(&self) -> Element<'_, Message> {
         match &self.icon {
             Some(path) => {
-                if path
-                    .as_os_str()
-                    .to_str()
-                    .is_some_and(|pathname| pathname.ends_with("png"))
-                {
+                if path.extension().is_some_and(|extension| extension == "png") {
                     image(image::Handle::from_path(path))
                         .width(Length::Fixed(80.))
                         .height(Length::Fixed(80.))
@@ -61,13 +58,10 @@ impl App {
     }
 
     pub fn description(&self) -> &str {
-        match &self.descriptions {
-            None => "",
-            Some(description) => description,
-        }
+        &self.description
     }
 
-    pub fn view(&self, index: usize, selected: bool) -> Element<'_, Message> {
+    pub fn view(&'_ self, index: usize, selected: bool) -> Element<'_, Message> {
         button(
             row![
                 self.icon(),
@@ -82,22 +76,32 @@ impl App {
         .on_press(Message::Launch(index))
         .width(Length::Fill)
         .height(Length::Fixed(85.))
-        .style(move |theme, status| {
-            if selected {
-                button::primary(theme, status)
-            } else {
-                button::secondary(theme, status)
-            }
+        .style(if selected {
+            button::primary
+        } else {
+            button::secondary
         })
         .into()
     }
 }
 
-static ICONS_SIZE: &[&str] = &["256x256", "128x128"];
+static ICONS_SIZE: &[&str] = &["256x256", "128x128", "64x64", "48x48", "32x32", "16x16"];
 
 static THEMES_LIST: &[&str] = &["breeze", "Adwaita"];
 
 fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
+    let top_icon_path = xdg::BaseDirectories::with_prefix("icons");
+
+    // NOTE: shit application icon place
+    if let Some(iconpath) = top_icon_path.find_data_file(format!("{iconname}.svg")) {
+        return Some(iconpath);
+    }
+
+    // NOTE: shit application icon place
+    if let Some(iconpath) = top_icon_path.find_data_file(format!("{iconname}.png")) {
+        return Some(iconpath);
+    }
+
     let scalable_icon_path = xdg::BaseDirectories::with_prefix("icons/hicolor/scalable/apps");
     if let Some(iconpath) = scalable_icon_path.find_data_file(format!("{iconname}.svg")) {
         return Some(iconpath);
@@ -128,50 +132,44 @@ fn get_icon_path_from_xdgicon(iconname: &str) -> Option<PathBuf> {
     None
 }
 
-fn get_icon_path(iconname: &str) -> Option<PathBuf> {
-    if iconname.contains('/') {
-        PathBuf::from_str(iconname).ok()
-    } else {
-        get_icon_path_from_xdgicon(iconname)
+fn get_icon_path(iconname: fde::IconSource) -> Option<PathBuf> {
+    match iconname {
+        IconSource::Name(name) => get_icon_path_from_xdgicon(name.as_str()),
+        IconSource::Path(path) => Some(path),
     }
 }
 
 pub fn all_apps() -> Vec<App> {
-    let re = regex::Regex::new(r"([a-zA-Z]+);").unwrap();
-    gio::AppInfo::all()
+    let desktop_entries = fde::desktop_entries(&LOCALE);
+    desktop_entries
         .iter()
-        .filter(|app| app.should_show() && app.downcast_ref::<gio::DesktopAppInfo>().is_some())
-        .map(|app| app.clone().downcast::<gio::DesktopAppInfo>().unwrap())
-        .map(|app| App {
-            appinfo: app.clone(),
-            name: app.name().to_string(),
-            descriptions: app.description(),
-            categrades: match app.categories() {
-                None => None,
-                Some(categrades) => {
-                    let tomatch = categrades.to_string();
-                    let tips = re
-                        .captures_iter(&tomatch)
-                        .map(|unit| unit.get(1).unwrap().as_str().to_string())
-                        .collect();
-                    Some(tips)
-                }
-            },
-            actions: {
-                let actions = app.list_actions();
-                if actions.is_empty() {
-                    None
-                } else {
-                    Some(actions)
-                }
-            },
-            icon: match &app.icon() {
-                None => None,
-                Some(icon) => {
-                    let iconname = gio::prelude::IconExt::to_string(icon).unwrap();
-                    get_icon_path(iconname.as_str())
-                }
-            },
+        .filter(|entry| !entry.no_display() && !entry.hidden())
+        .flat_map(|entry| {
+            let cmds = entry.parse_exec().ok()?;
+            let id = entry.id().to_string();
+            let name = entry.name(&LOCALE).map(|n| n.to_string())?;
+            let description = entry
+                .comment(&LOCALE)
+                .map(|c| c.to_string())
+                .unwrap_or(format!("Run {name}"));
+            let categrades: Option<Vec<String>> = entry
+                .categories()
+                .map(|c| c.iter().map(|i| i.to_string()).collect::<Vec<String>>());
+            let actions: Option<Vec<String>> = entry
+                .actions()
+                .map(|c| c.iter().map(|i| i.to_string()).collect());
+            let icon = get_icon_path(fde::IconSource::from_unknown(
+                entry.icon().unwrap_or_default(),
+            ));
+            Some(App {
+                id,
+                name,
+                description,
+                cmds,
+                categrades,
+                actions,
+                icon,
+            })
         })
         .collect()
 }

@@ -102,21 +102,24 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.100"
+version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
+checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "application-launcher"
 version = "0.15.0"
 dependencies = [
- "gio",
+ "anyhow",
+ "freedesktop-desktop-entry",
  "iced",
  "iced_layershell",
  "iced_runtime",
  "regex",
+ "serde",
  "tracing",
  "xdg",
+ "zbus",
 ]
 
 [[package]]
@@ -437,6 +440,17 @@ dependencies = [
  "regex",
  "tracing",
  "xdg",
+]
+
+[[package]]
+name = "bstr"
+version = "1.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63044e1ae8e69f3b5a92c736ca6269b8d12fa7efe39bf34ddb06d102cf0e2cab"
+dependencies = [
+ "memchr",
+ "regex-automata",
+ "serde",
 ]
 
 [[package]]
@@ -1253,6 +1267,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
+name = "freedesktop-desktop-entry"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28273c5c6b97a5f07724f6652f064c0c7f637f9aa5e7c09c83bc3bc4ad4ea245"
+dependencies = [
+ "bstr",
+ "gettext-rs",
+ "log",
+ "memchr",
+ "thiserror 2.0.17",
+ "unicase",
+ "xdg",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1386,6 +1415,26 @@ dependencies = [
  "libc",
  "r-efi",
  "wasip2",
+]
+
+[[package]]
+name = "gettext-rs"
+version = "0.7.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d5857dc1b7f0fee86961de833f434e29494d72af102ce5355738c0664222bdf"
+dependencies = [
+ "gettext-sys",
+ "locale_config",
+]
+
+[[package]]
+name = "gettext-sys"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ea859ab0dd7e70ff823032b3e077d03d39c965d68c6c10775add60e999d8ee9"
+dependencies = [
+ "cc",
+ "temp-dir",
 ]
 
 [[package]]
@@ -2282,6 +2331,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
+name = "locale_config"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d2c35b16f4483f6c26f0e4e9550717a2f6575bcd6f12a53ff0c490a94a6934"
+dependencies = [
+ "lazy_static",
+ "objc",
+ "objc-foundation",
+ "regex",
+ "winapi",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2707,6 +2769,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc-foundation"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1add1b659e36c9607c7aab864a76c7a4c2760cd0cd2e120f3fb8b952c7e22bf9"
+dependencies = [
+ "block",
+ "objc",
+ "objc_id",
+]
+
+[[package]]
 name = "objc-sys"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3053,6 +3126,15 @@ dependencies = [
  "objc2 0.5.2",
  "objc2-core-location",
  "objc2-foundation 0.2.2",
+]
+
+[[package]]
+name = "objc_id"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c92d4ddb4bd7b50d730c215ff871754d0da6b2178849f8a2a2ab69712d0c073b"
+dependencies = [
+ "objc",
 ]
 
 [[package]]
@@ -4137,6 +4219,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df7f62577c25e07834649fc3b39fafdc597c0a3527dc1c60129201ccfcbaa50c"
 
 [[package]]
+name = "temp-dir"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83176759e9416cf81ee66cb6508dbfe9c96f20b8b56265a39917551c23c70964"
+
+[[package]]
 name = "tempfile"
 version = "3.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4467,6 +4555,12 @@ dependencies = [
  "tempfile",
  "winapi",
 ]
+
+[[package]]
+name = "unicase"
+version = "2.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbc4bc3a9f746d862c45cb89d705aa10f187bb96c76001afab07a0d35ce60142"
 
 [[package]]
 name = "unicode-bidi"
