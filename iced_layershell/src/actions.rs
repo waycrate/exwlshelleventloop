@@ -67,6 +67,7 @@ pub enum LayershellCustomAction {
     MarginChange((i32, i32, i32, i32)),
     SizeChange((u32, u32)),
     ExclusiveZoneChange(i32),
+    KeyboardInteractivityChange(layershellev::reexport::KeyboardInteractivity),
     VirtualKeyboardPressed {
         time: u32,
         key: u32,

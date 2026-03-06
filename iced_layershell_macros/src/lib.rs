@@ -45,6 +45,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 MarginChange{id: iced_layershell::reexport::IcedId, margin: (i32, i32, i32, i32)},
                 SizeChange{id: iced_layershell::reexport::IcedId, size: (u32, u32)},
                 ExclusiveZoneChange{id: iced_layershell::reexport::IcedId, zone_size: i32},
+                KeyboardInteractivityChange{id: iced_layershell::reexport::IcedId, keyboard_interactivity: iced_layershell::reexport::KeyboardInteractivity},
                 VirtualKeyboardPressed {
                     time: u32,
                     key: u32,
@@ -108,6 +109,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::MarginChange { id, margin } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::MarginChange(margin))),
                             Self::SizeChange { id, size } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::SizeChange(size))),
                             Self::ExclusiveZoneChange { id, zone_size } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
                             Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActionWithId::new(
                                 None,
                                 LayershellCustomAction::VirtualKeyboardPressed { time, key })
@@ -137,6 +139,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 MarginChange((i32, i32, i32, i32)),
                 SizeChange((u32, u32)),
                 ExclusiveZoneChange(i32),
+                KeyboardInteractivityChange(iced_layershell::reexport::KeyboardInteractivity),
                 VirtualKeyboardPressed {
                     time: u32,
                     key: u32,

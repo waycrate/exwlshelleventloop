@@ -155,6 +155,7 @@ use wayland_client::{
 };
 
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
+use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity;
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
@@ -696,6 +697,14 @@ impl<T> WindowStateUnit<T> {
     pub fn set_exclusive_zone(&self, zone: i32) {
         if let Shell::LayerShell(layer_shell) = &self.shell {
             layer_shell.set_exclusive_zone(zone);
+            self.wl_surface.commit();
+        }
+    }
+
+    /// set keyboard interactivity
+    pub fn set_keyboard_interactivity(&self, keyboard_interactivity: KeyboardInteractivity) {
+        if let Shell::LayerShell(layer_shell) = &self.shell {
+            layer_shell.set_keyboard_interactivity(keyboard_interactivity);
             self.wl_surface.commit();
         }
     }
