@@ -234,7 +234,7 @@ pub enum LayerEventError {
     #[error("create file failed")]
     TempFileCreateFailed(#[from] std::io::Error),
     #[error("Event Loop Error")]
-    EventLoopInitError(#[from] CallLoopError),
+    EventLoopError(#[from] CallLoopError),
 }
 
 pub mod reexport {

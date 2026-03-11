@@ -188,7 +188,7 @@ pub enum SessionLockEventError {
     #[error("create file failed")]
     TempFileCreateFailed(#[from] std::io::Error),
     #[error("Event Loop Error")]
-    EventLoopInitError(#[from] CallLoopError),
+    EventLoopError(#[from] CallLoopError),
     #[error("roundtrip Error")]
     RoundTripError(#[from] WaylandError),
 }
