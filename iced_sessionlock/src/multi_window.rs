@@ -141,7 +141,7 @@ where
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
     let mut waiting_session_lock_events = VecDeque::new();
-    let _ = ev.running_with_proxy(message_receiver, move |event, ev, id| {
+    ev.running_with_proxy(message_receiver, move |event, ev, id| {
         match event {
             SessionLockEvent::InitRequest => {}
             // TODO: maybe use it later
@@ -197,7 +197,7 @@ where
             }
         }
         ReturnData::None
-    });
+    })?;
     Ok(())
 }
 

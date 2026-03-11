@@ -1,4 +1,5 @@
 use iced_futures::futures;
+use layershellev::LayerEventError;
 
 /// An error that occurred while running an application.
 #[derive(Debug, thiserror::Error)]
@@ -14,6 +15,9 @@ pub enum Error {
     /// The application graphics context could not be created.
     #[error("the application graphics context could not be created")]
     GraphicsCreationFailed(iced_graphics::Error),
+
+    #[error("Error during dispatch")]
+    WaylandDispatchFailed(#[from] LayerEventError),
 }
 
 impl From<iced_graphics::Error> for Error {
