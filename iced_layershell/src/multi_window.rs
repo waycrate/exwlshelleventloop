@@ -109,8 +109,7 @@ where
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
         .with_connection(settings.with_connection)
-        .build()
-        .expect("Cannot create layershell");
+        .build()?;
 
     #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
     let system_theme = {
@@ -162,7 +161,8 @@ where
     let mut waiting_layer_shell_events = VecDeque::new();
     let mut task_context = task::Context::from_waker(task::noop_waker_ref());
 
-    ev.running_with_proxy(message_receiver, move |event, ev, layer_shell_id| {
+    println!("enter loop?");
+    let stop = ev.running_with_proxy(message_receiver, move |event, ev, layer_shell_id| {
         let mut def_returndata = ReturnData::None;
         match event {
             LayerShellEvent::InitRequest => {
@@ -251,7 +251,9 @@ where
             }
         }
         def_returndata
-    })?;
+    });
+    println!("it should have finished");
+    println!("Why it cannot return?: finished?, {stop:?}");
     Ok(())
 }
 
