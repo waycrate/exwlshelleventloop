@@ -218,6 +218,7 @@ use calloop_wayland_source::WaylandSource;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -840,6 +841,42 @@ pub struct VirtualKeyRelease {
     pub key: u32,
 }
 
+/// a wrapper for implement Debug, so we don't need to implement Debug for WindowState
+pub enum WithConnection {
+    Fun(Box<dyn FnOnce() -> Result<Connection, ConnectError>>),
+    Value(Connection),
+}
+
+impl WithConnection {
+    fn get_connection(self) -> Result<Connection, ConnectError> {
+        match self {
+            Self::Fun(f) => f(),
+            Self::Value(value) => Ok(value),
+        }
+    }
+}
+
+impl Debug for WithConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("WithConnection Callback")
+    }
+}
+
+impl<F> From<F> for WithConnection
+where
+    F: 'static + FnOnce() -> Result<Connection, ConnectError>,
+{
+    fn from(value: F) -> Self {
+        Self::Fun(Box::new(value))
+    }
+}
+
+impl From<Connection> for WithConnection {
+    fn from(value: Connection) -> Self {
+        Self::Value(value)
+    }
+}
+
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
@@ -849,6 +886,7 @@ pub struct WindowState<T> {
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
 
+    with_connection: Option<WithConnection>,
     connection: Option<Connection>,
     event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
@@ -1355,8 +1393,8 @@ impl<T> WindowState<T> {
     }
 
     /// set a callback to create a wayland connection
-    pub fn with_connection(mut self, connection_or: Option<Connection>) -> Self {
-        self.connection = connection_or;
+    pub fn with_connection(mut self, connection_or: Option<WithConnection>) -> Self {
+        self.with_connection = connection_or;
         self
     }
 }
@@ -1373,6 +1411,7 @@ impl<T> Default for WindowState<T> {
             background_surface: None,
             display: None,
 
+            with_connection: None,
             connection: None,
             event_queue: None,
             wl_compositor: None,
@@ -2515,8 +2554,8 @@ delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
     pub fn build(mut self) -> Result<Self, LayerEventError> {
-        let connection = if let Some(connection) = self.connection.take() {
-            connection
+        let connection = if let Some(with_connection) = self.with_connection.take() {
+            with_connection.get_connection()?
         } else {
             Connection::connect_to_env()?
         };

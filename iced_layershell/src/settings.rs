@@ -2,11 +2,11 @@ use std::{borrow::Cow, fs::File};
 
 use iced_core::{Font, Pixels};
 
-use crate::reexport::{Anchor, KeyboardInteractivity, Layer};
+use crate::reexport::{Anchor, KeyboardInteractivity, Layer, WithConnection};
 
 pub use layershellev::StartMode;
 
-use layershellev::reexport::wayland_client::{Connection, wl_keyboard::KeymapFormat};
+use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
 
 #[derive(Debug)]
 pub struct VirtualKeyboardSettings {
@@ -55,7 +55,7 @@ pub struct Settings {
 
     /// set the used wayland connection, all wayland object will share it, and they can be used by
     /// each other.
-    pub with_connection: Option<Connection>,
+    pub with_connection: Option<WithConnection>,
 }
 impl Default for Settings {
     fn default() -> Self {

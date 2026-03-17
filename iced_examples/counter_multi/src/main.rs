@@ -36,7 +36,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
             start_mode: StartMode::AllScreens,
             ..Default::default()
         },
-        with_connection: Some(connection2),
+        with_connection: Some(connection2.into()),
         ..Default::default()
     })
     .run()
