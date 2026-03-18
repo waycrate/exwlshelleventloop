@@ -3209,31 +3209,45 @@ impl<T: 'static> WindowState<T> {
                             NewInputPanelSettings {
                                 size: (width, height),
                                 keyboard,
-                                use_last_output,
+                                output_option: output_type,
                             },
                             id,
                             info,
                         )) => {
-                            let pos = window_state.surface_pos();
+                            let output = match output_type {
+                                OutputOption::Output(output) => Some(output),
+                                OutputOption::OutputName(name) => window_state
+                                    .xdg_info_cache
+                                    .iter()
+                                    .find(|(_, info)| info.name == *name)
+                                    .map(|(output, _)| output.clone()),
+                                _ => {
+                                    let pos = window_state.surface_pos();
 
-                            let mut output =
-                                pos.and_then(|p| window_state.units[p].wl_output.as_ref());
+                                    let mut output =
+                                        pos.and_then(|p| window_state.units[p].wl_output.as_ref());
 
-                            if window_state.last_wloutput.is_none()
-                                && window_state.outputs.len() > window_state.last_unit_index
-                            {
-                                window_state.last_wloutput = Some(
-                                    window_state.outputs[window_state.last_unit_index].1.clone(),
-                                );
-                            }
+                                    if window_state.last_wloutput.is_none()
+                                        && window_state.outputs.len() > window_state.last_unit_index
+                                    {
+                                        window_state.last_wloutput = Some(
+                                            window_state.outputs[window_state.last_unit_index]
+                                                .1
+                                                .clone(),
+                                        );
+                                    }
 
-                            if use_last_output {
-                                output = window_state.last_wloutput.as_ref();
-                            }
+                                    if matches!(output_type, events::OutputOption::LastOutput) {
+                                        output = window_state.last_wloutput.as_ref();
+                                    }
 
-                            if output.is_none() {
-                                output = window_state.outputs.first().map(|(_, o)| o);
-                            }
+                                    if output.is_none() {
+                                        output = window_state.outputs.first().map(|(_, o)| o);
+                                    }
+
+                                    output.cloned()
+                                }
+                            };
 
                             let Some(output) = output else {
                                 log::warn!("no WlOutput, skip creating input panel");
@@ -3248,7 +3262,7 @@ impl<T: 'static> WindowState<T> {
                                 input_panel.get_input_panel_surface(&wl_surface, &qh, ());
                             if keyboard {
                                 input_panel_surface.set_toplevel(
-                                    output,
+                                    &output,
                                     ZwpInputPanelPosition::CenterBottom as u32,
                                 );
                             } else {
