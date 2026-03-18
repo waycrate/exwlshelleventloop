@@ -120,7 +120,7 @@ pub struct NewXdgWindowSettings {
 }
 
 /// input panel settings to create a new input panel surface
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewInputPanelSettings {
     pub size: (u32, u32),
     /// set the surface type as a keyboard
@@ -128,7 +128,7 @@ pub struct NewInputPanelSettings {
     /// follow the last output of the activated surface, used to create some thing like mako, who
     /// will show on the same window, only when the notifications is cleared, it will change the
     /// wl_output.
-    pub use_last_output: bool,
+    pub output_option: OutputOption,
 }
 
 impl Default for NewLayerShellSettings {
