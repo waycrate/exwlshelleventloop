@@ -31,7 +31,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
 
                 ..Default::default()
             },
-            with_connection: Some(connection),
+            with_connection: Some(connection.into()),
             ..Default::default()
         })
         .run()
