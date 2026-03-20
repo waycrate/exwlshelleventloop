@@ -9,7 +9,14 @@ pub fn key(key: sessionlockev::keyboard::Key) -> iced_core::keyboard::Key {
     use sessionlockev::keyboard::NamedKey;
 
     match key {
-        sessionlockev::keyboard::Key::Character(c) => keyboard::Key::Character(c),
+        sessionlockev::keyboard::Key::Character(c) if c == " " => {
+            keyboard::Key::Named(Named::Space)
+        }
+        sessionlockev::keyboard::Key::Character(c) => {
+            keyboard::Key::Character(smol_str::SmolStr::from(c.to_string()))
+        }
+        // Hyper and Super are deprecated
+        #[allow(deprecated)]
         sessionlockev::keyboard::Key::Named(named_key) => keyboard::Key::Named(match named_key {
             NamedKey::Alt => Named::Alt,
             NamedKey::AltGraph => Named::AltGraph,
@@ -27,7 +34,6 @@ pub fn key(key: sessionlockev::keyboard::Key) -> iced_core::keyboard::Key {
             NamedKey::Super => Named::Super,
             NamedKey::Enter => Named::Enter,
             NamedKey::Tab => Named::Tab,
-            NamedKey::Space => Named::Space,
             NamedKey::ArrowDown => Named::ArrowDown,
             NamedKey::ArrowLeft => Named::ArrowLeft,
             NamedKey::ArrowRight => Named::ArrowRight,
@@ -330,7 +336,7 @@ pub fn modifiers(modifiers: ModifiersState) -> iced_core::keyboard::Modifiers {
     result.set(keyboard::Modifiers::SHIFT, modifiers.shift_key());
     result.set(keyboard::Modifiers::CTRL, modifiers.control_key());
     result.set(keyboard::Modifiers::ALT, modifiers.alt_key());
-    result.set(keyboard::Modifiers::LOGO, modifiers.super_key());
+    result.set(keyboard::Modifiers::LOGO, modifiers.meta_key());
 
     result
 }
@@ -359,6 +365,8 @@ use iced_core::keyboard;
 pub fn key_code(key_code: sessionlockev::keyboard::KeyCode) -> Option<keyboard::key::Code> {
     use sessionlockev::keyboard::KeyCode;
 
+    // Hyper and Turbo are deprecated
+    #[allow(deprecated)]
     Some(match key_code {
         KeyCode::Backquote => keyboard::key::Code::Backquote,
         KeyCode::Backslash => keyboard::key::Code::Backslash,
@@ -418,8 +426,8 @@ pub fn key_code(key_code: sessionlockev::keyboard::KeyCode) -> Option<keyboard::
         KeyCode::ControlLeft => keyboard::key::Code::ControlLeft,
         KeyCode::ControlRight => keyboard::key::Code::ControlRight,
         KeyCode::Enter => keyboard::key::Code::Enter,
-        KeyCode::SuperLeft => keyboard::key::Code::SuperLeft,
-        KeyCode::SuperRight => keyboard::key::Code::SuperRight,
+        KeyCode::MetaLeft => keyboard::key::Code::SuperLeft,
+        KeyCode::MetaRight => keyboard::key::Code::SuperRight,
         KeyCode::ShiftLeft => keyboard::key::Code::ShiftLeft,
         KeyCode::ShiftRight => keyboard::key::Code::ShiftRight,
         KeyCode::Space => keyboard::key::Code::Space,
@@ -502,7 +510,6 @@ pub fn key_code(key_code: sessionlockev::keyboard::KeyCode) -> Option<keyboard::
         KeyCode::AudioVolumeMute => keyboard::key::Code::AudioVolumeMute,
         KeyCode::AudioVolumeUp => keyboard::key::Code::AudioVolumeUp,
         KeyCode::WakeUp => keyboard::key::Code::WakeUp,
-        KeyCode::Meta => keyboard::key::Code::Meta,
         KeyCode::Hyper => keyboard::key::Code::Hyper,
         KeyCode::Turbo => keyboard::key::Code::Turbo,
         KeyCode::Abort => keyboard::key::Code::Abort,
