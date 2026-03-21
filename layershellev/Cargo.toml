@@ -28,8 +28,6 @@ wayland-backend.workspace = true
 
 rwh_06.workspace = true
 
-bitflags.workspace = true
-
 calloop.workspace = true
 calloop-wayland-source.workspace = true
 

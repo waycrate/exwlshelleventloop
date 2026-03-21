@@ -56,9 +56,10 @@ pub fn window_event(
             }))
         }
         LayerShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
-            let key = event.key_without_modifiers();
+            let key = event.key_without_modifiers.clone();
             let text = event
-                .text_with_all_modifiers()
+                .text_with_all_modifiers
+                .clone()
                 .map(SmolStr::new)
                 .filter(|text| !text.as_str().chars().any(is_private_use));
             let LayerShellKeyEvent {
