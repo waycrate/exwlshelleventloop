@@ -851,6 +851,7 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                     if pointer.version() >= 3 {
                         pointer.release();
                     }
+                    state.pointer = Some(seat.get_pointer(qh, ()));
                 }
             }
             if capabilities.contains(wl_seat::Capability::Touch) {
@@ -861,6 +862,7 @@ impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
                     if touch.version() >= 3 {
                         touch.release();
                     }
+                    state.touch = Some(seat.get_touch(qh, ()));
                 }
             }
         }
