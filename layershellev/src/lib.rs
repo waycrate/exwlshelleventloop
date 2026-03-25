@@ -3413,7 +3413,10 @@ impl<T: 'static> WindowState<T> {
                 );
             }
             window_state.closed_ids.clear();
-            if window_state.units.is_empty() && !window_state.is_allscreens() {
+            if window_state.units.is_empty()
+                && !window_state.is_allscreens()
+                && !window_state.is_background()
+            {
                 signal.stop();
                 return true;
             }
