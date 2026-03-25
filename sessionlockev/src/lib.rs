@@ -309,6 +309,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
 pub struct WindowStateUnit<T> {
     id: id::Id,
     display: WlDisplay,
+    wl_output: wl_output::WlOutput,
     wl_surface: WlSurface,
     size: (u32, u32),
     buffer: Option<WlBuffer>,
@@ -793,9 +794,14 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
             }
             wl_registry::Event::GlobalRemove { name } => {
                 state.outputs.retain(|x| x.0 != name);
-                let removed_states = state
-                    .units
-                    .extract_if(.., |unit| !unit.wl_surface.is_alive());
+
+                let removed_states = state.units.extract_if(.., |unit| {
+                    !unit.wl_surface.is_alive()
+                        && !state
+                            .outputs
+                            .iter()
+                            .any(|(_, storage)| storage == &unit.wl_output)
+                });
                 for deleled in removed_states.into_iter() {
                     state.closed_ids.push(deleled.id);
                 }
@@ -1465,11 +1471,11 @@ impl<T: 'static> WindowState<T> {
         let lock_manager = globals.bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())?;
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
         let lock = lock_manager.lock(&qh, ());
-        let displays = self.outputs.clone();
-        for (_, display) in displays.iter() {
+        let wl_outputs = self.outputs.clone();
+        for (_, wl_output) in wl_outputs.iter() {
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
             wl_surface.commit();
-            let session_lock_surface = lock.get_lock_surface(&wl_surface, display, &qh, ());
+            let session_lock_surface = lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
 
             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
             // and if you need to reconfigure it, you need to commit the wl_surface again
@@ -1488,6 +1494,7 @@ impl<T: 'static> WindowState<T> {
                 id: id::Id::unique(),
                 display: connection.display(),
                 wl_surface,
+                wl_output: wl_output.clone(),
                 size: (0, 0),
                 buffer: None,
                 session_shell: session_lock_surface,
@@ -1637,11 +1644,11 @@ impl<T: 'static> WindowState<T> {
             std::mem::swap(&mut messages, &mut window_state.message);
             for msg in messages.iter() {
                 match msg {
-                    (_, DispatchMessageInner::NewDisplay(display)) => {
+                    (_, DispatchMessageInner::NewDisplay(wl_output)) => {
                         let wl_surface = wmcompositer.create_surface(&qh, ());
                         wl_surface.commit();
                         let session_lock_surface =
-                            lock.get_lock_surface(&wl_surface, display, &qh, ());
+                            lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
 
                         let mut fractional_scale = None;
                         if let Some(ref fractional_scale_manager) = fractional_scale_manager {
@@ -1657,6 +1664,7 @@ impl<T: 'static> WindowState<T> {
                         window_state.push_window(WindowStateUnit {
                             id: id::Id::unique(),
                             display: connection.display(),
+                            wl_output: wl_output.clone(),
                             wl_surface,
                             size: (0, 0),
                             buffer: None,

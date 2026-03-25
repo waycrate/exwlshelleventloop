@@ -132,6 +132,7 @@ use strtoshape::str_to_shape;
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
+use wayland_client::protocol::wl_surface;
 use wayland_client::{
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
     delegate_noop,
@@ -1610,7 +1611,6 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                 {
                     state.last_wloutput.take();
                 }
-
                 let outputs_removed = state.outputs.extract_if(.., |o| o.0 == name);
                 for output_removed in outputs_removed {
                     state
@@ -1618,9 +1618,13 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                         .retain(|info| info.0.id() != output_removed.1.id());
                 }
 
-                let removed_states = state
-                    .units
-                    .extract_if(.., |unit| !unit.wl_surface.is_alive());
+                let removed_states = state.units.extract_if(.., |unit| {
+                    !unit.wl_surface.is_alive()
+                        || unit
+                            .wl_output
+                            .as_ref()
+                            .is_some_and(|o| !state.outputs.iter().any(|(_, storage)| storage == o))
+                });
                 for deleled in removed_states.into_iter() {
                     state.closed_ids.push(deleled.id);
                 }
@@ -2352,6 +2356,40 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
         }
     }
 }
+impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &WlSurface,
+        event: <WlSurface as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        let Some(unit) = state
+            .units
+            .iter_mut()
+            .find(|unit| unit.wl_surface == *proxy)
+        else {
+            return;
+        };
+        match event {
+            wl_surface::Event::Enter { output } => {
+                unit.wl_output.replace(output);
+            }
+            wl_surface::Event::Leave { output } => {
+                if !matches!(unit.shell, Shell::LayerShell(..))
+                    && unit
+                        .wl_output
+                        .as_ref()
+                        .is_some_and(|i_output| i_output == &output)
+                {
+                    unit.wl_output.take();
+                }
+            }
+            _ => {}
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct TextInputData {
@@ -2503,7 +2541,6 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
 }
 
 delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<T> WindowState<T>: ignore WlSurface); // surface is the base needed to show buffer
 delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
 // it is not used
 delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buffer pool
@@ -3374,6 +3411,10 @@ impl<T: 'static> WindowState<T> {
                 );
             }
             window_state.closed_ids.clear();
+            if window_state.units.is_empty() && !window_state.is_allscreens() {
+                signal.stop();
+                return true;
+            }
 
             for idx in 0..window_state.units.len() {
                 let unit = &mut window_state.units[idx];
