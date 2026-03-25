@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.17.0] - 2026-03-25
+
+### Changed
+
+- Fixed: single program never exits after switching to tty
+- Fixed: mouse and pointer dead after switching to tty
+- refactor: use winit keyboard types (#357) by @bitbloxhub
+
+### NOTE:
+It should be breaking change because the waycrate_xkbkeycode is rewritten. I forgot that.
+
+[0.16.1]: https://github.com/waycrate/exwlshelleventloop/compare/v0.16.1...v0.16.0
 ## [0.16.1] - 2026-03-25
 
 ### Changed
