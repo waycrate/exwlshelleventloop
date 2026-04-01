@@ -67,6 +67,7 @@ pub fn window_event(
                 location,
                 logical_key,
                 physical_key,
+                repeat,
                 ..
             } = event;
             let key = self::key(key);
@@ -90,7 +91,7 @@ pub fn window_event(
                     text,
                     modified_key,
                     physical_key,
-                    repeat: false,
+                    repeat: *repeat,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
                     key,
