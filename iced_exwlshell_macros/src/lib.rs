@@ -11,7 +11,7 @@ use quote::quote;
 /// It will automatic add the fields which match the actions in iced_exwlshell
 #[manyhow::manyhow]
 #[proc_macro_attribute]
-pub fn to_wlshell_message(
+pub fn to_exwlshell_message(
     _attr: TokenStream2,
     input: TokenStream2,
 ) -> manyhow::Result<TokenStream2> {

@@ -30,7 +30,7 @@ pub mod reexport {
 
 mod ime_preedit;
 
-pub use iced_exwlshell_macros::to_wlshell_message;
+pub use iced_exwlshell_macros::to_exwlshell_message;
 
 pub use error::Error;
 

@@ -11,7 +11,7 @@ use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption, WlShellType,
 };
 use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_exwlshell::to_wlshell_message;
+use iced_exwlshell::to_exwlshell_message;
 use iced_exwlshell::{NewShellInfo, daemon};
 use iced_wayland_subscriber::{OutputInfo, WaylandEvent};
 use wayland_client::Connection;
@@ -83,7 +83,7 @@ impl From<WaylandEvent> for WayEvent {
     }
 }
 
-#[to_wlshell_message]
+#[to_exwlshell_message]
 #[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,

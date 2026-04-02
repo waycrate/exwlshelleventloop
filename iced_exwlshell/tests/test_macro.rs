@@ -1,8 +1,8 @@
-use iced_exwlshell::to_wlshell_message;
+use iced_exwlshell::to_exwlshell_message;
 
 #[test]
 fn test_layer_message_macro() {
-    #[to_wlshell_message]
+    #[to_exwlshell_message]
     #[derive(Debug, Clone)]
     enum TestEnum {
         TestA,
@@ -16,7 +16,7 @@ fn test_layer_message_macro() {
 
 #[test]
 fn test_layer_message_macro_multi() {
-    #[to_wlshell_message]
+    #[to_exwlshell_message]
     #[derive(Debug, Clone)]
     enum TestEnum {
         TestA,
