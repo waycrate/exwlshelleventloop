@@ -271,7 +271,7 @@ impl Counter {
             return button("close left").on_press(Message::Close(id)).into();
         }
         if let Some(WindowInfo::Lock) = self.id_info(id) {
-            return button("Unlock").on_press(Message::Unlock).into();
+            return button("UnLock").on_press(Message::UnLock).into();
         }
         if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
             return container(
@@ -280,7 +280,6 @@ impl Counter {
                         .on_input(Message::TextInput)
                         .padding(10),
                     button("close the normal window").on_press(Message::Close(id)),
-                    button("Lock").on_press(Message::Lock),
                 ]
                 .align_x(Alignment::Center)
                 .padding(20),
@@ -311,6 +310,7 @@ impl Counter {
             text(self.value).size(50),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
             button("new normal window").on_press(Message::NewNormalWindow),
+            button("Lock").on_press(Message::Lock),
         ]
         .align_x(Alignment::Center)
         .padding(20)

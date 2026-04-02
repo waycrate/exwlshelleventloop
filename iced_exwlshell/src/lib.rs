@@ -34,6 +34,10 @@ pub use iced_exwlshell_macros::to_wlshell_message;
 
 pub use error::Error;
 
+pub trait FromShellInfo {
+    fn get(shell: NewShellInfo) -> Self;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct NewShellInfo {
     pub id: iced_core::window::Id,

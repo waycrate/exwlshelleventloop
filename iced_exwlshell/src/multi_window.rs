@@ -1,5 +1,5 @@
 use crate::{
-    DefaultStyle,
+    DefaultStyle, FromShellInfo,
     actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings, MenuDirection},
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
@@ -63,9 +63,7 @@ pub fn run<P>(
 where
     P: IcedProgram + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static
-        + TryInto<ExwlShellCustomActionWithId, Error = P::Message>
-        + From<crate::NewShellInfo>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     use exwlshellev::calloop::channel::channel;
     use futures::task;
@@ -293,9 +291,7 @@ where
     C: Compositor<Renderer = P::Renderer> + 'static,
     E: Executor + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static
-        + TryInto<ExwlShellCustomActionWithId, Error = P::Message>
-        + From<crate::NewShellInfo>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     pub fn new(
         application: Instance<P>,
@@ -444,13 +440,29 @@ where
                 .get_binding()
                 .copied()
                 .unwrap_or_else(IcedId::unique);
-            self.messages.push(
-                crate::NewShellInfo {
-                    id: iced_id,
-                    shell: ex_wlshell_window.wl_shell_type(),
-                }
-                .into(),
+            let message = P::Message::get(crate::NewShellInfo {
+                id: iced_id,
+                shell: ex_wlshell_window.wl_shell_type(),
+            });
+
+            let (caches, application) = self.user_interfaces.extract_all();
+            update(
+                application,
+                &mut self.runtime,
+                &mut vec![message],
+                &mut vec![],
             );
+            for (iced_id, cache) in caches {
+                let Some(window) = self.window_manager.get_mut(iced_id) else {
+                    continue;
+                };
+                self.user_interfaces.build(
+                    iced_id,
+                    cache,
+                    &mut window.renderer,
+                    window.state.viewport().logical_size(),
+                );
+            }
 
             let is_first = self.window_manager.is_empty();
 
@@ -1062,9 +1074,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
 ) where
     P::Theme: DefaultStyle,
-    P::Message: 'static
-        + TryInto<ExwlShellCustomActionWithId, Error = P::Message>
-        + From<crate::NewShellInfo>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     for message in messages.drain(..) {
         // NOTE: avoid something like
@@ -1111,9 +1121,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     P: IcedProgram + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static
-        + TryInto<ExwlShellCustomActionWithId, Error = P::Message>
-        + From<crate::NewShellInfo>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;

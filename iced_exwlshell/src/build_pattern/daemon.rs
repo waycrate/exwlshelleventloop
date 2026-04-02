@@ -4,6 +4,7 @@ use iced_core::Element;
 use iced_core::Font;
 use iced_runtime::Task;
 
+use crate::FromShellInfo;
 use crate::actions::ExwlShellCustomActionWithId;
 
 use crate::DefaultStyle;
@@ -161,7 +162,7 @@ where
     State: 'static,
     Message: 'static
         + TryInto<ExwlShellCustomActionWithId, Error = Message>
-        + From<crate::NewShellInfo>
+        + FromShellInfo
         + Send
         + std::fmt::Debug,
     Theme: DefaultStyle,
@@ -663,7 +664,7 @@ impl<P: Program> Daemon<P> {
         P::Message: std::fmt::Debug
             + Send
             + 'static
-            + From<crate::NewShellInfo>
+            + FromShellInfo
             + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
     {
         let settings = self.settings;

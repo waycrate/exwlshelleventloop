@@ -90,8 +90,8 @@ pub fn to_wlshell_message(
                 }
             }
 
-            impl #impl_gen From<iced_exwlshell::NewShellInfo> for #ident #ty_gen #where_gen {
-                fn from(shell: iced_exwlshell::NewShellInfo) -> Self {
+            impl #impl_gen iced_exwlshell::FromShellInfo for #ident #ty_gen #where_gen {
+                fn get(shell: iced_exwlshell::NewShellInfo) -> Self {
                     Self::NewShell(shell)
                 }
             }
