@@ -6,9 +6,9 @@
 //! use std::fs::File;
 //! use std::os::fd::AsFd;
 //!
-//! use exwlshell::keyboard::{KeyCode, PhysicalKey};
-//! use exwlshell::reexport::*;
-//! use exwlshell::*;
+//! use exwlshellev::keyboard::{KeyCode, PhysicalKey};
+//! use exwlshellev::reexport::*;
+//! use exwlshellev::*;
 //!
 //! fn main() {
 //!     let mut ev: WindowState<()> = WindowState::new("Hello")
