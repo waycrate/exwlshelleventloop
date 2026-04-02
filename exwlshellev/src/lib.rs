@@ -228,7 +228,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 #[derive(Debug, thiserror::Error)]
-pub enum LayerEventError {
+pub enum ExShellEventError {
     #[error("connect error")]
     ConnectError(#[from] ConnectError),
     #[error("Global Error")]
@@ -335,6 +335,15 @@ impl ZxdgOutputInfo {
     pub fn get_logical_size(&self) -> (i32, i32) {
         self.logical_size
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum WlShellType {
+    LayerShell,
+    PopUp,
+    XdgTopLevel,
+    InputPanel,
+    SessionLock,
 }
 
 /// This is the unit, binding to per screen.
@@ -573,6 +582,16 @@ impl<T> WindowStateUnit<T> {
     /// get the WindowState id
     pub fn id(&self) -> id::Id {
         self.id
+    }
+
+    pub fn wl_shell_type(&self) -> WlShellType {
+        match self.shell {
+            Shell::PopUp(_) => WlShellType::PopUp,
+            Shell::LayerShell(_) => WlShellType::LayerShell,
+            Shell::XdgTopLevel(_) => WlShellType::XdgTopLevel,
+            Shell::SessionLock(_) => WlShellType::SessionLock,
+            Shell::InputPanel(_) => WlShellType::InputPanel,
+        }
     }
 
     pub fn try_set_viewport_destination(&self, width: i32, height: i32) -> Option<()> {
@@ -2642,7 +2661,7 @@ delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
 
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
-    pub fn build(mut self) -> Result<Self, LayerEventError> {
+    pub fn build(mut self) -> Result<Self, ExShellEventError> {
         let connection = if let Some(with_connection) = self.with_connection.take() {
             with_connection.get_connection()?
         } else {
@@ -2884,7 +2903,7 @@ impl<T: 'static> WindowState<T> {
         self,
         message_receiver: Channel<Message>,
         event_handler: F,
-    ) -> Result<(), LayerEventError>
+    ) -> Result<(), ExShellEventError>
     where
         Message: std::marker::Send + 'static,
         F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
@@ -2898,7 +2917,7 @@ impl<T: 'static> WindowState<T> {
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
     ///
-    pub fn running<F>(self, event_handler: F) -> Result<(), LayerEventError>
+    pub fn running<F>(self, event_handler: F) -> Result<(), ExShellEventError>
     where
         F: FnMut(LayerShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
             + 'static,
@@ -2910,7 +2929,7 @@ impl<T: 'static> WindowState<T> {
         mut self,
         message_receiver: Option<Channel<Message>>,
         mut event_handler: F,
-    ) -> Result<(), LayerEventError>
+    ) -> Result<(), ExShellEventError>
     where
         Message: std::marker::Send + 'static,
         F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
@@ -3291,7 +3310,8 @@ impl<T: 'static> WindowState<T> {
                                     &wl_surface,
                                     output.as_ref(),
                                     layer,
-                                    namespace.unwrap_or_else(|| window_state.default_namespace.clone()),
+                                    namespace
+                                        .unwrap_or_else(|| window_state.default_namespace.clone()),
                                     &qh,
                                     (),
                                 );

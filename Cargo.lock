@@ -1819,6 +1819,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_exwlshell"
+version = "0.17.1"
+dependencies = [
+ "enumflags2",
+ "exwlshellev",
+ "futures",
+ "iced",
+ "iced_core",
+ "iced_debug",
+ "iced_devtools",
+ "iced_exdevtools",
+ "iced_exwlshell_macros",
+ "iced_futures",
+ "iced_graphics",
+ "iced_program",
+ "iced_renderer",
+ "iced_runtime",
+ "log",
+ "mundy",
+ "smol_str 0.2.2",
+ "thiserror 2.0.17",
+ "tracing",
+ "window_clipboard",
+]
+
+[[package]]
+name = "iced_exwlshell_macros"
+version = "0.17.1"
+dependencies = [
+ "darling",
+ "manyhow",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "iced_futures"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
