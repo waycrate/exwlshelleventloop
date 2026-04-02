@@ -29,6 +29,8 @@ pub fn to_exwlshell_message(
 
     let (additional_variants, impl_quote) = {
         let additional_variants = quote! {
+            /// The new information about the new shell
+            /// Must be addressed during update
             NewShell(iced_exwlshell::NewShellInfo),
             AnchorChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor},
             SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },

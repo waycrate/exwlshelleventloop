@@ -6,23 +6,31 @@ use std::collections::HashMap;
 
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
-use iced::{event, Alignment, Element, Event, Length, Task as Command};
-use iced_exwlshell::actions::{IcedNewMenuSettings, MenuDirection};
+use iced::{Alignment, Element, Event, Length, Task as Command, event};
+use iced_exwlshell::actions::{IcedNewMenuSettings, IcedXdgWindowSettings, MenuDirection};
 use iced_runtime::window::Action as WindowAction;
-use iced_runtime::{task, Action};
+use iced_runtime::{Action, task};
 
-use iced_exwlshell::build_pattern::daemon;
-use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption};
-use iced_exwlshell::settings::{LayerShellSettings, StartMode, Settings};
-use iced_exwlshell::to_wlshell_message;
+use iced_exwlshell::reexport::{
+    Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption, WlShellType,
+};
+use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::to_exwlshell_message;
+use iced_exwlshell::{NewShellInfo, daemon};
+use iced_wayland_subscriber::{OutputInfo, WaylandEvent};
+use wayland_client::Connection;
 
 pub fn main() -> Result<(), iced_exwlshell::Error> {
+    tracing_subscriber::fmt().init();
+    let connection = Connection::connect_to_env().unwrap();
+    let connection2 = connection.clone();
     daemon(
-        || Counter::new("Hello"),
+        move || Counter::new("hello", connection.clone()),
         Counter::namespace,
         Counter::update,
         Counter::view,
     )
+    .title(Counter::title)
     .subscription(Counter::subscription)
     .settings(Settings {
         layer_settings: LayerShellSettings {
@@ -32,23 +40,27 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
             start_mode: StartMode::AllScreens,
             ..Default::default()
         },
+        with_connection: Some(connection2.into()),
         ..Default::default()
     })
     .run()
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct Counter {
     value: i32,
     text: String,
     ids: HashMap<iced::window::Id, WindowInfo>,
+    connection: Connection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WindowInfo {
     Left,
-    Right,
+    NormalWindow,
     PopUp,
+    TopBar,
+    Lock,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -59,18 +71,35 @@ enum WindowDirection {
     Bottom(Id),
 }
 
-#[to_wlshell_message(multi)]
+#[derive(Debug, Clone)]
+enum WayEvent {
+    OutputInsert(OutputInfo),
+    #[allow(unused)]
+    Stop(String),
+}
+
+impl From<WaylandEvent> for WayEvent {
+    fn from(value: WaylandEvent) -> Self {
+        match value {
+            WaylandEvent::Stop(e) => WayEvent::Stop(e.to_string()),
+            WaylandEvent::OutputInsert(output) => WayEvent::OutputInsert(output),
+        }
+    }
+}
+
+#[to_exwlshell_message]
 #[derive(Debug, Clone)]
 enum Message {
     IncrementPressed,
     DecrementPressed,
     NewWindowLeft,
-    NewWindowRight,
+    NewNormalWindow,
     Close(Id),
+    WindowClosed(Id),
     TextInput(String),
     Direction(WindowDirection),
     IcedEvent(Event),
-    WindowClosed(Id),
+    Wayland(WayEvent),
 }
 
 impl Counter {
@@ -85,15 +114,20 @@ impl Counter {
 }
 
 impl Counter {
-    fn new(text: &str) -> (Self, Command<Message>) {
-        (
-            Self {
-                value: 0,
-                text: text.to_string(),
-                ids: HashMap::new(),
-            },
-            Command::none(),
-        )
+    fn new(text: &str, connection: Connection) -> Self {
+        Self {
+            value: 0,
+            text: text.to_string(),
+            ids: HashMap::new(),
+            connection,
+        }
+    }
+
+    fn title(&self, id: iced::window::Id) -> Option<String> {
+        if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
+            return Some("hello, it is a normal window".to_owned());
+        }
+        None
     }
 
     fn id_info(&self, id: iced::window::Id) -> Option<WindowInfo> {
@@ -112,13 +146,15 @@ impl Counter {
         iced::Subscription::batch(vec![
             event::listen().map(Message::IcedEvent),
             iced::window::close_events().map(Message::WindowClosed),
+            iced_wayland_subscriber::listen(self.connection.clone())
+                .map(|message| Message::Wayland(message.into())),
         ])
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
+        use iced::Event;
         use iced::keyboard;
         use iced::keyboard::key::Named;
-        use iced::Event;
         match message {
             Message::WindowClosed(id) => {
                 self.remove_id(id);
@@ -126,7 +162,6 @@ impl Counter {
             }
             Message::IcedEvent(event) => {
                 match event {
-
                     Event::Keyboard(keyboard::Event::KeyPressed {
                         key: keyboard::Key::Named(Named::Escape),
                         ..
@@ -151,6 +186,21 @@ impl Counter {
                     _ => {}
                 }
                 Command::none()
+            }
+            Message::Wayland(WayEvent::OutputInsert(OutputInfo { wl_output, .. })) => {
+                let id = iced::window::Id::unique();
+                self.ids.insert(id, WindowInfo::TopBar);
+                Command::done(Message::NewLayerShell {
+                    settings: NewLayerShellSettings {
+                        anchor: Anchor::Left | Anchor::Right | Anchor::Top,
+                        layer: Layer::Top,
+                        exclusive_zone: Some(30),
+                        size: Some((0, 30)),
+                        output_option: OutputOption::Output(wl_output),
+                        ..Default::default()
+                    },
+                    id,
+                })
             }
             Message::IncrementPressed => {
                 self.value += 1;
@@ -197,40 +247,59 @@ impl Counter {
                         layer: Layer::Top,
                         margin: None,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        output_option: OutputOption::None,
+                        output_option: OutputOption::LastOutput,
                         ..Default::default()
                     },
                     id,
                 })
             }
-            Message::NewWindowRight => {
-                let id = iced::window::Id::unique();
-                self.ids.insert(id, WindowInfo::Right);
-                Command::done(Message::NewLayerShell {
-                    settings: NewLayerShellSettings {
-                        size: Some((100, 100)),
-                        exclusive_zone: None,
-                        anchor: Anchor::Right | Anchor::Bottom,
-                        layer: Layer::Top,
-                        margin: None,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        output_option: OutputOption::None,
-                        ..Default::default()
-                    },
-                    id,
-                })
+            Message::NewNormalWindow => {
+                let (id, task) = Message::base_window_open(IcedXdgWindowSettings::default());
+                self.ids.insert(id, WindowInfo::NormalWindow);
+                task
             }
             Message::Close(id) => task::effect(Action::Window(WindowAction::Close(id))),
+            // NOTE: we use it to receive windows
+            Message::NewShell(NewShellInfo { id, shell }) => {
+                if matches!(shell, WlShellType::SessionLock) {
+                    self.ids.insert(id, WindowInfo::Lock);
+                }
+                Command::none()
+            }
             _ => unreachable!(),
         }
     }
 
-    fn view(&self, id: iced::window::Id) -> Element<Message> {
+    fn view(&self, id: iced::window::Id) -> Element<'_, Message> {
         if let Some(WindowInfo::Left) = self.id_info(id) {
             return button("close left").on_press(Message::Close(id)).into();
         }
-        if let Some(WindowInfo::Right) = self.id_info(id) {
-            return button("close right").on_press(Message::Close(id)).into();
+        if let Some(WindowInfo::Lock) = self.id_info(id) {
+            return container(button("UnLock").on_press(Message::UnLock))
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .into();
+        }
+        if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
+            return container(
+                column![
+                    text_input("hello", &self.text)
+                        .on_input(Message::TextInput)
+                        .padding(10),
+                    button("close the normal window").on_press(Message::Close(id)),
+                ]
+                .align_x(Alignment::Center)
+                .padding(20),
+            )
+            .center_y(Length::Fill)
+            .center_x(Length::Fill)
+            .height(Length::Fill)
+            .into();
+        }
+        if let Some(WindowInfo::TopBar) = self.id_info(id) {
+            return container(text("hello here is topbar"))
+                .center_x(Length::Fill)
+                .into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
             return container(button("close PopUp").on_press(Message::Close(id)))
@@ -240,7 +309,6 @@ impl Counter {
                     background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
                     ..Default::default()
                 })
-                //.style(Container::Custom(Box::new(BlackMenu)))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into();
@@ -250,7 +318,8 @@ impl Counter {
             button("Decrement").on_press(Message::DecrementPressed),
             text(self.value).size(50),
             button("newwindowLeft").on_press(Message::NewWindowLeft),
-            button("newwindowRight").on_press(Message::NewWindowRight),
+            button("new normal window").on_press(Message::NewNormalWindow),
+            button("Lock").on_press(Message::Lock),
         ]
         .align_x(Alignment::Center)
         .padding(20)
@@ -279,10 +348,10 @@ impl Counter {
         ]
         .padding(20)
         .spacing(10)
-        //.align_items(Alignment::Center)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
     }
 }
+
 ```

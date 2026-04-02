@@ -1848,11 +1848,14 @@ dependencies = [
  "iced_program",
  "iced_renderer",
  "iced_runtime",
+ "iced_wayland_subscriber",
  "log",
  "mundy",
  "smol_str 0.2.2",
  "thiserror 2.0.17",
  "tracing",
+ "tracing-subscriber",
+ "wayland-client",
  "window_clipboard",
 ]
 
