@@ -271,7 +271,10 @@ impl Counter {
             return button("close left").on_press(Message::Close(id)).into();
         }
         if let Some(WindowInfo::Lock) = self.id_info(id) {
-            return button("UnLock").on_press(Message::UnLock).into();
+            return container(button("UnLock").on_press(Message::UnLock))
+                .center_x(Length::Fill)
+                .center_y(Length::Fill)
+                .into();
         }
         if let Some(WindowInfo::NormalWindow) = self.id_info(id) {
             return container(
@@ -290,7 +293,9 @@ impl Counter {
             .into();
         }
         if let Some(WindowInfo::TopBar) = self.id_info(id) {
-            return text("hello here is topbar").into();
+            return container(text("hello here is topbar"))
+                .center_x(Length::Fill)
+                .into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
             return container(button("close PopUp").on_press(Message::Close(id)))
