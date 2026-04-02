@@ -1,10 +1,10 @@
 use crate::{Appearance, DefaultStyle};
-use iced_core::{Color, Point, Size, mouse as IcedMouse};
-use iced_graphics::Viewport;
 use exwlshellev::WindowWrapper;
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::reexport::wp_viewport::WpViewport;
 use exwlshellev::reexport::xdg_toplevel::XdgToplevel;
+use iced_core::{Color, Point, Size, mouse as IcedMouse};
+use iced_graphics::Viewport;
 
 use crate::event::WindowEvent;
 use iced_core::window;

@@ -1,5 +1,5 @@
-use iced_futures::futures;
 use exwlshellev::ExShellEventError;
+use iced_futures::futures;
 
 /// An error that occurred while running an application.
 #[derive(Debug, thiserror::Error)]

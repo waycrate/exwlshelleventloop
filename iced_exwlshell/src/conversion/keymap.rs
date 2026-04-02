@@ -4,9 +4,9 @@ use exwlshellev::keyboard::ModifiersState;
 /// [`winit`]: https://github.com/rust-windowing/winit
 /// [`iced`]: https://github.com/iced-rs/iced/tree/0.12
 pub fn key(key: exwlshellev::keyboard::Key) -> iced_core::keyboard::Key {
+    use exwlshellev::keyboard::NamedKey;
     use iced_core::keyboard;
     use iced_core::keyboard::key::Named;
-    use exwlshellev::keyboard::NamedKey;
 
     match key {
         exwlshellev::keyboard::Key::Character(c) if c == " " => keyboard::Key::Named(Named::Space),

@@ -1,3 +1,4 @@
+use exwlshellev::calloop::channel::Sender as WlSender;
 use futures::{
     Sink,
     channel::mpsc,
@@ -5,7 +6,6 @@ use futures::{
 };
 use iced_graphics::shell;
 use iced_runtime::{Action, window};
-use exwlshellev::calloop::channel::Sender as WlSender;
 use std::pin::Pin;
 
 /// An event loop proxy that implements `Sink`.

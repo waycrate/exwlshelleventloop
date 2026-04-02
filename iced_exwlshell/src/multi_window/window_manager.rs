@@ -4,10 +4,10 @@ use super::state::State;
 use crate::DefaultStyle;
 use crate::ime_preedit::{ImeState, Preedit};
 use enumflags2::{BitFlag, BitFlags};
+use exwlshellev::{WindowWrapper, id::Id as LayerId};
 use iced_core::InputMethod;
 use iced_core::input_method;
 use iced_graphics::Compositor;
-use exwlshellev::{WindowWrapper, id::Id as LayerId};
 
 use iced_core::mouse;
 use iced_core::window::Id as IcedId;

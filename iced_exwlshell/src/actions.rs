@@ -1,6 +1,6 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
-use iced_core::window::Id as IcedId;
 use exwlshellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
+use iced_core::window::Id as IcedId;
 
 use std::sync::Arc;
 
@@ -98,7 +98,7 @@ pub enum ExwlShellCustomAction {
     RemoveWindow,
     ForgetLastOutput,
     Lock,
-    UnLock
+    UnLock,
 }
 
 /// Please do not use this struct directly

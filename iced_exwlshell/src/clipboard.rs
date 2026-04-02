@@ -1,6 +1,6 @@
+use exwlshellev::WindowWrapper;
 use iced_core::Clipboard;
 use iced_core::clipboard::Kind;
-use exwlshellev::WindowWrapper;
 pub struct LayerShellClipboard {
     state: State,
 }
