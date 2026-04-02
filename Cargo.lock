@@ -858,6 +858,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_universe"
+version = "0.17.1"
+dependencies = [
+ "iced",
+ "iced_exwlshell",
+ "iced_runtime",
+ "iced_wayland_subscriber",
+ "tracing-subscriber",
+ "wayland-client",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

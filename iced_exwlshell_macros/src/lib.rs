@@ -51,7 +51,7 @@ pub fn to_wlshell_message(
             RemoveWindow(iced_exwlshell::reexport::IcedId),
             ForgetLastOutput,
             Lock,
-            Unlock
+            UnLock
         };
 
         let impl_quote = quote! {
