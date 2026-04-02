@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "layershellev",
+  "exwlshellev",
   "iced_layershell",
   "iced_layershell_macros",
   "iced_sessionlock",

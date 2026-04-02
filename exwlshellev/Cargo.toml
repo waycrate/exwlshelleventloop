@@ -1,0 +1,36 @@
+[package]
+name = "exwlshellev"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "extra shell binding for layershell with winit like eventloop"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tempfile.workspace = true
+thiserror.workspace = true
+wayland-client.workspace = true
+
+wayland-protocols.workspace = true
+
+wayland-cursor.workspace = true
+
+wayland-protocols-wlr.workspace = true
+
+wayland-protocols-misc.workspace = true
+
+wayland-backend.workspace = true
+
+rwh_06.workspace = true
+
+calloop.workspace = true
+calloop-wayland-source.workspace = true
+
+log.workspace = true
+
+waycrate_xkbkeycode.workspace = true

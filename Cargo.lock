@@ -1140,6 +1140,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "exwlshellev"
+version = "0.17.1"
+dependencies = [
+ "calloop 0.14.3",
+ "calloop-wayland-source 0.4.1",
+ "log",
+ "raw-window-handle",
+ "tempfile",
+ "thiserror 2.0.17",
+ "waycrate_xkbkeycode",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-cursor",
+ "wayland-protocols",
+ "wayland-protocols-misc",
+ "wayland-protocols-wlr",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
