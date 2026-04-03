@@ -6,7 +6,7 @@ use iced_core::Element;
 use iced_core::Font;
 use iced_runtime::Task;
 
-use crate::actions::LayershellCustomActionWithId;
+use crate::actions::LayerShellCustomActionWithId;
 
 use crate::DefaultStyle;
 use crate::settings::LayerShellSettings;
@@ -164,7 +164,7 @@ pub fn application<State, Message, Theme, Renderer>(
 where
     State: 'static,
     Message:
-        'static + TryInto<LayershellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
+        'static + TryInto<LayerShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle,
     Renderer: iced_program::Renderer,
 {
@@ -181,7 +181,7 @@ where
     impl<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn> Program
         for Instance<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn>
     where
-        Message: 'static + TryInto<LayershellCustomActionWithId, Error = Message> + Send,
+        Message: 'static + TryInto<LayerShellCustomActionWithId, Error = Message> + Send,
         Theme: DefaultStyle,
         Renderer: iced_program::Renderer,
         UpdateFn: self::UpdateFn<State, Message>,
@@ -582,7 +582,7 @@ impl<P: Program> SingleApplication<P> {
         P::Message: std::fmt::Debug
             + Send
             + 'static
-            + TryInto<LayershellCustomActionWithId, Error = P::Message>,
+            + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
     {
         let settings = self.settings;
 

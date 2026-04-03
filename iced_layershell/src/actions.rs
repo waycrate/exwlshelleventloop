@@ -60,7 +60,7 @@ impl ActionCallback {
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
 #[derive(Debug, Clone)]
-pub enum LayershellCustomAction {
+pub enum LayerShellCustomAction {
     AnchorChange(Anchor),
     LayerChange(Layer),
     AnchorSizeChange(Anchor, (u32, u32)),
@@ -102,10 +102,10 @@ pub enum LayershellCustomAction {
 /// Please do not use this struct directly
 /// Use macro to_layer_message instead
 #[derive(Debug, Clone)]
-pub struct LayershellCustomActionWithId(pub Option<IcedId>, pub LayershellCustomAction);
+pub struct LayerShellCustomActionWithId(pub Option<IcedId>, pub LayerShellCustomAction);
 
-impl LayershellCustomActionWithId {
-    pub fn new(id: Option<IcedId>, action: LayershellCustomAction) -> Self {
+impl LayerShellCustomActionWithId {
+    pub fn new(id: Option<IcedId>, action: LayerShellCustomAction) -> Self {
         Self(id, action)
     }
 }

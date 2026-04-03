@@ -368,6 +368,6 @@ impl Counter {
 ```
 
 
-view the full example [here](https://github.com/waycrate/exwlshelleventloop/tree/master/iced_layershell/examples/input_regions.rs)
+view the full example [here](https://github.com/waycrate/exwlshelleventloop/tree/master/iced_examples)
 
 For more example, please take a look at [exwlshelleventloop](https://github.com/waycrate/exwlshelleventloop)

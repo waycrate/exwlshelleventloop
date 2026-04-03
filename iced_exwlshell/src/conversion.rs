@@ -1,11 +1,11 @@
 mod keymap;
 
 use crate::event::IcedButtonState;
-use crate::event::WindowEvent as LayerShellEvent;
+use crate::event::WindowEvent as ExWlShellEvent;
 use exwlshellev::keyboard::KeyLocation;
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::xkb_keyboard::ElementState;
-use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
+use exwlshellev::xkb_keyboard::KeyEvent as ExWlShellKeyEvent;
 use iced_core::SmolStr;
 use iced_core::input_method;
 use iced_core::touch;
@@ -26,13 +26,13 @@ where
 }
 
 pub fn window_event(
-    layerevent: &LayerShellEvent,
+    shellevent: &ExWlShellEvent,
     application_scale_factor: f64,
     modifiers: ModifiersState,
 ) -> Option<IcedEvent> {
-    match layerevent {
-        LayerShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
-        LayerShellEvent::CursorMoved { x, y } => {
+    match shellevent {
+        ExWlShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
+        ExWlShellEvent::CursorMoved { x, y } => {
             let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Mouse(mouse::Event::CursorMoved {
                 position: iced_core::Point {
@@ -41,28 +41,28 @@ pub fn window_event(
                 },
             }))
         }
-        LayerShellEvent::CursorEnter { .. } => Some(IcedEvent::Mouse(mouse::Event::CursorEntered)),
-        LayerShellEvent::MouseInput(state) => Some(IcedEvent::Mouse(match state {
+        ExWlShellEvent::CursorEnter { .. } => Some(IcedEvent::Mouse(mouse::Event::CursorEntered)),
+        ExWlShellEvent::MouseInput(state) => Some(IcedEvent::Mouse(match state {
             IcedButtonState::Pressed(btn) => mouse::Event::ButtonPressed(*btn),
             IcedButtonState::Released(btn) => mouse::Event::ButtonReleased(*btn),
         })),
-        LayerShellEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
+        ExWlShellEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
             delta: mouse::ScrollDelta::Lines { x: *x, y: *y },
         })),
 
-        LayerShellEvent::PixelDelta { x, y } => {
+        ExWlShellEvent::PixelDelta { x, y } => {
             Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
                 delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
             }))
         }
-        LayerShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
+        ExWlShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
             let key = event.key_without_modifiers.clone();
             let text = event
                 .text_with_all_modifiers
                 .clone()
                 .map(SmolStr::new)
                 .filter(|text| !text.as_str().chars().any(is_private_use));
-            let LayerShellKeyEvent {
+            let ExWlShellKeyEvent {
                 state,
                 location,
                 logical_key,
@@ -102,7 +102,7 @@ pub fn window_event(
                 },
             }
         })),
-        LayerShellEvent::TouchDown { id, x, y } => {
+        ExWlShellEvent::TouchDown { id, x, y } => {
             let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerPressed {
                 id: touch::Finger(*id as u64),
@@ -112,7 +112,7 @@ pub fn window_event(
                 },
             }))
         }
-        LayerShellEvent::TouchUp { id, x, y } => {
+        ExWlShellEvent::TouchUp { id, x, y } => {
             let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLifted {
                 id: touch::Finger(*id as u64),
@@ -122,7 +122,7 @@ pub fn window_event(
                 },
             }))
         }
-        LayerShellEvent::TouchMotion { id, x, y } => {
+        ExWlShellEvent::TouchMotion { id, x, y } => {
             let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerMoved {
                 id: touch::Finger(*id as u64),
@@ -132,7 +132,7 @@ pub fn window_event(
                 },
             }))
         }
-        LayerShellEvent::TouchCancel { id, x, y } => {
+        ExWlShellEvent::TouchCancel { id, x, y } => {
             let (x, y) = scale_down((*x, *y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLost {
                 id: touch::Finger(*id as u64),
@@ -142,12 +142,12 @@ pub fn window_event(
                 },
             }))
         }
-        LayerShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
+        ExWlShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
             keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
         )),
-        LayerShellEvent::Unfocus => Some(IcedEvent::Window(iced_core::window::Event::Unfocused)),
-        LayerShellEvent::Focused => Some(IcedEvent::Window(iced_core::window::Event::Focused)),
-        LayerShellEvent::Ime(event) => Some(IcedEvent::InputMethod(match event {
+        ExWlShellEvent::Unfocus => Some(IcedEvent::Window(iced_core::window::Event::Unfocused)),
+        ExWlShellEvent::Focused => Some(IcedEvent::Window(iced_core::window::Event::Focused)),
+        ExWlShellEvent::Ime(event) => Some(IcedEvent::InputMethod(match event {
             exwlshellev::Ime::Enabled => input_method::Event::Opened,
             exwlshellev::Ime::Preedit(content, size) => {
                 input_method::Event::Preedit(content.clone(), size.map(|(start, end)| start..end))

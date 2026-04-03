@@ -94,33 +94,33 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
                     }
                 }
-                impl #impl_gen TryInto<iced_layershell::actions::LayershellCustomActionWithId> for #ident #ty_gen #where_gen {
+                impl #impl_gen TryInto<iced_layershell::actions::LayerShellCustomActionWithId> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
-                    fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActionWithId, Self::Error> {
-                        use iced_layershell::actions::LayershellCustomAction;
-                        use iced_layershell::actions::LayershellCustomActionWithId;
+                    fn try_into(self) -> Result<iced_layershell::actions::LayerShellCustomActionWithId, Self::Error> {
+                        use iced_layershell::actions::LayerShellCustomAction;
+                        use iced_layershell::actions::LayerShellCustomActionWithId;
 
                         match self {
-                            Self::SetInputRegion{ id, callback } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::SetInputRegion(callback))),
-                            Self::AnchorChange { id, anchor } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::AnchorChange(anchor))),
-                            Self::AnchorSizeChange { id, anchor, size } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::AnchorSizeChange(anchor, size))),
-                            Self::LayerChange { id, layer } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::LayerChange(layer))),
-                            Self::MarginChange { id, margin } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::MarginChange(margin))),
-                            Self::SizeChange { id, size } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::SizeChange(size))),
-                            Self::ExclusiveZoneChange { id, zone_size } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::ExclusiveZoneChange(zone_size))),
-                            Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                            Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActionWithId::new(
+                            Self::SetInputRegion{ id, callback } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::SetInputRegion(callback))),
+                            Self::AnchorChange { id, anchor } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::AnchorChange(anchor))),
+                            Self::AnchorSizeChange { id, anchor, size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::AnchorSizeChange(anchor, size))),
+                            Self::LayerChange { id, layer } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::LayerChange(layer))),
+                            Self::MarginChange { id, margin } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::MarginChange(margin))),
+                            Self::SizeChange { id, size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::SizeChange(size))),
+                            Self::ExclusiveZoneChange { id, zone_size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                            Self::VirtualKeyboardPressed { time, key } => Ok(LayerShellCustomActionWithId::new(
                                 None,
-                                LayershellCustomAction::VirtualKeyboardPressed { time, key })
+                                LayerShellCustomAction::VirtualKeyboardPressed { time, key })
                             ),
-                            Self::NewLayerShell {settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewLayerShell { settings, id })),
-                            Self::NewBaseWindow {settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewBaseWindow { settings, id })),
-                            Self::NewPopUp { settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewPopUp { settings, id })),
-                            Self::NewMenu { settings, id } =>  Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewMenu {settings, id })),
-                            Self::NewInputPanel {settings, id } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::NewInputPanel { settings, id })),
-                            Self::RemoveWindow(id) => Ok(LayershellCustomActionWithId::new(Some(id), LayershellCustomAction::RemoveWindow)),
-                            Self::ForgetLastOutput => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::ForgetLastOutput)),
+                            Self::NewLayerShell {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewLayerShell { settings, id })),
+                            Self::NewBaseWindow {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewBaseWindow { settings, id })),
+                            Self::NewPopUp { settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewPopUp { settings, id })),
+                            Self::NewMenu { settings, id } =>  Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewMenu {settings, id })),
+                            Self::NewInputPanel {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewInputPanel { settings, id })),
+                            Self::RemoveWindow(id) => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::RemoveWindow)),
+                            Self::ForgetLastOutput => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::ForgetLastOutput)),
                             _ => Err(self)
                         }
                     }
@@ -146,24 +146,24 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 },
             };
             let impl_quote = quote! {
-                impl #impl_gen TryInto<iced_layershell::actions::LayershellCustomActionWithId> for #ident #ty_gen #where_gen {
+                impl #impl_gen TryInto<iced_layershell::actions::LayerShellCustomActionWithId> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
-                    fn try_into(self) -> Result<iced_layershell::actions::LayershellCustomActionWithId, Self::Error> {
-                        use iced_layershell::actions::LayershellCustomAction;
-                        use iced_layershell::actions::LayershellCustomActionWithId;
+                    fn try_into(self) -> Result<iced_layershell::actions::LayerShellCustomActionWithId, Self::Error> {
+                        use iced_layershell::actions::LayerShellCustomAction;
+                        use iced_layershell::actions::LayerShellCustomActionWithId;
 
                         match self {
-                            Self::SetInputRegion(callback) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::SetInputRegion(callback))),
-                            Self::AnchorChange(anchor) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::AnchorChange(anchor))),
-                            Self::AnchorSizeChange(anchor, size) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::AnchorSizeChange(anchor, size))),
-                            Self::LayerChange(layer) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::LayerChange(layer))),
+                            Self::SetInputRegion(callback) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::SetInputRegion(callback))),
+                            Self::AnchorChange(anchor) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::AnchorChange(anchor))),
+                            Self::AnchorSizeChange(anchor, size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::AnchorSizeChange(anchor, size))),
+                            Self::LayerChange(layer) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::LayerChange(layer))),
 
-                            Self::MarginChange(margin) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::MarginChange(margin))),
-                            Self::SizeChange(size) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::SizeChange(size))),
-                            Self::ExclusiveZoneChange(zone_size) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::ExclusiveZoneChange(zone_size))),
-                            Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                            Self::VirtualKeyboardPressed { time, key } => Ok(LayershellCustomActionWithId::new(None, LayershellCustomAction::VirtualKeyboardPressed {
+                            Self::MarginChange(margin) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::MarginChange(margin))),
+                            Self::SizeChange(size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::SizeChange(size))),
+                            Self::ExclusiveZoneChange(zone_size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                            Self::VirtualKeyboardPressed { time, key } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::VirtualKeyboardPressed {
                                 time,
                                 key
                             })),

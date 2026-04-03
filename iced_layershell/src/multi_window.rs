@@ -1,13 +1,13 @@
 use crate::{
     DefaultStyle,
-    actions::{IcedNewPopupSettings, LayershellCustomActionWithId, MenuDirection},
+    actions::{IcedNewPopupSettings, LayerShellCustomActionWithId, MenuDirection},
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
     user_interface::UserInterfaces,
 };
 use crate::{
-    actions::LayershellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
+    actions::LayerShellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
 };
 use crate::{
     event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
@@ -63,7 +63,7 @@ pub fn run<P>(
 where
     P: IcedProgram + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
 {
     use futures::task;
     use layershellev::calloop::channel::channel;
@@ -279,7 +279,7 @@ where
     clipboard: LayerShellClipboard,
     wl_input_region: Option<WlRegion>,
     user_interfaces: UserInterfaces<P>,
-    waiting_layer_shell_actions: Vec<(Option<IcedId>, LayershellCustomAction)>,
+    waiting_layer_shell_actions: Vec<(Option<IcedId>, LayerShellCustomAction)>,
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
@@ -291,7 +291,7 @@ where
     C: Compositor<Renderer = P::Renderer> + 'static,
     E: Executor + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
 {
     pub fn new(
         application: Instance<P>,
@@ -667,7 +667,7 @@ where
         &mut self,
         ev: &mut WindowState<IcedId>,
         mut iced_id: Option<IcedId>,
-        action: LayershellCustomAction,
+        action: LayerShellCustomAction,
     ) {
         let layer_shell_window;
         macro_rules! ref_layer_shell_window {
@@ -704,35 +704,35 @@ where
             return;
         }
         match action {
-            LayershellCustomAction::AnchorChange(anchor) => {
+            LayerShellCustomAction::AnchorChange(anchor) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_anchor(anchor);
             }
-            LayershellCustomAction::AnchorSizeChange(anchor, size) => {
+            LayerShellCustomAction::AnchorSizeChange(anchor, size) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_anchor_with_size(anchor, size);
             }
-            LayershellCustomAction::LayerChange(layer) => {
+            LayerShellCustomAction::LayerChange(layer) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_layer(layer);
             }
-            LayershellCustomAction::MarginChange(margin) => {
+            LayerShellCustomAction::MarginChange(margin) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_margin(margin);
             }
-            LayershellCustomAction::SizeChange((width, height)) => {
+            LayerShellCustomAction::SizeChange((width, height)) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_size((width, height));
             }
-            LayershellCustomAction::ExclusiveZoneChange(zone_size) => {
+            LayerShellCustomAction::ExclusiveZoneChange(zone_size) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_exclusive_zone(zone_size);
             }
-            LayershellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
+            LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
-            LayershellCustomAction::SetInputRegion(set_region) => {
+            LayerShellCustomAction::SetInputRegion(set_region) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 let set_region = set_region.0;
                 let Some(region) = &self.wl_input_region else {
@@ -755,7 +755,7 @@ where
                     .set_input_region(self.wl_input_region.as_ref());
                 layer_shell_window.get_wlsurface().commit();
             }
-            LayershellCustomAction::VirtualKeyboardPressed { time, key } => {
+            LayerShellCustomAction::VirtualKeyboardPressed { time, key } => {
                 use layershellev::reexport::wayland_client::KeyState;
                 let ky = ev.get_virtual_keyboard().unwrap();
                 ky.key(time, key, KeyState::Pressed.into());
@@ -767,7 +767,7 @@ where
                     key,
                 });
             }
-            LayershellCustomAction::NewLayerShell {
+            LayerShellCustomAction::NewLayerShell {
                 settings,
                 id: iced_id,
                 ..
@@ -779,7 +779,7 @@ where
                     Some(iced_id),
                 )));
             }
-            LayershellCustomAction::NewBaseWindow {
+            LayerShellCustomAction::NewBaseWindow {
                 settings,
                 id: iced_id,
                 ..
@@ -791,12 +791,12 @@ where
                     Some(iced_id),
                 )));
             }
-            LayershellCustomAction::RemoveWindow => {
+            LayerShellCustomAction::RemoveWindow => {
                 if let Some(layer_shell_id) = layer_shell_id {
                     ev.request_close(layer_shell_id)
                 }
             }
-            LayershellCustomAction::NewPopUp {
+            LayerShellCustomAction::NewPopUp {
                 settings: menusettings,
                 id: iced_id,
             } => {
@@ -816,7 +816,7 @@ where
                     Some(iced_id),
                 )));
             }
-            LayershellCustomAction::NewMenu {
+            LayerShellCustomAction::NewMenu {
                 settings: menu_setting,
                 id: iced_id,
             } => {
@@ -847,7 +847,7 @@ where
                     Some(iced_id),
                 )))
             }
-            LayershellCustomAction::NewInputPanel {
+            LayerShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
@@ -858,7 +858,7 @@ where
                     Some(iced_id),
                 )));
             }
-            LayershellCustomAction::ForgetLastOutput => {
+            LayerShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();
             }
         }
@@ -1044,10 +1044,10 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     application: &mut Instance<P>,
     runtime: &mut MultiRuntime<E, P::Message>,
     messages: &mut Vec<P::Message>,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayershellCustomAction)>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayerShellCustomAction)>,
 ) where
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
 {
     for message in messages.drain(..) {
         // NOTE: avoid something like
@@ -1057,7 +1057,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
         // Now if it is a unique command, it will be operated immediately
         let message = match message.try_into() {
             Ok(action) => {
-                let LayershellCustomActionWithId(id, action) = action;
+                let LayerShellCustomActionWithId(id, action) = action;
                 waiting_layer_shell_actions.push((id, action));
                 continue;
             }
@@ -1084,7 +1084,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     event: Action<P::Message>,
     messages: &mut Vec<P::Message>,
     clipboard: &mut LayerShellClipboard,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayershellCustomAction)>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayerShellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
     system_theme: &mut iced_core::theme::Mode,
@@ -1094,7 +1094,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     P: IcedProgram + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayershellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;
@@ -1104,7 +1104,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
-                let LayershellCustomActionWithId(id, action) = action;
+                let LayerShellCustomActionWithId(id, action) = action;
                 waiting_layer_shell_actions.push((id, action));
             }
             Err(stream) => {
@@ -1154,7 +1154,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
         }
         Action::Window(action) => match action {
             WindowAction::Close(id) => {
-                waiting_layer_shell_actions.push((Some(id), LayershellCustomAction::RemoveWindow));
+                waiting_layer_shell_actions.push((Some(id), LayerShellCustomAction::RemoveWindow));
             }
             WindowAction::GetOldest(channel) => {
                 let _ = channel.send(window_manager.first_window().map(|(id, _)| *id));
