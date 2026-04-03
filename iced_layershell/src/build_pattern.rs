@@ -7,7 +7,7 @@ mod daemon;
 /// The renderer of some Program.
 use iced_exdevtools::gen_attach;
 
-gen_attach! {Action = LayershellCustomActionWithId}
+gen_attach! {Action = LayerShellCustomActionWithId}
 
 #[doc = include_str!("./build_pattern/application.md")]
 pub use application::application;
@@ -22,4 +22,4 @@ pub use daemon::daemon;
 
 pub use daemon::Daemon;
 
-use crate::actions::LayershellCustomActionWithId;
+use crate::actions::LayerShellCustomActionWithId;

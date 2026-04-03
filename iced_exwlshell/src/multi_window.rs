@@ -1,18 +1,27 @@
 use crate::{
-    DefaultStyle,
-    actions::{IcedNewPopupSettings, LayerShellCustomActionWithId, MenuDirection},
+    DefaultStyle, FromShellInfo,
+    actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings, MenuDirection},
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
     user_interface::UserInterfaces,
 };
 use crate::{
-    actions::LayerShellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
+    actions::ExwlShellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
 };
 use crate::{
-    event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
+    event::{IcedWlShellEvent, WindowEvent as LayerShellWindowEvent},
     proxy::IcedProxy,
     settings::Settings,
+};
+use exwlshellev::{
+    DisplayWrapper, LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
+    WindowWrapper,
+    id::Id as LayerShellId,
+    reexport::{
+        wayland_client::{WlCompositor, WlRegion},
+        zwp_virtual_keyboard_v1,
+    },
 };
 use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
@@ -28,15 +37,6 @@ use iced_program::Instance;
 use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
-use layershellev::{
-    DisplayWrapper, LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
-    WindowWrapper,
-    id::Id as LayerShellId,
-    reexport::{
-        wayland_client::{WlCompositor, WlRegion},
-        zwp_virtual_keyboard_v1,
-    },
-};
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
@@ -63,10 +63,10 @@ pub fn run<P>(
 where
     P: IcedProgram + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
+    use exwlshellev::calloop::channel::channel;
     use futures::task;
-    use layershellev::calloop::channel::channel;
     let (message_sender, message_receiver) = channel::<Action<P::Message>>();
 
     let boot_span = iced_debug::boot();
@@ -98,7 +98,7 @@ where
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
 
-    let ev: WindowState<iced_core::window::Id> = layershellev::WindowState::new(namespace)
+    let ev: WindowState<iced_core::window::Id> = exwlshellev::WindowState::new(namespace)
         .with_start_mode(settings.layer_settings.start_mode)
         .with_use_display_handle(true)
         .with_events_transparent(settings.layer_settings.events_transparent)
@@ -174,7 +174,7 @@ where
                     .expect("could not bind wl_compositor");
                 waiting_layer_shell_events.push_back((
                     None,
-                    IcedLayerShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
+                    IcedWlShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
                 ));
 
                 if let Some(virtual_keyboard_setting) = settings.virtual_keyboard_support.as_ref() {
@@ -200,16 +200,16 @@ where
             LayerShellEvent::RequestMessages(message) => {
                 waiting_layer_shell_events.push_back((
                     layer_shell_id,
-                    IcedLayerShellEvent::Window(LayerShellWindowEvent::from(message)),
+                    IcedWlShellEvent::Window(LayerShellWindowEvent::from(message)),
                 ));
             }
             LayerShellEvent::UserEvent(event) => {
                 waiting_layer_shell_events
-                    .push_back((layer_shell_id, IcedLayerShellEvent::UserAction(event)));
+                    .push_back((layer_shell_id, IcedWlShellEvent::UserAction(event)));
             }
             LayerShellEvent::NormalDispatch => {
                 waiting_layer_shell_events
-                    .push_back((layer_shell_id, IcedLayerShellEvent::NormalDispatch));
+                    .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
             }
             _ => {}
         }
@@ -279,7 +279,7 @@ where
     clipboard: LayerShellClipboard,
     wl_input_region: Option<WlRegion>,
     user_interfaces: UserInterfaces<P>,
-    waiting_layer_shell_actions: Vec<(Option<IcedId>, LayerShellCustomAction)>,
+    waiting_layer_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
@@ -291,7 +291,7 @@ where
     C: Compositor<Renderer = P::Renderer> + 'static,
     E: Executor + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     pub fn new(
         application: Instance<P>,
@@ -345,15 +345,15 @@ where
         mut self,
         ev: &mut WindowState<IcedId>,
         layer_shell_id: Option<LayerShellId>,
-        layer_shell_event: IcedLayerShellEvent<P::Message>,
-    ) -> (ContextState<Self>, Option<IcedLayerShellEvent<P::Message>>) {
+        layer_shell_event: IcedWlShellEvent<P::Message>,
+    ) -> (ContextState<Self>, Option<IcedWlShellEvent<P::Message>>) {
         tracing::debug!(
             "Handle layer shell event, layer_shell_id: {:?},  waiting actions: {}, messages: {}",
             layer_shell_id,
             self.waiting_layer_shell_actions.len(),
             self.messages.len(),
         );
-        if let IcedLayerShellEvent::Window(LayerShellWindowEvent::Refresh) = layer_shell_event
+        if let IcedWlShellEvent::Window(LayerShellWindowEvent::Refresh) = layer_shell_event
             && self.compositor.is_none()
         {
             let Some(layer_shell_window) = layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
@@ -373,20 +373,18 @@ where
         }
 
         match layer_shell_event {
-            IcedLayerShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
-            IcedLayerShellEvent::Window(LayerShellWindowEvent::Refresh) => {
+            IcedWlShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
+            IcedWlShellEvent::Window(LayerShellWindowEvent::Refresh) => {
                 self.handle_refresh_event(ev, layer_shell_id)
             }
-            IcedLayerShellEvent::Window(LayerShellWindowEvent::Closed) => {
+            IcedWlShellEvent::Window(LayerShellWindowEvent::Closed) => {
                 self.handle_closed_event(ev, layer_shell_id)
             }
-            IcedLayerShellEvent::Window(window_event) => {
+            IcedWlShellEvent::Window(window_event) => {
                 self.handle_window_event(layer_shell_id, window_event)
             }
-            IcedLayerShellEvent::UserAction(user_action) => {
-                self.handle_user_action(ev, user_action)
-            }
-            IcedLayerShellEvent::NormalDispatch => self.handle_normal_dispatch(ev),
+            IcedWlShellEvent::UserAction(user_action) => self.handle_user_action(ev, user_action),
+            IcedWlShellEvent::NormalDispatch => self.handle_normal_dispatch(ev),
         }
 
         // at each interaction try to resolve those waiting actions.
@@ -407,17 +405,17 @@ where
         ev: &mut WindowState<IcedId>,
         layer_shell_id: Option<LayerShellId>,
     ) {
-        let Some(layer_shell_window) = layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
+        let Some(ex_wlshell_window) = layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
         else {
             return;
         };
-        let (width, height) = layer_shell_window.get_size();
-        let scale_float = layer_shell_window.scale_float();
+        let (width, height) = ex_wlshell_window.get_size();
+        let scale_float = ex_wlshell_window.scale_float();
         // events may not be handled after RequestRefreshWithWrapper in the same
         // interaction, we dispatched them immediately.
         let mut events = Vec::new();
         let (iced_id, window) = if let Some((iced_id, window)) =
-            self.window_manager.get_mut_alias(layer_shell_window.id())
+            self.window_manager.get_mut_alias(ex_wlshell_window.id())
         {
             let window_size = window.state.window_size();
 
@@ -437,11 +435,34 @@ where
             }
             (iced_id, window)
         } else {
-            let wrapper = Arc::new(layer_shell_window.gen_wrapper());
-            let iced_id = layer_shell_window
+            let wrapper = Arc::new(ex_wlshell_window.gen_wrapper());
+            let iced_id = ex_wlshell_window
                 .get_binding()
                 .copied()
                 .unwrap_or_else(IcedId::unique);
+            let message = P::Message::get(crate::NewShellInfo {
+                id: iced_id,
+                shell: ex_wlshell_window.wl_shell_type(),
+            });
+
+            let (caches, application) = self.user_interfaces.extract_all();
+            update(
+                application,
+                &mut self.runtime,
+                &mut vec![message],
+                &mut vec![],
+            );
+            for (iced_id, cache) in caches {
+                let Some(window) = self.window_manager.get_mut(iced_id) else {
+                    continue;
+                };
+                self.user_interfaces.build(
+                    iced_id,
+                    cache,
+                    &mut window.renderer,
+                    window.state.viewport().logical_size(),
+                );
+            }
 
             let is_first = self.window_manager.is_empty();
 
@@ -495,7 +516,7 @@ where
             .ui_mut(&iced_id)
             .expect("Get User interface");
 
-        let cursor = if ev.is_mouse_surface(layer_shell_window.id()) {
+        let cursor = if ev.is_mouse_surface(ex_wlshell_window.id()) {
             window.state.cursor()
         } else {
             Cursor::Unavailable
@@ -559,7 +580,7 @@ where
         draw_span.finish();
 
         // get layer_shell_id so that layer_shell_window can be drop, and ev can be borrow mut
-        let layer_shell_id = layer_shell_window.id();
+        let layer_shell_id = ex_wlshell_window.id();
 
         Self::handle_ui_state(ev, window, ui_state, false, true);
 
@@ -667,7 +688,7 @@ where
         &mut self,
         ev: &mut WindowState<IcedId>,
         mut iced_id: Option<IcedId>,
-        action: LayerShellCustomAction,
+        action: ExwlShellCustomAction,
     ) {
         let layer_shell_window;
         macro_rules! ref_layer_shell_window {
@@ -704,35 +725,35 @@ where
             return;
         }
         match action {
-            LayerShellCustomAction::AnchorChange(anchor) => {
+            ExwlShellCustomAction::AnchorChange(anchor) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_anchor(anchor);
             }
-            LayerShellCustomAction::AnchorSizeChange(anchor, size) => {
+            ExwlShellCustomAction::AnchorSizeChange(anchor, size) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_anchor_with_size(anchor, size);
             }
-            LayerShellCustomAction::LayerChange(layer) => {
+            ExwlShellCustomAction::LayerChange(layer) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_layer(layer);
             }
-            LayerShellCustomAction::MarginChange(margin) => {
+            ExwlShellCustomAction::MarginChange(margin) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_margin(margin);
             }
-            LayerShellCustomAction::SizeChange((width, height)) => {
+            ExwlShellCustomAction::SizeChange((width, height)) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_size((width, height));
             }
-            LayerShellCustomAction::ExclusiveZoneChange(zone_size) => {
+            ExwlShellCustomAction::ExclusiveZoneChange(zone_size) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_exclusive_zone(zone_size);
             }
-            LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
+            ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
-            LayerShellCustomAction::SetInputRegion(set_region) => {
+            ExwlShellCustomAction::SetInputRegion(set_region) => {
                 ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 let set_region = set_region.0;
                 let Some(region) = &self.wl_input_region else {
@@ -755,48 +776,54 @@ where
                     .set_input_region(self.wl_input_region.as_ref());
                 layer_shell_window.get_wlsurface().commit();
             }
-            LayerShellCustomAction::VirtualKeyboardPressed { time, key } => {
-                use layershellev::reexport::wayland_client::KeyState;
+            ExwlShellCustomAction::VirtualKeyboardPressed { time, key } => {
+                use exwlshellev::reexport::wayland_client::KeyState;
                 let ky = ev.get_virtual_keyboard().unwrap();
                 ky.key(time, key, KeyState::Pressed.into());
                 // NOTE: add delay time
                 let time = time + 100;
-                ev.set_virtual_key_release(layershellev::VirtualKeyRelease {
+                ev.set_virtual_key_release(exwlshellev::VirtualKeyRelease {
                     delay: Duration::from_micros(100),
                     time,
                     key,
                 });
             }
-            LayerShellCustomAction::NewLayerShell {
+            ExwlShellCustomAction::NewLayerShell {
                 settings,
                 id: iced_id,
                 ..
             } => {
-                let layer_shell_id = layershellev::id::Id::unique();
+                let layer_shell_id = exwlshellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewLayerShell((
                     settings,
                     layer_shell_id,
                     Some(iced_id),
                 )));
             }
-            LayerShellCustomAction::NewBaseWindow {
+            ExwlShellCustomAction::Lock => {
+                ev.append_return_data(ReturnData::RequestLock);
+            }
+            ExwlShellCustomAction::UnLock => {
+                ev.append_return_data(ReturnData::RequestUnLock);
+            }
+            ExwlShellCustomAction::NewBaseWindow {
                 settings,
                 id: iced_id,
                 ..
             } => {
-                let layer_shell_id = layershellev::id::Id::unique();
+                let layer_shell_id = exwlshellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewXdgBase((
                     settings.into(),
                     layer_shell_id,
                     Some(iced_id),
                 )));
             }
-            LayerShellCustomAction::RemoveWindow => {
+            ExwlShellCustomAction::RemoveWindow => {
                 if let Some(layer_shell_id) = layer_shell_id {
                     ev.request_close(layer_shell_id)
                 }
             }
-            LayerShellCustomAction::NewPopUp {
+            ExwlShellCustomAction::NewPopUp {
                 settings: menusettings,
                 id: iced_id,
             } => {
@@ -809,14 +836,14 @@ where
                     position,
                     id: parent_layer_shell_id,
                 };
-                let layer_shell_id = layershellev::id::Id::unique();
+                let layer_shell_id = exwlshellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewPopUp((
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
                 )));
             }
-            LayerShellCustomAction::NewMenu {
+            ExwlShellCustomAction::NewMenu {
                 settings: menu_setting,
                 id: iced_id,
             } => {
@@ -840,25 +867,25 @@ where
                     position: (x, y),
                     id: parent_layer_shell_id,
                 };
-                let layer_shell_id = layershellev::id::Id::unique();
+                let layer_shell_id = exwlshellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewPopUp((
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
                 )))
             }
-            LayerShellCustomAction::NewInputPanel {
+            ExwlShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
-                let layer_shell_id = layershellev::id::Id::unique();
+                let layer_shell_id = exwlshellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewInputPanel((
                     settings,
                     layer_shell_id,
                     Some(iced_id),
                 )));
             }
-            LayerShellCustomAction::ForgetLastOutput => {
+            ExwlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();
             }
         }
@@ -1013,8 +1040,8 @@ where
                             if ime_flags.contains(ImeState::Update) {
                                 ev.set_ime_purpose(conversion::ime_purpose(purpose));
                                 ev.set_ime_cursor_area(
-                                    layershellev::dpi::LogicalPosition::new(cursor.x, cursor.y),
-                                    layershellev::dpi::LogicalSize {
+                                    exwlshellev::dpi::LogicalPosition::new(cursor.x, cursor.y),
+                                    exwlshellev::dpi::LogicalSize {
                                         width: cursor.width,
                                         height: cursor.height,
                                     },
@@ -1044,10 +1071,10 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     application: &mut Instance<P>,
     runtime: &mut MultiRuntime<E, P::Message>,
     messages: &mut Vec<P::Message>,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayerShellCustomAction)>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
 ) where
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     for message in messages.drain(..) {
         // NOTE: avoid something like
@@ -1057,7 +1084,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
         // Now if it is a unique command, it will be operated immediately
         let message = match message.try_into() {
             Ok(action) => {
-                let LayerShellCustomActionWithId(id, action) = action;
+                let ExwlShellCustomActionWithId(id, action) = action;
                 waiting_layer_shell_actions.push((id, action));
                 continue;
             }
@@ -1084,7 +1111,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     event: Action<P::Message>,
     messages: &mut Vec<P::Message>,
     clipboard: &mut LayerShellClipboard,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, LayerShellCustomAction)>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
     system_theme: &mut iced_core::theme::Mode,
@@ -1094,7 +1121,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     P: IcedProgram + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message> + FromShellInfo,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;
@@ -1104,7 +1131,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
-                let LayerShellCustomActionWithId(id, action) = action;
+                let ExwlShellCustomActionWithId(id, action) = action;
                 waiting_layer_shell_actions.push((id, action));
             }
             Err(stream) => {
@@ -1154,7 +1181,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
         }
         Action::Window(action) => match action {
             WindowAction::Close(id) => {
-                waiting_layer_shell_actions.push((Some(id), LayerShellCustomAction::RemoveWindow));
+                waiting_layer_shell_actions.push((Some(id), ExwlShellCustomAction::RemoveWindow));
             }
             WindowAction::GetOldest(channel) => {
                 let _ = channel.send(window_manager.first_window().map(|(id, _)| *id));

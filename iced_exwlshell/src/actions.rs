@@ -1,6 +1,6 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
+use exwlshellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
 use iced_core::window::Id as IcedId;
-use layershellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
 
 use std::sync::Arc;
 
@@ -60,14 +60,14 @@ impl ActionCallback {
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
 #[derive(Debug, Clone)]
-pub enum LayerShellCustomAction {
+pub enum ExwlShellCustomAction {
     AnchorChange(Anchor),
     LayerChange(Layer),
     AnchorSizeChange(Anchor, (u32, u32)),
     MarginChange((i32, i32, i32, i32)),
     SizeChange((u32, u32)),
     ExclusiveZoneChange(i32),
-    KeyboardInteractivityChange(layershellev::reexport::KeyboardInteractivity),
+    KeyboardInteractivityChange(exwlshellev::reexport::KeyboardInteractivity),
     VirtualKeyboardPressed {
         time: u32,
         key: u32,
@@ -97,15 +97,17 @@ pub enum LayerShellCustomAction {
     /// is same with WindowAction::Close(id)
     RemoveWindow,
     ForgetLastOutput,
+    Lock,
+    UnLock,
 }
 
 /// Please do not use this struct directly
 /// Use macro to_layer_message instead
 #[derive(Debug, Clone)]
-pub struct LayerShellCustomActionWithId(pub Option<IcedId>, pub LayerShellCustomAction);
+pub struct ExwlShellCustomActionWithId(pub Option<IcedId>, pub ExwlShellCustomAction);
 
-impl LayerShellCustomActionWithId {
-    pub fn new(id: Option<IcedId>, action: LayerShellCustomAction) -> Self {
+impl ExwlShellCustomActionWithId {
+    pub fn new(id: Option<IcedId>, action: ExwlShellCustomAction) -> Self {
         Self(id, action)
     }
 }

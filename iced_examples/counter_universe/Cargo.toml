@@ -1,0 +1,21 @@
+[package]
+name = "counter_universe"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+iced.workspace = true
+iced_runtime.workspace = true
+iced_exwlshell = { workspace = true, features = ["debug"] }
+tracing-subscriber.workspace = true
+iced_wayland_subscriber.workspace = true
+wayland-client.workspace = true

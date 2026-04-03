@@ -3,7 +3,7 @@ use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_layershell::actions::{LayershellCustomAction, LayershellCustomActionWithId};
+use iced_layershell::actions::{LayerShellCustomAction, LayerShellCustomActionWithId};
 use iced_layershell::application;
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
 use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
@@ -89,13 +89,13 @@ enum Message {
     InputKeyPressed { time_stamp: u32, key: u32 },
 }
 
-impl TryInto<LayershellCustomActionWithId> for Message {
+impl TryInto<LayerShellCustomActionWithId> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<LayershellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<LayerShellCustomActionWithId, Self::Error> {
         let Message::InputKeyPressed { time_stamp, key } = self;
-        Ok(LayershellCustomActionWithId(
+        Ok(LayerShellCustomActionWithId(
             None,
-            LayershellCustomAction::VirtualKeyboardPressed {
+            LayerShellCustomAction::VirtualKeyboardPressed {
                 time: time_stamp,
                 key,
             },
