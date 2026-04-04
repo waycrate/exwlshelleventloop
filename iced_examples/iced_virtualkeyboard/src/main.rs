@@ -13,7 +13,6 @@ use std::ffi::CString;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use std::time::Instant;
 use xkbcommon::xkb;
 
 use std::sync::LazyLock;
@@ -81,24 +80,20 @@ struct KeyCoords {
 
 struct KeyboardView {
     draw_cache: Cache,
-    time: Instant,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
-    InputKeyPressed { time_stamp: u32, key: u32 },
+    InputKeyPressed { key: u32 },
 }
 
 impl TryInto<LayerShellCustomActionWithId> for Message {
     type Error = Self;
     fn try_into(self) -> Result<LayerShellCustomActionWithId, Self::Error> {
-        let Message::InputKeyPressed { time_stamp, key } = self;
+        let Message::InputKeyPressed { key } = self;
         Ok(LayerShellCustomActionWithId(
             None,
-            LayerShellCustomAction::VirtualKeyboardPressed {
-                time: time_stamp,
-                key,
-            },
+            LayerShellCustomAction::VirtualKeyboardPressed { key },
         ))
     }
 }
@@ -108,7 +103,6 @@ impl KeyboardView {
         (
             Self {
                 draw_cache: Cache::default(),
-                time: Instant::now(),
             },
             Command::none(),
         )
@@ -333,14 +327,11 @@ impl canvas::Program<Message> for KeyboardView {
                     && click_position.y >= key_position.y
                     && click_position.y <= key_position.y + key_size.height
                 {
-                    let current_time = Instant::now();
-                    let time_stamp = (current_time - self.time).as_millis();
                     // Clear the cache
                     self.draw_cache.clear();
                     if let Some(key_code) = get_key_code(label) {
                         return Some(canvas::Action::publish(Message::InputKeyPressed {
                             key: key_code,
-                            time_stamp: time_stamp as u32,
                         }));
                     }
                 }

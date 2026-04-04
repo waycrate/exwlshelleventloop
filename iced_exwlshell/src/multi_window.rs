@@ -30,13 +30,14 @@ use iced_core::{
     Event as IcedEvent, theme,
     window::{Event as IcedWindowEvent, Id as IcedId, RedrawRequest},
 };
-use iced_core::{Size, mouse::Cursor, time::Instant};
+use iced_core::{Size, mouse::Cursor};
 use iced_futures::{Executor, Runtime};
 use iced_graphics::{Compositor, Shell, compositor};
 use iced_program::Instance;
 use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
+use std::time::Instant;
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
@@ -283,6 +284,7 @@ where
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
+    time: Instant,
 }
 
 impl<P, E, C> Context<P, E, C>
@@ -316,6 +318,7 @@ where
             iced_events: Default::default(),
             messages: Default::default(),
             proxy,
+            time: Instant::now(),
         }
     }
 
@@ -776,12 +779,14 @@ where
                     .set_input_region(self.wl_input_region.as_ref());
                 layer_shell_window.get_wlsurface().commit();
             }
-            ExwlShellCustomAction::VirtualKeyboardPressed { time, key } => {
+            ExwlShellCustomAction::VirtualKeyboardPressed { key } => {
                 use exwlshellev::reexport::wayland_client::KeyState;
                 let ky = ev.get_virtual_keyboard().unwrap();
-                ky.key(time, key, KeyState::Pressed.into());
+                let current_time = Instant::now();
+                let time_stamp = (current_time - self.time).as_millis() as u32;
+                ky.key(time_stamp, key, KeyState::Pressed.into());
                 // NOTE: add delay time
-                let time = time + 100;
+                let time = time_stamp + 100;
                 ev.set_virtual_key_release(exwlshellev::VirtualKeyRelease {
                     delay: Duration::from_micros(100),
                     time,

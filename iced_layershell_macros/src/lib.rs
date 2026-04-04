@@ -47,7 +47,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 ExclusiveZoneChange{id: iced_layershell::reexport::IcedId, zone_size: i32},
                 KeyboardInteractivityChange{id: iced_layershell::reexport::IcedId, keyboard_interactivity: iced_layershell::reexport::KeyboardInteractivity},
                 VirtualKeyboardPressed {
-                    time: u32,
                     key: u32,
                 },
                 NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced_layershell::reexport::IcedId },
@@ -110,9 +109,9 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::SizeChange { id, size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::SizeChange(size))),
                             Self::ExclusiveZoneChange { id, zone_size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::ExclusiveZoneChange(zone_size))),
                             Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                            Self::VirtualKeyboardPressed { time, key } => Ok(LayerShellCustomActionWithId::new(
+                            Self::VirtualKeyboardPressed { key } => Ok(LayerShellCustomActionWithId::new(
                                 None,
-                                LayerShellCustomAction::VirtualKeyboardPressed { time, key })
+                                LayerShellCustomAction::VirtualKeyboardPressed { key })
                             ),
                             Self::NewLayerShell {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewLayerShell { settings, id })),
                             Self::NewBaseWindow {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewBaseWindow { settings, id })),
@@ -141,7 +140,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 ExclusiveZoneChange(i32),
                 KeyboardInteractivityChange(iced_layershell::reexport::KeyboardInteractivity),
                 VirtualKeyboardPressed {
-                    time: u32,
                     key: u32,
                 },
             };
@@ -163,8 +161,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::SizeChange(size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::SizeChange(size))),
                             Self::ExclusiveZoneChange(zone_size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::ExclusiveZoneChange(zone_size))),
                             Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                            Self::VirtualKeyboardPressed { time, key } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::VirtualKeyboardPressed {
-                                time,
+                            Self::VirtualKeyboardPressed { key } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::VirtualKeyboardPressed {
                                 key
                             })),
                             _ => Err(self)

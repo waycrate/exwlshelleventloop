@@ -69,7 +69,6 @@ pub enum LayerShellCustomAction {
     ExclusiveZoneChange(i32),
     KeyboardInteractivityChange(layershellev::reexport::KeyboardInteractivity),
     VirtualKeyboardPressed {
-        time: u32,
         key: u32,
     },
     // settings, info, single_tone

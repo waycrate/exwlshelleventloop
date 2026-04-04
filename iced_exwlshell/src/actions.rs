@@ -69,7 +69,6 @@ pub enum ExwlShellCustomAction {
     ExclusiveZoneChange(i32),
     KeyboardInteractivityChange(exwlshellev::reexport::KeyboardInteractivity),
     VirtualKeyboardPressed {
-        time: u32,
         key: u32,
     },
     // settings, info, single_tone

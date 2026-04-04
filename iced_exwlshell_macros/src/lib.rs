@@ -50,7 +50,6 @@ pub fn to_exwlshell_message(
             KeyboardInteractivityChange{id: iced_exwlshell::reexport::IcedId, keyboard_interactivity: iced_exwlshell::reexport::KeyboardInteractivity},
             /// Action, press vitral keyboard
             VirtualKeyboardPressed {
-                time: u32,
                 key: u32,
             },
             /// Action request for new layershell
@@ -131,9 +130,9 @@ pub fn to_exwlshell_message(
                         Self::SizeChange { id, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::SizeChange(size))),
                         Self::ExclusiveZoneChange { id, zone_size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
                         Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                        Self::VirtualKeyboardPressed { time, key } => Ok(ExwlShellCustomActionWithId::new(
+                        Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(
                             None,
-                            ExwlShellCustomAction::VirtualKeyboardPressed { time, key })
+                            ExwlShellCustomAction::VirtualKeyboardPressed { key })
                         ),
                         Self::NewLayerShell {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewLayerShell { settings, id })),
                         Self::NewBaseWindow {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewBaseWindow { settings, id })),
