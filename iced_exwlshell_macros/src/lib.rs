@@ -32,27 +32,44 @@ pub fn to_exwlshell_message(
             /// The new information about the new shell
             /// Must be addressed during update
             NewShell(iced_exwlshell::NewShellInfo),
+            /// Action , Anchor change
             AnchorChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor},
+            /// Action, input region
             SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },
+            /// Action, anchor size change
             AnchorSizeChange{id: iced_exwlshell::reexport::IcedId, anchor:iced_exwlshell::reexport::Anchor, size: (u32, u32)},
+            /// Action, layer change
             LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
-            /// Margin: top, left, bottom, right
+            /// Action, margin change Margin: top, left, bottom, right
             MarginChange{id: iced_exwlshell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+            /// Action, size change
             SizeChange{id: iced_exwlshell::reexport::IcedId, size: (u32, u32)},
+            /// Action, ExclusiveZone Change
             ExclusiveZoneChange{id: iced_exwlshell::reexport::IcedId, zone_size: i32},
+            /// Action, KeyboardInteractivity change
             KeyboardInteractivityChange{id: iced_exwlshell::reexport::IcedId, keyboard_interactivity: iced_exwlshell::reexport::KeyboardInteractivity},
+            /// Action, press vitral keyboard
             VirtualKeyboardPressed {
                 time: u32,
                 key: u32,
             },
+            /// Action request for new layershell
             NewLayerShell { settings: iced_exwlshell::reexport::NewLayerShellSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Action request for new base window
             NewBaseWindow { settings: iced_exwlshell::actions::IcedXdgWindowSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Action request for new base popup
             NewPopUp { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Action request for new menu
             NewMenu { settings: iced_exwlshell::actions::IcedNewMenuSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Action request for new input panel
             NewInputPanel { settings: iced_exwlshell::reexport::NewInputPanelSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Action, remove window
             RemoveWindow(iced_exwlshell::reexport::IcedId),
+            /// Action, forget last outptu
             ForgetLastOutput,
+            /// Action, Lock
             Lock,
+            /// Action, UnLock
             UnLock
         };
 

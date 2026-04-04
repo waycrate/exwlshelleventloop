@@ -1,15 +1,24 @@
-# layershell binding for iced
+# Layershell, SessionLock, InputPanel, all bindings for iced
 
-[![Crates.io](https://img.shields.io/crates/v/iced-layershell.svg)](https://crates.io/crates/iced-layershell)
+[![Crates.io](https://img.shields.io/crates/v/iced-layershell.svg)](https://crates.io/crates/iced-exwlshelll)
 
-iced-layershell provides binding for iced and layershell.
+iced-exwlshelll provides all extra shell bindings on wayland for iced.
 
 ## Feature:
 
 - support to open new layershell and support popup window.
+- support sessionlock
 - support ext-virtual-keyboard
 
 With this crate, you can use iced to build your kde-shell, notification application, and etc.
+
+## Design
+
+Since iced cannot define custom system actions and custom system events now, though I have a pr for it https://github.com/iced-rs/iced/pull/2658, but now I can use trait for the Message and let it become my custom system events and custom system actions. What you need is just add `#[to_exwlshell_message]` to your message, Then you will get a lot of extra fields on you `Message`. 
+
+If you use `Task::dnoe` or just send the message from `view`, which is the extra fields for custom actions. The message will never enter go back to update
+
+If you receive something like `Message::NewShell`, the message should be addressed in update filed, this is the custom events, you can get the ideneity of window id, and when it is removed, you should listen to the iced events to get the removed windows
 
 ## Example
 
