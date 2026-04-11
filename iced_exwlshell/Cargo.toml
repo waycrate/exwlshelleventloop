@@ -7,7 +7,7 @@ license.workspace = true
 keywords.workspace = true
 repository.workspace = true
 readme = "README.md"
-description = "layershell binding for iced"
+description = "The binding of extra shells on wayland for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
