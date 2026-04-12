@@ -3518,13 +3518,21 @@ impl<T: 'static> WindowState<T> {
 
             let r_window_state = &mut state;
             let window_state = &mut r_window_state.raw;
-            // Process events already buffered by the calloop WaylandSource
-            // without sending wl_display.sync.  roundtrip() generates a
-            // sync→done pair every iteration (~48 Hz feedback loop even when
-            // idle).  dispatch_pending() + flush() is sufficient because the
-            // WaylandSource reads from the Wayland socket and routes events
-            // to all queues; we just need to dispatch what was buffered for
-            // event_queue_origin and flush any outgoing requests.
+            // Use dispatch_pending() + flush() instead of roundtrip().
+            //
+            // roundtrip() sends wl_display.sync every call, blocking until
+            // the compositor replies — creating a ~48 Hz feedback loop even
+            // when idle.  Its docs note it is meant for "initial setup" and
+            // one-off synchronisation points, not per-frame use:
+            // https://docs.rs/wayland-client/latest/wayland_client/struct.EventQueue.html#method.roundtrip
+            //
+            // dispatch_pending() processes events already buffered by the
+            // calloop WaylandSource (which reads the Wayland socket and
+            // routes events to all queues), without any I/O:
+            // https://docs.rs/wayland-client/latest/wayland_client/struct.EventQueue.html#method.dispatch_pending
+            //
+            // flush() sends any outgoing requests queued by event handlers:
+            // https://docs.rs/wayland-client/latest/wayland_client/struct.EventQueue.html#method.flush
             let _ = event_queue_origin.dispatch_pending(window_state);
             let _ = connection.flush();
             let event_handler = &mut r_window_state.fun;
