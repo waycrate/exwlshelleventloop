@@ -3534,7 +3534,6 @@ impl<T: 'static> WindowState<T> {
             // flush() sends any outgoing requests queued by event handlers:
             // https://docs.rs/wayland-client/latest/wayland_client/struct.EventQueue.html#method.flush
             let _ = event_queue_origin.dispatch_pending(window_state);
-            let _ = connection.flush();
             let event_handler = &mut r_window_state.fun;
             if process_window_state(window_state, event_handler) {
                 break;
@@ -3604,6 +3603,10 @@ impl<T: 'static> WindowState<T> {
                     })
                     .ok();
             }
+            // Flush after all event handlers have run so outgoing requests
+            // (e.g. wl_surface.commit from process_window_state) reach the
+            // compositor before the next dispatch() potentially sleeps.
+            let _ = connection.flush();
         }
         Ok(())
     }
