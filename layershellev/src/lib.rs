@@ -3508,10 +3508,10 @@ impl<T: 'static> WindowState<T> {
 
             false
         };
-        // Dynamic dispatch timeout: sleep indefinitely when no unit needs a
-        // refresh, wake instantly when a frame is pending.  External events
-        // (Wayland fd, channels, timers registered on the calloop handle)
-        // still wake the loop regardless of timeout.
+        // Dynamic dispatch timeout: compute the sleep duration from each
+        // unit's RefreshRequest rather than using a fixed interval.
+        // Based on the approach used by winit's Wayland event loop:
+        // https://github.com/rust-windowing/winit/blob/master/winit-wayland/src/event_loop/mod.rs#L242-L312
         loop {
             let timeout = state.raw.min_dispatch_timeout();
             event_loop.dispatch(timeout, &mut state)?;
