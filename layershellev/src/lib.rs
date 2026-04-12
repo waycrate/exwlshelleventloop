@@ -3518,7 +3518,15 @@ impl<T: 'static> WindowState<T> {
 
             let r_window_state = &mut state;
             let window_state = &mut r_window_state.raw;
-            let _ = event_queue_origin.roundtrip(window_state);
+            // Process events already buffered by the calloop WaylandSource
+            // without sending wl_display.sync.  roundtrip() generates a
+            // sync→done pair every iteration (~48 Hz feedback loop even when
+            // idle).  dispatch_pending() + flush() is sufficient because the
+            // WaylandSource reads from the Wayland socket and routes events
+            // to all queues; we just need to dispatch what was buffered for
+            // event_queue_origin and flush any outgoing requests.
+            let _ = event_queue_origin.dispatch_pending(window_state);
+            let _ = connection.flush();
             let event_handler = &mut r_window_state.fun;
             if process_window_state(window_state, event_handler) {
                 break;
