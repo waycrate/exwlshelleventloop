@@ -463,6 +463,32 @@ impl<T> WindowStateUnit<T> {
         }
     }
 
+    /// Returns the duration until this unit needs its next refresh,
+    /// or `None` if no refresh is pending or the present slot is
+    /// unavailable (waiting for a compositor frame callback).
+    fn refresh_timeout(&self) -> Option<Duration> {
+        match self.refresh {
+            RefreshRequest::NextFrame => {
+                if self.present_available_state == PresentAvailableState::Available {
+                    Some(Duration::ZERO)
+                } else {
+                    None
+                }
+            }
+            RefreshRequest::At(instant) => {
+                let timeout = instant.saturating_duration_since(Instant::now());
+                if timeout.is_zero()
+                    && self.present_available_state != PresentAvailableState::Available
+                {
+                    None
+                } else {
+                    Some(timeout)
+                }
+            }
+            RefreshRequest::Wait => None,
+        }
+    }
+
     pub fn take_present_slot(&mut self) -> bool {
         if !self.should_refresh() {
             return false;
@@ -610,7 +636,21 @@ impl<T> WindowState<T> {
     pub fn new() -> Self {
         Self::default()
     }
-
+    /// Compute the minimum dispatch timeout across all window units.
+    /// Returns `None` when every unit is idle (`RefreshRequest::Wait`),
+    /// meaning the event loop can sleep indefinitely until an external
+    /// event (Wayland, channel, etc.) arrives.
+    fn min_dispatch_timeout(&self) -> Option<Duration> {
+        let mut min: Option<Duration> = None;
+        for unit in &self.units {
+            match unit.refresh_timeout() {
+                Some(Duration::ZERO) => return Some(Duration::ZERO),
+                Some(d) => min = Some(min.map_or(d, |m: Duration| m.min(d))),
+                None => {}
+            }
+        }
+        min
+    }
     pub fn append_return_data(&mut self, data: ReturnData) {
         self.return_data.push(data);
     }
@@ -1790,77 +1830,78 @@ impl<T: 'static> WindowState<T> {
 
             false
         };
-        event_loop.run(
-            std::time::Duration::from_millis(20),
-            &mut state,
-            move |r_window_state| {
-                let window_state = &mut r_window_state.raw;
-                let _ = event_queue_origin.roundtrip(window_state);
-                let event_handler = &mut r_window_state.fun;
-                if process_window_state(window_state, event_handler) {
-                    return;
-                }
-                let looph = &r_window_state.loop_handle;
-                for token in window_state.to_remove_tokens.iter() {
-                    looph.remove(*token);
-                }
-                window_state.to_remove_tokens.clear();
 
-                if let Some(KeyboardTokenState {
-                    key,
-                    delay,
-                    surface_id,
-                    pressed_state,
-                }) = window_state.repeat_delay.take()
-                {
-                    let timer = Timer::from_duration(delay);
-                    let keyboard_state = window_state.keyboard_state.as_mut().unwrap();
-                    keyboard_state.repeat_token = looph
-                        .insert_source(timer, move |_, _, r_window_state| {
-                            let state = &mut r_window_state.raw;
-                            let event_handler = &mut r_window_state.fun;
-                            let keyboard_state = match state.keyboard_state.as_mut() {
-                                Some(keyboard_state) => keyboard_state,
-                                None => return TimeoutAction::Drop,
-                            };
-                            let repeat_keycode = match keyboard_state.current_repeat {
-                                Some(repeat_keycode) => repeat_keycode,
-                                None => return TimeoutAction::Drop,
-                            };
-                            // NOTE: not the same key
-                            if repeat_keycode != key {
-                                return TimeoutAction::Drop;
-                            }
-                            if let Some(mut key_context) = keyboard_state.xkb_context.key_context()
-                            {
-                                let event = key_context.process_key_event(
-                                    repeat_keycode,
-                                    pressed_state,
-                                    false,
-                                );
-                                let event = DispatchMessageInner::KeyboardInput {
-                                    event,
-                                    is_synthetic: false,
-                                };
-                                state.message.push((surface_id, event));
-                            }
-                            let repeat_info = keyboard_state.repeat_info;
+        // Dynamic dispatch timeout: compute the sleep duration from each
+        // unit's RefreshRequest rather than using a fixed interval.
+        // Based on the approach used by winit's Wayland event loop:
+        // https://github.com/rust-windowing/winit/blob/master/winit-wayland/src/event_loop/mod.rs#L242-L312
+        loop {
+            let timeout = state.raw.min_dispatch_timeout();
+            event_loop.dispatch(timeout, &mut state)?;
 
-                            let _ = keyboard_state;
-                            state.handle_event(
-                                &mut *event_handler,
-                                SessionLockEvent::NormalDispatch,
-                                None,
-                            );
-                            match repeat_info {
-                                RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
-                                RepeatInfo::Disable => TimeoutAction::Drop,
-                            }
-                        })
-                        .ok();
-                }
-            },
-        )?;
+            let r_window_state = &mut state;
+            let window_state = &mut r_window_state.raw;
+            let _ = event_queue_origin.roundtrip(window_state);
+            let event_handler = &mut r_window_state.fun;
+            if process_window_state(window_state, event_handler) {
+                break;
+            }
+            let looph = &r_window_state.loop_handle;
+            for token in window_state.to_remove_tokens.iter() {
+                looph.remove(*token);
+            }
+            window_state.to_remove_tokens.clear();
+
+            if let Some(KeyboardTokenState {
+                key,
+                delay,
+                surface_id,
+                pressed_state,
+            }) = window_state.repeat_delay.take()
+            {
+                let timer = Timer::from_duration(delay);
+                let keyboard_state = window_state.keyboard_state.as_mut().unwrap();
+                keyboard_state.repeat_token = looph
+                    .insert_source(timer, move |_, _, r_window_state| {
+                        let state = &mut r_window_state.raw;
+                        let event_handler = &mut r_window_state.fun;
+                        let keyboard_state = match state.keyboard_state.as_mut() {
+                            Some(keyboard_state) => keyboard_state,
+                            None => return TimeoutAction::Drop,
+                        };
+                        let repeat_keycode = match keyboard_state.current_repeat {
+                            Some(repeat_keycode) => repeat_keycode,
+                            None => return TimeoutAction::Drop,
+                        };
+                        // NOTE: not the same key
+                        if repeat_keycode != key {
+                            return TimeoutAction::Drop;
+                        }
+                        if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
+                            let event =
+                                key_context.process_key_event(repeat_keycode, pressed_state, false);
+                            let event = DispatchMessageInner::KeyboardInput {
+                                event,
+                                is_synthetic: false,
+                            };
+                            state.message.push((surface_id, event));
+                        }
+                        let repeat_info = keyboard_state.repeat_info;
+
+                        let _ = keyboard_state;
+                        state.handle_event(
+                            &mut *event_handler,
+                            SessionLockEvent::NormalDispatch,
+                            None,
+                        );
+                        match repeat_info {
+                            RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
+                            RepeatInfo::Disable => TimeoutAction::Drop,
+                        }
+                    })
+                    .ok();
+            }
+        }
         Ok(())
     }
 }
