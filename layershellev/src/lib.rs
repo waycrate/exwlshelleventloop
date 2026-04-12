@@ -781,11 +781,27 @@ impl<T> WindowStateUnit<T> {
     }
 
     /// Returns the duration until this unit needs its next refresh,
-    /// or `None` if no refresh is pending (`Wait` state).
+    /// or `None` if no refresh is pending or the present slot is
+    /// unavailable (waiting for a compositor frame callback).
     fn refresh_timeout(&self) -> Option<Duration> {
         match self.request_flag.refresh {
-            RefreshRequest::NextFrame => Some(Duration::ZERO),
-            RefreshRequest::At(instant) => Some(instant.saturating_duration_since(Instant::now())),
+            RefreshRequest::NextFrame => {
+                if self.present_available_state == PresentAvailableState::Available {
+                    Some(Duration::ZERO)
+                } else {
+                    None
+                }
+            }
+            RefreshRequest::At(instant) => {
+                let timeout = instant.saturating_duration_since(Instant::now());
+                if timeout.is_zero()
+                    && self.present_available_state != PresentAvailableState::Available
+                {
+                    None
+                } else {
+                    Some(timeout)
+                }
+            }
             RefreshRequest::Wait => None,
         }
     }
