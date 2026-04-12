@@ -3528,9 +3528,7 @@ impl<T: 'static> WindowState<T> {
                 looph.remove(*token);
             }
             window_state.to_remove_tokens.clear();
-            if let Some(VirtualKeyRelease { delay, time, key }) =
-                window_state.to_be_released_key
-            {
+            if let Some(VirtualKeyRelease { delay, time, key }) = window_state.to_be_released_key {
                 looph
                     .insert_source(Timer::from_duration(delay), move |_, _, r_window_state| {
                         let state = &mut r_window_state.raw;
@@ -3566,13 +3564,9 @@ impl<T: 'static> WindowState<T> {
                         if repeat_keycode != key {
                             return TimeoutAction::Drop;
                         }
-                        if let Some(mut key_context) = keyboard_state.xkb_context.key_context()
-                        {
-                            let event = key_context.process_key_event(
-                                repeat_keycode,
-                                pressed_state,
-                                false,
-                            );
+                        if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
+                            let event =
+                                key_context.process_key_event(repeat_keycode, pressed_state, false);
                             let event = DispatchMessageInner::KeyboardInput {
                                 event,
                                 is_synthetic: false,
