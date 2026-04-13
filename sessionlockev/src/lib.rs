@@ -1841,7 +1841,7 @@ impl<T: 'static> WindowState<T> {
 
             let r_window_state = &mut state;
             let window_state = &mut r_window_state.raw;
-            let _ = event_queue_origin.roundtrip(window_state);
+            event_queue_origin.dispatch_pending(window_state)?;
             let event_handler = &mut r_window_state.fun;
             if process_window_state(window_state, event_handler) {
                 break;
@@ -1901,6 +1901,10 @@ impl<T: 'static> WindowState<T> {
                     })
                     .ok();
             }
+            // Flush after all event handlers have run so outgoing requests
+            // (e.g. wl_surface.commit from process_window_state) reach the
+            // compositor before the next dispatch() potentially sleeps.
+            let _ = connection.flush();
         }
         Ok(())
     }

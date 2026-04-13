@@ -3533,7 +3533,7 @@ impl<T: 'static> WindowState<T> {
             //
             // flush() sends any outgoing requests queued by event handlers:
             // https://docs.rs/wayland-client/latest/wayland_client/struct.EventQueue.html#method.flush
-            let _ = event_queue_origin.dispatch_pending(window_state);
+            event_queue_origin.dispatch_pending(window_state)?;
             let event_handler = &mut r_window_state.fun;
             if process_window_state(window_state, event_handler) {
                 break;
