@@ -1724,18 +1724,16 @@ impl<T: 'static> SeatHandler for WindowState<T> {
         }
         match capability {
             SeatCapability::Touch => {
-                if let Some(touch) = self.touch.take() {
-                    if touch.version() >= 3 {
+                if let Some(touch) = self.touch.take()
+                    && touch.version() >= 3 {
                         touch.release();
                     }
-                }
             }
             SeatCapability::Pointer => {
-                if let Some(pointer) = self.pointer.take() {
-                    if pointer.version() >= 3 {
+                if let Some(pointer) = self.pointer.take()
+                    && pointer.version() >= 3 {
                         pointer.release();
                     }
-                }
             }
             SeatCapability::Keyboard => {
                 self.keyboard_state = None;
