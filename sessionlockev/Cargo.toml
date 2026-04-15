@@ -33,3 +33,4 @@ calloop-wayland-source.workspace = true
 log.workspace = true
 
 waycrate_xkbkeycode.workspace = true
+sctk.workspace = true

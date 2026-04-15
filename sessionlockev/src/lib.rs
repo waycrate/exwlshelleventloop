@@ -98,6 +98,7 @@
 mod events;
 
 use calloop::RegistrationToken;
+use sctk::seat::{Capability as SeatCapability, SeatHandler, SeatState};
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
@@ -551,7 +552,8 @@ pub struct WindowState<T> {
     globals: Option<GlobalList>,
 
     // base managers
-    seat: Option<WlSeat>,
+    seat: Option<SeatState>,
+    seat_back: Option<WlSeat>,
     keyboard_state: Option<xkb_keyboard::KeyboardState>,
     pointer: Option<WlPointer>,
     touch: Option<WlTouch>,
@@ -586,7 +588,7 @@ pub enum RefreshRequest {
 impl<T> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
-        self.seat.as_ref().unwrap()
+        self.seat_back.as_ref().unwrap()
     }
 
     /// get the keyboard
@@ -692,6 +694,7 @@ impl<T> Default for WindowState<T> {
             globals: None,
 
             seat: None,
+            seat_back: None,
             keyboard_state: None,
             pointer: None,
             touch: None,
@@ -852,59 +855,60 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     }
 }
 
-impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        seat: &wl_seat::WlSeat,
-        event: <wl_seat::WlSeat as Proxy>::Event,
-        _data: &(),
+impl<T: 'static> SeatHandler for WindowState<T> {
+    fn seat_state(&mut self) -> &mut sctk::seat::SeatState {
+        self.seat.as_mut().unwrap()
+    }
+    fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+    }
+    fn new_capability(
+        &mut self,
         _conn: &Connection,
-        qh: &wayland_client::QueueHandle<Self>,
+        queue_handle: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        capability: sctk::seat::Capability,
     ) {
         use xkb_keyboard::KeyboardState;
-        if let wl_seat::Event::Capabilities {
-            capabilities: WEnum::Value(capabilities),
-        } = event
-        {
-            if capabilities.is_empty() && state.keyboard_state.is_some() {
-                let keyboard = state.keyboard_state.take().unwrap();
-                drop(keyboard);
+        match capability {
+            SeatCapability::Touch if self.touch.is_none() => {
+                self.touch = Some(seat.get_touch(queue_handle, ()));
             }
-            if capabilities.contains(wl_seat::Capability::Keyboard) {
-                if state.keyboard_state.is_none() {
-                    state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
-                } else {
-                    let keyboard = state.keyboard_state.take().unwrap();
-                    state.keyboard_state = Some(keyboard.update(seat, qh, ()));
-                }
-                if let Some(surface_id) = state.current_surface_id() {
-                    state
-                        .message
-                        .push((Some(surface_id), DispatchMessageInner::UnFocused));
-                }
+            SeatCapability::Keyboard if self.keyboard_state.is_none() => {
+                self.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
             }
-            if capabilities.contains(wl_seat::Capability::Pointer) {
-                if state.pointer.is_none() {
-                    state.pointer = Some(seat.get_pointer(qh, ()));
-                } else {
-                    let pointer = state.pointer.take().unwrap();
-                    if pointer.version() >= 3 {
-                        pointer.release();
-                    }
-                    state.pointer = Some(seat.get_pointer(qh, ()));
-                }
+            SeatCapability::Pointer if self.pointer.is_none() => {
+                self.pointer = Some(seat.get_pointer(queue_handle, ()));
             }
-            if capabilities.contains(wl_seat::Capability::Touch) {
-                if state.touch.is_none() {
-                    state.touch = Some(seat.get_touch(qh, ()));
-                } else {
-                    let touch = state.touch.take().unwrap();
+            _ => (),
+        }
+    }
+    fn remove_capability(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _seat: wl_seat::WlSeat,
+        capability: sctk::seat::Capability,
+    ) {
+        match capability {
+            SeatCapability::Touch => {
+                if let Some(touch) = self.touch.take() {
                     if touch.version() >= 3 {
                         touch.release();
                     }
-                    state.touch = Some(seat.get_touch(qh, ()));
                 }
             }
+            SeatCapability::Pointer => {
+                if let Some(pointer) = self.pointer.take() {
+                    if pointer.version() >= 3 {
+                        pointer.release();
+                    }
+                }
+            }
+            SeatCapability::Keyboard => {
+                self.keyboard_state = None;
+            }
+            _ => (),
         }
     }
 }
@@ -1480,6 +1484,8 @@ delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 // fractional_scale_manager
 delegate_noop!(@<T>WindowState<T>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<T: 'static> WindowState<T>: ignore WlSeat);
+sctk::delegate_seat!(@<T: 'static > WindowState<T>);
 
 impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, SessionLockEventError> {
@@ -1498,7 +1504,8 @@ impl<T: 'static> WindowState<T> {
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         self.shm = Some(shm);
-        self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
+        self.seat = Some(SeatState::new(&globals, &qh));
+        self.seat_back = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
 
         let cursor_manager = globals
             .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())

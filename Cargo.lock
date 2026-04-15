@@ -1159,6 +1159,7 @@ dependencies = [
  "calloop-wayland-source 0.4.1",
  "log",
  "raw-window-handle",
+ "smithay-client-toolkit 0.20.0",
  "tempfile",
  "thiserror 2.0.17",
  "waycrate_xkbkeycode",
@@ -2041,7 +2042,7 @@ dependencies = [
  "iced_layershell",
  "iced_runtime",
  "tempfile",
- "xkbcommon",
+ "xkbcommon 0.9.0",
 ]
 
 [[package]]
@@ -2308,6 +2309,7 @@ dependencies = [
  "calloop-wayland-source 0.4.1",
  "log",
  "raw-window-handle",
+ "smithay-client-toolkit 0.20.0",
  "tempfile",
  "thiserror 2.0.17",
  "waycrate_xkbkeycode",
@@ -3988,6 +3990,7 @@ dependencies = [
  "calloop-wayland-source 0.4.1",
  "log",
  "raw-window-handle",
+ "smithay-client-toolkit 0.20.0",
  "tempfile",
  "thiserror 2.0.17",
  "waycrate_xkbkeycode",
@@ -4116,12 +4119,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0512da38f5e2b31201a93524adb8d3136276fa4fe4aafab4e1f727a82b534cc0"
 dependencies = [
  "bitflags 2.11.0",
+ "bytemuck",
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
  "cursor-icon",
  "libc",
  "log",
  "memmap2",
+ "pkg-config",
  "rustix 1.1.4",
  "thiserror 2.0.17",
  "wayland-backend",
@@ -4133,6 +4138,7 @@ dependencies = [
  "wayland-protocols-misc",
  "wayland-protocols-wlr",
  "wayland-scanner",
+ "xkbcommon 0.8.0",
  "xkeysym",
 ]
 
@@ -5808,6 +5814,17 @@ checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
 
 [[package]]
 name = "xkbcommon"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d66ca9352cbd4eecbbc40871d8a11b4ac8107cfc528a6e14d7c19c69d0e1ac9"
+dependencies = [
+ "libc",
+ "memmap2",
+ "xkeysym",
+]
+
+[[package]]
+name = "xkbcommon"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a974f48060a14e95705c01f24ad9c3345022f4d97441b8a36beb7ed5c4a02d"
@@ -5835,6 +5852,9 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "xml-rs"

@@ -155,6 +155,7 @@ use wayland_client::{
     },
 };
 
+use sctk::seat::{Capability as SeatCapability, SeatHandler, SeatState};
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity;
 use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -930,7 +931,8 @@ pub struct WindowState<T> {
     display: Option<WlDisplay>,
 
     // base managers
-    seat: Option<WlSeat>,
+    seat: Option<SeatState>,
+    seat_back: Option<WlSeat>,
     keyboard_state: Option<xkb_keyboard::KeyboardState>,
 
     pointer: Option<WlPointer>,
@@ -1105,7 +1107,7 @@ impl WindowWrapper {
 impl<T> WindowState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
-        self.seat.as_ref().unwrap()
+        self.seat_back.as_ref().unwrap()
     }
 
     /// get the keyboard
@@ -1468,6 +1470,7 @@ impl<T> Default for WindowState<T> {
             virtual_keyboard: None,
 
             seat: None,
+            seat_back: None,
             keyboard_state: None,
             pointer: None,
             touch: None,
@@ -1677,66 +1680,67 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
     }
 }
 
-impl<T: 'static> Dispatch<wl_seat::WlSeat, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        seat: &wl_seat::WlSeat,
-        event: <wl_seat::WlSeat as Proxy>::Event,
-        _data: &(),
+impl<T: 'static> SeatHandler for WindowState<T> {
+    fn seat_state(&mut self) -> &mut sctk::seat::SeatState {
+        self.seat.as_mut().unwrap()
+    }
+    fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+    }
+    fn new_capability(
+        &mut self,
         _conn: &Connection,
-        qh: &wayland_client::QueueHandle<Self>,
+        queue_handle: &QueueHandle<Self>,
+        seat: wl_seat::WlSeat,
+        capability: sctk::seat::Capability,
     ) {
         use xkb_keyboard::KeyboardState;
-        if let wl_seat::Event::Capabilities {
-            capabilities: WEnum::Value(capabilities),
-        } = event
-        {
-            let mut keyboard_installing = true;
-            if capabilities.contains(wl_seat::Capability::Keyboard) {
-                if state.keyboard_state.is_none() {
-                    state.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(qh, ())));
-                } else {
-                    keyboard_installing = false;
-                    let keyboard = state.keyboard_state.take().unwrap();
-                    state.keyboard_state = Some(keyboard.update(seat, qh, ()));
-                    if let Some(surface_id) = state.current_surface_id() {
-                        state
-                            .message
-                            .push((Some(surface_id), DispatchMessageInner::Unfocus));
-                    }
-                }
+        match capability {
+            SeatCapability::Touch if self.touch.is_none() => {
+                self.touch = Some(seat.get_touch(queue_handle, ()));
             }
-            if capabilities.contains(wl_seat::Capability::Pointer) {
-                if state.pointer.is_none() {
-                    state.pointer = Some(seat.get_pointer(qh, ()));
-                } else {
-                    let pointer = state.pointer.take().unwrap();
-                    if pointer.version() >= 3 {
-                        pointer.release();
-                    }
-                    state.pointer = Some(seat.get_pointer(qh, ()));
-                }
+            SeatCapability::Keyboard if self.keyboard_state.is_none() => {
+                self.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
+                let text_input = self.text_input_manager.as_ref().map(|manager| {
+                    manager.get_text_input(&seat, queue_handle, TextInputData::default())
+                });
+                self.text_input = text_input;
             }
-            if capabilities.contains(wl_seat::Capability::Touch) {
-                if state.touch.is_none() {
-                    state.touch = Some(seat.get_touch(qh, ()));
-                } else {
-                    let touch = state.touch.take().unwrap();
+            SeatCapability::Pointer if self.pointer.is_none() => {
+                self.pointer = Some(seat.get_pointer(queue_handle, ()));
+            }
+            _ => (),
+        }
+    }
+    fn remove_capability(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _seat: wl_seat::WlSeat,
+        capability: sctk::seat::Capability,
+    ) {
+        if let Some(text_input) = self.text_input.take() {
+            text_input.destroy();
+        }
+        match capability {
+            SeatCapability::Touch => {
+                if let Some(touch) = self.touch.take() {
                     if touch.version() >= 3 {
                         touch.release();
                     }
-                    state.touch = Some(seat.get_touch(qh, ()));
                 }
             }
-            if keyboard_installing {
-                let text_input = state
-                    .text_input_manager
-                    .as_ref()
-                    .map(|manager| manager.get_text_input(seat, qh, TextInputData::default()));
-                state.text_input = text_input;
-            } else if let Some(text_input) = state.text_input.take() {
-                text_input.destroy();
+            SeatCapability::Pointer => {
+                if let Some(pointer) = self.pointer.take() {
+                    if pointer.version() >= 3 {
+                        pointer.release();
+                    }
+                }
             }
+            SeatCapability::Keyboard => {
+                self.keyboard_state = None;
+            }
+            _ => (),
         }
     }
 }
@@ -2631,6 +2635,8 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelV1);
 
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
+delegate_noop!(@<T: 'static> WindowState<T>: ignore WlSeat);
+sctk::delegate_seat!(@<T: 'static > WindowState<T>);
 
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
@@ -2650,7 +2656,8 @@ impl<T: 'static> WindowState<T> {
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         self.shm = Some(shm);
-        self.seat = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
+        self.seat_back = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
+        self.seat = Some(SeatState::new(&globals, &qh));
 
         let wmbase = globals.bind::<XdgWmBase, _, _>(&qh, 2..=6, ())?;
         self.wmbase = Some(wmbase);
