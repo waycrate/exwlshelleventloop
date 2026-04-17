@@ -848,6 +848,7 @@ struct KeyboardTokenState {
     key: u32,
     surface_id: Option<id::Id>,
     pressed_state: ElementState,
+    object_id: ObjectId,
 }
 
 #[derive(Debug)]
@@ -925,7 +926,6 @@ pub struct WindowState<T> {
     seat_state: Option<SeatState>,
     seats: HashMap<ObjectId, SeatStorage>,
     seat_back: Option<WlSeat>,
-    keyboard_state: Option<xkb_keyboard::KeyboardState>,
 
     virtual_keyboard: Option<ZwpVirtualKeyboardV1>,
 
@@ -1100,9 +1100,51 @@ impl<T> WindowState<T> {
     }
 
     /// get the keyboard
-    pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
-        Some(&self.keyboard_state.as_ref()?.keyboard)
+    pub fn get_keyboards(&self) -> Vec<WlKeyboard> {
+        self.seats
+            .values()
+            .map(|seat| &seat.keyboard_state)
+            .flatten()
+            .map(|keyboard_state| &keyboard_state.keyboard)
+            .cloned()
+            .collect()
     }
+    pub fn get_keyboard_state_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = &mut xkb_keyboard::KeyboardState> {
+        self.seats
+            .values_mut()
+            .map(|seat| &mut seat.keyboard_state)
+            .flatten()
+    }
+    pub fn get_keyboard_state_by_id(
+        &mut self,
+        id: ObjectId,
+    ) -> Option<&mut xkb_keyboard::KeyboardState> {
+        self.seats
+            .values_mut()
+            .find(|seat| {
+                seat.keyboard_state
+                    .as_ref()
+                    .is_some_and(|state| state.keyboard.id() == id)
+            })
+            .map(|storage| storage.keyboard_state.as_mut().unwrap())
+    }
+    fn get_keyboard_state_mut(
+        &mut self,
+        wl_keyboard: &wl_keyboard::WlKeyboard,
+    ) -> Option<&mut xkb_keyboard::KeyboardState> {
+        self.seats
+            .values_mut()
+            .find(|seat_storage| {
+                seat_storage
+                    .keyboard_state
+                    .as_ref()
+                    .is_some_and(|state| state.keyboard == *wl_keyboard)
+            })
+            .map(|storage| storage.keyboard_state.as_mut().unwrap())
+    }
+
     pub fn get_pointers(&self) -> Vec<WlPointer> {
         self.seats
             .values()
@@ -1512,7 +1554,6 @@ impl<T> Default for WindowState<T> {
             seat_state: None,
             seats: HashMap::new(),
             seat_back: None,
-            keyboard_state: None,
 
             namespace: "".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
@@ -1620,7 +1661,7 @@ impl<T> WindowState<T> {
             self.current_surface = Some(surface);
 
             // reset repeat when surface is changed
-            if let Some(keyboard_state) = self.keyboard_state.as_mut() {
+            for keyboard_state in self.get_keyboard_state_iter_mut() {
                 keyboard_state.current_repeat = None;
             }
 
@@ -1740,7 +1781,6 @@ impl<T: 'static> SeatHandler for WindowState<T> {
         seat: wl_seat::WlSeat,
         capability: sctk::seat::Capability,
     ) {
-        println!("len = {}", self.seat_state().seats().count());
         let seat_state = match self.seats.get_mut(&seat.id()) {
             Some(seat_state) => seat_state,
             None => {
@@ -1755,7 +1795,8 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                 seat_state.touch = Some(seat.get_touch(queue_handle, ()));
             }
             SeatCapability::Keyboard if seat_state.keyboard_state.is_none() => {
-                self.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
+                seat_state.keyboard_state =
+                    Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
                 let text_input = self.text_input_manager.as_ref().map(|manager| {
                     manager.get_text_input(&seat, queue_handle, TextInputData::default())
                 });
@@ -1810,16 +1851,12 @@ impl<T: 'static> SeatHandler for WindowState<T> {
 impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
-        _wl_keyboard: &wl_keyboard::WlKeyboard,
+        wl_keyboard: &wl_keyboard::WlKeyboard,
         event: <wl_keyboard::WlKeyboard as Proxy>::Event,
         _data: &(),
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if state.keyboard_state.is_none() {
-            return;
-        }
-
         use keyboard::*;
         use xkb_keyboard::ElementState;
         let surface_id = state.current_surface_id();
@@ -1827,7 +1864,19 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
                 WEnum::Value(KeymapFormat::XkbV1) => {
-                    let keyboard_state = state.keyboard_state.as_mut().unwrap();
+                    let Some(keyboard_state) = state
+                        .seats
+                        .values_mut()
+                        .find(|seat_storage| {
+                            seat_storage
+                                .keyboard_state
+                                .as_ref()
+                                .is_some_and(|state| state.keyboard == *wl_keyboard)
+                        })
+                        .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                    else {
+                        return;
+                    };
                     let context = &mut keyboard_state.xkb_context;
                     context.set_keymap_from_fd(fd, size as usize)
                 }
@@ -1838,13 +1887,37 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
             },
             wl_keyboard::Event::Enter { surface, .. } => {
                 state.update_current_surface(Some(surface));
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
+                let Some(keyboard_state) = state
+                    .seats
+                    .values_mut()
+                    .find(|seat_storage| {
+                        seat_storage
+                            .keyboard_state
+                            .as_ref()
+                            .is_some_and(|state| state.keyboard == *wl_keyboard)
+                    })
+                    .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                else {
+                    return;
+                };
                 if let Some(token) = keyboard_state.repeat_token.take() {
                     state.to_remove_tokens.push(token);
                 }
             }
             wl_keyboard::Event::Leave { .. } => {
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
+                let Some(keyboard_state) = state
+                    .seats
+                    .values_mut()
+                    .find(|seat_storage| {
+                        seat_storage
+                            .keyboard_state
+                            .as_ref()
+                            .is_some_and(|state| state.keyboard == *wl_keyboard)
+                    })
+                    .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                else {
+                    return;
+                };
                 keyboard_state.current_repeat = None;
                 state.message.push((
                     surface_id,
@@ -1870,8 +1943,21 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         return;
                     }
                 };
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
                 let key = key + 8;
+
+                let Some(keyboard_state) = state
+                    .seats
+                    .values_mut()
+                    .find(|seat_storage| {
+                        seat_storage
+                            .keyboard_state
+                            .as_ref()
+                            .is_some_and(|state| state.keyboard == *wl_keyboard)
+                    })
+                    .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                else {
+                    return;
+                };
                 if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
                     let event = key_context.process_key_event(key, pressed_state, false);
                     let event = DispatchMessageInner::KeyboardInput {
@@ -1906,6 +1992,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                             key,
                             surface_id,
                             pressed_state,
+                            object_id: wl_keyboard.id(),
                         });
                     }
                     ElementState::Released => {
@@ -1932,7 +2019,10 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 group,
                 ..
             } => {
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
+                let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
+                    return;
+                };
+
                 let xkb_context = &mut keyboard_state.xkb_context;
                 let xkb_state = match xkb_context.state_mut() {
                     Some(state) => state,
@@ -1947,7 +2037,19 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 ))
             }
             wl_keyboard::Event::RepeatInfo { rate, delay } => {
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
+                let Some(keyboard_state) = state
+                    .seats
+                    .values_mut()
+                    .find(|seat_storage| {
+                        seat_storage
+                            .keyboard_state
+                            .as_ref()
+                            .is_some_and(|state| state.keyboard == *wl_keyboard)
+                    })
+                    .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                else {
+                    return;
+                };
                 keyboard_state.repeat_info = if rate == 0 {
                     // Stop the repeat once we get a disable event.
                     keyboard_state.current_repeat = None;
@@ -3615,49 +3717,64 @@ impl<T: 'static> WindowState<T> {
                 delay,
                 surface_id,
                 pressed_state,
+                object_id,
             }) = window_state.repeat_delay.take()
             {
                 let timer = Timer::from_duration(delay);
-                let keyboard_state = window_state.keyboard_state.as_mut().unwrap();
-                keyboard_state.repeat_token = looph
-                    .insert_source(timer, move |_, _, r_window_state| {
-                        let state = &mut r_window_state.raw;
-                        let event_handler = &mut r_window_state.fun;
-                        let keyboard_state = match state.keyboard_state.as_mut() {
-                            Some(keyboard_state) => keyboard_state,
-                            None => return TimeoutAction::Drop,
-                        };
-                        let repeat_keycode = match keyboard_state.current_repeat {
-                            Some(repeat_keycode) => repeat_keycode,
-                            None => return TimeoutAction::Drop,
-                        };
-                        // NOTE: not the same key
-                        if repeat_keycode != key {
-                            return TimeoutAction::Drop;
-                        }
-                        if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
-                            let event =
-                                key_context.process_key_event(repeat_keycode, pressed_state, false);
-                            let event = DispatchMessageInner::KeyboardInput {
-                                event,
-                                is_synthetic: false,
+                if let Some(keyboard_state) = window_state.get_keyboard_state_by_id(object_id.clone()) {
+                    keyboard_state.repeat_token = looph
+                        .insert_source(timer, move |_, _, r_window_state| {
+                            let state = &mut r_window_state.raw;
+                            let event_handler = &mut r_window_state.fun;
+                            let keyboard_state = match state
+                                .seats
+                                .values_mut()
+                                .find(|seat| {
+                                    seat.keyboard_state
+                                        .as_ref()
+                                        .is_some_and(|state| state.keyboard.id() == object_id)
+                                })
+                                .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                            {
+                                Some(keyboard_state) => keyboard_state,
+                                None => return TimeoutAction::Drop,
                             };
-                            state.message.push((surface_id, event));
-                        }
-                        let repeat_info = keyboard_state.repeat_info;
+                            let repeat_keycode = match keyboard_state.current_repeat {
+                                Some(repeat_keycode) => repeat_keycode,
+                                None => return TimeoutAction::Drop,
+                            };
+                            // NOTE: not the same key
+                            if repeat_keycode != key {
+                                return TimeoutAction::Drop;
+                            }
+                            if let Some(mut key_context) = keyboard_state.xkb_context.key_context()
+                            {
+                                let event = key_context.process_key_event(
+                                    repeat_keycode,
+                                    pressed_state,
+                                    false,
+                                );
+                                let event = DispatchMessageInner::KeyboardInput {
+                                    event,
+                                    is_synthetic: false,
+                                };
+                                state.message.push((surface_id, event));
+                            }
+                            let repeat_info = keyboard_state.repeat_info;
 
-                        let _ = keyboard_state;
-                        state.handle_event(
-                            &mut *event_handler,
-                            LayerShellEvent::NormalDispatch,
-                            None,
-                        );
-                        match repeat_info {
-                            RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
-                            RepeatInfo::Disable => TimeoutAction::Drop,
-                        }
-                    })
-                    .ok();
+                            let _ = keyboard_state;
+                            state.handle_event(
+                                &mut *event_handler,
+                                LayerShellEvent::NormalDispatch,
+                                None,
+                            );
+                            match repeat_info {
+                                RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
+                                RepeatInfo::Disable => TimeoutAction::Drop,
+                            }
+                        })
+                        .ok();
+                }
             }
             // Flush after all event handlers have run so outgoing requests
             // (e.g. wl_surface.commit from process_window_state) reach the
