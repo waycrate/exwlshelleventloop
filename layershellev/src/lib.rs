@@ -1164,8 +1164,7 @@ impl<T> WindowState<T> {
         for text_input in self
             .seats
             .values()
-            .map(|storage| &storage.text_input)
-            .flatten()
+            .flat_map(|storage| &storage.text_input)
         {
             text_input.set_content_type_by_purpose(purpose);
             text_input.commit();

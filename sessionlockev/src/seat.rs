@@ -26,8 +26,7 @@ impl<T> WindowState<T> {
     ) -> impl Iterator<Item = &mut xkb_keyboard::KeyboardState> {
         self.seats
             .values_mut()
-            .map(|seat| &mut seat.keyboard_state)
-            .flatten()
+            .flat_map(|seat| &mut seat.keyboard_state)
     }
     pub fn get_keyboard_state_by_id(
         &mut self,
@@ -45,26 +44,24 @@ impl<T> WindowState<T> {
     pub fn get_pointers(&self) -> Vec<WlPointer> {
         self.seats
             .values()
-            .map(|seat| &seat.pointer)
-            .flatten()
+            .flat_map(|seat| &seat.pointer)
             .cloned()
             .collect()
     }
     /// get the pointer
     pub fn get_pointers_iter(&self) -> impl Iterator<Item = &WlPointer> {
-        self.seats.values().map(|seat| &seat.pointer).flatten()
+        self.seats.values().flat_map(|seat| &seat.pointer)
     }
     pub fn get_touchers(&self) -> Vec<WlTouch> {
         self.seats
             .values()
-            .map(|seat| &seat.touch)
-            .flatten()
+            .flat_map(|seat| &seat.touch)
             .cloned()
             .collect()
     }
     /// get the touch
     pub fn get_touches_iter(&self) -> impl Iterator<Item = &WlTouch> {
-        self.seats.values().map(|seat| &seat.touch).flatten()
+        self.seats.values().flat_map(|seat| &seat.touch)
     }
 }
 
