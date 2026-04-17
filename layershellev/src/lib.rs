@@ -136,7 +136,7 @@ use wayland_client::protocol::wl_surface;
 use wayland_client::{
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
     delegate_noop,
-    globals::{BindError, GlobalError, GlobalList, GlobalListContents, registry_queue_init},
+    globals::{BindError, GlobalError, GlobalList, registry_queue_init},
     protocol::{
         wl_buffer::WlBuffer,
         wl_callback::{Event as WlCallbackEvent, WlCallback},
@@ -146,7 +146,6 @@ use wayland_client::{
         wl_output::{self, WlOutput},
         wl_pointer::{self, WlPointer},
         wl_region::WlRegion,
-        wl_registry,
         wl_seat::{self, WlSeat},
         wl_shm::WlShm,
         wl_shm_pool::WlShmPool,
@@ -155,7 +154,11 @@ use wayland_client::{
     },
 };
 
-use sctk::seat::{Capability as SeatCapability, SeatHandler, SeatState};
+use sctk::{
+    output::{OutputHandler, OutputState},
+    registry::{ProvidesRegistryState, RegistryState},
+    seat::{Capability as SeatCapability, SeatHandler, SeatState},
+};
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity;
 use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -283,22 +286,6 @@ pub mod reexport {
     }
     pub mod wp_viewport {
         pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
-    }
-}
-
-#[derive(Debug)]
-struct BaseState;
-
-// so interesting, it is just need to invoke once, it just used to get the globals
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_registry::WlRegistry,
-        _event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &GlobalListContents,
-        _conn: &Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
     }
 }
 
@@ -908,7 +895,7 @@ impl From<Connection> for WithConnection {
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
-    outputs: Vec<(u32, wl_output::WlOutput)>,
+    outputs: Vec<wl_output::WlOutput>,
     current_surface: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
     units: Vec<WindowStateUnit<T>>,
@@ -929,6 +916,9 @@ pub struct WindowState<T> {
     // background
     background_surface: Option<WlSurface>,
     display: Option<WlDisplay>,
+
+    registry_state: Option<RegistryState>,
+    output_state: Option<OutputState>,
 
     // base managers
     seat: Option<SeatState>,
@@ -1469,6 +1459,9 @@ impl<T> Default for WindowState<T> {
             fractional_scale_manager: None,
             virtual_keyboard: None,
 
+            registry_state: None,
+            output_state: None,
+
             seat: None,
             seat_back: None,
             keyboard_state: None,
@@ -1596,7 +1589,7 @@ impl<T> WindowState<T> {
                 self.last_unit_index = self
                     .outputs
                     .iter()
-                    .position(|(_, output)| Some(output) == unit.wl_output.as_ref())
+                    .position(|output| Some(output) == unit.wl_output.as_ref())
                     .unwrap_or(0);
             }
         }
@@ -1625,55 +1618,62 @@ impl<T> WindowState<T> {
     }
 }
 
-impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        proxy: &wl_registry::WlRegistry,
-        event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &(),
+impl<T: 'static> ProvidesRegistryState for WindowState<T> {
+    fn registry(&mut self) -> &mut RegistryState {
+        self.registry_state.as_mut().unwrap()
+    }
+    sctk::registry_handlers![SeatState, OutputState];
+}
+
+impl<T: 'static> OutputHandler for WindowState<T> {
+    fn output_state(&mut self) -> &mut OutputState {
+        self.output_state.as_mut().unwrap()
+    }
+    fn new_output(
+        &mut self,
         _conn: &Connection,
-        qh: &wayland_client::QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
     ) {
-        match event {
-            wl_registry::Event::Global {
-                name,
-                interface,
-                version,
-            } if interface == wl_output::WlOutput::interface().name => {
-                let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-                state.outputs.push((name, output.clone()));
-                state
-                    .message
-                    .push((None, DispatchMessageInner::NewDisplay(output)));
-            }
-            wl_registry::Event::GlobalRemove { name } => {
-                if state
-                    .last_wloutput
+        self.outputs.push(output.clone());
+        self.message
+            .push((None, DispatchMessageInner::NewDisplay(output)));
+    }
+    fn update_output(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _output: wl_output::WlOutput,
+    ) {
+    }
+    fn output_destroyed(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
+    ) {
+        if self
+            .last_wloutput
+            .as_ref()
+            .is_some_and(|output| !output.is_alive())
+        {
+            self.last_wloutput.take();
+        }
+        let outputs_removed = self.outputs.extract_if(.., |o| o == &output);
+        for output_removed in outputs_removed {
+            self.xdg_info_cache
+                .retain(|info| info.0.id() != output_removed.id());
+        }
+
+        let removed_states = self.units.extract_if(.., |unit| {
+            !unit.wl_surface.is_alive()
+                || unit
+                    .wl_output
                     .as_ref()
-                    .is_some_and(|output| !output.is_alive())
-                {
-                    state.last_wloutput.take();
-                }
-                let outputs_removed = state.outputs.extract_if(.., |o| o.0 == name);
-                for output_removed in outputs_removed {
-                    state
-                        .xdg_info_cache
-                        .retain(|info| info.0.id() != output_removed.1.id());
-                }
-
-                let removed_states = state.units.extract_if(.., |unit| {
-                    !unit.wl_surface.is_alive()
-                        || unit
-                            .wl_output
-                            .as_ref()
-                            .is_some_and(|o| !state.outputs.iter().any(|(_, storage)| storage == o))
-                });
-                for deleled in removed_states.into_iter() {
-                    state.closed_ids.push(deleled.id);
-                }
-            }
-
-            _ => {}
+                    .is_some_and(|o| !self.outputs.iter().any(|storage| storage == o))
+        });
+        for deleled in removed_states.into_iter() {
+            self.closed_ids.push(deleled.id);
         }
     }
 }
@@ -2608,6 +2608,9 @@ delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 
+sctk::delegate_registry!(@<T: 'static> WindowState<T>);
+sctk::delegate_output!(@<T: 'static> WindowState<T>);
+
 // we need to reply to the ping event otherwise
 // top-level windows will be marked as unresponsive
 // by the compositor.
@@ -2643,18 +2646,20 @@ impl<T: 'static> WindowState<T> {
         } else {
             Connection::connect_to_env()?
         };
-        let (globals, _) = registry_queue_init::<BaseState>(&connection)?;
+        let (globals, mut event_queue) = registry_queue_init::<Self>(&connection)?;
+
+        let qh = event_queue.handle();
+        self.registry_state = Some(RegistryState::new(&globals));
+        self.output_state = Some(OutputState::new(&globals, &qh));
+        self.seat = Some(SeatState::new(&globals, &qh));
 
         self.display = Some(connection.display());
-        let mut event_queue = connection.new_event_queue::<WindowState<T>>();
-        let qh = event_queue.handle();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?;
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
         self.shm = Some(shm);
         self.seat_back = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
-        self.seat = Some(SeatState::new(&globals, &qh));
 
         let wmbase = globals.bind::<XdgWmBase, _, _>(&qh, 2..=6, ())?;
         self.wmbase = Some(wmbase);
@@ -2664,7 +2669,6 @@ impl<T: 'static> WindowState<T> {
             .ok();
         let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
 
-        let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
         // register this
 
         let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qh, 1..=3, ())?; // bind
@@ -2688,7 +2692,7 @@ impl<T: 'static> WindowState<T> {
 
         // do the step before, you get empty list
 
-        for (_, output_display) in &self.outputs {
+        for output_display in &self.outputs {
             let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
             self.xdg_info_cache
                 .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
@@ -2791,7 +2795,7 @@ impl<T: 'static> WindowState<T> {
             );
         } else {
             let displays = self.outputs.clone();
-            for (_, output_display) in displays.iter() {
+            for output_display in displays.iter() {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
@@ -3120,7 +3124,6 @@ impl<T: 'static> WindowState<T> {
                                     {
                                         window_state.last_wloutput = Some(
                                             window_state.outputs[window_state.last_unit_index]
-                                                .1
                                                 .clone(),
                                         );
                                     }
@@ -3130,7 +3133,7 @@ impl<T: 'static> WindowState<T> {
                                     }
 
                                     if output.is_none() {
-                                        output = window_state.outputs.first().map(|(_, o)| o);
+                                        output = window_state.outputs.first();
                                     }
 
                                     output.cloned()
@@ -3338,7 +3341,6 @@ impl<T: 'static> WindowState<T> {
                                     {
                                         window_state.last_wloutput = Some(
                                             window_state.outputs[window_state.last_unit_index]
-                                                .1
                                                 .clone(),
                                         );
                                     }
@@ -3348,7 +3350,7 @@ impl<T: 'static> WindowState<T> {
                                     }
 
                                     if output.is_none() {
-                                        output = window_state.outputs.first().map(|(_, o)| o);
+                                        output = window_state.outputs.first();
                                     }
 
                                     output.cloned()
