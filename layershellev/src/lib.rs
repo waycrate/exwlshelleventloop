@@ -3721,7 +3721,9 @@ impl<T: 'static> WindowState<T> {
             }) = window_state.repeat_delay.take()
             {
                 let timer = Timer::from_duration(delay);
-                if let Some(keyboard_state) = window_state.get_keyboard_state_by_id(object_id.clone()) {
+                if let Some(keyboard_state) =
+                    window_state.get_keyboard_state_by_id(object_id.clone())
+                {
                     keyboard_state.repeat_token = looph
                         .insert_source(timer, move |_, _, r_window_state| {
                             let state = &mut r_window_state.raw;

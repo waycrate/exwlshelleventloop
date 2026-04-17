@@ -15,7 +15,7 @@ use crate::{
     settings::Settings,
 };
 use exwlshellev::{
-    DisplayWrapper, LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
+    DisplayWrapper, ExWlShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
     WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
@@ -166,10 +166,10 @@ where
     ev.running_with_proxy(message_receiver, move |event, ev, layer_shell_id| {
         let mut def_returndata = ReturnData::None;
         match event {
-            LayerShellEvent::InitRequest => {
+            ExWlShellEvent::InitRequest => {
                 def_returndata = ReturnData::RequestBind;
             }
-            LayerShellEvent::BindProvide(globals, qh) => {
+            ExWlShellEvent::BindProvide(globals, qh) => {
                 let wl_compositor = globals
                     .bind::<WlCompositor, _, _>(qh, 1..=1, ())
                     .expect("could not bind wl_compositor");
@@ -198,17 +198,17 @@ where
                     ev.set_virtual_keyboard(virtual_keyboard_in);
                 }
             }
-            LayerShellEvent::RequestMessages(message) => {
+            ExWlShellEvent::RequestMessages(message) => {
                 waiting_layer_shell_events.push_back((
                     layer_shell_id,
                     IcedWlShellEvent::Window(LayerShellWindowEvent::from(message)),
                 ));
             }
-            LayerShellEvent::UserEvent(event) => {
+            ExWlShellEvent::UserEvent(event) => {
                 waiting_layer_shell_events
                     .push_back((layer_shell_id, IcedWlShellEvent::UserAction(event)));
             }
-            LayerShellEvent::NormalDispatch => {
+            ExWlShellEvent::NormalDispatch => {
                 waiting_layer_shell_events
                     .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
             }
@@ -1058,10 +1058,10 @@ where
                 }
 
                 if mouse_interaction != window.mouse_interaction {
-                    if let Some(pointer) = ev.get_pointer() {
+                    for pointer in ev.get_pointers() {
                         ev.append_return_data(ReturnData::RequestSetCursorShape((
                             conversion::mouse_interaction(mouse_interaction),
-                            pointer.clone(),
+                            pointer,
                         )));
                     }
                     window.mouse_interaction = mouse_interaction;

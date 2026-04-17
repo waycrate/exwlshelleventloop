@@ -569,10 +569,10 @@ where
                 }
 
                 if mouse_interaction != window.mouse_interaction {
-                    if let Some(pointer) = ev.get_pointer() {
+                    for pointer in ev.get_pointers() {
                         ev.append_return_data(ReturnData::RequestSetCursorShape((
                             conversion::mouse_interaction(mouse_interaction),
-                            pointer.clone(),
+                            pointer,
                         )));
                     }
                     window.mouse_interaction = mouse_interaction;
