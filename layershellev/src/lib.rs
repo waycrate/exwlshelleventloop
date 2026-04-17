@@ -1161,11 +1161,7 @@ impl<T> WindowState<T> {
 
     pub fn set_ime_purpose(&mut self, purpose: ImePurpose) {
         self.ime_purpose = purpose;
-        for text_input in self
-            .seats
-            .values()
-            .flat_map(|storage| &storage.text_input)
-        {
+        for text_input in self.seats.values().flat_map(|storage| &storage.text_input) {
             text_input.set_content_type_by_purpose(purpose);
             text_input.commit();
         }
