@@ -25,8 +25,8 @@
 //!     ev.running(|event, ev, index| {
 //!         match event {
 //!             // NOTE: this will send when init, you can request bind extra object from here
-//!             LayerShellEvent::InitRequest => ReturnData::RequestBind,
-//!             LayerShellEvent::BindProvide(globals, qh) => {
+//!             ExWlShellEvent::InitRequest => ReturnData::RequestBind,
+//!             ExWlShellEvent::BindProvide(globals, qh) => {
 //!                 // NOTE: you can get implied wayland object from here
 //!                 let virtual_keyboard_manager = globals
 //!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -38,13 +38,13 @@
 //!                 println!("{:?}", virtual_keyboard_manager);
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::XdgInfoChanged(_) => {
+//!             ExWlShellEvent::XdgInfoChanged(_) => {
 //!                 let index = index.unwrap();
 //!                 let unit = ev.get_unit_with_id(index).unwrap();
 //!                 println!("{:?}", unit.get_xdgoutput_info());
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+//!             ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
 //!                 draw(file, (init_w, init_h));
 //!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
 //!                 ReturnData::WlBuffer(pool.create_buffer(
@@ -57,18 +57,18 @@
 //!                     (),
 //!                 ))
 //!             }
-//!             LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
 //!                 println!("{width}, {height}");
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter {
 //!                 pointer, ..
 //!             }) => ReturnData::RequestSetCursorShape((
 //!                 "crosshair".to_owned(),
 //!                 pointer.clone(),
 //!             )),
-//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
 //!                 time,
 //!                 surface_x,
 //!                 surface_y,
@@ -76,7 +76,7 @@
 //!                 println!("{time}, {surface_x}, {surface_y}");
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
 //!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
 //!                    ReturnData::RequestExit
 //!                } else {
@@ -117,6 +117,7 @@ pub use waycrate_xkbkeycode::xkb_keyboard;
 
 pub mod dpi;
 mod events;
+mod seat;
 mod strtoshape;
 
 use events::DispatchMessageInner;
@@ -124,7 +125,7 @@ use events::DispatchMessageInner;
 pub mod id;
 
 pub use events::{
-    AxisScroll, DispatchMessage, Ime, LayerShellEvent, ReturnData, XdgInfoChangedType,
+    AxisScroll, DispatchMessage, ExWlShellEvent, Ime, ReturnData, XdgInfoChangedType,
 };
 
 use strtoshape::str_to_shape;
@@ -132,27 +133,30 @@ use strtoshape::str_to_shape;
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
-use sctk::seat::{Capability as SeatCapability, SeatHandler, SeatState};
+use sctk::{
+    output::{OutputHandler, OutputState},
+    registry::{ProvidesRegistryState, RegistryState},
+    seat::SeatState,
+};
+use wayland_backend::client::ObjectId;
 use wayland_client::protocol::wl_surface;
 use wayland_client::{
-    ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
+    ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle,
     delegate_noop,
-    globals::{BindError, GlobalError, GlobalList, GlobalListContents, registry_queue_init},
+    globals::{BindError, GlobalError, GlobalList, registry_queue_init},
     protocol::{
         wl_buffer::WlBuffer,
         wl_callback::{Event as WlCallbackEvent, WlCallback},
         wl_compositor::WlCompositor,
         wl_display::WlDisplay,
-        wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
+        wl_keyboard::KeyState,
         wl_output::{self, WlOutput},
-        wl_pointer::{self, WlPointer},
+        wl_pointer::WlPointer,
         wl_region::WlRegion,
-        wl_registry,
-        wl_seat::{self, WlSeat},
+        wl_seat::WlSeat,
         wl_shm::WlShm,
         wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
-        wl_touch::{self, WlTouch},
     },
 };
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
@@ -228,6 +232,8 @@ use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::seat::SeatStorage;
+
 #[derive(Debug, thiserror::Error)]
 pub enum ExShellEventError {
     #[error("connect error")]
@@ -287,22 +293,6 @@ pub mod reexport {
     }
     pub mod wp_viewport {
         pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
-    }
-}
-
-#[derive(Debug)]
-struct BaseState;
-
-// so interesting, it is just need to invoke once, it just used to get the globals
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_registry::WlRegistry,
-        _event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &GlobalListContents,
-        _conn: &Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
     }
 }
 
@@ -896,6 +886,7 @@ struct KeyboardTokenState {
     key: u32,
     surface_id: Option<id::Id>,
     pressed_state: ElementState,
+    object_id: ObjectId,
 }
 
 #[derive(Debug)]
@@ -944,7 +935,7 @@ impl From<Connection> for WithConnection {
 /// main state, store the main information
 #[derive(Debug)]
 pub struct WindowState<T> {
-    outputs: Vec<(u32, wl_output::WlOutput)>,
+    outputs: Vec<wl_output::WlOutput>,
     current_surface: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
     units: Vec<WindowStateUnit<T>>,
@@ -967,13 +958,13 @@ pub struct WindowState<T> {
     background_surface: Option<WlSurface>,
     display: Option<WlDisplay>,
 
+    registry_state: Option<RegistryState>,
+    output_state: Option<OutputState>,
     // base managers
-    seat: Option<SeatState>,
+    seat_state: Option<SeatState>,
+    seats: HashMap<ObjectId, SeatStorage>,
     seat_back: Option<WlSeat>,
-    keyboard_state: Option<xkb_keyboard::KeyboardState>,
 
-    pointer: Option<WlPointer>,
-    touch: Option<WlTouch>,
     virtual_keyboard: Option<ZwpVirtualKeyboardV1>,
 
     // states
@@ -1136,28 +1127,6 @@ impl StartMode {
 impl WindowWrapper {
     pub fn id(&self) -> id::Id {
         self.id
-    }
-}
-
-impl<T> WindowState<T> {
-    /// get a seat from state
-    pub fn get_seat(&self) -> &WlSeat {
-        self.seat_back.as_ref().unwrap()
-    }
-
-    /// get the keyboard
-    pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
-        Some(&self.keyboard_state.as_ref()?.keyboard)
-    }
-
-    /// get the pointer
-    pub fn get_pointer(&self) -> Option<&WlPointer> {
-        self.pointer.as_ref()
-    }
-
-    /// get the touch
-    pub fn get_touch(&self) -> Option<&WlTouch> {
-        self.touch.as_ref()
     }
 }
 
@@ -1505,11 +1474,12 @@ impl<T> Default for WindowState<T> {
             fractional_scale_manager: None,
             virtual_keyboard: None,
 
-            seat: None,
+            output_state: None,
+            registry_state: None,
+
+            seat_state: None,
+            seats: HashMap::new(),
             seat_back: None,
-            keyboard_state: None,
-            pointer: None,
-            touch: None,
 
             default_namespace: "osd".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
@@ -1618,7 +1588,7 @@ impl<T> WindowState<T> {
             self.current_surface = Some(surface);
 
             // reset repeat when surface is changed
-            if let Some(keyboard_state) = self.keyboard_state.as_mut() {
+            for keyboard_state in self.get_keyboard_state_iter_mut() {
                 keyboard_state.current_repeat = None;
             }
 
@@ -1632,7 +1602,7 @@ impl<T> WindowState<T> {
                 self.last_unit_index = self
                     .outputs
                     .iter()
-                    .position(|(_, output)| Some(output) == unit.wl_output.as_ref())
+                    .position(|output| Some(output) == unit.wl_output.as_ref())
                     .unwrap_or(0);
             }
         }
@@ -1661,574 +1631,62 @@ impl<T> WindowState<T> {
     }
 }
 
-impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        proxy: &wl_registry::WlRegistry,
-        event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        match event {
-            wl_registry::Event::Global {
-                name,
-                interface,
-                version,
-            } if interface == wl_output::WlOutput::interface().name => {
-                let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-                state.outputs.push((name, output.clone()));
-                state
-                    .message
-                    .push((None, DispatchMessageInner::NewDisplay(output)));
-            }
-            wl_registry::Event::GlobalRemove { name } => {
-                if state
-                    .last_wloutput
-                    .as_ref()
-                    .is_some_and(|output| !output.is_alive())
-                {
-                    state.last_wloutput.take();
-                }
-                let outputs_removed = state.outputs.extract_if(.., |o| o.0 == name);
-                for output_removed in outputs_removed {
-                    state
-                        .xdg_info_cache
-                        .retain(|info| info.0.id() != output_removed.1.id());
-                }
-
-                let removed_states = state.units.extract_if(.., |unit| {
-                    !unit.wl_surface.is_alive()
-                        || unit
-                            .wl_output
-                            .as_ref()
-                            .is_some_and(|o| !state.outputs.iter().any(|(_, storage)| storage == o))
-                });
-                for deleled in removed_states.into_iter() {
-                    state.closed_ids.push(deleled.id);
-                }
-            }
-
-            _ => {}
-        }
+impl<T: 'static> ProvidesRegistryState for WindowState<T> {
+    fn registry(&mut self) -> &mut RegistryState {
+        self.registry_state.as_mut().unwrap()
     }
+    sctk::registry_handlers![SeatState, OutputState];
 }
 
-impl<T: 'static> SeatHandler for WindowState<T> {
-    fn seat_state(&mut self) -> &mut sctk::seat::SeatState {
-        self.seat.as_mut().unwrap()
+impl<T: 'static> OutputHandler for WindowState<T> {
+    fn output_state(&mut self) -> &mut OutputState {
+        self.output_state.as_mut().unwrap()
     }
-    fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
-    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
-    }
-    fn new_capability(
-        &mut self,
-        _conn: &Connection,
-        queue_handle: &QueueHandle<Self>,
-        seat: wl_seat::WlSeat,
-        capability: sctk::seat::Capability,
-    ) {
-        use xkb_keyboard::KeyboardState;
-        match capability {
-            SeatCapability::Touch if self.touch.is_none() => {
-                self.touch = Some(seat.get_touch(queue_handle, ()));
-            }
-            SeatCapability::Keyboard if self.keyboard_state.is_none() => {
-                self.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
-                let text_input = self.text_input_manager.as_ref().map(|manager| {
-                    manager.get_text_input(&seat, queue_handle, TextInputData::default())
-                });
-                self.text_input = text_input;
-            }
-            SeatCapability::Pointer if self.pointer.is_none() => {
-                self.pointer = Some(seat.get_pointer(queue_handle, ()));
-            }
-            _ => (),
-        }
-    }
-    fn remove_capability(
+    fn new_output(
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _seat: wl_seat::WlSeat,
-        capability: sctk::seat::Capability,
+        output: wl_output::WlOutput,
     ) {
-        if let Some(text_input) = self.text_input.take() {
-            text_input.destroy();
-        }
-        match capability {
-            SeatCapability::Touch => {
-                if let Some(touch) = self.touch.take()
-                    && touch.version() >= 3
-                {
-                    touch.release();
-                }
-            }
-            SeatCapability::Pointer => {
-                if let Some(pointer) = self.pointer.take()
-                    && pointer.version() >= 3
-                {
-                    pointer.release();
-                }
-            }
-            SeatCapability::Keyboard => {
-                self.keyboard_state = None;
-            }
-            _ => (),
-        }
+        self.outputs.push(output.clone());
+        self.message
+            .push((None, DispatchMessageInner::NewDisplay(output)));
     }
-}
-
-impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        _wl_keyboard: &wl_keyboard::WlKeyboard,
-        event: <wl_keyboard::WlKeyboard as Proxy>::Event,
-        _data: &(),
+    fn update_output(
+        &mut self,
         _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
+        _output: wl_output::WlOutput,
     ) {
-        if state.keyboard_state.is_none() {
-            return;
-        }
-
-        use keyboard::*;
-        use xkb_keyboard::ElementState;
-        let surface_id = state.current_surface_id();
-
-        match event {
-            wl_keyboard::Event::Keymap { format, fd, size } => match format {
-                WEnum::Value(KeymapFormat::XkbV1) => {
-                    let keyboard_state = state.keyboard_state.as_mut().unwrap();
-                    let context = &mut keyboard_state.xkb_context;
-                    context.set_keymap_from_fd(fd, size as usize)
-                }
-                WEnum::Value(KeymapFormat::NoKeymap) => {
-                    log::warn!("non-xkb compatible keymap")
-                }
-                _ => unreachable!(),
-            },
-            wl_keyboard::Event::Enter { surface, .. } => {
-                state.update_current_surface(Some(surface));
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
-                if let Some(token) = keyboard_state.repeat_token.take() {
-                    state.to_remove_tokens.push(token);
-                }
-            }
-            wl_keyboard::Event::Leave { .. } => {
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
-                keyboard_state.current_repeat = None;
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
-                ));
-                state
-                    .message
-                    .push((surface_id, DispatchMessageInner::Unfocus));
-
-                if let Some(token) = keyboard_state.repeat_token.take() {
-                    state.to_remove_tokens.push(token);
-                }
-            }
-            wl_keyboard::Event::Key {
-                state: keystate,
-                key,
-                ..
-            } => {
-                let pressed_state = match keystate {
-                    WEnum::Value(KeyState::Pressed) => ElementState::Pressed,
-                    WEnum::Value(KeyState::Released) => ElementState::Released,
-                    _ => {
-                        return;
-                    }
-                };
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
-                let key = key + 8;
-                if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
-                    let event = key_context.process_key_event(key, pressed_state, false);
-                    let event = DispatchMessageInner::KeyboardInput {
-                        event,
-                        is_synthetic: false,
-                    };
-                    state.message.push((surface_id, event));
-                }
-
-                match pressed_state {
-                    ElementState::Pressed => {
-                        let delay = match keyboard_state.repeat_info {
-                            RepeatInfo::Repeat { delay, .. } => delay,
-                            RepeatInfo::Disable => return,
-                        };
-
-                        if keyboard_state
-                            .xkb_context
-                            .keymap_mut()
-                            .is_none_or(|keymap| !keymap.key_repeats(key))
-                        {
-                            return;
-                        }
-
-                        keyboard_state.current_repeat = Some(key);
-
-                        if let Some(token) = keyboard_state.repeat_token.take() {
-                            state.to_remove_tokens.push(token);
-                        }
-                        state.repeat_delay = Some(KeyboardTokenState {
-                            delay,
-                            key,
-                            surface_id,
-                            pressed_state,
-                        });
-                    }
-                    ElementState::Released => {
-                        if keyboard_state.repeat_info != RepeatInfo::Disable
-                            && keyboard_state
-                                .xkb_context
-                                .keymap_mut()
-                                .is_some_and(|keymap| keymap.key_repeats(key))
-                            && Some(key) == keyboard_state.current_repeat
-                        {
-                            keyboard_state.current_repeat = None;
-
-                            if let Some(token) = keyboard_state.repeat_token.take() {
-                                state.to_remove_tokens.push(token);
-                            }
-                        }
-                    }
-                }
-            }
-            wl_keyboard::Event::Modifiers {
-                mods_depressed,
-                mods_locked,
-                mods_latched,
-                group,
-                ..
-            } => {
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
-                let xkb_context = &mut keyboard_state.xkb_context;
-                let xkb_state = match xkb_context.state_mut() {
-                    Some(state) => state,
-                    None => return,
-                };
-                xkb_state.update_modifiers(mods_depressed, mods_latched, mods_locked, 0, 0, group);
-                let modifiers = xkb_state.modifiers();
-
-                state.message.push((
-                    state.current_surface_id(),
-                    DispatchMessageInner::ModifiersChanged(modifiers.into()),
-                ))
-            }
-            wl_keyboard::Event::RepeatInfo { rate, delay } => {
-                let keyboard_state = state.keyboard_state.as_mut().unwrap();
-                keyboard_state.repeat_info = if rate == 0 {
-                    // Stop the repeat once we get a disable event.
-                    keyboard_state.current_repeat = None;
-
-                    if let Some(token) = keyboard_state.repeat_token.take() {
-                        state.to_remove_tokens.push(token);
-                    }
-                    RepeatInfo::Disable
-                } else {
-                    let gap = Duration::from_micros(1_000_000 / rate as u64);
-                    let delay = Duration::from_millis(delay as u64);
-                    RepeatInfo::Repeat { gap, delay }
-                };
-            }
-            _ => {}
-        }
     }
-}
-
-impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        _proxy: &wl_touch::WlTouch,
-        event: <wl_touch::WlTouch as Proxy>::Event,
-        _data: &(),
+    fn output_destroyed(
+        &mut self,
         _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
     ) {
-        match event {
-            wl_touch::Event::Down {
-                serial,
-                time,
-                surface,
-                id,
-                x,
-                y,
-            } => {
-                state.finger_locations.insert(id, (x, y));
-                let surface_id = state.get_id_from_surface(&surface);
-                state
-                    .active_surfaces
-                    .insert(Some(id), (surface.clone(), surface_id));
-                state.update_current_surface(Some(surface));
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::TouchDown {
-                        serial,
-                        time,
-                        id,
-                        x,
-                        y,
-                    },
-                ))
-            }
-            wl_touch::Event::Cancel => {
-                let mut mouse_surface = None;
-                for (k, v) in state.active_surfaces.drain() {
-                    if let Some(id) = k {
-                        let (x, y) = state.finger_locations.remove(&id).unwrap_or_default();
-                        state
-                            .message
-                            .push((v.1, DispatchMessageInner::TouchCancel { id, x, y }));
-                    } else {
-                        // keep the surface of mouse.
-                        mouse_surface = Some(v);
-                    }
-                }
-                if let Some(mouse_surface) = mouse_surface {
-                    state.active_surfaces.insert(None, mouse_surface);
-                }
-            }
-            wl_touch::Event::Up { serial, time, id } => {
-                let surface_id = state
-                    .active_surfaces
-                    .remove(&Some(id))
-                    .or_else(|| {
-                        log::warn!("finger[{id}] hasn't been down.");
-                        None
-                    })
-                    .and_then(|(_, id)| id);
-                let (x, y) = state.finger_locations.remove(&id).unwrap_or_default();
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::TouchUp {
-                        serial,
-                        time,
-                        id,
-                        x,
-                        y,
-                    },
-                ));
-            }
-            wl_touch::Event::Motion { time, id, x, y } => {
-                let surface_id = state
-                    .active_surfaces
-                    .get(&Some(id))
-                    .or_else(|| {
-                        log::warn!("finger[{id}] hasn't been down.");
-                        None
-                    })
-                    .and_then(|(_, id)| *id);
-                state.finger_locations.insert(id, (x, y));
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::TouchMotion { time, id, x, y },
-                ));
-            }
-            _ => {}
+        if self
+            .last_wloutput
+            .as_ref()
+            .is_some_and(|output| !output.is_alive())
+        {
+            self.last_wloutput.take();
         }
-    }
-}
+        let outputs_removed = self.outputs.extract_if(.., |o| o == &output);
+        for output_removed in outputs_removed {
+            self.xdg_info_cache
+                .retain(|info| info.0.id() != output_removed.id());
+        }
 
-impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        pointer: &wl_pointer::WlPointer,
-        event: <wl_pointer::WlPointer as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        // All mouse events should be happened on the surface which is hovered by the mouse.
-        let (mouse_surface, surface_id) = state
-            .active_surfaces
-            .get(&None)
-            .map(|(surface, id)| (Some(surface), *id))
-            .unwrap_or_else(|| {
-                match &event {
-                    wl_pointer::Event::Enter { .. } => {}
-                    _ => {
-                        log::warn!("mouse hasn't entered.");
-                    }
-                }
-                (None, None)
-            });
-        let scale = surface_id
-            .and_then(|id| state.get_unit_with_id(id))
-            .map(|unit| unit.scale_float())
-            .unwrap_or(1.0);
-        match event {
-            wl_pointer::Event::Axis { time, axis, value } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => {
-                            vertical.absolute = value;
-                        }
-                        wl_pointer::Axis::HorizontalScroll => {
-                            horizontal.absolute = value;
-                        }
-                        _ => unreachable!(),
-                    };
-
-                    state.message.push((
-                        surface_id,
-                        DispatchMessageInner::Axis {
-                            time,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ))
-                }
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
-            wl_pointer::Event::AxisStop { time, axis } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => vertical.stop = true,
-                        wl_pointer::Axis::HorizontalScroll => horizontal.stop = true,
-
-                        _ => unreachable!(),
-                    }
-
-                    state.message.push((
-                        surface_id,
-                        DispatchMessageInner::Axis {
-                            time,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ));
-                }
-
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
-            wl_pointer::Event::AxisSource { axis_source } => match axis_source {
-                WEnum::Value(source) => state.message.push((
-                    surface_id,
-                    DispatchMessageInner::Axis {
-                        horizontal: AxisScroll::default(),
-                        vertical: AxisScroll::default(),
-                        scale,
-                        source: Some(source),
-                        time: 0,
-                    },
-                )),
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "unknown pointer axis source: {unknown:x}");
-                }
-            },
-            wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => {
-                            vertical.discrete = discrete;
-                        }
-
-                        wl_pointer::Axis::HorizontalScroll => {
-                            horizontal.discrete = discrete;
-                        }
-
-                        _ => unreachable!(),
-                    };
-
-                    state.message.push((
-                        surface_id,
-                        DispatchMessageInner::Axis {
-                            time: 0,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ));
-                }
-
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
-            wl_pointer::Event::Button {
-                state: btnstate,
-                serial,
-                button,
-                time,
-            } => {
-                let mouse_surface = mouse_surface.cloned();
-                state.update_current_surface(mouse_surface);
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::MouseButton {
-                        state: btnstate,
-                        serial,
-                        button,
-                        time,
-                    },
-                ));
-            }
-            wl_pointer::Event::Leave { .. } => {
-                let surface_id = state
-                    .active_surfaces
-                    .remove(&None)
-                    .or_else(|| {
-                        log::warn!("mouse hasn't entered.");
-                        None
-                    })
-                    .and_then(|(_, id)| id);
-                state
-                    .message
-                    .push((surface_id, DispatchMessageInner::MouseLeave));
-            }
-            wl_pointer::Event::Enter {
-                serial,
-                surface,
-                surface_x,
-                surface_y,
-            } => {
-                let surface_id = state.get_id_from_surface(&surface);
-                state
-                    .active_surfaces
-                    .insert(None, (surface.clone(), surface_id));
-                state.enter_serial = Some(serial);
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::MouseEnter {
-                        pointer: pointer.clone(),
-                        serial,
-                        surface_x,
-                        surface_y,
-                    },
-                ));
-            }
-            wl_pointer::Event::Motion {
-                time,
-                surface_x,
-                surface_y,
-            } => {
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::MouseMotion {
-                        time,
-                        surface_x,
-                        surface_y,
-                    },
-                ));
-            }
-            _ => {
-                // TODO: not now
-            }
+        let removed_states = self.units.extract_if(.., |unit| {
+            !unit.wl_surface.is_alive()
+                || unit
+                    .wl_output
+                    .as_ref()
+                    .is_some_and(|o| !self.outputs.iter().any(|storage| storage == o))
+        });
+        for deleled in removed_states.into_iter() {
+            self.closed_ids.push(deleled.id);
         }
     }
 }
@@ -2673,6 +2131,8 @@ delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockV1); // buffer show the picture
 delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
 
+sctk::delegate_registry!(@<T: 'static> WindowState<T>);
+sctk::delegate_output!(@<T: 'static> WindowState<T>);
 // we need to reply to the ping event otherwise
 // top-level windows will be marked as unresponsive
 // by the compositor.
@@ -2697,8 +2157,6 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelV1);
 
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
-delegate_noop!(@<T: 'static> WindowState<T>: ignore WlSeat);
-sctk::delegate_seat!(@<T: 'static> WindowState<T>);
 
 impl<T: 'static> WindowState<T> {
     /// build a new WindowState
@@ -2708,12 +2166,18 @@ impl<T: 'static> WindowState<T> {
         } else {
             Connection::connect_to_env()?
         };
-        let (globals, _) = registry_queue_init::<BaseState>(&connection)?;
-
+        let (globals, mut event_queue) = registry_queue_init::<Self>(&connection)?;
         self.display = Some(connection.display());
-        let mut event_queue = connection.new_event_queue::<WindowState<T>>();
+
         let qh = event_queue.handle();
 
+        self.registry_state = Some(RegistryState::new(&globals));
+        self.output_state = Some(OutputState::new(&globals, &qh));
+        let seat_state = SeatState::new(&globals, &qh);
+        for seat in seat_state.seats() {
+            self.seats.insert(seat.id(), SeatStorage::new());
+        }
+        self.seat_state = Some(seat_state);
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?;
 
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
@@ -2728,7 +2192,6 @@ impl<T: 'static> WindowState<T> {
             .ok();
         let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
 
-        let _ = connection.display().get_registry(&qh, ()); // so if you want WlOutput, you need to
         // register this
 
         let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qh, 1..=3, ())?; // bind
@@ -2753,7 +2216,7 @@ impl<T: 'static> WindowState<T> {
 
         // do the step before, you get empty list
 
-        for (_, output_display) in &self.outputs {
+        for output_display in &self.outputs {
             let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
             self.xdg_info_cache
                 .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
@@ -2856,7 +2319,7 @@ impl<T: 'static> WindowState<T> {
             );
         } else {
             let displays = self.outputs.clone();
-            for (_, output_display) in displays.iter() {
+            for output_display in displays.iter() {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
@@ -2935,7 +2398,7 @@ impl<T: 'static> WindowState<T> {
         Ok(self)
     }
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// pass a ExWlShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
@@ -2947,20 +2410,20 @@ impl<T: 'static> WindowState<T> {
     ) -> Result<(), ExShellEventError>
     where
         Message: std::marker::Send + 'static,
-        F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
+        F: FnMut(ExWlShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
             + 'static,
     {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// pass a ExWlShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
     ///
     pub fn running<F>(self, event_handler: F) -> Result<(), ExShellEventError>
     where
-        F: FnMut(LayerShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
+        F: FnMut(ExWlShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
             + 'static,
     {
         self.running_with_proxy_option(None, event_handler)
@@ -2973,7 +2436,7 @@ impl<T: 'static> WindowState<T> {
     ) -> Result<(), ExShellEventError>
     where
         Message: std::marker::Send + 'static,
-        F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
+        F: FnMut(ExWlShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
             + 'static,
     {
         let globals = self.globals.take().unwrap();
@@ -3002,18 +2465,18 @@ impl<T: 'static> WindowState<T> {
         while !matches!(init_event, Some(ReturnData::None)) {
             match init_event {
                 None => {
-                    init_event = Some(event_handler(LayerShellEvent::InitRequest, &mut self, None));
+                    init_event = Some(event_handler(ExWlShellEvent::InitRequest, &mut self, None));
                 }
                 Some(ReturnData::RequestBind) => {
                     init_event = Some(event_handler(
-                        LayerShellEvent::BindProvide(&globals, &qh),
+                        ExWlShellEvent::BindProvide(&globals, &qh),
                         &mut self,
                         None,
                     ));
                 }
                 Some(ReturnData::RequestCompositor) => {
                     init_event = Some(event_handler(
-                        LayerShellEvent::CompositorProvide(&wmcompositer, &qh),
+                        ExWlShellEvent::CompositorProvide(&wmcompositer, &qh),
                         &mut self,
                         None,
                     ));
@@ -3058,7 +2521,7 @@ impl<T: 'static> WindowState<T> {
                         (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
                             window_state.handle_event(
                                 &mut *event_handler,
-                                LayerShellEvent::XdgInfoChanged(*change_type),
+                                ExWlShellEvent::XdgInfoChanged(*change_type),
                                 *index_info,
                             );
                         }
@@ -3182,7 +2645,7 @@ impl<T: 'static> WindowState<T> {
                             let msg: DispatchMessage = msg.clone().into();
                             window_state.handle_event(
                                 &mut *event_handler,
-                                LayerShellEvent::RequestMessages(&msg),
+                                ExWlShellEvent::RequestMessages(&msg),
                                 *index_message,
                             );
                         }
@@ -3191,7 +2654,7 @@ impl<T: 'static> WindowState<T> {
 
                 window_state.handle_event(
                     &mut *event_handler,
-                    LayerShellEvent::NormalDispatch,
+                    ExWlShellEvent::NormalDispatch,
                     None,
                 );
                 loop {
@@ -3207,7 +2670,7 @@ impl<T: 'static> WindowState<T> {
                             ReturnData::RequestLock => {
                                 let l_lock = lock_manager.lock(&qh, ());
                                 let wl_outputs = window_state.outputs.clone();
-                                for (_, wl_output) in wl_outputs.iter() {
+                                for wl_output in wl_outputs.iter() {
                                     let zxdgoutput =
                                         xdg_output_manager.get_xdg_output(wl_output, &qh, ());
                                     let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -3308,7 +2771,6 @@ impl<T: 'static> WindowState<T> {
                                         {
                                             window_state.last_wloutput = Some(
                                                 window_state.outputs[window_state.last_unit_index]
-                                                    .1
                                                     .clone(),
                                             );
                                         }
@@ -3318,7 +2780,7 @@ impl<T: 'static> WindowState<T> {
                                         }
 
                                         if output.is_none() {
-                                            output = window_state.outputs.first().map(|(_, o)| o);
+                                            output = window_state.outputs.first();
                                         }
 
                                         output.cloned()
@@ -3531,7 +2993,6 @@ impl<T: 'static> WindowState<T> {
                                         {
                                             window_state.last_wloutput = Some(
                                                 window_state.outputs[window_state.last_unit_index]
-                                                    .1
                                                     .clone(),
                                             );
                                         }
@@ -3541,7 +3002,7 @@ impl<T: 'static> WindowState<T> {
                                         }
 
                                         if output.is_none() {
-                                            output = window_state.outputs.first().map(|(_, o)| o);
+                                            output = window_state.outputs.first();
                                         }
 
                                         output.cloned()
@@ -3620,7 +3081,7 @@ impl<T: 'static> WindowState<T> {
                 for id in to_be_closed_ids {
                     window_state.handle_event(
                         &mut *event_handler,
-                        LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
+                        ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
                         Some(id),
                     );
                     window_state.remove_shell(id);
@@ -3630,7 +3091,7 @@ impl<T: 'static> WindowState<T> {
                 for id in closed_ids {
                     window_state.handle_event(
                         &mut *event_handler,
-                        LayerShellEvent::RequestMessages(&DispatchMessage::Closed),
+                        ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
                         Some(id),
                     );
                 }
@@ -3662,7 +3123,7 @@ impl<T: 'static> WindowState<T> {
                                 return false;
                             };
                             let ReturnData::WlBuffer(buffer) = event_handler(
-                                LayerShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
+                                ExWlShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
                                 window_state,
                                 Some(unit_id),
                             ) else {
@@ -3674,7 +3135,7 @@ impl<T: 'static> WindowState<T> {
                         }
                         window_state.handle_event(
                             &mut *event_handler,
-                            LayerShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                            ExWlShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                                 width,
                                 height,
                                 is_created,
@@ -3722,55 +3183,74 @@ impl<T: 'static> WindowState<T> {
                     })
                     .ok();
             }
+
             if let Some(KeyboardTokenState {
                 key,
                 delay,
                 surface_id,
                 pressed_state,
+                object_id,
             }) = window_state.repeat_delay.take()
             {
                 let timer = Timer::from_duration(delay);
-                let keyboard_state = window_state.keyboard_state.as_mut().unwrap();
-                keyboard_state.repeat_token = looph
-                    .insert_source(timer, move |_, _, r_window_state| {
-                        let state = &mut r_window_state.raw;
-                        let event_handler = &mut r_window_state.fun;
-                        let keyboard_state = match state.keyboard_state.as_mut() {
-                            Some(keyboard_state) => keyboard_state,
-                            None => return TimeoutAction::Drop,
-                        };
-                        let repeat_keycode = match keyboard_state.current_repeat {
-                            Some(repeat_keycode) => repeat_keycode,
-                            None => return TimeoutAction::Drop,
-                        };
-                        // NOTE: not the same key
-                        if repeat_keycode != key {
-                            return TimeoutAction::Drop;
-                        }
-                        if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
-                            let event =
-                                key_context.process_key_event(repeat_keycode, pressed_state, false);
-                            let event = DispatchMessageInner::KeyboardInput {
-                                event,
-                                is_synthetic: false,
+                if let Some(keyboard_state) =
+                    window_state.get_keyboard_state_by_id(object_id.clone())
+                {
+                    keyboard_state.repeat_token = looph
+                        .insert_source(timer, move |_, _, r_window_state| {
+                            let state = &mut r_window_state.raw;
+                            let event_handler = &mut r_window_state.fun;
+                            let keyboard_state = match state
+                                .seats
+                                .values_mut()
+                                .find(|seat| {
+                                    seat.keyboard_state
+                                        .as_ref()
+                                        .is_some_and(|state| state.keyboard.id() == object_id)
+                                })
+                                .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                            {
+                                Some(keyboard_state) => keyboard_state,
+                                None => return TimeoutAction::Drop,
                             };
-                            state.message.push((surface_id, event));
-                        }
-                        let repeat_info = keyboard_state.repeat_info;
+                            let repeat_keycode = match keyboard_state.current_repeat {
+                                Some(repeat_keycode) => repeat_keycode,
+                                None => return TimeoutAction::Drop,
+                            };
+                            // NOTE: not the same key
+                            if repeat_keycode != key {
+                                return TimeoutAction::Drop;
+                            }
+                            if let Some(mut key_context) = keyboard_state.xkb_context.key_context()
+                            {
+                                let event = key_context.process_key_event(
+                                    repeat_keycode,
+                                    pressed_state,
+                                    false,
+                                );
+                                let event = DispatchMessageInner::KeyboardInput {
+                                    event,
+                                    is_synthetic: false,
+                                };
+                                state.message.push((surface_id, event));
+                            }
+                            let repeat_info = keyboard_state.repeat_info;
 
-                        let _ = keyboard_state;
-                        state.handle_event(
-                            &mut *event_handler,
-                            LayerShellEvent::NormalDispatch,
-                            None,
-                        );
-                        match repeat_info {
-                            RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
-                            RepeatInfo::Disable => TimeoutAction::Drop,
-                        }
-                    })
-                    .ok();
+                            let _ = keyboard_state;
+                            state.handle_event(
+                                &mut *event_handler,
+                                ExWlShellEvent::NormalDispatch,
+                                None,
+                            );
+                            match repeat_info {
+                                RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
+                                RepeatInfo::Disable => TimeoutAction::Drop,
+                            }
+                        })
+                        .ok();
+                }
             }
+
             // Flush after all event handlers have run so outgoing requests
             // (e.g. wl_surface.commit from process_window_state) reach the
             // compositor before the next dispatch() potentially sleeps.
@@ -3789,7 +3269,7 @@ impl<T: 'static> WindowState<T> {
                         let event_handler = &mut r_window_state.fun;
                         window_state.handle_event(
                             &mut *event_handler,
-                            LayerShellEvent::UserEvent(event),
+                            ExWlShellEvent::UserEvent(event),
                             None,
                         );
                     })
@@ -3812,11 +3292,11 @@ impl<T: 'static> WindowState<T> {
     pub fn handle_event<F, Message>(
         &mut self,
         mut event_handler: F,
-        event: LayerShellEvent<T, Message>,
+        event: ExWlShellEvent<T, Message>,
         unit_id: Option<id::Id>,
     ) where
         Message: std::marker::Send + 'static,
-        F: FnMut(LayerShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
+        F: FnMut(ExWlShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
     {
         let return_data = event_handler(event, self, unit_id);
         if !matches!(return_data, ReturnData::None) {
