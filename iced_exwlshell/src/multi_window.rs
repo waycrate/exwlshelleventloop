@@ -939,7 +939,7 @@ where
                 rebuilds.push((iced_id, window));
             }
 
-            for (event, status) in window_events.drain(..).zip(statuses.into_iter()) {
+            for (event, status) in window_events.drain(..).zip(statuses) {
                 self.runtime
                     .broadcast(iced_futures::subscription::Event::Interaction {
                         window: iced_id,

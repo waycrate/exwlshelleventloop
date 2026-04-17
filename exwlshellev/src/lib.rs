@@ -1675,14 +1675,12 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                 name,
                 interface,
                 version,
-            } => {
-                if interface == wl_output::WlOutput::interface().name {
-                    let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-                    state.outputs.push((name, output.clone()));
-                    state
-                        .message
-                        .push((None, DispatchMessageInner::NewDisplay(output)));
-                }
+            } if interface == wl_output::WlOutput::interface().name => {
+                let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
+                state.outputs.push((name, output.clone()));
+                state
+                    .message
+                    .push((None, DispatchMessageInner::NewDisplay(output)));
             }
             wl_registry::Event::GlobalRemove { name } => {
                 if state
@@ -2487,15 +2485,14 @@ impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
             wl_surface::Event::Enter { output } => {
                 unit.wl_output.replace(output);
             }
-            wl_surface::Event::Leave { output } => {
+            wl_surface::Event::Leave { output }
                 if !matches!(unit.shell, Shell::LayerShell(..))
                     && unit
                         .wl_output
                         .as_ref()
-                        .is_some_and(|i_output| i_output == &output)
-                {
-                    unit.wl_output.take();
-                }
+                        .is_some_and(|i_output| i_output == &output) =>
+            {
+                unit.wl_output.take();
             }
             _ => {}
         }

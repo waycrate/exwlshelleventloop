@@ -826,14 +826,12 @@ impl<T: 'static> Dispatch<wl_registry::WlRegistry, ()> for WindowState<T> {
                 name,
                 interface,
                 version,
-            } => {
-                if interface == wl_output::WlOutput::interface().name {
-                    let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-                    state.outputs.push((name, output.clone()));
-                    state
-                        .message
-                        .push((None, DispatchMessageInner::NewDisplay(output)));
-                }
+            } if interface == wl_output::WlOutput::interface().name => {
+                let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
+                state.outputs.push((name, output.clone()));
+                state
+                    .message
+                    .push((None, DispatchMessageInner::NewDisplay(output)));
             }
             wl_registry::Event::GlobalRemove { name } => {
                 state.outputs.retain(|x| x.0 != name);
