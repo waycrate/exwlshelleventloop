@@ -2971,7 +2971,7 @@ impl<T: 'static> WindowState<T> {
 
     fn running_with_proxy_option<F, Message>(
         mut self,
-        message_receiver: Option<Channel<Message>>,
+        mut message_receiver: Option<Channel<Message>>,
         mut event_handler: F,
     ) -> Result<(), ExShellEventError>
     where
@@ -3048,24 +3048,6 @@ impl<T: 'static> WindowState<T> {
             lock: None,
         };
         let signal = event_loop.get_signal();
-
-        if let Some(channel) = message_receiver {
-            event_loop
-                .handle()
-                .insert_source(channel, |event, _, r_window_state| {
-                    let channel::Event::Msg(event) = event else {
-                        return;
-                    };
-                    let window_state = &mut r_window_state.raw;
-                    let event_handler = &mut r_window_state.fun;
-                    window_state.handle_event(
-                        &mut *event_handler,
-                        LayerShellEvent::UserEvent(event),
-                        None,
-                    );
-                })
-                .expect("We need message state");
-        }
 
         let process_window_state =
             |window_state: &mut WindowState<T>,
@@ -3796,6 +3778,26 @@ impl<T: 'static> WindowState<T> {
             // (e.g. wl_surface.commit from process_window_state) reach the
             // compositor before the next dispatch() potentially sleeps.
             let _ = connection.flush();
+
+            // NOTE: we need to start the receiver only after the dispatch is run at least once a
+            // time
+            if let Some(channel) = message_receiver.take() {
+                event_loop
+                    .handle()
+                    .insert_source(channel, |event, _, r_window_state| {
+                        let channel::Event::Msg(event) = event else {
+                            return;
+                        };
+                        let window_state = &mut r_window_state.raw;
+                        let event_handler = &mut r_window_state.fun;
+                        window_state.handle_event(
+                            &mut *event_handler,
+                            LayerShellEvent::UserEvent(event),
+                            None,
+                        );
+                    })
+                    .expect("We need message state");
+            }
         }
         Ok(())
     }
