@@ -1032,10 +1032,11 @@ where
                 }
 
                 if mouse_interaction != window.mouse_interaction {
-                    if let Some(pointer) = ev.get_pointer() {
+                    let pointers = ev.get_pointers();
+                    for pointer in pointers {
                         ev.append_return_data(ReturnData::RequestSetCursorShape((
                             conversion::mouse_interaction(mouse_interaction),
-                            pointer.clone(),
+                            pointer,
                         )));
                     }
                     window.mouse_interaction = mouse_interaction;

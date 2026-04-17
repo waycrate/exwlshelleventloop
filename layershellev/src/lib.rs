@@ -132,6 +132,7 @@ use strtoshape::str_to_shape;
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
 
+use wayland_backend::client::ObjectId;
 use wayland_client::protocol::wl_surface;
 use wayland_client::{
     ConnectError, Connection, Dispatch, DispatchError, EventQueue, Proxy, QueueHandle, WEnum,
@@ -921,12 +922,11 @@ pub struct WindowState<T> {
     output_state: Option<OutputState>,
 
     // base managers
-    seat: Option<SeatState>,
+    seat_state: Option<SeatState>,
+    seats: HashMap<ObjectId, SeatStorage>,
     seat_back: Option<WlSeat>,
     keyboard_state: Option<xkb_keyboard::KeyboardState>,
 
-    pointer: Option<WlPointer>,
-    touch: Option<WlTouch>,
     virtual_keyboard: Option<ZwpVirtualKeyboardV1>,
 
     // states
@@ -960,7 +960,6 @@ pub struct WindowState<T> {
     events_transparent: bool,
 
     text_input_manager: Option<ZwpTextInputManagerV3>,
-    text_input: Option<ZwpTextInputV3>,
     text_inputs: Vec<ZwpTextInputV3>,
 
     xdg_decoration_manager: Option<ZxdgDecorationManagerV1>,
@@ -1104,15 +1103,29 @@ impl<T> WindowState<T> {
     pub fn get_keyboard(&self) -> Option<&WlKeyboard> {
         Some(&self.keyboard_state.as_ref()?.keyboard)
     }
-
-    /// get the pointer
-    pub fn get_pointer(&self) -> Option<&WlPointer> {
-        self.pointer.as_ref()
+    pub fn get_pointers(&self) -> Vec<WlPointer> {
+        self.seats
+            .values()
+            .map(|seat| &seat.pointer)
+            .flatten()
+            .cloned()
+            .collect()
     }
-
+    /// get the pointer
+    pub fn get_pointers_iter(&self) -> impl Iterator<Item = &WlPointer> {
+        self.seats.values().map(|seat| &seat.pointer).flatten()
+    }
+    pub fn get_touchers(&self) -> Vec<WlTouch> {
+        self.seats
+            .values()
+            .map(|seat| &seat.touch)
+            .flatten()
+            .cloned()
+            .collect()
+    }
     /// get the touch
-    pub fn get_touch(&self) -> Option<&WlTouch> {
-        self.touch.as_ref()
+    pub fn get_touches_iter(&self) -> impl Iterator<Item = &WlTouch> {
+        self.seats.values().map(|seat| &seat.touch).flatten()
     }
 }
 
@@ -1183,10 +1196,15 @@ impl<T> WindowState<T> {
 
     pub fn set_ime_purpose(&mut self, purpose: ImePurpose) {
         self.ime_purpose = purpose;
-        self.text_input.iter().for_each(|text_input| {
+        for text_input in self
+            .seats
+            .values()
+            .map(|storage| &storage.text_input)
+            .flatten()
+        {
             text_input.set_content_type_by_purpose(purpose);
             text_input.commit();
-        });
+        }
     }
 
     #[inline]
@@ -1434,6 +1452,35 @@ impl<T> WindowState<T> {
     }
 }
 
+#[derive(Debug, Default)]
+struct SeatStorage {
+    touch: Option<WlTouch>,
+    pointer: Option<WlPointer>,
+    keyboard_state: Option<xkb_keyboard::KeyboardState>,
+    text_input: Option<ZwpTextInputV3>,
+}
+
+impl Drop for SeatStorage {
+    fn drop(&mut self) {
+        if let Some(touch) = self.touch.take()
+            && touch.version() >= 3
+        {
+            touch.release();
+        }
+        if let Some(pointer) = self.pointer.take()
+            && pointer.version() >= 3
+        {
+            pointer.release();
+        }
+    }
+}
+
+impl SeatStorage {
+    fn new() -> Self {
+        Self::default()
+    }
+}
+
 impl<T> Default for WindowState<T> {
     fn default() -> Self {
         Self {
@@ -1462,11 +1509,10 @@ impl<T> Default for WindowState<T> {
             registry_state: None,
             output_state: None,
 
-            seat: None,
+            seat_state: None,
+            seats: HashMap::new(),
             seat_back: None,
             keyboard_state: None,
-            pointer: None,
-            touch: None,
 
             namespace: "".to_owned(),
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
@@ -1497,7 +1543,6 @@ impl<T> Default for WindowState<T> {
             events_transparent: false,
 
             text_input_manager: None,
-            text_input: None,
             text_inputs: Vec::new(),
             ime_purpose: ImePurpose::Normal,
             ime_allowed: false,
@@ -1680,10 +1725,13 @@ impl<T: 'static> OutputHandler for WindowState<T> {
 
 impl<T: 'static> SeatHandler for WindowState<T> {
     fn seat_state(&mut self) -> &mut sctk::seat::SeatState {
-        self.seat.as_mut().unwrap()
+        self.seat_state.as_mut().unwrap()
     }
-    fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
-    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+    fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, seat: wl_seat::WlSeat) {
+        self.seats.insert(seat.id(), SeatStorage::new());
+    }
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, seat: wl_seat::WlSeat) {
+        let _ = self.seats.remove(&seat.id());
     }
     fn new_capability(
         &mut self,
@@ -1692,20 +1740,29 @@ impl<T: 'static> SeatHandler for WindowState<T> {
         seat: wl_seat::WlSeat,
         capability: sctk::seat::Capability,
     ) {
+        println!("len = {}", self.seat_state().seats().count());
+        let seat_state = match self.seats.get_mut(&seat.id()) {
+            Some(seat_state) => seat_state,
+            None => {
+                log::warn!("Received wl_seat::new_capability for unknown seat");
+                return;
+            }
+        };
+
         use xkb_keyboard::KeyboardState;
         match capability {
-            SeatCapability::Touch if self.touch.is_none() => {
-                self.touch = Some(seat.get_touch(queue_handle, ()));
+            SeatCapability::Touch if seat_state.touch.is_none() => {
+                seat_state.touch = Some(seat.get_touch(queue_handle, ()));
             }
-            SeatCapability::Keyboard if self.keyboard_state.is_none() => {
+            SeatCapability::Keyboard if seat_state.keyboard_state.is_none() => {
                 self.keyboard_state = Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
                 let text_input = self.text_input_manager.as_ref().map(|manager| {
                     manager.get_text_input(&seat, queue_handle, TextInputData::default())
                 });
-                self.text_input = text_input;
+                seat_state.text_input = text_input;
             }
-            SeatCapability::Pointer if self.pointer.is_none() => {
-                self.pointer = Some(seat.get_pointer(queue_handle, ()));
+            SeatCapability::Pointer if seat_state.pointer.is_none() => {
+                seat_state.pointer = Some(seat.get_pointer(queue_handle, ()));
             }
             _ => (),
         }
@@ -1714,29 +1771,36 @@ impl<T: 'static> SeatHandler for WindowState<T> {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _seat: wl_seat::WlSeat,
+        seat: wl_seat::WlSeat,
         capability: sctk::seat::Capability,
     ) {
-        if let Some(text_input) = self.text_input.take() {
+        let seat_state = match self.seats.get_mut(&seat.id()) {
+            Some(seat_state) => seat_state,
+            None => {
+                log::warn!("Received wl_seat::new_capability for unknown seat");
+                return;
+            }
+        };
+        if let Some(text_input) = seat_state.text_input.take() {
             text_input.destroy();
         }
         match capability {
             SeatCapability::Touch => {
-                if let Some(touch) = self.touch.take()
+                if let Some(touch) = seat_state.touch.take()
                     && touch.version() >= 3
                 {
                     touch.release();
                 }
             }
             SeatCapability::Pointer => {
-                if let Some(pointer) = self.pointer.take()
+                if let Some(pointer) = seat_state.pointer.take()
                     && pointer.version() >= 3
                 {
                     pointer.release();
                 }
             }
             SeatCapability::Keyboard => {
-                self.keyboard_state = None;
+                seat_state.keyboard_state = None;
             }
             _ => (),
         }
@@ -2651,7 +2715,11 @@ impl<T: 'static> WindowState<T> {
         let qh = event_queue.handle();
         self.registry_state = Some(RegistryState::new(&globals));
         self.output_state = Some(OutputState::new(&globals, &qh));
-        self.seat = Some(SeatState::new(&globals, &qh));
+        let seat_state = SeatState::new(&globals, &qh);
+        for seat in seat_state.seats() {
+            self.seats.insert(seat.id(), SeatStorage::new());
+        }
+        self.seat_state = Some(seat_state);
 
         self.display = Some(connection.display());
 
