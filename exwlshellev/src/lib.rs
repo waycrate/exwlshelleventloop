@@ -25,8 +25,8 @@
 //!     ev.running(|event, ev, index| {
 //!         match event {
 //!             // NOTE: this will send when init, you can request bind extra object from here
-//!             LayerShellEvent::InitRequest => ReturnData::RequestBind,
-//!             LayerShellEvent::BindProvide(globals, qh) => {
+//!             ExWlShellEvent::InitRequest => ReturnData::RequestBind,
+//!             ExWlShellEvent::BindProvide(globals, qh) => {
 //!                 // NOTE: you can get implied wayland object from here
 //!                 let virtual_keyboard_manager = globals
 //!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -38,13 +38,13 @@
 //!                 println!("{:?}", virtual_keyboard_manager);
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::XdgInfoChanged(_) => {
+//!             ExWlShellEvent::XdgInfoChanged(_) => {
 //!                 let index = index.unwrap();
 //!                 let unit = ev.get_unit_with_id(index).unwrap();
 //!                 println!("{:?}", unit.get_xdgoutput_info());
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
+//!             ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
 //!                 draw(file, (init_w, init_h));
 //!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
 //!                 ReturnData::WlBuffer(pool.create_buffer(
@@ -57,18 +57,18 @@
 //!                     (),
 //!                 ))
 //!             }
-//!             LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
 //!                 println!("{width}, {height}");
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter {
 //!                 pointer, ..
 //!             }) => ReturnData::RequestSetCursorShape((
 //!                 "crosshair".to_owned(),
 //!                 pointer.clone(),
 //!             )),
-//!             LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
 //!                 time,
 //!                 surface_x,
 //!                 surface_y,
@@ -76,7 +76,7 @@
 //!                 println!("{time}, {surface_x}, {surface_y}");
 //!                 ReturnData::None
 //!             }
-//!             LayerShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!             ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
 //!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
 //!                    ReturnData::RequestExit
 //!                } else {
@@ -2398,7 +2398,7 @@ impl<T: 'static> WindowState<T> {
         Ok(self)
     }
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// pass a ExWlShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
@@ -2416,7 +2416,7 @@ impl<T: 'static> WindowState<T> {
         self.running_with_proxy_option(Some(message_receiver), event_handler)
     }
     /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a LayerShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
+    /// pass a ExWlShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
     /// happened on, like tell you this time you do a click, what surface it is on. you can use the
     /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
     /// it will return [None].
