@@ -108,7 +108,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "application-launcher"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
@@ -441,7 +441,7 @@ dependencies = [
 
 [[package]]
 name = "bottom_panel"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
@@ -818,7 +818,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -827,7 +827,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_runtime",
@@ -836,7 +836,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "counter_output_select"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -859,7 +859,7 @@ dependencies = [
 
 [[package]]
 name = "counter_universe"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -1153,7 +1153,7 @@ dependencies = [
 
 [[package]]
 name = "exwlshellev"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
@@ -1822,7 +1822,7 @@ dependencies = [
 
 [[package]]
 name = "iced_exdevtools"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced_debug",
  "iced_devtools",
@@ -1833,7 +1833,7 @@ dependencies = [
 
 [[package]]
 name = "iced_exwlshell"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "enumflags2",
  "exwlshellev",
@@ -1862,7 +1862,7 @@ dependencies = [
 
 [[package]]
 name = "iced_exwlshell_macros"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "darling",
  "manyhow",
@@ -1910,7 +1910,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "enumflags2",
  "futures",
@@ -1936,7 +1936,7 @@ dependencies = [
 
 [[package]]
 name = "iced_layershell_macros"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "darling",
  "manyhow",
@@ -1983,7 +1983,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "futures",
  "iced",
@@ -2007,7 +2007,7 @@ dependencies = [
 
 [[package]]
 name = "iced_sessionlock_macros"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "darling",
  "manyhow",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "iced_virtualkeyboard"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -2047,7 +2047,7 @@ dependencies = [
 
 [[package]]
 name = "iced_wayland_subscriber"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "futures",
  "iced",
@@ -2175,7 +2175,7 @@ dependencies = [
 
 [[package]]
 name = "input_regions"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "layershellev"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
@@ -2646,7 +2646,7 @@ dependencies = [
 
 [[package]]
 name = "multi_window"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -3738,7 +3738,7 @@ dependencies = [
 
 [[package]]
 name = "redraw"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "iced",
  "iced_layershell",
@@ -3984,7 +3984,7 @@ dependencies = [
 
 [[package]]
 name = "sessionlockev"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "calloop 0.14.3",
  "calloop-wayland-source 0.4.1",
@@ -4898,7 +4898,7 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "calloop 0.14.3",
  "log",
@@ -5910,7 +5910,7 @@ dependencies = [
 
 [[package]]
 name = "zbus_invoked_widget"
-version = "0.18.0-beta2"
+version = "0.18.0-beta3"
 dependencies = [
  "futures",
  "iced",
