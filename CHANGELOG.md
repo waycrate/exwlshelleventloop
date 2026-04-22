@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0-beta2] - 2026-04-22
+
+### Changed
+- Feat: Sctk refactor in #368
+- Fix: high cpu usage in #364 by @Magniquck
+- Feat: add iced_exwlshell library
+
+[0.18.0-beta2]: https://github.com/waycrate/exwlshelleventloop/compare/v0.18.0-beta2...v0.17.1
+
 ## [0.17.1] - 2026-03-25
 
 ### Changed
