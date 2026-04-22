@@ -4903,7 +4903,6 @@ dependencies = [
  "calloop 0.14.3",
  "log",
  "memmap2",
- "smol_str 0.2.2",
  "wayland-backend",
  "wayland-client",
  "winit-common",

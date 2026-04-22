@@ -11,7 +11,6 @@ description = "something about xkbcommon, used in iced-layershell"
 
 [dependencies]
 xkbcommon-dl.workspace = true
-smol_str.workspace = true
 memmap2.workspace = true
 wayland-client.workspace = true
 wayland-backend.workspace = true
