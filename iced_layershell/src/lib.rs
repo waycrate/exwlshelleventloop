@@ -33,6 +33,13 @@ pub use iced_layershell_macros::to_layer_message;
 
 pub use error::Error;
 
+/// Opt-out for clipboard initialization. Call this before starting the
+/// runtime when your app has no text input and doesn't need paste/copy —
+/// this skips spawning the always-on smithay-clipboard worker thread.
+pub fn disable_clipboard() {
+    clipboard::set_disabled();
+}
+
 pub type Result = std::result::Result<(), error::Error>;
 use iced_core::theme::Style as Appearance;
 

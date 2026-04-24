@@ -1,6 +1,18 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use iced_core::Clipboard;
 use iced_core::clipboard::Kind;
 use sessionlockev::WindowWrapper;
+
+static DISABLED: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn set_disabled() {
+    DISABLED.store(true, Ordering::Relaxed);
+}
+
+pub(crate) fn is_disabled() -> bool {
+    DISABLED.load(Ordering::Relaxed)
+}
 
 pub struct SessionLockClipboard {
     state: State,

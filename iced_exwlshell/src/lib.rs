@@ -34,6 +34,13 @@ pub use iced_exwlshell_macros::to_exwlshell_message;
 
 pub use error::Error;
 
+/// Opt-out for clipboard initialization. Call this before starting the
+/// runtime when your app has no text input and doesn't need paste/copy —
+/// this skips spawning the always-on smithay-clipboard worker thread.
+pub fn disable_clipboard() {
+    clipboard::set_disabled();
+}
+
 pub trait FromShellInfo {
     fn get(shell: NewShellInfo) -> Self;
 }

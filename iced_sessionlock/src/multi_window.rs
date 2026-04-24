@@ -274,7 +274,14 @@ where
             new_compositor.load_font(font);
         }
         self.compositor = Some(new_compositor);
-        self.clipboard = SessionLockClipboard::connect(&window);
+        // Opt-out for clients that don't need clipboard access. Skipping
+        // connect() avoids spawning the smithay-clipboard worker thread,
+        // which otherwise runs an always-on wayland event loop (~0.4% CPU).
+        self.clipboard = if crate::clipboard::is_disabled() {
+            SessionLockClipboard::unconnected()
+        } else {
+            SessionLockClipboard::connect(&window)
+        };
         self
     }
 
