@@ -1,6 +1,19 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use exwlshellev::WindowWrapper;
 use iced_core::Clipboard;
 use iced_core::clipboard::Kind;
+
+static DISABLED: AtomicBool = AtomicBool::new(false);
+
+pub(crate) fn set_disabled() {
+    DISABLED.store(true, Ordering::Relaxed);
+}
+
+pub(crate) fn is_disabled() -> bool {
+    DISABLED.load(Ordering::Relaxed)
+}
+
 pub struct LayerShellClipboard {
     state: State,
 }
