@@ -983,7 +983,6 @@ impl<T> WindowState<T> {
                 None => {}
             }
         }
-        println!("Min dispatch timeout: {:?}", min);
         min
     }
 
