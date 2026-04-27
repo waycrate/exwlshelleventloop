@@ -1,3 +1,4 @@
+use iced::widget::operation::focus;
 use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Color, Element, Event, Length, Task as Command, event};
 use iced_layershell::Settings;
@@ -6,6 +7,15 @@ use iced_layershell::reexport::Anchor;
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
 
+const LAUNCHER_TEXT_INPUT_ID: &str = "launcher_text_input";
+
+fn boot() -> (Counter, iced::Task<Message>) {
+    (
+        Counter::default(),
+        focus(iced::widget::Id::new(LAUNCHER_TEXT_INPUT_ID)),
+    )
+}
+
 pub fn main() -> Result<(), iced_layershell::Error> {
     let binded_output_name = std::env::args().nth(1);
     let start_mode = match binded_output_name {
@@ -13,7 +23,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         None => StartMode::Active,
     };
 
-    application(Counter::default, namespace, update, view)
+    application(boot, namespace, update, view)
         .style(style)
         .subscription(subscription)
         .settings(Settings {
@@ -122,6 +132,7 @@ fn view<'a>(counter: &'a Counter) -> Element<'a, Message> {
             center,
             text_input("hello", &counter.text)
                 .on_input(Message::TextInput)
+                .id(LAUNCHER_TEXT_INPUT_ID)
                 .padding(10),
             button("bottom")
                 .on_press(Message::Direction(WindowDirection::Bottom))
