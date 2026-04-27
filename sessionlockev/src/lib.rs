@@ -1293,7 +1293,10 @@ impl<T: 'static> WindowState<T> {
         // unit's RefreshRequest rather than using a fixed interval.
         // Based on the approach used by winit's Wayland event loop:
         // https://github.com/rust-windowing/winit/blob/master/winit-wayland/src/event_loop/mod.rs#L242-L312
-        let mut force_first_tick = message_receiver.is_some();
+        // Use zero-timeout on first dispatch if we don't have any windows
+        // added in order to avoid getting stuck. For windowed startup, use
+        // normal timeout to preserve standard lifecycle.
+        let mut force_first_tick = state.raw.units.is_empty();
         loop {
             let timeout = if force_first_tick {
                 Some(Duration::ZERO)
