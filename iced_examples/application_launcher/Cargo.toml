@@ -26,6 +26,6 @@ regex = "1.11.1"
 xdg = "3.0.0"
 tracing = "0.1.40"
 freedesktop-desktop-entry = "0.8.1"
-zbus = "5.14.0"
+zbus = "5.15.0"
 anyhow = "1.0.102"
 serde = { version = "1.0", features = ["derive"] }
