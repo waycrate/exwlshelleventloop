@@ -2913,7 +2913,11 @@ impl<T: 'static> WindowState<T> {
                                 );
                             }
                             ReturnData::NewXdgBase((
-                                NewXdgWindowSettings { title, size },
+                                NewXdgWindowSettings {
+                                    title,
+                                    size,
+                                    client_side_decorations,
+                                },
                                 id,
                                 info,
                             )) => {
@@ -2928,7 +2932,11 @@ impl<T: 'static> WindowState<T> {
                                         let decoration = decoration_manager
                                             .get_toplevel_decoration(&toplevel, &qh, ());
                                         use zxdg_toplevel_decoration_v1::Mode;
-                                        decoration.set_mode(Mode::ServerSide);
+                                        decoration.set_mode(if client_side_decorations {
+                                            Mode::ClientSide
+                                        } else {
+                                            Mode::ServerSide
+                                        });
                                         Some(decoration)
                                     } else {
                                         None
