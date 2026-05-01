@@ -587,6 +587,32 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     log::warn!(target: "sessionlockev", "unknown pointer axis source: {unknown:x}");
                 }
             },
+            wl_pointer::Event::AxisValue120 { axis, value120 } => match axis {
+                WEnum::Value(axis) => {
+                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
+                    match axis {
+                        wl_pointer::Axis::VerticalScroll => vertical.discrete = value120 / 120,
+                        wl_pointer::Axis::HorizontalScroll => horizontal.discrete = value120 / 120,
+                        _ => unreachable!(),
+                    };
+
+                    state.message.push((
+                        surface_id,
+                        DispatchMessageInner::Axis {
+                            time: 0,
+                            scale,
+                            horizontal,
+                            vertical,
+                            source: None,
+                        },
+                    ));
+                }
+
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "sessionlockev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                }
+            },
+            // AxisDiscrete is deprecated since wl_pointer::Event::AxisValue120 is added, but some compositors may still use it.
             wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
                 WEnum::Value(axis) => {
                     let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
