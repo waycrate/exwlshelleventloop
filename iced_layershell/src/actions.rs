@@ -6,7 +6,10 @@ use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub struct IcedXdgWindowSettings {
+    /// The initial window size.
     pub size: Option<(u32, u32)>,
+    /// Request client-side decorations instead of the default server-side mode.
+    pub client_side_decorations: bool,
 }
 
 impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
@@ -14,6 +17,7 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
         NewXdgWindowSettings {
             title: None,
             size: val.size,
+            client_side_decorations: val.client_side_decorations,
         }
     }
 }

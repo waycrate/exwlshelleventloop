@@ -111,12 +111,15 @@ pub struct NewPopUpSettings {
     /// It means where the popup is, on which surface. It is the id of that layershell
     pub id: id::Id,
 }
-/// be used to create a new popup
+/// Settings used to create a new xdg toplevel window.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewXdgWindowSettings {
-    /// the size of the popup
+    /// The window title.
     pub title: Option<String>,
+    /// The initial window size.
     pub size: Option<(u32, u32)>,
+    /// Request client-side decorations instead of the default server-side mode.
+    pub client_side_decorations: bool,
 }
 
 /// input panel settings to create a new input panel surface
