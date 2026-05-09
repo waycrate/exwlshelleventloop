@@ -15,7 +15,6 @@ use std::time::Instant;
 ///
 /// This function is the same as the timed in iced, and you also need to use
 /// [crate::to_layer_message] to mark the Message
-
 pub fn timed<State, Message, Theme, Renderer>(
     boot: impl BootFn<State, Message>,
     namespace: impl NameSpace,
