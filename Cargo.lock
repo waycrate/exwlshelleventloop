@@ -858,6 +858,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "counter_timer"
+version = "0.18.0"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_runtime",
+]
+
+[[package]]
 name = "counter_universe"
 version = "0.18.0"
 dependencies = [

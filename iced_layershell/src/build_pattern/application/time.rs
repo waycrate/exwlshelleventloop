@@ -1,5 +1,5 @@
 use super::{BootFn, NameSpace, SingleApplication, ViewFn};
-use crate::DefaultStyle;
+use crate::{DefaultStyle, actions::LayerShellCustomActionWithId};
 use iced_core::Element;
 use iced_debug as debug;
 use iced_futures::Subscription;
@@ -27,7 +27,8 @@ pub fn timed<State, Message, Theme, Renderer>(
 ) -> SingleApplication<impl Program<State = State, Message = (Message, Instant), Theme = Theme>>
 where
     State: 'static,
-    Message: Send + 'static,
+    Message:
+        'static + TryInto<LayerShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle + 'static,
     Renderer: iced_program::Renderer + 'static,
 {
@@ -124,6 +125,18 @@ where
         },
         settings: crate::Settings::default(),
         namespace: namespace.namespace(),
+    }
+}
+
+impl<M> TryInto<LayerShellCustomActionWithId> for (M, Instant)
+where
+    M: TryInto<LayerShellCustomActionWithId, Error = M>,
+{
+    type Error = (M, Instant);
+
+    fn try_into(self) -> Result<LayerShellCustomActionWithId, Self::Error> {
+        let (message, instant) = self;
+        message.try_into().map_err(|m| (m, instant))
     }
 }
 
