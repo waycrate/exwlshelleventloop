@@ -310,6 +310,8 @@ pub struct WindowStateUnit<T> {
     viewport: Option<WpViewport>,
     binding: Option<T>,
     qh: QueueHandle<WindowState<T>>,
+    /// True after the compositor sends the initial configure for this lock surface.
+    configured: bool,
 
     scale: u32,
     present_available_state: PresentAvailableState,
@@ -456,9 +458,14 @@ impl<T> WindowStateUnit<T> {
     }
 
     /// Returns the duration until this unit needs its next refresh,
-    /// or `None` if no refresh is pending or the present slot is
-    /// unavailable (waiting for a compositor frame callback).
+    /// or `None` if no refresh is pending, the surface has not received
+    /// its initial configure, or the present slot is unavailable (waiting
+    /// for a compositor frame callback).
     fn refresh_timeout(&self) -> Option<Duration> {
+        if !self.configured {
+            return None;
+        }
+
         match self.refresh {
             RefreshRequest::NextFrame => {
                 if self.present_available_state == PresentAvailableState::Available {
@@ -482,7 +489,7 @@ impl<T> WindowStateUnit<T> {
     }
 
     pub fn take_present_slot(&mut self) -> bool {
-        if !self.should_refresh() {
+        if !self.configured || !self.should_refresh() {
             return false;
         }
         if self.present_available_state != PresentAvailableState::Available {
@@ -858,7 +865,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
                 return;
             };
             state.units[unit_index].size = (width, height);
-
+            state.units[unit_index].configured = true;
             state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
         }
     }
@@ -1022,6 +1029,7 @@ impl<T: 'static> WindowState<T> {
                 present_available_state: PresentAvailableState::Available,
                 refresh: RefreshRequest::Wait,
                 qh: qh.clone(),
+                configured: false,
             });
         }
         self.viewporter = viewporter;
@@ -1176,6 +1184,7 @@ impl<T: 'static> WindowState<T> {
                             present_available_state: PresentAvailableState::Available,
                             refresh: RefreshRequest::Wait,
                             qh: qh.clone(),
+                            configured: false,
                         });
                     }
                     _ => {

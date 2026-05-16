@@ -380,7 +380,7 @@ impl PartialEq<XdgPopup> for Shell {
 impl PartialEq<XdgSurface> for Shell {
     fn eq(&self, other: &XdgSurface) -> bool {
         match self {
-            Self::PopUp((_, surface)) => surface == other,
+            Self::PopUp((_, surface)) | Self::XdgTopLevel((_, surface, _)) => surface == other,
             _ => false,
         }
     }
@@ -457,6 +457,7 @@ impl<T> WindowStateUnitBuilder<T> {
         wl_surface: WlSurface,
         shell: Shell,
     ) -> Self {
+        let configured = matches!(shell, Shell::InputPanel(_));
         Self {
             inner: WindowStateUnit {
                 id,
@@ -473,6 +474,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 wl_output: Default::default(),
                 binding: Default::default(),
                 becreated: Default::default(),
+                configured,
                 // Unknown why it is 120
                 scale: 120,
                 request_flag: Default::default(),
@@ -563,6 +565,8 @@ pub struct WindowStateUnit<T> {
     wl_output: Option<WlOutput>,
     binding: Option<T>,
     becreated: bool,
+    /// True after the compositor sends the initial configure for this shell role.
+    configured: bool,
 
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
@@ -807,9 +811,14 @@ impl<T> WindowStateUnit<T> {
         }
     }
     /// Returns the duration until this unit needs its next refresh,
-    /// or `None` if no refresh is pending or the present slot is
-    /// unavailable (waiting for a compositor frame callback).
+    /// or `None` if no refresh is pending, the surface has not received
+    /// its initial configure, or the present slot is unavailable (waiting
+    /// for a compositor frame callback).
     fn refresh_timeout(&self) -> Option<Duration> {
+        if !self.configured {
+            return None;
+        }
+
         match self.request_flag.refresh {
             RefreshRequest::NextFrame => {
                 if self.present_available_state == PresentAvailableState::Available {
@@ -840,7 +849,7 @@ impl<T> WindowStateUnit<T> {
     }
 
     pub fn take_present_slot(&mut self) -> bool {
-        if !self.should_refresh() {
+        if !self.configured || !self.should_refresh() {
             return false;
         }
         if self.present_available_state != PresentAvailableState::Available {
@@ -1736,7 +1745,10 @@ impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
                 .units
                 .iter_mut()
                 .filter(|unit| unit.shell == *surface)
-                .for_each(|unit| unit.request_refresh(RefreshRequest::NextFrame));
+                .for_each(|unit| {
+                    unit.configured = true;
+                    unit.request_refresh(RefreshRequest::NextFrame);
+                });
         }
     }
 }
@@ -1763,7 +1775,7 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
                     return;
                 };
                 state.units[unit_index].size = (width, height);
-
+                state.units[unit_index].configured = true;
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             zwlr_layer_surface_v1::Event::Closed => {
@@ -1830,7 +1842,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
                 return;
             };
             state.units[unit_index].size = (width, height);
-
+            state.units[unit_index].configured = true;
             state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
         }
     }
