@@ -38,7 +38,6 @@ where
         &mut self,
         cursor: Rectangle,
         preedit: &input_method::Preedit,
-        background: Color,
         renderer: &Renderer,
     ) {
         self.position = cursor.position() + Vector::new(0.0, cursor.height);
@@ -50,8 +49,7 @@ where
                         "\u{200A}"
                     } else {
                         &preedit.content[selection.start..selection.end]
-                    })
-                    .color(background),
+                    }),
                     text::Span::new(&preedit.content[selection.end..]),
                 ]
             }
@@ -116,6 +114,21 @@ where
                 background,
             );
 
+            let selection_background = Color {
+                a: color.a * 0.25,
+                ..color
+            };
+
+            for span_bounds in self.content.span_bounds(1) {
+                renderer.fill_quad(
+                    renderer::Quad {
+                        bounds: span_bounds + (bounds.position() - Point::ORIGIN),
+                        ..Default::default()
+                    },
+                    selection_background,
+                );
+            }
+
             renderer.fill_paragraph(&self.content, bounds.position(), color, bounds);
 
             const UNDERLINE: f32 = 2.0;
@@ -130,16 +143,6 @@ where
                 },
                 color,
             );
-
-            for span_bounds in self.content.span_bounds(1) {
-                renderer.fill_quad(
-                    renderer::Quad {
-                        bounds: span_bounds + (bounds.position() - Point::ORIGIN),
-                        ..Default::default()
-                    },
-                    color,
-                );
-            }
         });
     }
 }

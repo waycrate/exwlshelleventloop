@@ -185,12 +185,7 @@ where
                     } else {
                         let mut overlay = self.preedit.take().unwrap_or_else(Preedit::new);
 
-                        overlay.update(
-                            cursor,
-                            &preedit,
-                            self.state.background_color(),
-                            &self.renderer,
-                        );
+                        overlay.update(cursor, &preedit, &self.renderer);
 
                         self.preedit = Some(overlay);
                     }
