@@ -7,12 +7,12 @@ use std::collections::HashMap;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{event, Alignment, Element, Event, Length, Task as Command};
-use iced_layershell::actions::{IcedNewMenuSettings, MenuDirection};
+use iced_layershell::actions::IcedNewPopupSettings;
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
 use iced_layershell::build_pattern::daemon;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption, PopupGravity};
 use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
@@ -138,15 +138,15 @@ impl Counter {
                         }
                     }
                     Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Right)) => {
-                        let id = iced::window::Id::unique();
-                        self.ids.insert(id, WindowInfo::PopUp);
-                        return Command::done(Message::NewMenu {
-                            settings: IcedNewMenuSettings {
-                                size: (100, 100),
-                                direction: MenuDirection::Up,
-                            },
-                            id,
-                        });
+                        if let Some(parent) = self.window_id(&WindowInfo::Left).copied() {
+                            let id = iced::window::Id::unique();
+                            self.ids.insert(id, WindowInfo::PopUp);
+                            return Command::done(Message::NewPopUp {
+                                settings: IcedNewPopupSettings::new(parent, (100, 100), (0, 0, 1, 1))
+                                    .gravity(PopupGravity::TopRight),
+                                id,
+                            });
+                        }
                     }
                     _ => {}
                 }

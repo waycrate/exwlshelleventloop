@@ -20,6 +20,10 @@ pub mod reexport {
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
     pub use layershellev::reexport::wayland_client::{WlRegion, wl_keyboard};
+    pub use layershellev::reexport::xdg_positioner::{
+        Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
+        Gravity as PopupGravity,
+    };
     pub mod core {
         pub use iced_core::*;
     }

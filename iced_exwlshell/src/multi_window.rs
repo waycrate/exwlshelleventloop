@@ -1,6 +1,6 @@
 use crate::{
     DefaultStyle, FromShellInfo,
-    actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings, MenuDirection},
+    actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings},
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -836,17 +836,29 @@ where
                 }
             }
             ExwlShellCustomAction::NewPopUp {
-                settings: menusettings,
+                settings,
                 id: iced_id,
             } => {
-                let IcedNewPopupSettings { size, position } = menusettings;
-                let Some(parent_layer_shell_id) = ev.current_surface_id() else {
+                let IcedNewPopupSettings {
+                    size,
+                    parent,
+                    anchor_rect,
+                    anchor,
+                    gravity,
+                    constraint_adjustment,
+                } = settings;
+                let Some(parent_layer_id) = self.window_manager.get(parent).map(|w| w.id) else {
                     return;
                 };
+                let grab_serial = ev.take_popup_grab_serial();
                 let popup_settings = NewPopUpSettings {
                     size,
-                    position,
-                    id: parent_layer_shell_id,
+                    id: parent_layer_id,
+                    anchor_rect,
+                    anchor,
+                    gravity,
+                    constraint_adjustment,
+                    grab_serial,
                 };
                 let layer_shell_id = exwlshellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewPopUp((
@@ -854,37 +866,6 @@ where
                     layer_shell_id,
                     Some(iced_id),
                 )));
-            }
-            ExwlShellCustomAction::NewMenu {
-                settings: menu_setting,
-                id: iced_id,
-            } => {
-                let Some(parent_layer_shell_id) = ev.current_surface_id() else {
-                    return;
-                };
-                let Some((_, window)) = self.window_manager.get_alias(parent_layer_shell_id) else {
-                    return;
-                };
-
-                let Some(point) = window.state.mouse_position() else {
-                    return;
-                };
-
-                let (x, mut y) = (point.x as i32, point.y as i32);
-                if let MenuDirection::Up = menu_setting.direction {
-                    y -= menu_setting.size.1 as i32;
-                }
-                let popup_settings = NewPopUpSettings {
-                    size: menu_setting.size,
-                    position: (x, y),
-                    id: parent_layer_shell_id,
-                };
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.append_return_data(ReturnData::NewPopUp((
-                    popup_settings,
-                    layer_shell_id,
-                    Some(iced_id),
-                )))
             }
             ExwlShellCustomAction::NewInputPanel {
                 settings,

@@ -676,6 +676,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 button,
                 time,
             } => {
+                if matches!(btnstate, WEnum::Value(wl_pointer::ButtonState::Pressed)) {
+                    state.button_serial = Some(serial);
+                }
                 let mouse_surface = mouse_surface.cloned();
                 state.update_current_surface(mouse_surface);
                 state.message.push((

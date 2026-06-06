@@ -1,5 +1,9 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
 use iced_core::window::Id as IcedId;
+use layershellev::reexport::xdg_positioner::{
+    Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
+    Gravity as PopupGravity,
+};
 use layershellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
 
 use std::sync::Arc;
@@ -25,19 +29,55 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
-    pub position: (i32, i32),
+    pub parent: IcedId,
+    pub anchor_rect: (i32, i32, i32, i32),
+    pub anchor: PopupAnchor,
+    pub gravity: PopupGravity,
+    pub constraint_adjustment: PopupConstraintAdjustment,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum MenuDirection {
-    Up,
-    Down,
-}
+impl IcedNewPopupSettings {
+    /// Create popup settings for a popup of `size` anchored at `anchor_rect`
+    /// (in the parent surface's local coordinates) on the `parent` surface.
+    ///
+    /// Defaults are applied: anchored at the bottom-left of the anchor
+    /// rect, growing toward the top-right, with the compositor free to flip
+    /// or slide the popup on either axis to keep it on-screen. Override any of
+    /// them with the builder methods.
+    pub fn new(parent: IcedId, size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
+        Self {
+            size,
+            parent,
+            anchor_rect,
+            anchor: PopupAnchor::BottomLeft,
+            gravity: PopupGravity::TopRight,
+            constraint_adjustment: PopupConstraintAdjustment::FlipX
+                | PopupConstraintAdjustment::FlipY
+                | PopupConstraintAdjustment::SlideX
+                | PopupConstraintAdjustment::SlideY,
+        }
+    }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct IcedNewMenuSettings {
-    pub size: (u32, u32),
-    pub direction: MenuDirection,
+    /// Set which point of the anchor rect the popup is anchored to.
+    pub fn anchor(mut self, anchor: PopupAnchor) -> Self {
+        self.anchor = anchor;
+        self
+    }
+
+    /// Set the direction the popup grows from the anchor point.
+    pub fn gravity(mut self, gravity: PopupGravity) -> Self {
+        self.gravity = gravity;
+        self
+    }
+
+    /// Set how the compositor may adjust (flip/slide/resize) the popup for off-screen cases
+    pub fn constraint_adjustment(
+        mut self,
+        constraint_adjustment: PopupConstraintAdjustment,
+    ) -> Self {
+        self.constraint_adjustment = constraint_adjustment;
+        self
+    }
 }
 
 type Callback = Arc<dyn Fn(&WlRegion) + Send + Sync>;
@@ -87,10 +127,6 @@ pub enum LayerShellCustomAction {
     },
     NewBaseWindow {
         settings: IcedXdgWindowSettings,
-        id: IcedId,
-    },
-    NewMenu {
-        settings: IcedNewMenuSettings,
         id: IcedId,
     },
     NewInputPanel {
