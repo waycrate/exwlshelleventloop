@@ -15,6 +15,7 @@ pub mod reexport {
     pub use exwlshellev::NewInputPanelSettings;
     pub use exwlshellev::NewLayerShellSettings;
     pub use exwlshellev::OutputOption;
+    pub use exwlshellev::PopupPlacement;
     pub use exwlshellev::WithConnection;
     pub use exwlshellev::WlShellType;
     pub use exwlshellev::reexport::Anchor;

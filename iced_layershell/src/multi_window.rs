@@ -1,6 +1,7 @@
+use crate::reexport::{PopupAnchor, PopupConstraintAdjustment, PopupGravity};
 use crate::{
     DefaultStyle,
-    actions::{IcedNewPopupSettings, LayerShellCustomActionWithId},
+    actions::{IcedNewPopupSettings, LayerShellCustomActionWithId, MenuDirection},
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -29,8 +30,8 @@ use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
 use layershellev::{
-    DisplayWrapper, LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
-    WindowWrapper,
+    DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopupPlacement, RefreshRequest, ReturnData,
+    WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -816,7 +817,7 @@ where
                 let IcedNewPopupSettings {
                     size,
                     parent,
-                    anchor_rect,
+                    placement,
                     anchor,
                     gravity,
                     constraint_adjustment,
@@ -832,11 +833,47 @@ where
                 let popup_settings = NewPopUpSettings {
                     size,
                     id: parent_layer_id,
-                    anchor_rect,
+                    placement,
                     anchor,
                     gravity,
                     constraint_adjustment,
                     grab_serial,
+                };
+                let layer_shell_id = layershellev::id::Id::unique();
+                ev.append_return_data(ReturnData::NewPopUp((
+                    popup_settings,
+                    layer_shell_id,
+                    Some(iced_id),
+                )));
+            }
+            LayerShellCustomAction::NewMenu {
+                settings: menu_setting,
+                id: iced_id,
+            } => {
+                let Some(parent_layer_shell_id) = ev.current_surface_id() else {
+                    return;
+                };
+                let Some((_, window)) = self.window_manager.get_alias(parent_layer_shell_id) else {
+                    return;
+                };
+                let Some(point) = window.state.mouse_position() else {
+                    return;
+                };
+                let (x, mut y) = (point.x as i32, point.y as i32);
+                if let MenuDirection::Up = menu_setting.direction {
+                    y -= menu_setting.size.1 as i32;
+                }
+                let popup_settings = NewPopUpSettings {
+                    size: menu_setting.size,
+                    id: parent_layer_shell_id,
+                    placement: PopupPlacement::Position((x, y)),
+                    anchor: PopupAnchor::TopLeft,
+                    gravity: PopupGravity::BottomRight,
+                    constraint_adjustment: PopupConstraintAdjustment::FlipX
+                        | PopupConstraintAdjustment::FlipY
+                        | PopupConstraintAdjustment::SlideX
+                        | PopupConstraintAdjustment::SlideY,
+                    grab_serial: None,
                 };
                 let layer_shell_id = layershellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewPopUp((

@@ -58,6 +58,8 @@ pub fn to_exwlshell_message(
             NewBaseWindow { settings: iced_exwlshell::actions::IcedXdgWindowSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action request for new base popup
             NewPopUp { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Action request for new menu
+            NewMenu { settings: iced_exwlshell::actions::IcedNewMenuSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action request for new input panel
             NewInputPanel { settings: iced_exwlshell::reexport::NewInputPanelSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action, remove window
@@ -85,6 +87,14 @@ pub fn to_exwlshell_message(
                     (
                         id,
                         iced_exwlshell::reexport::Task::done(Self::NewPopUp { settings, id })
+                    )
+
+                }
+                fn menu_open(settings: iced_exwlshell::actions::IcedNewMenuSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
+                    let id = iced_exwlshell::reexport::IcedId::unique();
+                    (
+                        id,
+                        iced_exwlshell::reexport::Task::done(Self::NewMenu { settings, id })
                     )
 
                 }
@@ -127,6 +137,7 @@ pub fn to_exwlshell_message(
                         Self::NewLayerShell {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewLayerShell { settings, id })),
                         Self::NewBaseWindow {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewBaseWindow { settings, id })),
                         Self::NewPopUp { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewPopUp { settings, id })),
+                        Self::NewMenu { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewMenu { settings, id })),
                         Self::NewInputPanel {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewInputPanel { settings, id })),
                         Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),
                         Self::ForgetLastOutput => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ForgetLastOutput)),

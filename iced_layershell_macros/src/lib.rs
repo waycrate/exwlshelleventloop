@@ -52,6 +52,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 NewLayerShell { settings: iced_layershell::reexport::NewLayerShellSettings, id: iced_layershell::reexport::IcedId },
                 NewBaseWindow { settings: iced_layershell::actions::IcedXdgWindowSettings, id: iced_layershell::reexport::IcedId },
                 NewPopUp { settings: iced_layershell::actions::IcedNewPopupSettings, id: iced_layershell::reexport::IcedId },
+                NewMenu { settings: iced_layershell::actions::IcedNewMenuSettings, id: iced_layershell::reexport::IcedId },
                 NewInputPanel { settings: iced_layershell::reexport::NewInputPanelSettings, id: iced_layershell::reexport::IcedId },
                 RemoveWindow(iced_layershell::reexport::IcedId),
                 ForgetLastOutput,
@@ -72,6 +73,14 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         (
                             id,
                             iced_layershell::reexport::Task::done(Self::NewPopUp { settings, id })
+                        )
+
+                    }
+                    fn menu_open(settings: iced_layershell::actions::IcedNewMenuSettings) -> (iced_layershell::reexport::IcedId, iced_layershell::reexport::Task<Self>) {
+                        let id = iced_layershell::reexport::IcedId::unique();
+                        (
+                            id,
+                            iced_layershell::reexport::Task::done(Self::NewMenu { settings, id })
                         )
 
                     }
@@ -107,6 +116,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::NewLayerShell {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewLayerShell { settings, id })),
                             Self::NewBaseWindow {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewBaseWindow { settings, id })),
                             Self::NewPopUp { settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewPopUp { settings, id })),
+                            Self::NewMenu { settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewMenu { settings, id })),
                             Self::NewInputPanel {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewInputPanel { settings, id })),
                             Self::RemoveWindow(id) => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::RemoveWindow)),
                             Self::ForgetLastOutput => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::ForgetLastOutput)),

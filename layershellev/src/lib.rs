@@ -109,9 +109,9 @@
 //!
 pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
-pub use events::NewPopUpSettings;
 pub use events::NewXdgWindowSettings;
 pub use events::OutputOption;
+pub use events::{NewPopUpSettings, PopupPlacement};
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
@@ -2697,7 +2697,7 @@ impl<T: 'static> WindowState<T> {
                             NewPopUpSettings {
                                 size: (width, height),
                                 id,
-                                anchor_rect: (arx, ary, arw, arh),
+                                placement,
                                 anchor,
                                 gravity,
                                 constraint_adjustment,
@@ -2713,10 +2713,12 @@ impl<T: 'static> WindowState<T> {
                                 );
                                 continue;
                             }
-                            if arw < 0 || arh < 0 {
+                            if let PopupPlacement::Anchored((_, _, arw, arh)) = placement
+                                && (arw < 0 || arh < 0)
+                            {
                                 log::warn!(
                                     target: "layershellev",
-                                    "popup {targetid:?} anchor_rect dimensions must be non-negative, got ({arx}, {ary}, {arw}, {arh}); skipping popup creation"
+                                    "popup {targetid:?} anchor_rect dimensions must be non-negative, got ({arw}, {arh}); skipping popup creation"
                                 );
                                 continue;
                             }
@@ -2728,7 +2730,14 @@ impl<T: 'static> WindowState<T> {
                             let wl_surface = wmcompositer.create_surface(&qh, ());
                             let positioner = wmbase.create_positioner(&qh, ());
                             positioner.set_size(width as i32, height as i32);
-                            positioner.set_anchor_rect(arx, ary, arw, arh);
+                            match placement {
+                                PopupPlacement::Position((px, py)) => {
+                                    positioner.set_anchor_rect(px, py, 1, 1)
+                                }
+                                PopupPlacement::Anchored((arx, ary, arw, arh)) => {
+                                    positioner.set_anchor_rect(arx, ary, arw, arh)
+                                }
+                            }
                             positioner.set_anchor(anchor);
                             positioner.set_gravity(gravity);
                             positioner.set_constraint_adjustment(constraint_adjustment);
@@ -2764,14 +2773,11 @@ impl<T: 'static> WindowState<T> {
 
                             match (window_state.seat_back.as_ref(), grab_serial) {
                                 (Some(seat), Some(serial)) => popup.grab(seat, serial),
-                                (Some(_), None) => log::warn!(
+                                (None, Some(_)) => log::warn!(
                                     target: "layershellev",
-                                    "popup {targetid:?} created without a grab: no input serial available; click-outside dismissal will not work"
+                                    "popup {targetid:?} wants a grab but no seat is available; it will not dismiss on click-outside"
                                 ),
-                                (None, _) => log::warn!(
-                                    target: "layershellev",
-                                    "popup {targetid:?} created without a grab: no seat available"
-                                ),
+                                (_, None) => {}
                             }
 
                             let mut fractional_scale = None;

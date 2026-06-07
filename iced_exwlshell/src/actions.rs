@@ -3,7 +3,9 @@ use exwlshellev::reexport::xdg_positioner::{
     Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
     Gravity as PopupGravity,
 };
-use exwlshellev::{NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings};
+use exwlshellev::{
+    NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings, PopupPlacement,
+};
 use iced_core::window::Id as IcedId;
 
 use std::sync::Arc;
@@ -30,7 +32,7 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
     pub parent: Option<IcedId>,
-    pub anchor_rect: (i32, i32, i32, i32),
+    pub placement: PopupPlacement,
     pub anchor: PopupAnchor,
     pub gravity: PopupGravity,
     pub constraint_adjustment: PopupConstraintAdjustment,
@@ -38,22 +40,26 @@ pub struct IcedNewPopupSettings {
 
 impl IcedNewPopupSettings {
     pub fn new(parent: IcedId, size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
-        Self::with_parent(Some(parent), size, anchor_rect)
+        Self::build(Some(parent), size, PopupPlacement::Anchored(anchor_rect))
     }
 
     pub fn on_current_surface(size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
-        Self::with_parent(None, size, anchor_rect)
+        Self::build(None, size, PopupPlacement::Anchored(anchor_rect))
     }
 
-    fn with_parent(
-        parent: Option<IcedId>,
-        size: (u32, u32),
-        anchor_rect: (i32, i32, i32, i32),
-    ) -> Self {
+    pub fn at_position(parent: IcedId, size: (u32, u32), position: (i32, i32)) -> Self {
+        Self::build(Some(parent), size, PopupPlacement::Position(position))
+    }
+
+    pub fn at_position_on_current_surface(size: (u32, u32), position: (i32, i32)) -> Self {
+        Self::build(None, size, PopupPlacement::Position(position))
+    }
+
+    fn build(parent: Option<IcedId>, size: (u32, u32), placement: PopupPlacement) -> Self {
         Self {
             size,
             parent,
-            anchor_rect,
+            placement,
             anchor: PopupAnchor::BottomLeft,
             gravity: PopupGravity::BottomRight,
             constraint_adjustment: PopupConstraintAdjustment::FlipX
@@ -83,6 +89,18 @@ impl IcedNewPopupSettings {
         self.constraint_adjustment = constraint_adjustment;
         self
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum MenuDirection {
+    Up,
+    Down,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct IcedNewMenuSettings {
+    pub size: (u32, u32),
+    pub direction: MenuDirection,
 }
 
 type Callback = Arc<dyn Fn(&WlRegion) + Send + Sync>;
@@ -128,6 +146,10 @@ pub enum ExwlShellCustomAction {
     SetInputRegion(ActionCallback),
     NewPopUp {
         settings: IcedNewPopupSettings,
+        id: IcedId,
+    },
+    NewMenu {
+        settings: IcedNewMenuSettings,
         id: IcedId,
     },
     NewBaseWindow {

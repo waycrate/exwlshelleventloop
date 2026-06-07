@@ -106,6 +106,15 @@ pub struct NewLayerShellSettings {
     pub namespace: Option<String>,
 }
 
+/// How a popup is positioned relative to its parent surface
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PopupPlacement {
+    /// anchor rectangle in the parent surface's local coordinates (x, y, w, h)
+    Anchored((i32, i32, i32, i32)),
+    /// Absolute position of the popup in the parent surface's local coordinates
+    Position((i32, i32)),
+}
+
 /// be used to create a new popup
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NewPopUpSettings {
@@ -113,8 +122,8 @@ pub struct NewPopUpSettings {
     pub size: (u32, u32),
     /// the id of the parent surface
     pub id: id::Id,
-    /// anchor rectangle in the parent surface's local coordinates (x, y, w, h)
-    pub anchor_rect: (i32, i32, i32, i32),
+    /// How a popup is positioned relative to its parent surface
+    pub placement: PopupPlacement,
     /// which point of the anchor rect the popup is anchored to
     pub anchor: PopupAnchor,
     /// the direction the popup grows from the anchor point
