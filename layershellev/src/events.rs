@@ -3,6 +3,11 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity},
 };
 
+use wayland_protocols::xdg::shell::client::xdg_positioner::{
+    Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
+    Gravity as PopupGravity,
+};
+
 use wayland_client::{
     QueueHandle, WEnum,
     globals::GlobalList,
@@ -101,15 +106,32 @@ pub struct NewLayerShellSettings {
     pub namespace: Option<String>,
 }
 
+/// How a popup is positioned relative to its parent surface
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PopupPlacement {
+    /// anchor rectangle in the parent surface's local coordinates (x, y, w, h)
+    Anchored((i32, i32, i32, i32)),
+    /// Absolute position of the popup in the parent surface's local coordinates
+    Position((i32, i32)),
+}
+
 /// be used to create a new popup
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NewPopUpSettings {
     /// the size of the popup
     pub size: (u32, u32),
-    /// the position of the popup, relative to the he layersurface
-    pub position: (i32, i32),
-    /// It means where the popup is, on which surface. It is the id of that layershell
+    /// the id of the parent surface
     pub id: id::Id,
+    /// How a popup is positioned relative to its parent surface
+    pub placement: PopupPlacement,
+    /// which point of the anchor rect the popup is anchored to
+    pub anchor: PopupAnchor,
+    /// the direction the popup grows from the anchor point
+    pub gravity: PopupGravity,
+    /// how the compositor may adjust (flip/slide/resize) the popup for off-screen cases
+    pub constraint_adjustment: PopupConstraintAdjustment,
+    /// Serial of the input event
+    pub grab_serial: Option<u32>,
 }
 /// Settings used to create a new xdg toplevel window.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]

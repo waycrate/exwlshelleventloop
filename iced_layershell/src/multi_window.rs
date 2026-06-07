@@ -1,3 +1,4 @@
+use crate::reexport::{PopupAnchor, PopupConstraintAdjustment, PopupGravity};
 use crate::{
     DefaultStyle,
     actions::{IcedNewPopupSettings, LayerShellCustomActionWithId, MenuDirection},
@@ -29,8 +30,8 @@ use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
 use layershellev::{
-    DisplayWrapper, LayerShellEvent, NewPopUpSettings, RefreshRequest, ReturnData, WindowState,
-    WindowWrapper,
+    DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopupPlacement, RefreshRequest, ReturnData,
+    WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -810,17 +811,33 @@ where
                 }
             }
             LayerShellCustomAction::NewPopUp {
-                settings: menusettings,
+                settings,
                 id: iced_id,
             } => {
-                let IcedNewPopupSettings { size, position } = menusettings;
-                let Some(parent_layer_shell_id) = ev.current_surface_id() else {
+                let IcedNewPopupSettings {
+                    size,
+                    parent,
+                    placement,
+                    anchor,
+                    gravity,
+                    constraint_adjustment,
+                } = settings;
+                let parent_layer_id = match parent {
+                    Some(parent) => self.window_manager.get(parent).map(|w| w.id),
+                    None => ev.current_surface_id(),
+                };
+                let Some(parent_layer_id) = parent_layer_id else {
                     return;
                 };
+                let grab_serial = ev.take_popup_grab_serial();
                 let popup_settings = NewPopUpSettings {
                     size,
-                    position,
-                    id: parent_layer_shell_id,
+                    id: parent_layer_id,
+                    placement,
+                    anchor,
+                    gravity,
+                    constraint_adjustment,
+                    grab_serial,
                 };
                 let layer_shell_id = layershellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewPopUp((
@@ -839,26 +856,31 @@ where
                 let Some((_, window)) = self.window_manager.get_alias(parent_layer_shell_id) else {
                     return;
                 };
-
                 let Some(point) = window.state.mouse_position() else {
                     return;
                 };
-
                 let (x, mut y) = (point.x as i32, point.y as i32);
                 if let MenuDirection::Up = menu_setting.direction {
                     y -= menu_setting.size.1 as i32;
                 }
                 let popup_settings = NewPopUpSettings {
                     size: menu_setting.size,
-                    position: (x, y),
                     id: parent_layer_shell_id,
+                    placement: PopupPlacement::Position((x, y)),
+                    anchor: PopupAnchor::TopLeft,
+                    gravity: PopupGravity::BottomRight,
+                    constraint_adjustment: PopupConstraintAdjustment::FlipX
+                        | PopupConstraintAdjustment::FlipY
+                        | PopupConstraintAdjustment::SlideX
+                        | PopupConstraintAdjustment::SlideY,
+                    grab_serial: None,
                 };
                 let layer_shell_id = layershellev::id::Id::unique();
                 ev.append_return_data(ReturnData::NewPopUp((
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
-                )))
+                )));
             }
             LayerShellCustomAction::NewInputPanel {
                 settings,

@@ -15,11 +15,16 @@ pub mod reexport {
     pub use layershellev::NewInputPanelSettings;
     pub use layershellev::NewLayerShellSettings;
     pub use layershellev::OutputOption;
+    pub use layershellev::PopupPlacement;
     pub use layershellev::WithConnection;
     pub use layershellev::reexport::Anchor;
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
     pub use layershellev::reexport::wayland_client::{WlRegion, wl_keyboard};
+    pub use layershellev::reexport::xdg_positioner::{
+        Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
+        Gravity as PopupGravity,
+    };
     pub mod core {
         pub use iced_core::*;
     }

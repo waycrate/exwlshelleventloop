@@ -109,9 +109,9 @@
 //!
 pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
-pub use events::NewPopUpSettings;
 pub use events::NewXdgWindowSettings;
 pub use events::OutputOption;
+pub use events::{NewPopUpSettings, PopupPlacement};
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
@@ -266,6 +266,11 @@ pub mod reexport {
             wp_fractional_scale_v1::{self, WpFractionalScaleV1},
         };
     }
+    pub mod xdg_positioner {
+        pub use wayland_protocols::xdg::shell::client::xdg_positioner::{
+            Anchor, ConstraintAdjustment, Gravity,
+        };
+    }
     pub mod wayland_client {
         pub use wayland_client::{
             Connection, QueueHandle, WEnum,
@@ -392,10 +397,6 @@ impl Shell {
         }
     }
 
-    fn is_popup(&self) -> bool {
-        matches!(self, Self::PopUp(_))
-    }
-
     fn top_level(&self) -> Option<XdgToplevel> {
         match self {
             Self::XdgTopLevel((level, _, _)) => Some(level.clone()),
@@ -436,6 +437,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 display,
                 wl_surface,
                 shell,
+                parent: None,
                 size: (0, 0),
                 buffer: Default::default(),
                 zxdgoutput: Default::default(),
@@ -490,6 +492,11 @@ impl<T> WindowStateUnitBuilder<T> {
         self.inner.becreated = becreated;
         self
     }
+
+    fn parent(mut self, parent: Option<id::Id>) -> Self {
+        self.inner.parent = parent;
+        self
+    }
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -522,6 +529,7 @@ pub struct WindowStateUnit<T> {
     size: (u32, u32),
     buffer: Option<WlBuffer>,
     shell: Shell,
+    parent: Option<id::Id>,
     zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
     viewport: Option<WpViewport>,
@@ -532,12 +540,6 @@ pub struct WindowStateUnit<T> {
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
     present_available_state: PresentAvailableState,
-}
-
-impl<T> WindowStateUnit<T> {
-    fn is_popup(&self) -> bool {
-        self.shell.is_popup()
-    }
 }
 
 impl<T> WindowStateUnit<T> {
@@ -953,6 +955,7 @@ pub struct WindowState<T> {
     return_data: Vec<ReturnData<T>>,
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
+    button_serial: Option<u32>,
 
     xdg_info_cache: Vec<(wl_output::WlOutput, ZxdgOutputInfo)>,
 
@@ -990,6 +993,11 @@ impl<T> WindowState<T> {
         self.return_data.push(data);
     }
 
+    /// Take the serial to use for the next popup grab, consuming it.
+    pub fn take_popup_grab_serial(&mut self) -> Option<u32> {
+        self.button_serial.take()
+    }
+
     /// remove a shell, destroy the surface
     fn remove_shell(&mut self, id: id::Id) -> Option<()> {
         let index = self
@@ -1005,6 +1013,22 @@ impl<T> WindowState<T> {
         }
         self.units.remove(index);
         Some(())
+    }
+
+    fn collect_descendants_then_self(&self, id: id::Id, order: &mut Vec<id::Id>) {
+        if order.contains(&id) {
+            return;
+        }
+        let children: Vec<id::Id> = self
+            .units
+            .iter()
+            .filter(|unit| unit.parent == Some(id))
+            .map(|unit| unit.id)
+            .collect();
+        for child in children {
+            self.collect_descendants_then_self(child, order);
+        }
+        order.push(id);
     }
 
     /// forget the remembered last output, next time it will get the new activated output to set the
@@ -1464,6 +1488,7 @@ impl<T> Default for WindowState<T> {
             return_data: Vec::new(),
             finger_locations: HashMap::new(),
             enter_serial: None,
+            button_serial: None,
             // NOTE: if is some, means it is to be binded, but not now it
             // is not binded
             xdg_info_cache: Vec::new(),
@@ -1749,14 +1774,22 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        if let xdg_popup::Event::Configure { width, height, .. } = event {
-            let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
-            else {
-                return;
-            };
-            state.units[unit_index].size = (width as u32, height as u32);
-
-            state.units[unit_index].request_refresh(RefreshRequest::NextFrame)
+        match event {
+            xdg_popup::Event::Configure { width, height, .. } => {
+                let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
+                else {
+                    return;
+                };
+                state.units[unit_index].size = (width as u32, height as u32);
+                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
+            }
+            xdg_popup::Event::PopupDone => {
+                if let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
+                {
+                    state.units[unit_index].request_close();
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -2663,30 +2696,89 @@ impl<T: 'static> WindowState<T> {
                         ReturnData::NewPopUp((
                             NewPopUpSettings {
                                 size: (width, height),
-                                position: (x, y),
                                 id,
+                                placement,
+                                anchor,
+                                gravity,
+                                constraint_adjustment,
+                                grab_serial,
                             },
                             targetid,
                             info,
                         )) => {
-                            let Some(index) = window_state
-                                .units
-                                .iter()
-                                .position(|unit| !unit.is_popup() && unit.id == id)
+                            if width == 0 || height == 0 {
+                                log::warn!(
+                                    target: "layershellev",
+                                    "popup {targetid:?} size must be positive, got {width}x{height}; skipping popup creation"
+                                );
+                                continue;
+                            }
+                            if let PopupPlacement::Anchored((_, _, arw, arh)) = placement
+                                && (arw < 0 || arh < 0)
+                            {
+                                log::warn!(
+                                    target: "layershellev",
+                                    "popup {targetid:?} anchor_rect dimensions must be non-negative, got ({arw}, {arh}); skipping popup creation"
+                                );
+                                continue;
+                            }
+                            let Some(index) =
+                                window_state.units.iter().position(|unit| unit.id == id)
                             else {
                                 continue;
                             };
                             let wl_surface = wmcompositer.create_surface(&qh, ());
                             let positioner = wmbase.create_positioner(&qh, ());
                             positioner.set_size(width as i32, height as i32);
-                            positioner.set_anchor_rect(x, y, width as i32, height as i32);
+                            match placement {
+                                PopupPlacement::Position((px, py)) => {
+                                    positioner.set_anchor_rect(px, py, 1, 1)
+                                }
+                                PopupPlacement::Anchored((arx, ary, arw, arh)) => {
+                                    positioner.set_anchor_rect(arx, ary, arw, arh)
+                                }
+                            }
+                            positioner.set_anchor(anchor);
+                            positioner.set_gravity(gravity);
+                            positioner.set_constraint_adjustment(constraint_adjustment);
+                            if positioner.version() >= 3 {
+                                positioner.set_reactive();
+                            }
                             let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
-                            let popup = wl_xdg_surface.get_popup(None, &positioner, &qh, ());
 
-                            let Shell::LayerShell(shell) = &window_state.units[index].shell else {
-                                unreachable!()
+                            let popup = match &window_state.units[index].shell {
+                                Shell::LayerShell(shell) => {
+                                    let popup =
+                                        wl_xdg_surface.get_popup(None, &positioner, &qh, ());
+                                    shell.get_popup(&popup);
+                                    popup
+                                }
+                                Shell::PopUp((_, parent_xdg_surface)) => wl_xdg_surface.get_popup(
+                                    Some(parent_xdg_surface),
+                                    &positioner,
+                                    &qh,
+                                    (),
+                                ),
+                                _ => {
+                                    log::warn!(
+                                        target: "layershellev",
+                                        "popup parent {:?} is neither a layer surface nor a popup; skipping popup creation",
+                                        id
+                                    );
+                                    wl_xdg_surface.destroy();
+                                    wl_surface.destroy();
+                                    continue;
+                                }
                             };
-                            shell.get_popup(&popup);
+
+                            match (window_state.seat_back.as_ref(), grab_serial) {
+                                (Some(seat), Some(serial)) => popup.grab(seat, serial),
+                                (None, Some(_)) => log::warn!(
+                                    target: "layershellev",
+                                    "popup {targetid:?} wants a grab but no seat is available; it will not dismiss on click-outside"
+                                ),
+                                (_, None) => {}
+                            }
 
                             let mut fractional_scale = None;
                             if let Some(ref fractional_scale_manager) = fractional_scale_manager {
@@ -2710,6 +2802,7 @@ impl<T: 'static> WindowState<T> {
                                     wl_surface,
                                     Shell::PopUp((popup, wl_xdg_surface)),
                                 )
+                                .parent(Some(id))
                                 .size((width, height))
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
@@ -2884,12 +2977,16 @@ impl<T: 'static> WindowState<T> {
                 }
             }
 
-            let to_be_closed_ids: Vec<_> = window_state
+            let close_roots: Vec<id::Id> = window_state
                 .units
                 .iter()
                 .filter(|unit| unit.request_flag.close)
                 .map(WindowStateUnit::id)
                 .collect();
+            let mut to_be_closed_ids: Vec<id::Id> = Vec::new();
+            for root in close_roots {
+                window_state.collect_descendants_then_self(root, &mut to_be_closed_ids);
+            }
             for id in to_be_closed_ids {
                 window_state.handle_event(
                     &mut *event_handler,

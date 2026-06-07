@@ -136,16 +136,16 @@ where
         self.entries.iter().last()
     }
 
-    pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<P, C>)> {
-        let id = self.aliases.get(&id).copied()?;
-
-        Some((id, self.get_mut(id)?))
-    }
-
     pub fn get_alias(&self, id: LayerId) -> Option<(IcedId, &Window<P, C>)> {
         let id = self.aliases.get(&id).copied()?;
 
         Some((id, self.get(id)?))
+    }
+
+    pub fn get_mut_alias(&mut self, id: LayerId) -> Option<(IcedId, &mut Window<P, C>)> {
+        let id = self.aliases.get(&id).copied()?;
+
+        Some((id, self.get_mut(id)?))
     }
 
     pub fn get_mut(&mut self, id: IcedId) -> Option<&mut Window<P, C>> {
