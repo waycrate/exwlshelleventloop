@@ -29,7 +29,7 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
     pub size: (u32, u32),
-    pub parent: IcedId,
+    pub parent: Option<IcedId>,
     pub anchor_rect: (i32, i32, i32, i32),
     pub anchor: PopupAnchor,
     pub gravity: PopupGravity,
@@ -38,6 +38,18 @@ pub struct IcedNewPopupSettings {
 
 impl IcedNewPopupSettings {
     pub fn new(parent: IcedId, size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
+        Self::with_parent(Some(parent), size, anchor_rect)
+    }
+
+    pub fn on_current_surface(size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
+        Self::with_parent(None, size, anchor_rect)
+    }
+
+    fn with_parent(
+        parent: Option<IcedId>,
+        size: (u32, u32),
+        anchor_rect: (i32, i32, i32, i32),
+    ) -> Self {
         Self {
             size,
             parent,

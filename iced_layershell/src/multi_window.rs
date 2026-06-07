@@ -821,7 +821,11 @@ where
                     gravity,
                     constraint_adjustment,
                 } = settings;
-                let Some(parent_layer_id) = self.window_manager.get(parent).map(|w| w.id) else {
+                let parent_layer_id = match parent {
+                    Some(parent) => self.window_manager.get(parent).map(|w| w.id),
+                    None => ev.current_surface_id(),
+                };
+                let Some(parent_layer_id) = parent_layer_id else {
                     return;
                 };
                 let grab_serial = ev.take_popup_grab_serial();
