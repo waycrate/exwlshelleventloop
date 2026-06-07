@@ -1,4 +1,4 @@
-use crate::reexport::{PopupAnchor, PopupConstraintAdjustment, PopupGravity};
+use crate::reexport::{PopupAnchor, PopupConstraintAdjustment};
 use crate::{
     DefaultStyle, FromShellInfo,
     actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings},
