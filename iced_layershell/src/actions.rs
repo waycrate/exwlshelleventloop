@@ -99,15 +99,9 @@ impl IcedNewPopupSettings {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum MenuDirection {
-    Up,
-    Down,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewMenuSettings {
     pub size: (u32, u32),
-    pub direction: MenuDirection,
+    pub gravity: PopupGravity,
 }
 
 type Callback = Arc<dyn Fn(&WlRegion) + Send + Sync>;

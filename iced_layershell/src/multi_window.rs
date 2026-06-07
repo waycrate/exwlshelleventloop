@@ -1,7 +1,7 @@
-use crate::reexport::{PopupAnchor, PopupConstraintAdjustment, PopupGravity};
+use crate::reexport::{PopupAnchor, PopupConstraintAdjustment};
 use crate::{
     DefaultStyle,
-    actions::{IcedNewPopupSettings, LayerShellCustomActionWithId, MenuDirection},
+    actions::{IcedNewPopupSettings, LayerShellCustomActionWithId},
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
@@ -859,16 +859,14 @@ where
                 let Some(point) = window.state.mouse_position() else {
                     return;
                 };
-                let (x, mut y) = (point.x as i32, point.y as i32);
-                if let MenuDirection::Up = menu_setting.direction {
-                    y -= menu_setting.size.1 as i32;
-                }
+                let (x, y) = (point.x as i32, point.y as i32);
+
                 let popup_settings = NewPopUpSettings {
                     size: menu_setting.size,
                     id: parent_layer_shell_id,
                     placement: PopupPlacement::Position((x, y)),
                     anchor: PopupAnchor::TopLeft,
-                    gravity: PopupGravity::BottomRight,
+                    gravity: menu_setting.gravity,
                     constraint_adjustment: PopupConstraintAdjustment::FlipX
                         | PopupConstraintAdjustment::FlipY
                         | PopupConstraintAdjustment::SlideX
