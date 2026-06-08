@@ -1021,7 +1021,7 @@ impl<T> WindowState<T> {
 
     /// Take the serial to use for the next popup grab, consuming it.
     pub fn take_popup_grab_serial(&mut self) -> Option<u32> {
-        self.button_serial.take()
+        self.button_serial.take().or(self.enter_serial)
     }
 
     /// Compute the minimum dispatch timeout across all window units.
