@@ -16,5 +16,6 @@ iced_debug.workspace = true
 iced_program.workspace = true
 iced_widget.workspace = true
 iced_devtools.workspace = true
+winit-core.workspace = true
 
 log.workspace = true
