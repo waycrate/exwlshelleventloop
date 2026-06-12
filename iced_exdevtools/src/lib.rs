@@ -15,6 +15,9 @@ pub use crate::runtime::Task;
 
 pub use iced_devtools::{DevTools, Event};
 
+#[doc(hidden)]
+pub mod keymap;
+
 #[macro_export]
 macro_rules! gen_attach {
     (
