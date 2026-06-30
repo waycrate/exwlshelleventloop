@@ -56,9 +56,12 @@ pub struct OutputInfo {
     pub name: String,
     pub description: String,
     pub transform: Transform,
+    pub physical_size: Size,
+    pub logical_region: LogicalRegion,
     zxdg_output: ZxdgOutputV1,
     is_ready: bool,
-    transform_recorded: bool,
+    wl_output_done: bool,
+    zwl_output_done: bool,
 }
 
 impl OutputInfo {
@@ -69,14 +72,34 @@ impl OutputInfo {
             description: "".to_owned(),
             zxdg_output,
             transform: Transform::Normal,
+            physical_size: Size::default(),
+            logical_region: LogicalRegion::default(),
             is_ready: false,
-            transform_recorded: false,
+            wl_output_done: false,
+            zwl_output_done: false,
         }
     }
     fn check_is_ready(&mut self) {
-        self.is_ready =
-            !self.name.is_empty() && !self.description.is_empty() && self.transform_recorded
+        self.is_ready = self.wl_output_done && self.zwl_output_done
     }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Size<T = i32> {
+    pub width: T,
+    pub height: T,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LogicalRegion<T = i32> {
+    position: Position<T>,
+    size: Size<T>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Position<T = i32> {
+    pub x: T,
+    pub y: T,
 }
 
 impl SubscribeState {
@@ -141,6 +164,15 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for SubscribeState {
             zxdg_output_v1::Event::Description { description } => {
                 pending.description = description;
             }
+            zxdg_output_v1::Event::LogicalSize { width, height } => {
+                pending.logical_region.size = Size { width, height };
+            }
+            zxdg_output_v1::Event::LogicalPosition { x, y } => {
+                pending.logical_region.position = Position { x, y };
+            }
+            zxdg_output_v1::Event::Done => {
+                pending.zwl_output_done = true;
+            }
             _ => {}
         }
         pending.check_is_ready();
@@ -175,8 +207,13 @@ impl Dispatch<wl_output::WlOutput, ()> for SubscribeState {
                 transform: WEnum::Value(transform),
                 ..
             } => {
-                pending.transform_recorded = true;
                 pending.transform = transform;
+            }
+            wl_output::Event::Done => {
+                pending.wl_output_done = true;
+            }
+            wl_output::Event::Mode { width, height, .. } => {
+                pending.physical_size = Size { width, height };
             }
             _ => {}
         }
