@@ -2,10 +2,10 @@ use std::{hash::Hash, mem::ManuallyDrop};
 
 use futures::SinkExt;
 use wayland_client::{
-    Connection, Dispatch, DispatchError, EventQueue, Proxy, delegate_noop,
+    Connection, Dispatch, DispatchError, EventQueue, Proxy, WEnum, delegate_noop,
     globals::{BindError, GlobalError, GlobalListContents, registry_queue_init},
     protocol::{
-        wl_output::{self, WlOutput},
+        wl_output::{self, Transform, WlOutput},
         wl_registry,
     },
 };
@@ -55,8 +55,10 @@ pub struct OutputInfo {
     pub wl_output: WlOutput,
     pub name: String,
     pub description: String,
+    pub transform: Transform,
     zxdg_output: ZxdgOutputV1,
     is_ready: bool,
+    transform_recorded: bool,
 }
 
 impl OutputInfo {
@@ -66,11 +68,14 @@ impl OutputInfo {
             name: "".to_owned(),
             description: "".to_owned(),
             zxdg_output,
+            transform: Transform::Normal,
             is_ready: false,
+            transform_recorded: false,
         }
     }
     fn check_is_ready(&mut self) {
-        self.is_ready = !self.name.is_empty() && !self.description.is_empty()
+        self.is_ready =
+            !self.name.is_empty() && !self.description.is_empty() && self.transform_recorded
     }
 }
 
@@ -147,7 +152,44 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for SubscribeState {
         }
     }
 }
-delegate_noop!(SubscribeState: ignore WlOutput); // output is need to place layer_shell, although here
+
+impl Dispatch<wl_output::WlOutput, ()> for SubscribeState {
+    fn event(
+        state: &mut Self,
+        wl_output: &wl_output::WlOutput,
+        event: <wl_output::WlOutput as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+        let Some((index, pending)) = state
+            .pending_events
+            .iter_mut()
+            .enumerate()
+            .find(|(_, event)| event.wl_output == *wl_output)
+        else {
+            return;
+        };
+        match event {
+            wl_output::Event::Geometry {
+                transform: WEnum::Value(transform),
+                ..
+            } => {
+                pending.transform_recorded = true;
+                pending.transform = transform;
+            }
+            _ => {}
+        }
+        pending.check_is_ready();
+        let is_ready = pending.is_ready;
+        let _ = pending;
+        if is_ready {
+            let pending = state.pending_events.remove(index);
+            state.events.push(WaylandEvent::OutputInsert(pending));
+        }
+    }
+}
+
 delegate_noop!(SubscribeState: ignore ZxdgOutputManagerV1);
 
 #[derive(Debug)]
