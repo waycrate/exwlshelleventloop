@@ -19,7 +19,7 @@ jobs:
         container:
           image: archlinux:latest
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - uses: dtolnay/rust-toolchain@stable
               with:
                 components: clippy rustfmt
@@ -43,7 +43,7 @@ jobs:
         container:
           image: archlinux:latest
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
             - uses: dtolnay/rust-toolchain@stable
               with:
                 components: clippy rustfmt
@@ -66,7 +66,7 @@ jobs:
             - crate-release
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@v7
               with:
                 persist-credentials: false
             - uses: taiki-e/create-gh-release-action@eba8ea96c86cca8a37f1b56e94b4d13301fba651 # v1.11.0
