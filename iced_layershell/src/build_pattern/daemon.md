@@ -197,7 +197,7 @@ impl Counter {
                         layer: Layer::Top,
                         margin: None,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        output_option: OutputOption::None,
+                        output_option: OutputOption::Active,
                         ..Default::default()
                     },
                     id,
@@ -214,7 +214,7 @@ impl Counter {
                         layer: Layer::Top,
                         margin: None,
                         keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        output_option: OutputOption::None,
+                        output_option: OutputOption::Active,
                         ..Default::default()
                     },
                     id,

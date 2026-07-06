@@ -126,7 +126,7 @@ impl Counter {
                         layer: Layer::Top,
                         margin: Some((100, 100, 100, 100)),
                         keyboard_interactivity: KeyboardInteractivity::OnDemand,
-                        output_option: OutputOption::None,
+                        output_option: OutputOption::Active,
                         ..Default::default()
                     },
                     id: iced::window::Id::unique(),

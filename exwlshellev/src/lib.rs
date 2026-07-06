@@ -1589,12 +1589,6 @@ impl<T> WindowState<T> {
         self.units.iter()
     }
 
-    fn surface_pos(&self) -> Option<usize> {
-        self.units
-            .iter()
-            .position(|unit| Some(&unit.wl_surface) == self.current_surface.as_ref())
-    }
-
     /// get the current focused surface id
     pub fn current_surface_id(&self) -> Option<id::Id> {
         self.units
@@ -2809,32 +2803,7 @@ impl<T: 'static> WindowState<T> {
                                         .iter()
                                         .find(|(_, info)| info.name == *name)
                                         .map(|(output, _)| output.clone()),
-                                    _ => {
-                                        let pos = window_state.surface_pos();
-
-                                        let mut output = pos
-                                            .and_then(|p| window_state.units[p].wl_output.as_ref());
-
-                                        if window_state.last_wloutput.is_none()
-                                            && window_state.outputs.len()
-                                                > window_state.last_unit_index
-                                        {
-                                            window_state.last_wloutput = Some(
-                                                window_state.outputs[window_state.last_unit_index]
-                                                    .clone(),
-                                            );
-                                        }
-
-                                        if matches!(output_type, events::OutputOption::LastOutput) {
-                                            output = window_state.last_wloutput.as_ref();
-                                        }
-
-                                        if output.is_none() {
-                                            output = window_state.outputs.first();
-                                        }
-
-                                        output.cloned()
-                                    }
+                                    _ => None,
                                 };
 
                                 let wl_surface = wmcompositer.create_surface(&qh, ());
@@ -3096,32 +3065,7 @@ impl<T: 'static> WindowState<T> {
                                         .iter()
                                         .find(|(_, info)| info.name == *name)
                                         .map(|(output, _)| output.clone()),
-                                    _ => {
-                                        let pos = window_state.surface_pos();
-
-                                        let mut output = pos
-                                            .and_then(|p| window_state.units[p].wl_output.as_ref());
-
-                                        if window_state.last_wloutput.is_none()
-                                            && window_state.outputs.len()
-                                                > window_state.last_unit_index
-                                        {
-                                            window_state.last_wloutput = Some(
-                                                window_state.outputs[window_state.last_unit_index]
-                                                    .clone(),
-                                            );
-                                        }
-
-                                        if matches!(output_type, events::OutputOption::LastOutput) {
-                                            output = window_state.last_wloutput.as_ref();
-                                        }
-
-                                        if output.is_none() {
-                                            output = window_state.outputs.first();
-                                        }
-
-                                        output.cloned()
-                                    }
+                                    _ => None,
                                 };
 
                                 let Some(output) = output else {

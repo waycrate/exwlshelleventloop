@@ -82,7 +82,7 @@ impl Example {
                     layer: Layer::Top,
                     margin: None,
                     //keyboard_interactivity: KeyboardInteractivity::None,
-                    output_option: OutputOption::None,
+                    output_option: OutputOption::Active,
                     ..Default::default()
                 },
                 id,
