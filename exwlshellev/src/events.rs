@@ -86,10 +86,8 @@ pub enum OutputOption {
     Output(wl_output::WlOutput),
 
     /// Let the compositor decide which output to use.
-    Active,
-
     #[default]
-    None,
+    Active,
 }
 
 /// layershell settings to create a new layershell surface

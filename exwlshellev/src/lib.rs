@@ -1086,6 +1086,17 @@ impl<T> WindowState<T> {
     pub fn forget_last_output(&mut self) {
         self.last_wloutput.take();
     }
+
+    fn last_output(&mut self) -> Option<WlOutput> {
+        if self.last_wloutput.is_none() {
+            self.last_wloutput = self.outputs.get(self.last_unit_index).cloned();
+        }
+
+        self.last_wloutput
+            .as_ref()
+            .or_else(|| self.outputs.first())
+            .cloned()
+    }
 }
 
 /// Simple WindowState, without any data binding or info
@@ -2803,7 +2814,8 @@ impl<T: 'static> WindowState<T> {
                                         .iter()
                                         .find(|(_, info)| info.name == *name)
                                         .map(|(output, _)| output.clone()),
-                                    _ => None,
+                                    OutputOption::Active => None,
+                                    OutputOption::LastOutput => window_state.last_output(),
                                 };
 
                                 let wl_surface = wmcompositer.create_surface(&qh, ());
@@ -3065,7 +3077,8 @@ impl<T: 'static> WindowState<T> {
                                         .iter()
                                         .find(|(_, info)| info.name == *name)
                                         .map(|(output, _)| output.clone()),
-                                    _ => None,
+                                    OutputOption::Active => None,
+                                    OutputOption::LastOutput => window_state.last_output(),
                                 };
 
                                 let Some(output) = output else {
