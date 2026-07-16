@@ -109,7 +109,7 @@ pub use events::{NewPopUpSettings, PopupPlacement};
 pub use sctk::output::OutputInfo;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
-
+pub mod blur;
 pub mod dpi;
 mod events;
 mod seat;
@@ -191,6 +191,10 @@ use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
+use wayland_protocols::ext::background_effect::v1::client::{
+    ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1,
+    ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
+};
 use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
     zwp_text_input_v3::{self, ContentHint, ContentPurpose, ZwpTextInputV3},
@@ -214,6 +218,7 @@ use std::fmt::Formatter;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::blur::{BlurOption, BlurRegion};
 use crate::seat::SeatStorage;
 
 #[derive(Debug, thiserror::Error)]
@@ -383,6 +388,7 @@ impl<T> WindowStateUnitBuilder<T> {
         qh: QueueHandle<WindowState<T>>,
         display: WlDisplay,
         wl_surface: WlSurface,
+        wmcompositor: WlCompositor,
         shell: Shell,
     ) -> Self {
         let configured = matches!(shell, Shell::InputPanel(_));
@@ -392,6 +398,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 qh,
                 display,
                 wl_surface,
+                wmcompositor,
                 shell,
                 parent: None,
                 size: (0, 0),
@@ -402,6 +409,8 @@ impl<T> WindowStateUnitBuilder<T> {
                 binding: Default::default(),
                 becreated: Default::default(),
                 configured,
+                blur_option: BlurOption::None,
+                effect: None,
                 // Unknown why it is 120
                 scale: 120,
                 request_flag: Default::default(),
@@ -426,6 +435,16 @@ impl<T> WindowStateUnitBuilder<T> {
 
     fn viewport(mut self, viewport: Option<WpViewport>) -> Self {
         self.inner.viewport = viewport;
+        self
+    }
+
+    fn blur_option(mut self, blur_option: BlurOption) -> Self {
+        self.inner.blur_option = blur_option;
+        self
+    }
+
+    fn effect_surface(mut self, effect: Option<ExtBackgroundEffectSurfaceV1>) -> Self {
+        self.inner.effect = effect;
         self
     }
 
@@ -477,6 +496,7 @@ pub struct WindowStateUnit<T> {
     qh: QueueHandle<WindowState<T>>,
     display: WlDisplay,
     wl_surface: WlSurface,
+    wmcompositor: WlCompositor,
     size: (u32, u32),
     buffer: Option<WlBuffer>,
     shell: Shell,
@@ -484,10 +504,13 @@ pub struct WindowStateUnit<T> {
     fractional_scale: Option<WpFractionalScaleV1>,
     viewport: Option<WpViewport>,
     wl_output: Option<WlOutput>,
+    effect: Option<ExtBackgroundEffectSurfaceV1>,
     binding: Option<T>,
     becreated: bool,
     /// True after the compositor sends the initial configure for this shell role.
     configured: bool,
+
+    blur_option: BlurOption,
 
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
@@ -586,6 +609,41 @@ impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
         Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
     }
 }
+impl<T: 'static> WindowStateUnit<T> {
+    pub fn set_blur_option(&mut self, blur_option: BlurOption) {
+        self.blur_option = blur_option;
+        if let Some(effect) = &self.effect {
+            match &self.blur_option {
+                BlurOption::None => {
+                    effect.set_blur_region(None);
+                }
+                BlurOption::FullRegion => {
+                    let (width, height) = self.size;
+                    let region = self.wmcompositor.create_region(&self.qh, ());
+                    region.add(0, 0, width as i32, height as i32);
+                    effect.set_blur_region(Some(&region));
+                    region.destroy();
+                }
+                BlurOption::Region(regions) => {
+                    let region = self.wmcompositor.create_region(&self.qh, ());
+                    for BlurRegion {
+                        x,
+                        y,
+                        width,
+                        height,
+                    } in regions
+                    {
+                        region.add(*x, *y, *width, *height);
+                    }
+                    effect.set_blur_region(Some(&region));
+                    region.destroy();
+                }
+            }
+            self.wl_surface.commit();
+        }
+    }
+}
+
 impl<T> WindowStateUnit<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
@@ -596,7 +654,6 @@ impl<T> WindowStateUnit<T> {
     pub fn get_wloutput(&self) -> Option<&WlOutput> {
         self.wl_output.as_ref()
     }
-
     /// set the anchor of the current unit. please take the simple.rs as reference
     pub fn set_anchor(&self, anchor: Anchor) {
         if let Shell::LayerShell(layer_shell) = &self.shell {
@@ -868,6 +925,7 @@ pub struct WindowState<T> {
     event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
     wmbase: Option<XdgWmBase>,
+    background_effect_manager: Option<ExtBackgroundEffectManagerV1>,
     shm: Option<WlShm>,
     cursor_manager: Option<WpCursorShapeManagerV1>,
     viewporter: Option<WpViewporter>,
@@ -896,6 +954,7 @@ pub struct WindowState<T> {
     size: Option<(u32, u32)>,
     exclusive_zone: Option<i32>,
     margin: Option<(i32, i32, i32, i32)>,
+    blur_option: BlurOption,
 
     // settings
     use_display_handle: bool,
@@ -1349,6 +1408,11 @@ impl<T> WindowState<T> {
         self
     }
 
+    pub fn with_blur_option(mut self, blur_option: BlurOption) -> Self {
+        self.blur_option = blur_option;
+        self
+    }
+
     /// set the layer_shell anchor
     pub fn with_anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = anchor;
@@ -1419,6 +1483,7 @@ impl<T> Default for WindowState<T> {
             wl_compositor: None,
             shm: None,
             wmbase: None,
+            background_effect_manager: None,
             cursor_manager: None,
             viewporter: None,
             globals: None,
@@ -1439,6 +1504,7 @@ impl<T> Default for WindowState<T> {
             size: None,
             exclusive_zone: None,
             margin: None,
+            blur_option: BlurOption::None,
 
             use_display_handle: false,
             repeat_delay: None,
@@ -1484,7 +1550,7 @@ impl<T> WindowState<T> {
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit]
-    fn get_mut_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
+    pub fn get_mut_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
         self.units.iter_mut().find(|unit| unit.id == id)
     }
 
@@ -2080,6 +2146,9 @@ impl<T: 'static> WindowState<T> {
         self.seat_state = Some(seat_state);
 
         self.display = Some(connection.display());
+        self.background_effect_manager = globals
+            .bind::<ExtBackgroundEffectManagerV1, _, _>(&qh, 1..=1, ())
+            .ok();
 
         let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?;
 
@@ -2175,6 +2244,11 @@ impl<T: 'static> WindowState<T> {
                 fractional_scale =
                     Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
             }
+            let mut effect = None;
+            if let Some(effect_manger) = &self.background_effect_manager {
+                effect = Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+            }
+
             let viewport = viewporter
                 .as_ref()
                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
@@ -2188,9 +2262,12 @@ impl<T: 'static> WindowState<T> {
                     qh.clone(),
                     connection.display(),
                     wl_surface,
+                    wmcompositer.clone(),
                     Shell::LayerShell(layer),
                 )
+                .blur_option(self.blur_option.clone())
                 .viewport(viewport)
+                .effect_surface(effect)
                 .fractional_scale(fractional_scale)
                 .wl_output(binded_output.clone())
                 .build(),
@@ -2239,6 +2316,10 @@ impl<T: 'static> WindowState<T> {
                 let viewport = viewporter
                     .as_ref()
                     .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                let mut effect = None;
+                if let Some(effect_manger) = &self.background_effect_manager {
+                    effect = Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+                }
                 // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                 // and if you need to reconfigure it, you need to commit the wl_surface again
                 // so because this is just an example, so we just commit it once
@@ -2250,9 +2331,12 @@ impl<T: 'static> WindowState<T> {
                         qh.clone(),
                         connection.display(),
                         wl_surface,
+                        wmcompositer.clone(),
                         Shell::LayerShell(layer),
                     )
                     .viewport(viewport)
+                    .blur_option(self.blur_option.clone())
+                    .effect_surface(effect)
                     .fractional_scale(fractional_scale)
                     .wl_output(Some(output_display.clone()))
                     .build(),
@@ -2417,6 +2501,12 @@ impl<T: 'static> WindowState<T> {
                             wl_surface.set_input_region(Some(&region));
                             region.destroy();
                         }
+                        let mut effect = None;
+                        if let Some(effect_manger) = &window_state.background_effect_manager {
+                            effect =
+                                Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+                        }
+
                         wl_surface.commit();
 
                         let mut fractional_scale = None;
@@ -2437,9 +2527,12 @@ impl<T: 'static> WindowState<T> {
                                 qh.clone(),
                                 connection.display(),
                                 wl_surface,
+                                wmcompositer.clone(),
                                 Shell::LayerShell(layer),
                             )
                             .viewport(viewport)
+                            .blur_option(window_state.blur_option.clone())
+                            .effect_surface(effect)
                             .fractional_scale(fractional_scale)
                             .wl_output(Some(output_display.clone()))
                             .build(),
@@ -2486,6 +2579,7 @@ impl<T: 'static> WindowState<T> {
                                 output_option: output_type,
                                 events_transparent,
                                 namespace,
+                                blur_option,
                             },
                             id,
                             info,
@@ -2532,7 +2626,11 @@ impl<T: 'static> WindowState<T> {
                             }
 
                             wl_surface.commit();
-
+                            let mut effect = None;
+                            if let Some(effect_manger) = &window_state.background_effect_manager {
+                                effect =
+                                    Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+                            }
                             let mut fractional_scale = None;
                             if let Some(ref fractional_scale_manager) = fractional_scale_manager {
                                 fractional_scale =
@@ -2552,8 +2650,11 @@ impl<T: 'static> WindowState<T> {
                                     qh.clone(),
                                     connection.display(),
                                     wl_surface,
+                                    wmcompositer.clone(),
                                     Shell::LayerShell(layer),
                                 )
+                                .blur_option(blur_option)
+                                .effect_surface(effect)
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .wl_output(output)
@@ -2669,6 +2770,7 @@ impl<T: 'static> WindowState<T> {
                                     qh.clone(),
                                     connection.display(),
                                     wl_surface,
+                                    wmcompositer.clone(),
                                     Shell::PopUp((popup, wl_xdg_surface)),
                                 )
                                 .parent(Some(id))
@@ -2730,6 +2832,7 @@ impl<T: 'static> WindowState<T> {
                                     qh.clone(),
                                     connection.display(),
                                     wl_surface,
+                                    wmcompositer.clone(),
                                     Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
                                 )
                                 .size(size.unwrap_or((300, 300)))
@@ -2799,6 +2902,7 @@ impl<T: 'static> WindowState<T> {
                                     qh.clone(),
                                     connection.display(),
                                     wl_surface,
+                                    wmcompositer.clone(),
                                     Shell::InputPanel(input_panel_surface),
                                 )
                                 .size((width, height))
@@ -2885,6 +2989,32 @@ impl<T: 'static> WindowState<T> {
                         wl_surface.attach(Some(&buffer), 0, 0);
                         wl_surface.commit();
                         window_state.units[idx].buffer = Some(buffer);
+                    }
+                    if let Some(effect) = &window_state.units[idx].effect {
+                        match &window_state.units[idx].blur_option {
+                            BlurOption::None => {}
+                            BlurOption::FullRegion => {
+                                let region = wmcompositer.create_region(&qh, ());
+                                region.add(0, 0, width as i32, height as i32);
+                                effect.set_blur_region(Some(&region));
+                                region.destroy();
+                            }
+                            BlurOption::Region(regions) => {
+                                let region = wmcompositer.create_region(&qh, ());
+                                for BlurRegion {
+                                    x,
+                                    y,
+                                    width,
+                                    height,
+                                } in regions
+                                {
+                                    region.add(*x, *y, *width, *height);
+                                }
+                                effect.set_blur_region(Some(&region));
+                                region.destroy();
+                            }
+                        }
+                        window_state.units[idx].wl_surface.commit();
                     }
                     window_state.handle_event(
                         &mut *event_handler,

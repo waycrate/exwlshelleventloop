@@ -20,7 +20,7 @@ use wayland_client::{
     },
 };
 
-use crate::{id, xkb_keyboard::KeyEvent};
+use crate::{blur::BlurOption, id, xkb_keyboard::KeyEvent};
 
 use crate::keyboard::ModifiersState;
 
@@ -104,6 +104,7 @@ pub struct NewLayerShellSettings {
     pub output_option: OutputOption,
     pub events_transparent: bool,
     pub namespace: Option<String>,
+    pub blur_option: BlurOption,
 }
 
 /// How a popup is positioned relative to its parent surface.
@@ -168,6 +169,7 @@ impl Default for NewLayerShellSettings {
             output_option: OutputOption::Active,
             events_transparent: false,
             namespace: None,
+            blur_option: BlurOption::None,
         }
     }
 }

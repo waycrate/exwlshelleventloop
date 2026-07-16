@@ -43,6 +43,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 LayerChange{id: iced_layershell::reexport::IcedId, layer:iced_layershell::reexport::Layer},
                 /// Margin: top, left, bottom, right
                 MarginChange{id: iced_layershell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+                BlurOptionChange{id: iced_layershell::reexport::IcedId, option: iced_layershell::reexport::BlurOption},
                 SizeChange{id: iced_layershell::reexport::IcedId, size: (u32, u32)},
                 ExclusiveZoneChange{id: iced_layershell::reexport::IcedId, zone_size: i32},
                 KeyboardInteractivityChange{id: iced_layershell::reexport::IcedId, keyboard_interactivity: iced_layershell::reexport::KeyboardInteractivity},
@@ -120,6 +121,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::NewInputPanel {settings, id } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::NewInputPanel { settings, id })),
                             Self::RemoveWindow(id) => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::RemoveWindow)),
                             Self::ForgetLastOutput => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::ForgetLastOutput)),
+                            Self::BlurOptionChange {id, option} => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::BlurOptionChange(option))),
                             _ => Err(self)
                         }
                     }
@@ -142,6 +144,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 VirtualKeyboardPressed {
                     key: u32,
                 },
+                BlurOptionChange(iced_layershell::reexport::BlurOption),
             };
             let impl_quote = quote! {
                 impl #impl_gen TryInto<iced_layershell::actions::LayerShellCustomActionWithId> for #ident #ty_gen #where_gen {
@@ -164,6 +167,8 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::VirtualKeyboardPressed { key } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::VirtualKeyboardPressed {
                                 key
                             })),
+
+                            Self::BlurOptionChange(option) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::BlurOptionChange(option))),
                             _ => Err(self)
                         }
                     }

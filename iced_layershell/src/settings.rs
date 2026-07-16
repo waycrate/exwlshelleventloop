@@ -6,7 +6,7 @@ use crate::reexport::{Anchor, KeyboardInteractivity, Layer, WithConnection};
 
 pub use layershellev::StartMode;
 
-use layershellev::reexport::wayland_client::wl_keyboard::KeymapFormat;
+use layershellev::{blur::BlurOption, reexport::wayland_client::wl_keyboard::KeymapFormat};
 
 #[derive(Debug)]
 pub struct VirtualKeyboardSettings {
@@ -81,6 +81,7 @@ pub struct LayerShellSettings {
     pub margin: (i32, i32, i32, i32),
     pub keyboard_interactivity: KeyboardInteractivity,
     pub start_mode: StartMode,
+    pub blur_option: BlurOption,
     pub events_transparent: bool,
 }
 
@@ -94,6 +95,7 @@ impl Default for LayerShellSettings {
             margin: (0, 0, 0, 0),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             events_transparent: false,
+            blur_option: BlurOption::None,
             start_mode: StartMode::default(),
         }
     }
@@ -159,6 +161,7 @@ mod tests {
             margin: (10, 10, 10, 10),
             keyboard_interactivity: KeyboardInteractivity::None,
             start_mode: StartMode::TargetScreen("HDMI-1".to_string()),
+            blur_option: BlurOption::None,
             events_transparent: false,
         };
 

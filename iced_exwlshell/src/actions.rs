@@ -1,4 +1,5 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
+use exwlshellev::blur::BlurOption;
 use exwlshellev::reexport::xdg_positioner::{
     Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
     Gravity as PopupGravity,
@@ -132,6 +133,7 @@ pub enum ExwlShellCustomAction {
     VirtualKeyboardPressed {
         key: u32,
     },
+    BlurOptionChange(BlurOption),
     // settings, info, single_tone
     NewLayerShell {
         settings: NewLayerShellSettings,

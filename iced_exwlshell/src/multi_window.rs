@@ -111,6 +111,7 @@ where
         .with_exclusive_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .with_blur_option(settings.layer_settings.blur_option)
         .with_connection(settings.with_connection)
         .build()
         .expect("Cannot create layershell");
@@ -715,14 +716,14 @@ where
         mut iced_id: Option<IcedId>,
         action: ExwlShellCustomAction,
     ) {
-        let layer_shell_window;
-        macro_rules! ref_layer_shell_window {
-            ($ev: ident, $iced_id: ident, $layer_shell_id: ident, $layer_shell_window: ident) => {
+        let exshell_window;
+        macro_rules! ref_mut_exshell_window {
+            ($ev: ident, $iced_id: ident, $exshell_id: ident, $layer_shell_window: ident) => {
                 if $iced_id.is_none() {
                     // Make application also works
                     if let Some(window) = self.window_manager.first() {
                         $iced_id = Some(window.iced_id);
-                        $layer_shell_id = Some(window.id);
+                        $exshell_id = Some(window.id);
                     }
                     if $iced_id.is_none() {
                         tracing::error!(
@@ -732,54 +733,58 @@ where
                     }
                 }
                 if let Some(ls_window) =
-                    $layer_shell_id.and_then(|layer_shell_id| $ev.get_unit_with_id(layer_shell_id))
+                    $exshell_id.and_then(|exshell_id| $ev.get_mut_unit_with_id(exshell_id))
                 {
-                    layer_shell_window = ls_window;
+                    exshell_window = ls_window;
                 } else {
                     return;
                 }
             };
         }
         // check if window is ready
-        let mut layer_shell_id = iced_id
+        let mut ex_shell_id = iced_id
             .and_then(|iced_id| self.window_manager.get(iced_id))
             .map(|window| window.id);
-        if iced_id.is_some() && layer_shell_id.is_none() {
+        if iced_id.is_some() && ex_shell_id.is_none() {
             // still waiting
             self.waiting_layer_shell_actions.push((iced_id, action));
             return;
         }
         match action {
+            ExwlShellCustomAction::BlurOptionChange(blur_option) => {
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_blur_option(blur_option);
+            }
             ExwlShellCustomAction::AnchorChange(anchor) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_anchor(anchor);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_anchor(anchor);
             }
             ExwlShellCustomAction::AnchorSizeChange(anchor, size) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_anchor_with_size(anchor, size);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_anchor_with_size(anchor, size);
             }
             ExwlShellCustomAction::LayerChange(layer) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_layer(layer);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_layer(layer);
             }
             ExwlShellCustomAction::MarginChange(margin) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_margin(margin);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_margin(margin);
             }
             ExwlShellCustomAction::SizeChange((width, height)) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_size((width, height));
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_size((width, height));
             }
             ExwlShellCustomAction::ExclusiveZoneChange(zone_size) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_exclusive_zone(zone_size);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_exclusive_zone(zone_size);
             }
             ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_keyboard_interactivity(keyboard_interactivity);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                exshell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
             ExwlShellCustomAction::SetInputRegion(set_region) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 let set_region = set_region.0;
                 let Some(region) = &self.wl_input_region else {
                     tracing::warn!(
@@ -789,17 +794,17 @@ where
                     return;
                 };
 
-                let window_size = layer_shell_window.get_size();
+                let window_size = exshell_window.get_size();
                 let width: i32 = window_size.0.try_into().unwrap_or_default();
                 let height: i32 = window_size.1.try_into().unwrap_or_default();
 
                 region.subtract(0, 0, width, height);
                 set_region(region);
 
-                layer_shell_window
+                exshell_window
                     .get_wlsurface()
                     .set_input_region(self.wl_input_region.as_ref());
-                layer_shell_window.get_wlsurface().commit();
+                exshell_window.get_wlsurface().commit();
             }
             ExwlShellCustomAction::VirtualKeyboardPressed { key } => {
                 use exwlshellev::reexport::wayland_client::KeyState;
@@ -846,7 +851,7 @@ where
                 )));
             }
             ExwlShellCustomAction::RemoveWindow => {
-                if let Some(layer_shell_id) = layer_shell_id {
+                if let Some(layer_shell_id) = ex_shell_id {
                     ev.request_close(layer_shell_id)
                 }
             }
