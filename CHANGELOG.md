@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Changed (breaking)
+- Feat: track outputs with sctk's `OutputState` instead of manual `zxdg_output_v1` handling, removed `XdgInfoChanged` event, `XdgInfoChangedType`, `ZxdgOutputInfo` and `get_xdgoutput_info`
+- Feat: new `DispatchMessage::OutputChanged` event sent when surface enters another output or its output info changes
+
+### Changed
+- Feat: add `WindowState::outputs()`, `output_by_name()`, `get_output_info()`, `get_output_info_of()` and `WindowStateUnit::get_wloutput()`
+- Feat: add `output::listen()` subscription to iced_layershell and iced_exwlshell to track the output a window is displayed on
+
 ## [0.19.1] - 2026-07-12
 ### Changed
 - Make the fields of LocalRegion in iced_wayland_subscriber public

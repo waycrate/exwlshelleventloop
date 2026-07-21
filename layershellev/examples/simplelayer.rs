@@ -17,7 +17,7 @@ fn main() {
         .build()
         .unwrap();
 
-    ev.running(move |event, ev, index| {
+    ev.running(move |event, ev, _index| {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
             LayerShellEvent::InitRequest => ReturnData::RequestBind,
@@ -42,12 +42,6 @@ fn main() {
                     region.add(0, 0, 0, 0);
                     x.get_wlsurface().set_input_region(Some(&region));
                 }
-                ReturnData::None
-            }
-            LayerShellEvent::XdgInfoChanged(_) => {
-                let index = index.unwrap();
-                let unit = ev.get_unit_with_id(index).unwrap();
-                println!("{:?}", unit.get_xdgoutput_info());
                 ReturnData::None
             }
             LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
@@ -83,6 +77,12 @@ fn main() {
                 surface_y,
             }) => {
                 println!("{time}, {surface_x}, {surface_y}");
+                ReturnData::None
+            }
+            LayerShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
+                // NOTE: sent when surface enters another output, or its output info changes
+                let info = output.as_ref().and_then(|o| ev.get_output_info_of(o));
+                println!("{info:?}");
                 ReturnData::None
             }
             LayerShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {

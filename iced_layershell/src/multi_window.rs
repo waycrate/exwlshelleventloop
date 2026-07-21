@@ -12,6 +12,7 @@ use crate::{
 };
 use crate::{
     event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
+    output::{OutputEvent, OutputInfo},
     proxy::IcedProxy,
     settings::Settings,
 };
@@ -30,8 +31,8 @@ use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
 use layershellev::{
-    DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopupPlacement, RefreshRequest, ReturnData,
-    WindowState, WindowWrapper,
+    DispatchMessage, DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopupPlacement,
+    RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -200,10 +201,16 @@ where
                 }
             }
             LayerShellEvent::RequestMessages(message) => {
-                waiting_layer_shell_events.push_back((
-                    layer_shell_id,
-                    IcedLayerShellEvent::Window(LayerShellWindowEvent::from(message)),
-                ));
+                let window_event = match message {
+                    DispatchMessage::OutputChanged(_) => LayerShellWindowEvent::OutputChanged(
+                        layer_shell_id
+                            .and_then(|id| ev.get_output_info(id))
+                            .map(OutputInfo::from),
+                    ),
+                    message => LayerShellWindowEvent::from(message),
+                };
+                waiting_layer_shell_events
+                    .push_back((layer_shell_id, IcedLayerShellEvent::Window(window_event)));
             }
             LayerShellEvent::UserEvent(event) => {
                 waiting_layer_shell_events
@@ -614,6 +621,7 @@ where
         self.cached_layer_dimensions.remove(&iced_id);
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
+        crate::output::forget(iced_id);
         self.runtime
             .broadcast(iced_futures::subscription::Event::Interaction {
                 window: iced_id,
@@ -639,6 +647,12 @@ where
         let Some((iced_id, window)) = id_and_window else {
             return;
         };
+        if let LayerShellWindowEvent::OutputChanged(output) = &event {
+            crate::output::broadcast(OutputEvent {
+                window: iced_id,
+                output: output.clone(),
+            });
+        }
         // In previous implementation, event without layer_shell_id won't call `update` here, but
         // will broadcast to the application. I'm not sure why, but I think it is
         // reasonable to call `update` here.

@@ -46,8 +46,6 @@ pub enum ExWlShellEvent<'a, T, Message> {
     /// [ReturnData::RequestBind], then it will continue to the next request.
     /// Here only the above two [ReturnData] are acceptable.
     InitRequest,
-    /// if the info of the XdgOutput is changed, it will send the event
-    XdgInfoChanged(XdgInfoChangedType),
     /// After you return [ReturnData::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
     /// event is [LayerShellEvent::BindProvide], you can use the GlobalList and QueueHandle to create
     /// new wayland objects.
@@ -205,15 +203,6 @@ pub enum ReturnData<INFO> {
     None,
 }
 
-/// this tell the what kind of information passed by [LayerShellEvent::XdgInfoChanged]
-#[derive(Debug, Clone, Copy)]
-pub enum XdgInfoChangedType {
-    Position,
-    Size,
-    Name,
-    Description,
-}
-
 /// Describes a scroll along one axis
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct AxisScroll {
@@ -339,7 +328,7 @@ pub(crate) enum DispatchMessageInner {
         scale_u32: u32,
         scale_float: f64,
     },
-    XdgInfoChanged(XdgInfoChangedType),
+    OutputChanged(Option<WlOutput>),
     Ime(Ime),
 }
 
@@ -438,6 +427,8 @@ pub enum DispatchMessage {
         scale_float: f64,
     },
     Ime(Ime),
+    /// surface entered output, or left the one it was on
+    OutputChanged(Option<WlOutput>),
     Closed,
 }
 
@@ -542,7 +533,7 @@ impl From<DispatchMessageInner> for DispatchMessage {
                 scale_float,
             },
             DispatchMessageInner::Ime(ime) => DispatchMessage::Ime(ime),
-            DispatchMessageInner::XdgInfoChanged(_) => unimplemented!(),
+            DispatchMessageInner::OutputChanged(output) => DispatchMessage::OutputChanged(output),
         }
     }
 }

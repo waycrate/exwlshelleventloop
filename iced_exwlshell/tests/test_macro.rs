@@ -9,7 +9,7 @@ fn test_layer_message_macro() {
     }
     let e = TestEnum::SizeChange {
         id: iced::window::Id::unique(),
-        size: ((1, 2)),
+        size: (1, 2),
     };
     let _ = e.clone();
 }

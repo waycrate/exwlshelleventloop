@@ -38,12 +38,6 @@
 //!                 println!("{:?}", virtual_keyboard_manager);
 //!                 ReturnData::None
 //!             }
-//!             ExWlShellEvent::XdgInfoChanged(_) => {
-//!                 let index = index.unwrap();
-//!                 let unit = ev.get_unit_with_id(index).unwrap();
-//!                 println!("{:?}", unit.get_xdgoutput_info());
-//!                 ReturnData::None
-//!             }
 //!             ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
 //!                 draw(file, (init_w, init_h));
 //!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
@@ -112,6 +106,7 @@ pub use events::NewLayerShellSettings;
 pub use events::NewXdgWindowSettings;
 pub use events::OutputOption;
 pub use events::{NewPopUpSettings, PopupPlacement};
+pub use sctk::output::OutputInfo;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 
@@ -124,9 +119,7 @@ use events::DispatchMessageInner;
 
 pub mod id;
 
-pub use events::{
-    AxisScroll, DispatchMessage, ExWlShellEvent, Ime, ReturnData, XdgInfoChangedType,
-};
+pub use events::{AxisScroll, DispatchMessage, ExWlShellEvent, Ime, ReturnData};
 
 use strtoshape::str_to_shape;
 
@@ -179,15 +172,9 @@ use wayland_protocols::xdg::shell::client::{
     xdg_wm_base::{self, XdgWmBase},
 };
 
-use wayland_protocols::{
-    wp::fractional_scale::v1::client::{
-        wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
-        wp_fractional_scale_v1::{self, WpFractionalScaleV1},
-    },
-    xdg::xdg_output::zv1::client::{
-        zxdg_output_manager_v1::ZxdgOutputManagerV1,
-        zxdg_output_v1::{self, ZxdgOutputV1},
-    },
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+    wp_fractional_scale_v1::{self, WpFractionalScaleV1},
 };
 
 use wayland_protocols::wp::input_method::zv1::client::{
@@ -298,38 +285,6 @@ pub mod reexport {
     }
     pub mod wp_viewport {
         pub use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
-    }
-}
-
-/// this struct store the xdg_output information
-#[derive(Debug, Clone)]
-pub struct ZxdgOutputInfo {
-    name: String,
-    description: String,
-    zxdgoutput: ZxdgOutputV1,
-    logical_size: (i32, i32),
-    position: (i32, i32),
-}
-
-impl ZxdgOutputInfo {
-    fn new(zxdgoutput: ZxdgOutputV1) -> Self {
-        Self {
-            zxdgoutput,
-            name: "".to_owned(),
-            description: "".to_owned(),
-            logical_size: (0, 0),
-            position: (0, 0),
-        }
-    }
-
-    /// you can get the Logic position of the screen current surface in
-    pub fn get_position(&self) -> (i32, i32) {
-        self.position
-    }
-
-    /// you can get the LogicalPosition of the screen current surface in
-    pub fn get_logical_size(&self) -> (i32, i32) {
-        self.logical_size
     }
 }
 
@@ -468,7 +423,6 @@ impl<T> WindowStateUnitBuilder<T> {
                 parent: None,
                 size: (0, 0),
                 buffer: Default::default(),
-                zxdgoutput: Default::default(),
                 fractional_scale: Default::default(),
                 viewport: Default::default(),
                 wl_output: Default::default(),
@@ -489,11 +443,6 @@ impl<T> WindowStateUnitBuilder<T> {
 
     fn size(mut self, size: (u32, u32)) -> Self {
         self.inner.size = size;
-        self
-    }
-
-    fn zxdgoutput(mut self, zxdgoutput: Option<ZxdgOutputInfo>) -> Self {
-        self.inner.zxdgoutput = zxdgoutput;
         self
     }
 
@@ -559,7 +508,6 @@ pub struct WindowStateUnit<T> {
     buffer: Option<WlBuffer>,
     shell: Shell,
     parent: Option<id::Id>,
-    zxdgoutput: Option<ZxdgOutputInfo>,
     fractional_scale: Option<WpFractionalScaleV1>,
     viewport: Option<WpViewport>,
     wl_output: Option<WlOutput>,
@@ -687,9 +635,9 @@ impl<T> WindowStateUnit<T> {
         &self.wl_surface
     }
 
-    /// get the xdg_output info related to this unit
-    pub fn get_xdgoutput_info(&self) -> Option<&ZxdgOutputInfo> {
-        self.zxdgoutput.as_ref()
+    /// output this surface is displayed on from compositor through `wl_surface::enter`
+    pub fn get_wloutput(&self) -> Option<&WlOutput> {
+        self.wl_output.as_ref()
     }
 
     /// set the anchor of the current unit. please take the simple.rs as reference
@@ -960,7 +908,6 @@ pub struct WindowState<T> {
     connection: Option<Connection>,
     event_queue: Option<EventQueue<WindowState<T>>>,
     wl_compositor: Option<WlCompositor>,
-    xdg_output_manager: Option<ZxdgOutputManagerV1>,
     wmbase: Option<XdgWmBase>,
     shm: Option<WlShm>,
     cursor_manager: Option<WpCursorShapeManagerV1>,
@@ -1006,8 +953,6 @@ pub struct WindowState<T> {
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
     button_serial: Option<u32>,
-
-    xdg_info_cache: Vec<(wl_output::WlOutput, ZxdgOutputInfo)>,
 
     start_mode: StartMode,
     init_finished: bool,
@@ -1518,7 +1463,6 @@ impl<T> Default for WindowState<T> {
             cursor_manager: None,
             lock_manager: None,
             viewporter: None,
-            xdg_output_manager: None,
             globals: None,
             fractional_scale_manager: None,
             virtual_keyboard: None,
@@ -1551,9 +1495,6 @@ impl<T> Default for WindowState<T> {
             finger_locations: HashMap::new(),
             enter_serial: None,
             button_serial: None,
-            // NOTE: if is some, means it is to be binded, but not now it
-            // is not binded
-            xdg_info_cache: Vec::new(),
 
             start_mode: StartMode::Active,
             init_finished: false,
@@ -1598,6 +1539,36 @@ impl<T> WindowState<T> {
     /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
+    }
+
+    /// every output the compositor advertises with its info
+    pub fn outputs(&self) -> Vec<(WlOutput, OutputInfo)> {
+        let Some(state) = self.output_state.as_ref() else {
+            return Vec::new();
+        };
+        state
+            .outputs()
+            .filter_map(|output| state.info(&output).map(|info| (output, info)))
+            .collect()
+    }
+
+    /// the info of a given output, if it is still known.
+    pub fn get_output_info_of(&self, output: &WlOutput) -> Option<OutputInfo> {
+        self.output_state.as_ref()?.info(output)
+    }
+
+    /// the output matching `name` (`HDMI-A-1` and such), if it is connected.
+    pub fn output_by_name(&self, name: &str) -> Option<WlOutput> {
+        let state = self.output_state.as_ref()?;
+        state
+            .outputs()
+            .find(|output| state.info(output).and_then(|info| info.name).as_deref() == Some(name))
+    }
+
+    /// the output info the surface `id` is currently displayed on
+    pub fn get_output_info(&self, id: id::Id) -> Option<OutputInfo> {
+        let output = self.get_unit_with_id(id)?.wl_output.clone()?;
+        self.get_output_info_of(&output)
     }
 
     /// get the current focused surface id
@@ -1700,8 +1671,20 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _output: wl_output::WlOutput,
+        output: wl_output::WlOutput,
     ) {
+        let affected: Vec<id::Id> = self
+            .units
+            .iter()
+            .filter(|unit| unit.wl_output.as_ref() == Some(&output))
+            .map(|unit| unit.id)
+            .collect();
+        for id in affected {
+            self.message.push((
+                Some(id),
+                DispatchMessageInner::OutputChanged(Some(output.clone())),
+            ));
+        }
     }
     fn output_destroyed(
         &mut self,
@@ -1716,11 +1699,7 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         {
             self.last_wloutput.take();
         }
-        let outputs_removed = self.outputs.extract_if(.., |o| o == &output);
-        for output_removed in outputs_removed {
-            self.xdg_info_cache
-                .retain(|info| info.0.id() != output_removed.id());
-        }
+        self.outputs.retain(|o| o != &output);
 
         let removed_states = self.units.extract_if(.., |unit| {
             !unit.wl_surface.is_alive()
@@ -1881,74 +1860,6 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        proxy: &zxdg_output_v1::ZxdgOutputV1,
-        event: <zxdg_output_v1::ZxdgOutputV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
-    ) {
-        if let Some((_, xdg_info)) = state
-            .xdg_info_cache
-            .iter_mut()
-            .find(|(_, info)| info.zxdgoutput == *proxy)
-        {
-            match event {
-                zxdg_output_v1::Event::LogicalSize { width, height } => {
-                    xdg_info.logical_size = (width, height);
-                }
-                zxdg_output_v1::Event::LogicalPosition { x, y } => {
-                    xdg_info.position = (x, y);
-                }
-                zxdg_output_v1::Event::Name { ref name } => {
-                    xdg_info.name = name.clone();
-                }
-                zxdg_output_v1::Event::Description { ref description } => {
-                    xdg_info.description = description.clone();
-                }
-                _ => {}
-            };
-        }
-
-        let Some(index) = state.units.iter().position(|info| {
-            info.zxdgoutput
-                .as_ref()
-                .is_some_and(|zxdgoutput| zxdgoutput.zxdgoutput == *proxy)
-        }) else {
-            return;
-        };
-        let info = &mut state.units[index];
-        let xdg_info = info.zxdgoutput.as_mut().unwrap();
-        let change_type = match event {
-            zxdg_output_v1::Event::LogicalSize { width, height } => {
-                xdg_info.logical_size = (width, height);
-                XdgInfoChangedType::Size
-            }
-            zxdg_output_v1::Event::LogicalPosition { x, y } => {
-                xdg_info.position = (x, y);
-                XdgInfoChangedType::Position
-            }
-            zxdg_output_v1::Event::Name { name } => {
-                xdg_info.name = name;
-                XdgInfoChangedType::Name
-            }
-            zxdg_output_v1::Event::Description { description } => {
-                xdg_info.description = description;
-                XdgInfoChangedType::Description
-            }
-            _ => {
-                return;
-            }
-        };
-        state.message.push((
-            Some(state.units[index].id),
-            DispatchMessageInner::XdgInfoChanged(change_type),
-        ));
-    }
-}
-
 impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -1994,9 +1905,11 @@ impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
         else {
             return;
         };
-        match event {
+        let id = unit.id;
+        let changed = match event {
             wl_surface::Event::Enter { output } => {
-                unit.wl_output.replace(output);
+                let previous = unit.wl_output.replace(output);
+                previous.as_ref() != unit.wl_output.as_ref()
             }
             wl_surface::Event::Leave { output }
                 if !matches!(unit.shell, Shell::LayerShell(..))
@@ -2006,8 +1919,15 @@ impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
                         .is_some_and(|i_output| i_output == &output) =>
             {
                 unit.wl_output.take();
+                true
             }
-            _ => {}
+            _ => false,
+        };
+        if changed {
+            let output = unit.wl_output.clone();
+            state
+                .message
+                .push((Some(id), DispatchMessageInner::OutputChanged(output)));
         }
     }
 }
@@ -2180,7 +2100,6 @@ delegate_noop!(@<T> WindowState<T>: ignore WpViewport);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
-delegate_noop!(@<T> WindowState<T>: ignore ZxdgOutputManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockV1); // buffer show the picture
@@ -2249,9 +2168,6 @@ impl<T: 'static> WindowState<T> {
 
         // register this
 
-        let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qh, 1..=3, ())?; // bind
-        // xdg_output_manager
-
         let decoration_manager = globals
             .bind::<ZxdgDecorationManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
@@ -2269,17 +2185,11 @@ impl<T: 'static> WindowState<T> {
         self.text_input_manager = text_input_manager;
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
-        // do the step before, you get empty list
-
-        for output_display in &self.outputs {
-            let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
-            self.xdg_info_cache
-                .push((output_display.clone(), ZxdgOutputInfo::new(zxdgoutput)));
-        }
-        event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
-        // so it is the same way, to get surface detach to protocol, first get the shell, like wmbase
-        // or layer_shell or session-shell, then get `surface` from the wl_surface you get before, and
-        // set it
+        // OutputState bound its own xdg_outputs before the dispatch above, so output info is
+        // populated by now, a second roundtrip is not needed
+        // so it is the same way, to get surface detach to protocol, first get the shell, like
+        // wmbase or layer_shell or session-shell, then get `surface` from the wl_surface you
+        // get before, and set it
         // finally thing to remember is to commit the surface, make the shell to init.
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
@@ -2292,24 +2202,10 @@ impl<T: 'static> WindowState<T> {
             }
             self.background_surface = Some(background_surface);
         } else if !self.is_allscreens() {
-            let mut output = None;
-
-            let (binded_output, binded_xdginfo) = match self.start_mode.clone() {
-                StartMode::TargetScreen(name) => {
-                    if let Some(cache) = self
-                        .xdg_info_cache
-                        .iter()
-                        .find(|(_, info)| info.name == *name)
-                        .cloned()
-                    {
-                        output = Some(cache.clone());
-                    }
-                    let binded_output = output.as_ref().map(|(output, _)| output).cloned();
-                    let binded_xdginfo = output.as_ref().map(|(_, xdginfo)| xdginfo).cloned();
-                    (binded_output, binded_xdginfo)
-                }
-                StartMode::TargetOutput(output) => (Some(output), None),
-                _ => (None, None),
+            let binded_output = match self.start_mode.clone() {
+                StartMode::TargetScreen(name) => self.output_by_name(&name),
+                StartMode::TargetOutput(output) => Some(output),
+                _ => None,
             };
 
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
@@ -2367,7 +2263,6 @@ impl<T: 'static> WindowState<T> {
                     Shell::LayerShell(layer),
                 )
                 .viewport(viewport)
-                .zxdgoutput(binded_xdginfo)
                 .fractional_scale(fractional_scale)
                 .wl_output(binded_output.clone())
                 .build(),
@@ -2408,7 +2303,6 @@ impl<T: 'static> WindowState<T> {
                 }
                 wl_surface.commit();
 
-                let zxdgoutput = xdg_output_manager.get_xdg_output(output_display, &qh, ());
                 let mut fractional_scale = None;
                 if let Some(ref fractional_scale_manager) = fractional_scale_manager {
                     fractional_scale =
@@ -2431,7 +2325,6 @@ impl<T: 'static> WindowState<T> {
                         Shell::LayerShell(layer),
                     )
                     .viewport(viewport)
-                    .zxdgoutput(Some(ZxdgOutputInfo::new(zxdgoutput)))
                     .fractional_scale(fractional_scale)
                     .wl_output(Some(output_display.clone()))
                     .build(),
@@ -2447,7 +2340,6 @@ impl<T: 'static> WindowState<T> {
         self.fractional_scale_manager = fractional_scale_manager;
         self.cursor_manager = cursor_manager;
         self.lock_manager = Some(lock_manager);
-        self.xdg_output_manager = Some(xdg_output_manager);
         self.connection = Some(connection);
 
         Ok(self)
@@ -2501,7 +2393,6 @@ impl<T: 'static> WindowState<T> {
         let shm = self.shm.take().unwrap();
         let fractional_scale_manager = self.fractional_scale_manager.take();
         let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.take();
-        let xdg_output_manager = self.xdg_output_manager.take().unwrap();
         let connection = self.connection.take().unwrap();
         let mut init_event = None;
         let wmbase = self.wmbase.take().unwrap();
@@ -2573,24 +2464,8 @@ impl<T: 'static> WindowState<T> {
                 std::mem::swap(&mut messages, &mut window_state.message);
                 for msg in messages.iter() {
                     match msg {
-                        (index_info, DispatchMessageInner::XdgInfoChanged(change_type)) => {
-                            window_state.handle_event(
-                                &mut *event_handler,
-                                ExWlShellEvent::XdgInfoChanged(*change_type),
-                                *index_info,
-                            );
-                        }
                         (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                            let zxdgoutput =
-                                xdg_output_manager.get_xdg_output(output_display, &qh, ());
-
-                            window_state.xdg_info_cache.push((
-                                output_display.clone(),
-                                ZxdgOutputInfo::new(zxdgoutput.clone()),
-                            ));
                             if let Some(lock) = lock {
-                                let zxdgoutput =
-                                    xdg_output_manager.get_xdg_output(output_display, &qh, ());
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                 wl_surface.commit();
                                 let session_lock_surface =
@@ -2623,7 +2498,6 @@ impl<T: 'static> WindowState<T> {
                                         Shell::SessionLock(session_lock_surface),
                                     )
                                     .viewport(viewport)
-                                    .zxdgoutput(Some(ZxdgOutputInfo::new(zxdgoutput)))
                                     .fractional_scale(fractional_scale)
                                     .wl_output(Some(output_display.clone()))
                                     .build(),
@@ -2688,7 +2562,6 @@ impl<T: 'static> WindowState<T> {
                                     Shell::LayerShell(layer),
                                 )
                                 .viewport(viewport)
-                                .zxdgoutput(Some(ZxdgOutputInfo::new(zxdgoutput)))
                                 .fractional_scale(fractional_scale)
                                 .wl_output(Some(output_display.clone()))
                                 .build(),
@@ -2726,8 +2599,6 @@ impl<T: 'static> WindowState<T> {
                                 let l_lock = lock_manager.lock(&qh, ());
                                 let wl_outputs = window_state.outputs.clone();
                                 for wl_output in wl_outputs.iter() {
-                                    let zxdgoutput =
-                                        xdg_output_manager.get_xdg_output(wl_output, &qh, ());
                                     let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                     wl_surface.commit();
                                     let session_lock_surface =
@@ -2761,7 +2632,6 @@ impl<T: 'static> WindowState<T> {
                                             Shell::SessionLock(session_lock_surface),
                                         )
                                         .viewport(viewport)
-                                        .zxdgoutput(Some(ZxdgOutputInfo::new(zxdgoutput)))
                                         .fractional_scale(fractional_scale)
                                         .wl_output(Some(wl_output.clone()))
                                         .build(),
@@ -2809,11 +2679,9 @@ impl<T: 'static> WindowState<T> {
                             )) => {
                                 let output = match output_type {
                                     OutputOption::Output(output) => Some(output),
-                                    OutputOption::OutputName(name) => window_state
-                                        .xdg_info_cache
-                                        .iter()
-                                        .find(|(_, info)| info.name == *name)
-                                        .map(|(output, _)| output.clone()),
+                                    OutputOption::OutputName(name) => {
+                                        window_state.output_by_name(&name)
+                                    }
                                     OutputOption::Active => None,
                                     OutputOption::LastOutput => window_state.last_output(),
                                 };
@@ -3072,11 +2940,9 @@ impl<T: 'static> WindowState<T> {
                             )) => {
                                 let output = match output_type {
                                     OutputOption::Output(output) => Some(output),
-                                    OutputOption::OutputName(name) => window_state
-                                        .xdg_info_cache
-                                        .iter()
-                                        .find(|(_, info)| info.name == *name)
-                                        .map(|(output, _)| output.clone()),
+                                    OutputOption::OutputName(name) => {
+                                        window_state.output_by_name(&name)
+                                    }
                                     OutputOption::Active => None,
                                     OutputOption::LastOutput => window_state.last_output(),
                                 };

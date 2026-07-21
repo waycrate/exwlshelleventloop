@@ -7,6 +7,8 @@ use layershellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
 
+use crate::output::OutputInfo;
+
 fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
     match code {
         273 => mouse::Button::Right,
@@ -99,6 +101,7 @@ pub enum WindowEvent {
     Refresh,
     Closed,
     ThemeChanged(iced_core::theme::Mode),
+    OutputChanged(Option<OutputInfo>),
 }
 
 #[derive(Debug)]
@@ -198,6 +201,7 @@ impl From<&DispatchMessage> for WindowEvent {
                 }
             }
             DispatchMessage::Ime(ime) => WindowEvent::Ime(ime.clone()),
+            DispatchMessage::OutputChanged(_) => WindowEvent::OutputChanged(None),
         }
     }
 }

@@ -6,6 +6,7 @@ mod conversion;
 mod error;
 mod event;
 mod multi_window;
+pub mod output;
 mod proxy;
 mod user_interface;
 
