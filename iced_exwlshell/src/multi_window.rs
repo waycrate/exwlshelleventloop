@@ -25,7 +25,9 @@ use exwlshellev::{
         zwp_virtual_keyboard_v1,
     },
 };
-use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
+#[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
+use futures::StreamExt;
+use futures::{FutureExt, future::LocalBoxFuture};
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
 use iced_core::theme::Mode;
 use iced_core::{
@@ -55,6 +57,25 @@ mod state;
 mod window_manager;
 
 type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PresentRecovery {
+    Reconfigure,
+    Recreate,
+    Report,
+    Fatal,
+}
+
+fn present_recovery(error: &compositor::SurfaceError) -> PresentRecovery {
+    match error {
+        compositor::SurfaceError::Outdated => PresentRecovery::Reconfigure,
+        compositor::SurfaceError::Lost => PresentRecovery::Recreate,
+        compositor::SurfaceError::Timeout | compositor::SurfaceError::Other => {
+            PresentRecovery::Report
+        }
+        compositor::SurfaceError::OutOfMemory => PresentRecovery::Fatal,
+    }
+}
 
 // a dispatch loop, another is listen loop
 pub fn run<P>(
@@ -618,14 +639,38 @@ where
             Ok(()) => {
                 present_span.finish();
             }
-            Err(error) => match error {
-                compositor::SurfaceError::OutOfMemory => {
-                    panic!("{error:?}");
+            Err(error) => {
+                present_span.finish();
+                match present_recovery(&error) {
+                    PresentRecovery::Fatal => {
+                        panic!("{error:?}");
+                    }
+                    PresentRecovery::Reconfigure => {
+                        compositor.configure_surface(
+                            &mut window.surface,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+                        ev.request_refresh(layer_shell_id, RefreshRequest::NextFrame);
+                    }
+                    PresentRecovery::Recreate => {
+                        let surface_window = Arc::new(
+                            ev.get_unit_with_id(layer_shell_id)
+                                .expect("the presented shell surface should still exist")
+                                .gen_wrapper(),
+                        );
+                        window.surface = compositor.create_surface(
+                            surface_window,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+                        ev.request_refresh(layer_shell_id, RefreshRequest::NextFrame);
+                    }
+                    PresentRecovery::Report => {
+                        tracing::error!("Error {error:?} when presenting surface.");
+                    }
                 }
-                _ => {
-                    tracing::error!("Error {error:?} when presenting surface.");
-                }
-            },
+            }
         }
     }
 
