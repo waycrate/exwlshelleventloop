@@ -42,6 +42,7 @@ pub fn to_exwlshell_message(
             LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
             /// Action, margin change Margin: top, left, bottom, right
             MarginChange{id: iced_exwlshell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+            BlurOptionChange{id: iced_exwlshell::reexport::IcedId, option: iced_exwlshell::reexport::BlurOption},
             /// Action, size change
             SizeChange{id: iced_exwlshell::reexport::IcedId, size: (u32, u32)},
             /// Action, ExclusiveZone Change
@@ -141,6 +142,7 @@ pub fn to_exwlshell_message(
                         Self::NewInputPanel {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewInputPanel { settings, id })),
                         Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),
                         Self::ForgetLastOutput => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ForgetLastOutput)),
+                        Self::BlurOptionChange {id, option} => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::BlurOptionChange(option))),
                         Self::Lock => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::Lock)),
                         Self::UnLock => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::UnLock)),
                         _ => Err(self)

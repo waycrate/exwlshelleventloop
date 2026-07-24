@@ -19,6 +19,8 @@ pub mod reexport {
     pub use exwlshellev::PopupPlacement;
     pub use exwlshellev::WithConnection;
     pub use exwlshellev::WlShellType;
+    pub use exwlshellev::blur::BlurOption;
+    pub use exwlshellev::blur::BlurRegion;
     pub use exwlshellev::reexport::Anchor;
     pub use exwlshellev::reexport::KeyboardInteractivity;
     pub use exwlshellev::reexport::Layer;

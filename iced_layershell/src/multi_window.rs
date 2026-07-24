@@ -111,6 +111,7 @@ where
         .with_exclusive_zone(settings.layer_settings.exclusive_zone)
         .with_margin(settings.layer_settings.margin)
         .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .with_blur_option(settings.layer_settings.blur_option)
         .with_connection(settings.with_connection)
         .build()
         .expect("Cannot create layershell");
@@ -695,7 +696,7 @@ where
         action: LayerShellCustomAction,
     ) {
         let layer_shell_window;
-        macro_rules! ref_layer_shell_window {
+        macro_rules! ref_mut_layer_shell_window {
             ($ev: ident, $iced_id: ident, $layer_shell_id: ident, $layer_shell_window: ident) => {
                 if $iced_id.is_none() {
                     // Make application also works
@@ -710,8 +711,8 @@ where
                         return;
                     }
                 }
-                if let Some(ls_window) =
-                    $layer_shell_id.and_then(|layer_shell_id| $ev.get_unit_with_id(layer_shell_id))
+                if let Some(ls_window) = $layer_shell_id
+                    .and_then(|layer_shell_id| $ev.get_mut_unit_with_id(layer_shell_id))
                 {
                     layer_shell_window = ls_window;
                 } else {
@@ -730,35 +731,39 @@ where
         }
         match action {
             LayerShellCustomAction::AnchorChange(anchor) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_anchor(anchor);
             }
+            LayerShellCustomAction::BlurOptionChange(option) => {
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                layer_shell_window.set_blur_option(option);
+            }
             LayerShellCustomAction::AnchorSizeChange(anchor, size) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_anchor_with_size(anchor, size);
             }
             LayerShellCustomAction::LayerChange(layer) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_layer(layer);
             }
             LayerShellCustomAction::MarginChange(margin) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_margin(margin);
             }
             LayerShellCustomAction::SizeChange((width, height)) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_size((width, height));
             }
             LayerShellCustomAction::ExclusiveZoneChange(zone_size) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_exclusive_zone(zone_size);
             }
             LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
             LayerShellCustomAction::SetInputRegion(set_region) => {
-                ref_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
+                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 let set_region = set_region.0;
                 let Some(region) = &self.wl_input_region else {
                     tracing::warn!(

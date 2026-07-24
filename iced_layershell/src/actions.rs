@@ -1,5 +1,6 @@
 use crate::reexport::{Anchor, Layer, WlRegion};
 use iced_core::window::Id as IcedId;
+use layershellev::blur::BlurOption;
 use layershellev::reexport::xdg_positioner::{
     Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
     Gravity as PopupGravity,
@@ -139,6 +140,7 @@ pub enum LayerShellCustomAction {
     VirtualKeyboardPressed {
         key: u32,
     },
+    BlurOptionChange(BlurOption),
     // settings, info, single_tone
     NewLayerShell {
         settings: NewLayerShellSettings,

@@ -20,7 +20,7 @@ use wayland_client::{
     },
 };
 
-use crate::{id, xkb_keyboard::KeyEvent};
+use crate::{blur::BlurOption, id, xkb_keyboard::KeyEvent};
 
 use crate::keyboard::ModifiersState;
 
@@ -101,6 +101,7 @@ pub struct NewLayerShellSettings {
     /// follow the last output of the activated surface, used to create some thing like mako, who
     /// will show on the same window, only when the notifications is cleared, it will change the
     /// wl_output.
+    pub blur_option: BlurOption,
     pub output_option: OutputOption,
     pub events_transparent: bool,
     pub namespace: Option<String>,
@@ -165,6 +166,7 @@ impl Default for NewLayerShellSettings {
             size: None,
             margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
+            blur_option: BlurOption::None,
             output_option: OutputOption::Active,
             events_transparent: false,
             namespace: None,

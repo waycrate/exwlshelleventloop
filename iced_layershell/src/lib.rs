@@ -18,6 +18,8 @@ pub mod reexport {
     pub use layershellev::OutputOption;
     pub use layershellev::PopupPlacement;
     pub use layershellev::WithConnection;
+    pub use layershellev::blur::BlurOption;
+    pub use layershellev::blur::BlurRegion;
     pub use layershellev::reexport::Anchor;
     pub use layershellev::reexport::KeyboardInteractivity;
     pub use layershellev::reexport::Layer;
