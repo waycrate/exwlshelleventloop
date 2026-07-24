@@ -35,7 +35,9 @@ use sessionlockev::{DisplayWrapper, RefreshRequest};
 use sessionlockev::{ReturnData, SessionLockEvent, WindowState, WindowWrapper};
 use window_manager::Window;
 
-use futures::{FutureExt, StreamExt, future::LocalBoxFuture};
+#[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
+use futures::StreamExt;
+use futures::{FutureExt, future::LocalBoxFuture};
 
 use crate::{event::IcedSessionLockEvent, proxy::IcedProxy, settings::Settings};
 
@@ -44,6 +46,26 @@ mod window_manager;
 type SessionRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
 use iced_program::Instance;
 use iced_program::Program;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PresentRecovery {
+    Reconfigure,
+    Recreate,
+    Report,
+    Fatal,
+}
+
+fn present_recovery(error: &compositor::SurfaceError) -> PresentRecovery {
+    match error {
+        compositor::SurfaceError::Outdated => PresentRecovery::Reconfigure,
+        compositor::SurfaceError::Lost => PresentRecovery::Recreate,
+        compositor::SurfaceError::Timeout | compositor::SurfaceError::Other => {
+            PresentRecovery::Report
+        }
+        compositor::SurfaceError::OutOfMemory => PresentRecovery::Fatal,
+    }
+}
+
 // a dispatch loop, another is listen loop
 pub fn run<P>(
     program: P,
@@ -492,14 +514,38 @@ where
             Ok(()) => {
                 present_span.finish();
             }
-            Err(error) => match error {
-                compositor::SurfaceError::OutOfMemory => {
-                    panic!("{error:?}");
+            Err(error) => {
+                present_span.finish();
+                match present_recovery(&error) {
+                    PresentRecovery::Fatal => {
+                        panic!("{error:?}");
+                    }
+                    PresentRecovery::Reconfigure => {
+                        compositor.configure_surface(
+                            &mut window.surface,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+                        ev.request_refresh(session_lock_id, RefreshRequest::NextFrame);
+                    }
+                    PresentRecovery::Recreate => {
+                        let surface_window = Arc::new(
+                            ev.get_unit_with_id(session_lock_id)
+                                .expect("the presented session-lock surface should still exist")
+                                .gen_wrapper(),
+                        );
+                        window.surface = compositor.create_surface(
+                            surface_window,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+                        ev.request_refresh(session_lock_id, RefreshRequest::NextFrame);
+                    }
+                    PresentRecovery::Report => {
+                        tracing::error!("Error {error:?} when presenting surface.");
+                    }
                 }
-                _ => {
-                    tracing::error!("Error {error:?} when presenting surface.");
-                }
-            },
+            }
         }
     }
 
