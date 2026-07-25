@@ -5,7 +5,7 @@ use iced::widget::{
 use iced::window;
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
 use iced_layershell::daemon;
-use iced_layershell::reexport::{Anchor, Layer, NewLayerShellSettings, OutputOption};
+use iced_layershell::reexport::{Anchor, Layer, LayerSize, NewLayerShellSettings, OutputOption};
 use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
 use iced_layershell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
@@ -70,13 +70,13 @@ impl Example {
             7 => Anchor::Left | Anchor::Bottom,
             _ => Anchor::Bottom,
         };
-        let size = (480, 320);
+        let size = LayerSize::px(480, 320);
         let id = window::Id::unique();
         (
             id,
             Task::done(Message::NewLayerShell {
                 settings: NewLayerShellSettings {
-                    size: Some(size),
+                    size,
                     exclusive_zone: None,
                     anchor,
                     layer: Layer::Top,

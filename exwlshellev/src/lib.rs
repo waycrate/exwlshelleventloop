@@ -13,7 +13,7 @@
 //! fn main() {
 //!     let mut ev: WindowState<()> = WindowState::new("Hello")
 //!         .with_allscreens()
-//!         .with_size((0, 400))
+//!         .with_size(LayerSize::fill_width(400))
 //!         .with_layer(Layer::Top)
 //!         .with_margin((20, 20, 100, 20))
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
@@ -113,9 +113,12 @@ pub mod blur;
 pub mod dpi;
 mod events;
 mod seat;
+mod size;
 mod strtoshape;
 
 use events::DispatchMessageInner;
+use size::warn_if_exclusive_zone_ignored;
+pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
@@ -430,6 +433,8 @@ impl<T> WindowStateUnitBuilder<T> {
                 shell,
                 parent: None,
                 size: (0, 0),
+                anchor: Anchor::empty(),
+                layer_size: LayerSize::FILL,
                 buffer: Default::default(),
                 fractional_scale: Default::default(),
                 viewport: Default::default(),
@@ -453,6 +458,12 @@ impl<T> WindowStateUnitBuilder<T> {
 
     fn size(mut self, size: (u32, u32)) -> Self {
         self.inner.size = size;
+        self
+    }
+
+    fn layout(mut self, anchor: Anchor, layer_size: LayerSize) -> Self {
+        self.inner.anchor = anchor;
+        self.inner.layer_size = layer_size;
         self
     }
 
@@ -526,6 +537,10 @@ pub struct WindowStateUnit<T> {
     wl_surface: WlSurface,
     wmcompositor: WlCompositor,
     size: (u32, u32),
+    /// Only meaningful for LayerShell
+    anchor: Anchor,
+    /// Only meaningful for LayerShell
+    layer_size: LayerSize,
     buffer: Option<WlBuffer>,
     shell: Shell,
     parent: Option<id::Id>,
@@ -569,6 +584,16 @@ impl<T> WindowStateUnit<T> {
 
     pub fn try_set_viewport_destination(&self, width: i32, height: i32) -> Option<()> {
         let viewport = self.viewport.as_ref()?;
+        // (-1, -1) unsets the destination
+        if (width, height) != (-1, -1) && (width <= 0 || height <= 0) {
+            log::warn!(
+                target: "layershellev",
+                "ignoring viewport destination {width}x{height} for {:?}: wp_viewport requires \
+                 positive dimensions, or (-1, -1) to unset",
+                self.id
+            );
+            return None;
+        }
         viewport.set_destination(width, height);
         Some(())
     }
@@ -700,12 +725,40 @@ impl<T> WindowStateUnit<T> {
         self.wl_output.as_ref()
     }
 
-    /// set the anchor of the current unit. please take the simple.rs as reference
-    pub fn set_anchor(&self, anchor: Anchor) {
-        if let Shell::LayerShell(layer_shell) = &self.shell {
-            layer_shell.set_anchor(anchor);
-            self.wl_surface.commit();
+    /// last requested anchor for surface
+    pub fn get_anchor(&self) -> Anchor {
+        self.anchor
+    }
+
+    /// actual layer surface anchor
+    pub fn get_effective_anchor(&self) -> Anchor {
+        if !matches!(self.shell, Shell::LayerShell(_)) {
+            return Anchor::empty();
         }
+        self.anchor | self.layer_size.missing_edges(self.anchor)
+    }
+
+    /// last requested size for surface
+    pub fn get_layer_size(&self) -> LayerSize {
+        self.layer_size
+    }
+
+    /// commit anchor and size, while adding required edges for size
+    fn commit_layout(&mut self, anchor: Anchor, size: LayerSize) {
+        let Shell::LayerShell(layer_shell) = &self.shell else {
+            return;
+        };
+        let (width, height) = size.to_set();
+        layer_shell.set_anchor(size.resolve_anchor(anchor));
+        layer_shell.set_size(width, height);
+        self.anchor = anchor;
+        self.layer_size = size;
+        self.wl_surface.commit();
+    }
+
+    /// set the anchor of the current unit. please take the simple.rs as reference
+    pub fn set_anchor(&mut self, anchor: Anchor) {
+        self.commit_layout(anchor, self.layer_size);
     }
 
     /// you can reset the margin which bind to the surface
@@ -725,26 +778,20 @@ impl<T> WindowStateUnit<T> {
     }
 
     /// set the anchor and set the size together
-    /// When you want to change layer from LEFT|RIGHT|BOTTOM to TOP|LEFT|BOTTOM, use it
-    pub fn set_anchor_with_size(&self, anchor: Anchor, (width, height): (u32, u32)) {
-        if let Shell::LayerShell(layer_shell) = &self.shell {
-            layer_shell.set_anchor(anchor);
-            layer_shell.set_size(width, height);
-            self.wl_surface.commit();
-        }
+    /// When you want to change the layout from LEFT|RIGHT|BOTTOM to TOP|LEFT|BOTTOM, use it.
+    pub fn set_layout(&mut self, anchor: Anchor, size: LayerSize) {
+        self.commit_layout(anchor, size);
     }
 
     /// set the layer size of current unit
-    pub fn set_size(&self, (width, height): (u32, u32)) {
-        if let Shell::LayerShell(layer_shell) = &self.shell {
-            layer_shell.set_size(width, height);
-            self.wl_surface.commit();
-        }
+    pub fn set_size(&mut self, size: LayerSize) {
+        self.commit_layout(self.anchor, size);
     }
 
     /// set current exclusive_zone
     pub fn set_exclusive_zone(&self, zone: i32) {
         if let Shell::LayerShell(layer_shell) = &self.shell {
+            warn_if_exclusive_zone_ignored(zone, self.get_effective_anchor());
             layer_shell.set_exclusive_zone(zone);
             self.wl_surface.commit();
         }
@@ -995,7 +1042,7 @@ pub struct WindowState<T> {
     keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity,
     anchor: Anchor,
     layer: Layer,
-    size: Option<(u32, u32)>,
+    size: LayerSize,
     exclusive_zone: Option<i32>,
     margin: Option<(i32, i32, i32, i32)>,
     blur_option: BlurOption,
@@ -1474,17 +1521,11 @@ impl<T> WindowState<T> {
         self
     }
 
-    /// if not set, it will be the size suggested by layer_shell, like anchor to four ways,
-    /// and margins to 0,0,0,0 , the size will be the size of screen.
+    /// if not set, the default is [`LayerSize::FILL`], which with the default four-edge
+    /// anchor and margins to 0,0,0,0 gives a surface the size of the screen.
     ///
     /// if set, layer_shell will use the size you set
-    pub fn with_size(mut self, size: (u32, u32)) -> Self {
-        self.size = Some(size);
-        self
-    }
-
-    /// set the window size, optional
-    pub fn with_option_size(mut self, size: Option<(u32, u32)>) -> Self {
+    pub fn with_size(mut self, size: LayerSize) -> Self {
         self.size = size;
         self
     }
@@ -1545,7 +1586,7 @@ impl<T> Default for WindowState<T> {
             keyboard_interactivity: zwlr_layer_surface_v1::KeyboardInteractivity::OnDemand,
             layer: Layer::Overlay,
             anchor: Anchor::Top | Anchor::Left | Anchor::Right | Anchor::Bottom,
-            size: None,
+            size: LayerSize::FILL,
             exclusive_zone: None,
             margin: None,
             blur_option: BlurOption::None,
@@ -2290,13 +2331,14 @@ impl<T: 'static> WindowState<T> {
                 &qh,
                 (),
             );
-            layer.set_anchor(self.anchor);
+            let wire_anchor = self.size.resolve_anchor(self.anchor);
+            layer.set_anchor(wire_anchor);
             layer.set_keyboard_interactivity(self.keyboard_interactivity);
-            if let Some((init_w, init_h)) = self.size {
-                layer.set_size(init_w, init_h);
-            }
+            let (init_w, init_h) = self.size.to_set();
+            layer.set_size(init_w, init_h);
 
             if let Some(zone) = self.exclusive_zone {
+                warn_if_exclusive_zone_ignored(zone, wire_anchor);
                 layer.set_exclusive_zone(zone);
             }
 
@@ -2338,6 +2380,7 @@ impl<T: 'static> WindowState<T> {
                     Shell::LayerShell(layer),
                 )
                 .blur_option(self.blur_option.clone())
+                .layout(self.anchor, self.size)
                 .effect_surface(effect)
                 .viewport(viewport)
                 .fractional_scale(fractional_scale)
@@ -2359,13 +2402,14 @@ impl<T: 'static> WindowState<T> {
                     &qh,
                     (),
                 );
-                layer.set_anchor(self.anchor);
+                let wire_anchor = self.size.resolve_anchor(self.anchor);
+                layer.set_anchor(wire_anchor);
                 layer.set_keyboard_interactivity(self.keyboard_interactivity);
-                if let Some((init_w, init_h)) = self.size {
-                    layer.set_size(init_w, init_h);
-                }
+                let (init_w, init_h) = self.size.to_set();
+                layer.set_size(init_w, init_h);
 
                 if let Some(zone) = self.exclusive_zone {
+                    warn_if_exclusive_zone_ignored(zone, wire_anchor);
                     layer.set_exclusive_zone(zone);
                 }
 
@@ -2406,9 +2450,10 @@ impl<T: 'static> WindowState<T> {
                         wmcompositer.clone(),
                         Shell::LayerShell(layer),
                     )
+                    .layout(self.anchor, self.size)
+                    .viewport(viewport)
                     .blur_option(self.blur_option.clone())
                     .effect_surface(effect)
-                    .viewport(viewport)
                     .fractional_scale(fractional_scale)
                     .wl_output(Some(output_display.clone()))
                     .build(),
@@ -2582,6 +2627,7 @@ impl<T: 'static> WindowState<T> {
                                         wmcompositer.clone(),
                                         Shell::SessionLock(session_lock_surface),
                                     )
+                                    .layout(window_state.anchor, window_state.size)
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .wl_output(Some(output_display.clone()))
@@ -2604,10 +2650,15 @@ impl<T: 'static> WindowState<T> {
                                 &qh,
                                 (),
                             );
-                            layer.set_anchor(window_state.anchor);
+                            let wire_anchor = window_state.size.resolve_anchor(window_state.anchor);
+                            layer.set_anchor(wire_anchor);
                             layer.set_keyboard_interactivity(window_state.keyboard_interactivity);
-                            if let Some((init_w, init_h)) = window_state.size {
-                                layer.set_size(init_w, init_h);
+                            let (init_w, init_h) = window_state.size.to_set();
+                            layer.set_size(init_w, init_h);
+
+                            if let Some(zone) = window_state.exclusive_zone {
+                                warn_if_exclusive_zone_ignored(zone, wire_anchor);
+                                layer.set_exclusive_zone(zone);
                             }
 
                             if let Some(zone) = window_state.exclusive_zone {
@@ -2647,6 +2698,7 @@ impl<T: 'static> WindowState<T> {
                                     wmcompositer.clone(),
                                     Shell::LayerShell(layer),
                                 )
+                                .layout(window_state.anchor, window_state.size)
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .wl_output(Some(output_display.clone()))
@@ -2765,6 +2817,7 @@ impl<T: 'static> WindowState<T> {
                                 id,
                                 info,
                             )) => {
+                                let wire_anchor = size.resolve_anchor(anchor);
                                 let output = match output_type {
                                     OutputOption::Output(output) => Some(output),
                                     OutputOption::OutputName(name) => {
@@ -2787,13 +2840,13 @@ impl<T: 'static> WindowState<T> {
                                     &qh,
                                     (),
                                 );
-                                layer.set_anchor(anchor);
+                                layer.set_anchor(wire_anchor);
                                 layer.set_keyboard_interactivity(keyboard_interactivity);
-                                if let Some((init_w, init_h)) = size {
-                                    layer.set_size(init_w, init_h);
-                                }
+                                let (init_w, init_h) = size.to_set();
+                                layer.set_size(init_w, init_h);
 
                                 if let Some(zone) = exclusive_zone {
+                                    warn_if_exclusive_zone_ignored(zone, wire_anchor);
                                     layer.set_exclusive_zone(zone);
                                 }
 
@@ -2841,9 +2894,10 @@ impl<T: 'static> WindowState<T> {
                                         wmcompositer.clone(),
                                         Shell::LayerShell(layer),
                                     )
+                                    .layout(window_state.anchor, window_state.size)
+                                    .viewport(viewport)
                                     .blur_option(blur_option)
                                     .effect_surface(effect)
-                                    .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .wl_output(output)
                                     .binding(info)
@@ -2853,7 +2907,7 @@ impl<T: 'static> WindowState<T> {
                             }
                             ReturnData::NewPopUp((
                                 NewPopUpSettings {
-                                    size: (width, height),
+                                    size,
                                     id,
                                     placement,
                                     anchor,
@@ -2864,22 +2918,6 @@ impl<T: 'static> WindowState<T> {
                                 targetid,
                                 info,
                             )) => {
-                                if width == 0 || height == 0 {
-                                    log::warn!(
-                                        target: "exwlshellev",
-                                        "popup {targetid:?} size must be positive, got {width}x{height}; skipping popup creation"
-                                    );
-                                    continue;
-                                }
-                                if let PopupPlacement::Anchored((_, _, arw, arh)) = placement
-                                    && (arw < 0 || arh < 0)
-                                {
-                                    log::warn!(
-                                        target: "exwlshellev",
-                                        "popup {targetid:?} anchor_rect dimensions must be non-negative, got ({arw}, {arh}); skipping popup creation"
-                                    );
-                                    continue;
-                                }
                                 let Some(index) =
                                     window_state.units.iter().position(|unit| unit.id == id)
                                 else {
@@ -2887,14 +2925,19 @@ impl<T: 'static> WindowState<T> {
                                 };
                                 let wl_surface = wmcompositer.create_surface(&qh, ());
                                 let positioner = wmbase.create_positioner(&qh, ());
-                                positioner.set_size(width as i32, height as i32);
+                                let (width, height) = size.to_set_i32();
+                                positioner.set_size(width, height);
                                 // `Position` is a 1×1 anchor rect at the point;
                                 // `Anchored` uses the rect directly.
                                 match placement {
                                     PopupPlacement::Position((px, py)) => {
                                         positioner.set_anchor_rect(px, py, 1, 1)
                                     }
-                                    PopupPlacement::Anchored((arx, ary, arw, arh)) => {
+                                    PopupPlacement::Anchored {
+                                        position: (arx, ary),
+                                        size: rect,
+                                    } => {
+                                        let (arw, arh) = rect.to_set_i32();
                                         positioner.set_anchor_rect(arx, ary, arw, arh)
                                     }
                                 }
@@ -2961,7 +3004,7 @@ impl<T: 'static> WindowState<T> {
                                         Shell::PopUp((popup, wl_xdg_surface)),
                                     )
                                     .parent(Some(id))
-                                    .size((width, height))
+                                    .size(size.to_set())
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .binding(info)
@@ -3022,7 +3065,7 @@ impl<T: 'static> WindowState<T> {
                                         wmcompositer.clone(),
                                         Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
                                     )
-                                    .size(size.unwrap_or((300, 300)))
+                                    .size(size.unwrap_or(PixelSize::px(300, 300)).to_set())
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .binding(info)
@@ -3033,7 +3076,7 @@ impl<T: 'static> WindowState<T> {
 
                             ReturnData::NewInputPanel((
                                 NewInputPanelSettings {
-                                    size: (width, height),
+                                    size,
                                     keyboard,
                                     output_option: output_type,
                                 },
@@ -3093,7 +3136,7 @@ impl<T: 'static> WindowState<T> {
                                         wmcompositer.clone(),
                                         Shell::InputPanel(input_panel_surface),
                                     )
-                                    .size((width, height))
+                                    .size(size.to_set())
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .binding(info)

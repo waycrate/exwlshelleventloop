@@ -6,7 +6,7 @@ use iced::widget::{column, scrollable, text_input};
 use iced::{Element, Event, Length, Task as Command, event};
 use iced_layershell::actions::LayerShellCustomActionWithId;
 use iced_layershell::application;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
 use iced_layershell::settings::{LayerShellSettings, Settings};
 use iced_runtime::Action;
 
@@ -24,8 +24,8 @@ fn main() -> Result<(), iced_layershell::Error> {
     )
     .settings(Settings {
         layer_settings: LayerShellSettings {
-            size: Some((1000, 1000)),
-            anchor: Anchor::Bottom | Anchor::Left | Anchor::Right | Anchor::Top,
+            size: LayerSize::px(1000, 1000),
+            anchor: Anchor::all(),
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
             ..Default::default()
         },

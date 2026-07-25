@@ -8,7 +8,7 @@ use iced_runtime::window::Action as WindowAction;
 
 use iced_layershell::daemon;
 use iced_layershell::reexport::{
-    Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption,
+    Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
 };
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use zbus::{connection, interface};
@@ -120,7 +120,7 @@ impl Counter {
                 self.window_shown = true;
                 Command::done(Message::NewLayerShell {
                     settings: NewLayerShellSettings {
-                        size: None,
+                        size: LayerSize::FILL,
                         exclusive_zone: None,
                         anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
                         layer: Layer::Top,

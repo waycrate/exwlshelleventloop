@@ -28,6 +28,7 @@ pub mod reexport {
         Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
         Gravity as PopupGravity,
     };
+    pub use layershellev::{Extent, LayerSize, PixelSize};
     pub mod core {
         pub use iced_core::*;
     }

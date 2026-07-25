@@ -2,7 +2,7 @@ use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Color, Element, Event, Length, Subscription, Task as Command};
 use iced_layershell::Settings;
 use iced_layershell::build_pattern::timed;
-use iced_layershell::reexport::Anchor;
+use iced_layershell::reexport::{Anchor, LayerSize};
 use iced_layershell::settings::{LayerShellSettings, StartMode};
 use iced_layershell::to_layer_message;
 use std::time::Instant;
@@ -17,9 +17,9 @@ pub fn main() -> Result<(), iced_layershell::Error> {
         .style(style)
         .settings(Settings {
             layer_settings: LayerShellSettings {
-                size: Some((0, 400)),
+                size: LayerSize::fill_width(400),
                 exclusive_zone: 400,
-                anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+                anchor: Anchor::Bottom,
                 start_mode,
                 ..Default::default()
             },
@@ -75,22 +75,22 @@ fn update(counter: &mut Counter, message: Message, _time: Instant) -> Command<Me
             Command::none()
         }
         Message::Direction(direction) => match direction {
-            WindowDirection::Left => Command::done(Message::AnchorSizeChange(
-                Anchor::Left | Anchor::Top | Anchor::Bottom,
-                (400, 0),
-            )),
-            WindowDirection::Right => Command::done(Message::AnchorSizeChange(
-                Anchor::Right | Anchor::Top | Anchor::Bottom,
-                (400, 0),
-            )),
-            WindowDirection::Bottom => Command::done(Message::AnchorSizeChange(
-                Anchor::Bottom | Anchor::Left | Anchor::Right,
-                (0, 400),
-            )),
-            WindowDirection::Top => Command::done(Message::AnchorSizeChange(
-                Anchor::Top | Anchor::Left | Anchor::Right,
-                (0, 400),
-            )),
+            WindowDirection::Left => Command::done(Message::LayoutChange {
+                anchor: Anchor::Left,
+                size: LayerSize::fill_height(400),
+            }),
+            WindowDirection::Right => Command::done(Message::LayoutChange {
+                anchor: Anchor::Right,
+                size: LayerSize::fill_height(400),
+            }),
+            WindowDirection::Bottom => Command::done(Message::LayoutChange {
+                anchor: Anchor::Bottom,
+                size: LayerSize::fill_width(400),
+            }),
+            WindowDirection::Top => Command::done(Message::LayoutChange {
+                anchor: Anchor::Top,
+                size: LayerSize::fill_width(400),
+            }),
         },
         _ => unreachable!(),
     }

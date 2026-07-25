@@ -1,3 +1,4 @@
+use iced_layershell::reexport::{Anchor, LayerSize};
 use iced_layershell::to_layer_message;
 
 #[test]
@@ -7,7 +8,10 @@ fn test_layer_message_macro() {
     enum TestEnum {
         TestA,
     }
-    let e = TestEnum::SizeChange((10, 10));
+    let e = TestEnum::LayoutChange {
+        anchor: Anchor::Bottom,
+        size: LayerSize::fill_width(30),
+    };
     let _ = e.clone();
 }
 
