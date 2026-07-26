@@ -5,14 +5,14 @@ use iced::widget::{container, row};
 use iced::{Color, Element, Task};
 
 use iced_layershell::build_pattern::application;
-use iced_layershell::reexport::Anchor;
+use iced_layershell::reexport::{Anchor, LayerSize};
 use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
 fn main() -> iced_layershell::Result {
     application(Panel::new, Panel::namespace, Panel::update, Panel::view)
         .layer_settings(LayerShellSettings {
-            size: Some((600, 50)),
+            size: LayerSize::px(600, 50),
             anchor: Anchor::Bottom,
             margin: (0, 0, 10, 0),
             ..Default::default()

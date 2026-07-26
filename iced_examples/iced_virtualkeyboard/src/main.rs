@@ -6,7 +6,7 @@ use iced::{Length, Point, Rectangle, Renderer, Size, Theme};
 use iced_layershell::actions::{LayerShellCustomAction, LayerShellCustomActionWithId};
 use iced_layershell::application;
 use iced_layershell::reexport::wl_keyboard::KeymapFormat;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
 use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
 use std::collections::HashMap;
 use std::ffi::CString;
@@ -139,7 +139,7 @@ fn main() -> Result<(), iced_layershell::Error> {
     .style(KeyboardView::style)
     .settings(Settings {
         layer_settings: LayerShellSettings {
-            size: Some((1200, 400)),
+            size: LayerSize::px(1200, 400),
             exclusive_zone: 400,
             anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
             keyboard_interactivity: KeyboardInteractivity::None,

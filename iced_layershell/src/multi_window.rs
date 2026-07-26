@@ -126,7 +126,7 @@ where
         .with_start_mode(settings.layer_settings.start_mode)
         .with_use_display_handle(true)
         .with_events_transparent(settings.layer_settings.events_transparent)
-        .with_option_size(settings.layer_settings.size)
+        .with_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
         .with_anchor(settings.layer_settings.anchor)
         .with_exclusive_zone(settings.layer_settings.exclusive_zone)
@@ -775,17 +775,13 @@ where
             return;
         }
         match action {
-            LayerShellCustomAction::AnchorChange(anchor) => {
-                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_anchor(anchor);
-            }
             LayerShellCustomAction::BlurOptionChange(option) => {
                 ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_blur_option(option);
             }
-            LayerShellCustomAction::AnchorSizeChange(anchor, size) => {
+            LayerShellCustomAction::LayoutChange { anchor, size } => {
                 ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_anchor_with_size(anchor, size);
+                layer_shell_window.set_layout(anchor, size);
             }
             LayerShellCustomAction::LayerChange(layer) => {
                 ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
@@ -794,10 +790,6 @@ where
             LayerShellCustomAction::MarginChange(margin) => {
                 ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
                 layer_shell_window.set_margin(margin);
-            }
-            LayerShellCustomAction::SizeChange((width, height)) => {
-                ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);
-                layer_shell_window.set_size((width, height));
             }
             LayerShellCustomAction::ExclusiveZoneChange(zone_size) => {
                 ref_mut_layer_shell_window!(ev, iced_id, layer_shell_id, layer_shell_window);

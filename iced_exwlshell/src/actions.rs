@@ -5,7 +5,8 @@ use exwlshellev::reexport::xdg_positioner::{
     Gravity as PopupGravity,
 };
 use exwlshellev::{
-    NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings, PopupPlacement,
+    LayerSize, NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings, PixelSize,
+    PopupPlacement,
 };
 use iced_core::window::Id as IcedId;
 
@@ -14,7 +15,7 @@ use std::sync::Arc;
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
 pub struct IcedXdgWindowSettings {
     /// The initial window size.
-    pub size: Option<(u32, u32)>,
+    pub size: Option<PixelSize>,
     /// Request client-side decorations instead of the default server-side mode.
     pub client_side_decorations: bool,
 }
@@ -31,7 +32,7 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewPopupSettings {
-    pub size: (u32, u32),
+    pub size: PixelSize,
     pub parent: Option<IcedId>,
     pub placement: PopupPlacement,
     pub anchor: PopupAnchor,
@@ -40,23 +41,46 @@ pub struct IcedNewPopupSettings {
 }
 
 impl IcedNewPopupSettings {
-    pub fn new(parent: IcedId, size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
-        Self::build(Some(parent), size, PopupPlacement::Anchored(anchor_rect))
+    pub fn new(
+        parent: IcedId,
+        size: PixelSize,
+        anchor_position: (i32, i32),
+        anchor_size: PixelSize,
+    ) -> Self {
+        Self::build(
+            Some(parent),
+            size,
+            PopupPlacement::Anchored {
+                position: anchor_position,
+                size: anchor_size,
+            },
+        )
     }
 
-    pub fn on_current_surface(size: (u32, u32), anchor_rect: (i32, i32, i32, i32)) -> Self {
-        Self::build(None, size, PopupPlacement::Anchored(anchor_rect))
+    pub fn on_current_surface(
+        size: PixelSize,
+        anchor_position: (i32, i32),
+        anchor_size: PixelSize,
+    ) -> Self {
+        Self::build(
+            None,
+            size,
+            PopupPlacement::Anchored {
+                position: anchor_position,
+                size: anchor_size,
+            },
+        )
     }
 
-    pub fn at_position(parent: IcedId, size: (u32, u32), position: (i32, i32)) -> Self {
+    pub fn at_position(parent: IcedId, size: PixelSize, position: (i32, i32)) -> Self {
         Self::build(Some(parent), size, PopupPlacement::Position(position))
     }
 
-    pub fn at_position_on_current_surface(size: (u32, u32), position: (i32, i32)) -> Self {
+    pub fn at_position_on_current_surface(size: PixelSize, position: (i32, i32)) -> Self {
         Self::build(None, size, PopupPlacement::Position(position))
     }
 
-    fn build(parent: Option<IcedId>, size: (u32, u32), placement: PopupPlacement) -> Self {
+    fn build(parent: Option<IcedId>, size: PixelSize, placement: PopupPlacement) -> Self {
         Self {
             size,
             parent,
@@ -94,7 +118,7 @@ impl IcedNewPopupSettings {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct IcedNewMenuSettings {
-    pub size: (u32, u32),
+    pub size: PixelSize,
     pub gravity: PopupGravity,
 }
 
@@ -123,11 +147,12 @@ impl ActionCallback {
 /// use macro to_layer_message
 #[derive(Debug, Clone)]
 pub enum ExwlShellCustomAction {
-    AnchorChange(Anchor),
+    LayoutChange {
+        anchor: Anchor,
+        size: LayerSize,
+    },
     LayerChange(Layer),
-    AnchorSizeChange(Anchor, (u32, u32)),
     MarginChange((i32, i32, i32, i32)),
-    SizeChange((u32, u32)),
     ExclusiveZoneChange(i32),
     KeyboardInteractivityChange(exwlshellev::reexport::KeyboardInteractivity),
     VirtualKeyboardPressed {

@@ -12,7 +12,7 @@ use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{task, Action};
 
 use iced_layershell::build_pattern::daemon;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, NewLayerShellSettings, OutputOption, PopupGravity};
+use iced_layershell::reexport::{Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption, PixelSize, PopupGravity};
 use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
 use iced_layershell::to_layer_message;
 
@@ -26,9 +26,9 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     .subscription(Counter::subscription)
     .settings(Settings {
         layer_settings: LayerShellSettings {
-            size: Some((0, 400)),
+            size: LayerSize::fill_width(400),
             exclusive_zone: 400,
-            anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            anchor: Anchor::Bottom,
             start_mode: StartMode::AllScreens,
             ..Default::default()
         },
@@ -142,7 +142,7 @@ impl Counter {
                             let id = iced::window::Id::unique();
                             self.ids.insert(id, WindowInfo::PopUp);
                             return Command::done(Message::NewPopUp {
-                                settings: IcedNewPopupSettings::new(parent, (100, 100), (0, 0, 1, 1))
+                                settings: IcedNewPopupSettings::new(parent, PixelSize::px(100, 100), (0, 0), PixelSize::px(1, 1))
                                     .gravity(PopupGravity::TopRight),
                                 id,
                             });
@@ -165,25 +165,25 @@ impl Counter {
                 Command::none()
             }
             Message::Direction(direction) => match direction {
-                WindowDirection::Left(id) => Command::done(Message::AnchorSizeChange {
+                WindowDirection::Left(id) => Command::done(Message::LayoutChange {
                     id,
-                    anchor: Anchor::Top | Anchor::Left | Anchor::Bottom,
-                    size: (400, 0),
+                    anchor: Anchor::Left,
+                    size: LayerSize::fill_height(400),
                 }),
-                WindowDirection::Right(id) => Command::done(Message::AnchorSizeChange {
+                WindowDirection::Right(id) => Command::done(Message::LayoutChange {
                     id,
-                    anchor: Anchor::Top | Anchor::Right | Anchor::Bottom,
-                    size: (400, 0),
+                    anchor: Anchor::Right,
+                    size: LayerSize::fill_height(400),
                 }),
-                WindowDirection::Bottom(id) => Command::done(Message::AnchorSizeChange {
+                WindowDirection::Bottom(id) => Command::done(Message::LayoutChange {
                     id,
-                    anchor: Anchor::Left | Anchor::Right | Anchor::Bottom,
-                    size: (0, 400),
+                    anchor: Anchor::Bottom,
+                    size: LayerSize::fill_width(400),
                 }),
-                WindowDirection::Top(id) => Command::done(Message::AnchorSizeChange {
+                WindowDirection::Top(id) => Command::done(Message::LayoutChange {
                     id,
-                    anchor: Anchor::Left | Anchor::Right | Anchor::Top,
-                    size: (0, 400),
+                    anchor: Anchor::Top,
+                    size: LayerSize::fill_width(400),
                 }),
             },
             Message::NewWindowLeft => {
@@ -191,7 +191,7 @@ impl Counter {
                 self.ids.insert(id, WindowInfo::Left);
                 Command::done(Message::NewLayerShell {
                     settings: NewLayerShellSettings {
-                        size: Some((100, 100)),
+                        size: LayerSize::px(100, 100),
                         exclusive_zone: None,
                         anchor: Anchor::Left | Anchor::Bottom,
                         layer: Layer::Top,
@@ -208,7 +208,7 @@ impl Counter {
                 self.ids.insert(id, WindowInfo::Right);
                 Command::done(Message::NewLayerShell {
                     settings: NewLayerShellSettings {
-                        size: Some((100, 100)),
+                        size: LayerSize::px(100, 100),
                         exclusive_zone: None,
                         anchor: Anchor::Right | Anchor::Bottom,
                         layer: Layer::Top,

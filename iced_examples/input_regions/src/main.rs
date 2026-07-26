@@ -2,6 +2,7 @@ use iced::widget::{button, row};
 use iced::{Color, Element, Length, Task as Command};
 use iced_layershell::actions::ActionCallback;
 use iced_layershell::application;
+use iced_layershell::reexport::LayerSize;
 use iced_layershell::settings::LayerShellSettings;
 use iced_layershell::to_layer_message;
 
@@ -14,7 +15,7 @@ pub fn main() -> Result<(), iced_layershell::Error> {
     )
     .style(InputRegionExample::style)
     .layer_settings(LayerShellSettings {
-        size: Some((400, 400)),
+        size: LayerSize::px(400, 400),
         ..Default::default()
     })
     .run()

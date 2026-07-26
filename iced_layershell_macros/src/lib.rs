@@ -37,14 +37,12 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
     let (additional_variants, impl_quote) = match is_multi {
         true => {
             let additional_variants = quote! {
-                AnchorChange{id: iced_layershell::reexport::IcedId, anchor: iced_layershell::reexport::Anchor},
+                LayoutChange{id: iced_layershell::reexport::IcedId, anchor: iced_layershell::reexport::Anchor, size: iced_layershell::reexport::LayerSize},
                 SetInputRegion{ id: iced_layershell::reexport::IcedId, callback: iced_layershell::actions::ActionCallback },
-                AnchorSizeChange{id: iced_layershell::reexport::IcedId, anchor:iced_layershell::reexport::Anchor, size: (u32, u32)},
                 LayerChange{id: iced_layershell::reexport::IcedId, layer:iced_layershell::reexport::Layer},
                 /// Margin: top, left, bottom, right
                 MarginChange{id: iced_layershell::reexport::IcedId, margin: (i32, i32, i32, i32)},
                 BlurOptionChange{id: iced_layershell::reexport::IcedId, option: iced_layershell::reexport::BlurOption},
-                SizeChange{id: iced_layershell::reexport::IcedId, size: (u32, u32)},
                 ExclusiveZoneChange{id: iced_layershell::reexport::IcedId, zone_size: i32},
                 KeyboardInteractivityChange{id: iced_layershell::reexport::IcedId, keyboard_interactivity: iced_layershell::reexport::KeyboardInteractivity},
                 VirtualKeyboardPressed {
@@ -103,11 +101,9 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
                         match self {
                             Self::SetInputRegion{ id, callback } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::SetInputRegion(callback))),
-                            Self::AnchorChange { id, anchor } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::AnchorChange(anchor))),
-                            Self::AnchorSizeChange { id, anchor, size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::AnchorSizeChange(anchor, size))),
+                            Self::LayoutChange { id, anchor, size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::LayoutChange{ anchor, size })),
                             Self::LayerChange { id, layer } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::LayerChange(layer))),
                             Self::MarginChange { id, margin } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::MarginChange(margin))),
-                            Self::SizeChange { id, size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::SizeChange(size))),
                             Self::ExclusiveZoneChange { id, zone_size } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::ExclusiveZoneChange(zone_size))),
                             Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(LayerShellCustomActionWithId::new(Some(id), LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
                             Self::VirtualKeyboardPressed { key } => Ok(LayerShellCustomActionWithId::new(
@@ -131,14 +127,11 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
         }
         false => {
             let additional_variants = quote! {
-                AnchorChange(iced_layershell::reexport::Anchor),
+                LayoutChange { anchor: iced_layershell::reexport::Anchor, size: iced_layershell::reexport::LayerSize },
                 SetInputRegion(iced_layershell::actions::ActionCallback),
-                // Ancher and Size (width, height)
-                AnchorSizeChange(iced_layershell::reexport::Anchor, (u32, u32)),
                 LayerChange(iced_layershell::reexport::Layer),
                 /// Margin: top, left, bottom, right
                 MarginChange((i32, i32, i32, i32)),
-                SizeChange((u32, u32)),
                 ExclusiveZoneChange(i32),
                 KeyboardInteractivityChange(iced_layershell::reexport::KeyboardInteractivity),
                 VirtualKeyboardPressed {
@@ -156,12 +149,10 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
                         match self {
                             Self::SetInputRegion(callback) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::SetInputRegion(callback))),
-                            Self::AnchorChange(anchor) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::AnchorChange(anchor))),
-                            Self::AnchorSizeChange(anchor, size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::AnchorSizeChange(anchor, size))),
+                            Self::LayoutChange { anchor, size } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::LayoutChange { anchor, size })),
                             Self::LayerChange(layer) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::LayerChange(layer))),
 
                             Self::MarginChange(margin) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::MarginChange(margin))),
-                            Self::SizeChange(size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::SizeChange(size))),
                             Self::ExclusiveZoneChange(zone_size) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::ExclusiveZoneChange(zone_size))),
                             Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
                             Self::VirtualKeyboardPressed { key } => Ok(LayerShellCustomActionWithId::new(None, LayerShellCustomAction::VirtualKeyboardPressed {

@@ -32,19 +32,15 @@ pub fn to_exwlshell_message(
             /// The new information about the new shell
             /// Must be addressed during update
             NewShell(iced_exwlshell::NewShellInfo),
-            /// Action , Anchor change
-            AnchorChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor},
+            /// Action, Anchor and size change
+            LayoutChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize},
             /// Action, input region
             SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },
-            /// Action, anchor size change
-            AnchorSizeChange{id: iced_exwlshell::reexport::IcedId, anchor:iced_exwlshell::reexport::Anchor, size: (u32, u32)},
             /// Action, layer change
             LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
             /// Action, margin change Margin: top, left, bottom, right
             MarginChange{id: iced_exwlshell::reexport::IcedId, margin: (i32, i32, i32, i32)},
             BlurOptionChange{id: iced_exwlshell::reexport::IcedId, option: iced_exwlshell::reexport::BlurOption},
-            /// Action, size change
-            SizeChange{id: iced_exwlshell::reexport::IcedId, size: (u32, u32)},
             /// Action, ExclusiveZone Change
             ExclusiveZoneChange{id: iced_exwlshell::reexport::IcedId, zone_size: i32},
             /// Action, KeyboardInteractivity change
@@ -124,11 +120,9 @@ pub fn to_exwlshell_message(
 
                     match self {
                         Self::SetInputRegion{ id, callback } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::SetInputRegion(callback))),
-                        Self::AnchorChange { id, anchor } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::AnchorChange(anchor))),
-                        Self::AnchorSizeChange { id, anchor, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::AnchorSizeChange(anchor, size))),
+                        Self::LayoutChange { id, anchor, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayoutChange { anchor, size })),
                         Self::LayerChange { id, layer } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayerChange(layer))),
                         Self::MarginChange { id, margin } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::MarginChange(margin))),
-                        Self::SizeChange { id, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::SizeChange(size))),
                         Self::ExclusiveZoneChange { id, zone_size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
                         Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
                         Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(

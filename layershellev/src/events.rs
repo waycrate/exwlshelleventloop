@@ -20,6 +20,8 @@ use wayland_client::{
     },
 };
 
+use crate::size::{LayerSize, PixelSize};
+
 use crate::{blur::BlurOption, id, xkb_keyboard::KeyEvent};
 
 use crate::keyboard::ModifiersState;
@@ -91,8 +93,8 @@ pub enum OutputOption {
 /// layershell settings to create a new layershell surface
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewLayerShellSettings {
-    /// the size of the layershell, optional.
-    pub size: Option<(u32, u32)>,
+    /// the size of the layershell
+    pub size: LayerSize,
     pub layer: Layer,
     pub anchor: Anchor,
     pub exclusive_zone: Option<i32>,
@@ -110,8 +112,13 @@ pub struct NewLayerShellSettings {
 /// How a popup is positioned relative to its parent surface
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PopupPlacement {
-    /// anchor rectangle in the parent surface's local coordinates (x, y, w, h)
-    Anchored((i32, i32, i32, i32)),
+    /// anchor rectangle in the parent surface's local coordinates
+    Anchored {
+        /// the top-left corner of the anchor rectangle
+        position: (i32, i32),
+        /// the extents of the anchor rectangle
+        size: PixelSize,
+    },
     /// Absolute position of the popup in the parent surface's local coordinates
     Position((i32, i32)),
 }
@@ -120,7 +127,7 @@ pub enum PopupPlacement {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct NewPopUpSettings {
     /// the size of the popup
-    pub size: (u32, u32),
+    pub size: PixelSize,
     /// the id of the parent surface
     pub id: id::Id,
     /// How a popup is positioned relative to its parent surface
@@ -140,7 +147,7 @@ pub struct NewXdgWindowSettings {
     /// The window title.
     pub title: Option<String>,
     /// The initial window size.
-    pub size: Option<(u32, u32)>,
+    pub size: Option<PixelSize>,
     /// Request client-side decorations instead of the default server-side mode.
     pub client_side_decorations: bool,
 }
@@ -148,7 +155,7 @@ pub struct NewXdgWindowSettings {
 /// input panel settings to create a new input panel surface
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewInputPanelSettings {
-    pub size: (u32, u32),
+    pub size: PixelSize,
     /// set the surface type as a keyboard
     pub keyboard: bool,
     /// follow the last output of the activated surface, used to create some thing like mako, who
@@ -160,10 +167,10 @@ pub struct NewInputPanelSettings {
 impl Default for NewLayerShellSettings {
     fn default() -> Self {
         NewLayerShellSettings {
-            anchor: Anchor::Bottom | Anchor::Left | Anchor::Right,
+            anchor: Anchor::all(),
             layer: Layer::Top,
             exclusive_zone: None,
-            size: None,
+            size: LayerSize::FILL,
             margin: Some((0, 0, 0, 0)),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             blur_option: BlurOption::None,

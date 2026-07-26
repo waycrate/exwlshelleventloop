@@ -1,3 +1,4 @@
+use iced_exwlshell::reexport::{Anchor, LayerSize};
 use iced_exwlshell::to_exwlshell_message;
 
 #[test]
@@ -7,9 +8,10 @@ fn test_layer_message_macro() {
     enum TestEnum {
         TestA,
     }
-    let e = TestEnum::SizeChange {
+    let e = TestEnum::LayoutChange {
         id: iced::window::Id::unique(),
-        size: (1, 2),
+        anchor: Anchor::Bottom,
+        size: LayerSize::fill_width(30),
     };
     let _ = e.clone();
 }

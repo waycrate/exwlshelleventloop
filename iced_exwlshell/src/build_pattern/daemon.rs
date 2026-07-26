@@ -691,12 +691,6 @@ impl<P: Program> Daemon<P> {
             },
             ..Default::default()
         };
-        use exwlshellev::StartMode;
-        assert!(
-            settings.layer_settings.size.is_some()
-                || matches!(settings.layer_settings.start_mode, StartMode::Background),
-            "Size must be specified unless start_mode is Background"
-        );
         crate::multi_window::run(program, &self.namespace, settings, renderer_settings)
     }
 

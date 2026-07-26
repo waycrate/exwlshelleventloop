@@ -126,7 +126,7 @@ where
         .with_start_mode(settings.layer_settings.start_mode)
         .with_use_display_handle(true)
         .with_events_transparent(settings.layer_settings.events_transparent)
-        .with_option_size(settings.layer_settings.size)
+        .with_size(settings.layer_settings.size)
         .with_layer(settings.layer_settings.layer)
         .with_anchor(settings.layer_settings.anchor)
         .with_exclusive_zone(settings.layer_settings.exclusive_zone)
@@ -800,13 +800,9 @@ where
                 ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_blur_option(blur_option);
             }
-            ExwlShellCustomAction::AnchorChange(anchor) => {
+            ExwlShellCustomAction::LayoutChange { anchor, size } => {
                 ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
-                exshell_window.set_anchor(anchor);
-            }
-            ExwlShellCustomAction::AnchorSizeChange(anchor, size) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
-                exshell_window.set_anchor_with_size(anchor, size);
+                exshell_window.set_layout(anchor, size);
             }
             ExwlShellCustomAction::LayerChange(layer) => {
                 ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
@@ -815,10 +811,6 @@ where
             ExwlShellCustomAction::MarginChange(margin) => {
                 ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_margin(margin);
-            }
-            ExwlShellCustomAction::SizeChange((width, height)) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
-                exshell_window.set_size((width, height));
             }
             ExwlShellCustomAction::ExclusiveZoneChange(zone_size) => {
                 ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);

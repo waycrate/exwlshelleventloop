@@ -29,6 +29,7 @@ pub mod reexport {
         Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
         Gravity as PopupGravity,
     };
+    pub use exwlshellev::{Extent, LayerSize, PixelSize};
     pub mod core {
         pub use iced_core::*;
     }
