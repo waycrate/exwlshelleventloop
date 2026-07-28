@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{Alignment, Element, Event, Length, Task as Command, event};
-use iced_layershell::actions::{IcedNewMenuSettings, IcedXdgWindowSettings};
+use iced_layershell::actions::{IcedNewMenuSettings, IcedNewPopupSettings, IcedXdgWindowSettings};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
@@ -173,7 +173,7 @@ impl Counter {
                         self.ids.insert(id, WindowInfo::PopUp);
                         return Command::done(Message::NewMenu {
                             settings: IcedNewMenuSettings {
-                                size: PixelSize::px(100, 100),
+                                size: PixelSize::px(160, 120),
                                 gravity: PopupGravity::TopRight,
                             },
                             id,
@@ -283,16 +283,29 @@ impl Counter {
             return text("hello here is topbar").into();
         }
         if let Some(WindowInfo::PopUp) = self.id_info(id) {
-            return container(button("close PopUp").on_press(Message::Close(id)))
-                .center_x(Length::Fill)
-                .center_y(Length::Fill)
-                .style(|_theme| container::Style {
-                    background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
-                    ..Default::default()
-                })
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into();
+            return container(
+                column![
+                    button("close PopUp").on_press(Message::Close(id)),
+                    button("grow & move").on_press(Message::PopUpReposition {
+                        settings: IcedNewPopupSettings::at_position_on_current_surface(
+                            PixelSize::px(220, 220),
+                            (240, 120),
+                        ),
+                        id,
+                    }),
+                ]
+                .align_x(Alignment::Center)
+                .spacing(10),
+            )
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .style(|_theme| container::Style {
+                background: Some(iced::Color::from_rgba(0., 0.5, 0.7, 0.6).into()),
+                ..Default::default()
+            })
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
         }
         let center = column![
             button("Increment").on_press(Message::IncrementPressed),

@@ -17,8 +17,8 @@ use crate::{
     settings::Settings,
 };
 use exwlshellev::{
-    DispatchMessage, DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopupPlacement,
-    RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DispatchMessage, DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
+    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -926,6 +926,29 @@ where
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
+                )));
+            }
+            ExwlShellCustomAction::PopUpReposition { settings } => {
+                let IcedNewPopupSettings {
+                    size,
+                    placement,
+                    anchor,
+                    gravity,
+                    constraint_adjustment,
+                    ..
+                } = settings;
+                let Some(ex_shell_id) = ex_shell_id else {
+                    return;
+                };
+                ev.append_return_data(ReturnData::PopUpReposition((
+                    PopUpRepositionSettings {
+                        size,
+                        placement,
+                        anchor,
+                        gravity,
+                        constraint_adjustment,
+                    },
+                    ex_shell_id,
                 )));
             }
             ExwlShellCustomAction::NewMenu {
