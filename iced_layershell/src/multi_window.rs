@@ -33,8 +33,8 @@ use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
 use layershellev::{
-    DispatchMessage, DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopupPlacement,
-    RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DispatchMessage, DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopUpRepositionSettings,
+    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -900,6 +900,29 @@ where
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
+                )));
+            }
+            LayerShellCustomAction::PopUpReposition { settings } => {
+                let IcedNewPopupSettings {
+                    size,
+                    placement,
+                    anchor,
+                    gravity,
+                    constraint_adjustment,
+                    ..
+                } = settings;
+                let Some(layer_shell_id) = layer_shell_id else {
+                    return;
+                };
+                ev.append_return_data(ReturnData::PopUpReposition((
+                    PopUpRepositionSettings {
+                        size,
+                        placement,
+                        anchor,
+                        gravity,
+                        constraint_adjustment,
+                    },
+                    layer_shell_id,
                 )));
             }
             LayerShellCustomAction::NewMenu {

@@ -141,6 +141,22 @@ pub struct NewPopUpSettings {
     /// Serial of the input event
     pub grab_serial: Option<u32>,
 }
+
+/// be used to move and resize a mapped popup
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct PopUpRepositionSettings {
+    /// the new size of the popup
+    pub size: PixelSize,
+    /// How the popup is positioned relative to its parent surface
+    pub placement: PopupPlacement,
+    /// which point of the anchor rect the popup is anchored to
+    pub anchor: PopupAnchor,
+    /// the direction the popup grows from the anchor point
+    pub gravity: PopupGravity,
+    /// how the compositor may adjust (flip/slide/resize) the popup for off-screen cases
+    pub constraint_adjustment: PopupConstraintAdjustment,
+}
+
 /// Settings used to create a new xdg toplevel window.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct NewXdgWindowSettings {
@@ -207,6 +223,7 @@ pub enum ReturnData<INFO> {
     RequestSetCursorShape((String, WlPointer)),
     NewLayerShell((NewLayerShellSettings, id::Id, Option<INFO>)),
     NewPopUp((NewPopUpSettings, id::Id, Option<INFO>)),
+    PopUpReposition((PopUpRepositionSettings, id::Id)),
     NewXdgBase((NewXdgWindowSettings, id::Id, Option<INFO>)),
     NewInputPanel((NewInputPanelSettings, id::Id, Option<INFO>)),
     None,

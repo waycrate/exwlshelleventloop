@@ -55,6 +55,8 @@ pub fn to_exwlshell_message(
             NewBaseWindow { settings: iced_exwlshell::actions::IcedXdgWindowSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action request for new base popup
             NewPopUp { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
+            /// During move/resize of a mapped popup `settings.parent` is ignored. Can't be reparented as per spec
+            PopUpReposition { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action request for new menu
             NewMenu { settings: iced_exwlshell::actions::IcedNewMenuSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action request for new input panel
@@ -132,6 +134,7 @@ pub fn to_exwlshell_message(
                         Self::NewLayerShell {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewLayerShell { settings, id })),
                         Self::NewBaseWindow {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewBaseWindow { settings, id })),
                         Self::NewPopUp { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewPopUp { settings, id })),
+                        Self::PopUpReposition { settings, id } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::PopUpReposition { settings })),
                         Self::NewMenu { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewMenu { settings, id })),
                         Self::NewInputPanel {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewInputPanel { settings, id })),
                         Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),

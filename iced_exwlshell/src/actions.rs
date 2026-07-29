@@ -169,6 +169,10 @@ pub enum ExwlShellCustomAction {
         settings: IcedNewPopupSettings,
         id: IcedId,
     },
+    /// During move/resize of a mapped popup `settings.parent` is ignored. Can't be reparented as per spec
+    PopUpReposition {
+        settings: IcedNewPopupSettings,
+    },
     NewMenu {
         settings: IcedNewMenuSettings,
         id: IcedId,

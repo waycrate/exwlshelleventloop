@@ -105,7 +105,7 @@ pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
 pub use events::NewXdgWindowSettings;
 pub use events::OutputOption;
-pub use events::{NewPopUpSettings, PopupPlacement};
+pub use events::{NewPopUpSettings, PopUpRepositionSettings, PopupPlacement};
 pub use sctk::output::OutputInfo;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
@@ -169,7 +169,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 
 use wayland_protocols::xdg::shell::client::{
     xdg_popup::{self, XdgPopup},
-    xdg_positioner::XdgPositioner,
+    xdg_positioner::{self, XdgPositioner},
     xdg_surface::{self, XdgSurface},
     xdg_toplevel::{self, XdgToplevel},
     xdg_wm_base::{self, XdgWmBase},
@@ -443,6 +443,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 becreated: Default::default(),
                 configured,
                 blur_option: BlurOption::None,
+                pending_reposition: None,
                 effect: None,
                 // Unknown why it is 120
                 scale: 120,
@@ -554,6 +555,9 @@ pub struct WindowStateUnit<T> {
     configured: bool,
 
     blur_option: BlurOption,
+
+    /// Only meaningful for PopUp
+    pending_reposition: Option<u32>,
 
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
@@ -1964,6 +1968,13 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
                     state.units[unit_index].request_close();
                 }
             }
+            xdg_popup::Event::Repositioned { token } => {
+                if let Some(unit) = state.units.iter_mut().find(|unit| unit.shell == *surface)
+                    && unit.pending_reposition == Some(token)
+                {
+                    unit.pending_reposition = None;
+                }
+            }
             _ => {}
         }
     }
@@ -2924,29 +2935,15 @@ impl<T: 'static> WindowState<T> {
                                     continue;
                                 };
                                 let wl_surface = wmcompositer.create_surface(&qh, ());
-                                let positioner = wmbase.create_positioner(&qh, ());
-                                let (width, height) = size.to_set_i32();
-                                positioner.set_size(width, height);
-                                // `Position` is a 1×1 anchor rect at the point;
-                                // `Anchored` uses the rect directly.
-                                match placement {
-                                    PopupPlacement::Position((px, py)) => {
-                                        positioner.set_anchor_rect(px, py, 1, 1)
-                                    }
-                                    PopupPlacement::Anchored {
-                                        position: (arx, ary),
-                                        size: rect,
-                                    } => {
-                                        let (arw, arh) = rect.to_set_i32();
-                                        positioner.set_anchor_rect(arx, ary, arw, arh)
-                                    }
-                                }
-                                positioner.set_anchor(anchor);
-                                positioner.set_gravity(gravity);
-                                positioner.set_constraint_adjustment(constraint_adjustment);
-                                if positioner.version() >= 3 {
-                                    positioner.set_reactive();
-                                }
+                                let positioner = build_positioner(
+                                    &wmbase,
+                                    &qh,
+                                    size,
+                                    placement,
+                                    anchor,
+                                    gravity,
+                                    constraint_adjustment,
+                                );
                                 let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
 
                                 let popup = match &window_state.units[index].shell {
@@ -2964,11 +2961,13 @@ impl<T: 'static> WindowState<T> {
                                             "popup parent {:?} is neither a layer surface nor a popup; skipping popup creation",
                                             id
                                         );
+                                        positioner.destroy();
                                         wl_xdg_surface.destroy();
                                         wl_surface.destroy();
                                         continue;
                                     }
                                 };
+                                positioner.destroy();
 
                                 match (window_state.seat_back.as_ref(), grab_serial) {
                                     (Some(seat), Some(serial)) => popup.grab(seat, serial),
@@ -3011,6 +3010,50 @@ impl<T: 'static> WindowState<T> {
                                     .becreated(true)
                                     .build(),
                                 );
+                            }
+                            ReturnData::PopUpReposition((
+                                PopUpRepositionSettings {
+                                    size,
+                                    placement,
+                                    anchor,
+                                    gravity,
+                                    constraint_adjustment,
+                                },
+                                id,
+                            )) => {
+                                let Some(unit) =
+                                    window_state.units.iter_mut().find(|unit| unit.id == id)
+                                else {
+                                    continue;
+                                };
+                                let Shell::PopUp((popup, _)) = &unit.shell else {
+                                    log::warn!(
+                                        target: "exwlshellev",
+                                        "reposition target {id:?} is not a popup; only popups can be repositioned"
+                                    );
+                                    continue;
+                                };
+                                if popup.version() < 3 {
+                                    log::warn!(
+                                        target: "exwlshellev",
+                                        "compositor offers xdg_popup v{}, reposition needs v3; leaving popup {id:?} as it is",
+                                        popup.version()
+                                    );
+                                    continue;
+                                }
+                                let positioner = build_positioner(
+                                    &wmbase,
+                                    &qh,
+                                    size,
+                                    placement,
+                                    anchor,
+                                    gravity,
+                                    constraint_adjustment,
+                                );
+                                let token = unit.pending_reposition.unwrap_or(0).wrapping_add(1);
+                                popup.reposition(&positioner, token);
+                                positioner.destroy();
+                                unit.pending_reposition = Some(token);
                             }
                             ReturnData::NewXdgBase((
                                 NewXdgWindowSettings {
@@ -3426,6 +3469,37 @@ impl<T: 'static> WindowState<T> {
             self.append_return_data(return_data);
         }
     }
+}
+
+fn build_positioner<T: 'static>(
+    wmbase: &XdgWmBase,
+    qh: &QueueHandle<WindowState<T>>,
+    size: PixelSize,
+    placement: PopupPlacement,
+    anchor: xdg_positioner::Anchor,
+    gravity: xdg_positioner::Gravity,
+    constraint_adjustment: xdg_positioner::ConstraintAdjustment,
+) -> XdgPositioner {
+    let positioner = wmbase.create_positioner(qh, ());
+    let (width, height) = size.to_set_i32();
+    positioner.set_size(width, height);
+    match placement {
+        PopupPlacement::Position((px, py)) => positioner.set_anchor_rect(px, py, 1, 1),
+        PopupPlacement::Anchored {
+            position: (arx, ary),
+            size: rect,
+        } => {
+            let (arw, arh) = rect.to_set_i32();
+            positioner.set_anchor_rect(arx, ary, arw, arh)
+        }
+    }
+    positioner.set_anchor(anchor);
+    positioner.set_gravity(gravity);
+    positioner.set_constraint_adjustment(constraint_adjustment);
+    if positioner.version() >= 3 {
+        positioner.set_reactive();
+    }
+    positioner
 }
 
 fn get_cursor_buffer(
