@@ -37,6 +37,11 @@ pub struct Settings {
     /// set the used wayland connection, all wayland object will share it, and they can be used by
     /// each other.
     pub with_connection: Option<Connection>,
+
+    /// Where the runtime announces the lock surfaces it creates and the
+    /// monitors they cover. Pair it with
+    /// [`iced_wayland_subscriber::shell::channel`] and keep the receiver.
+    pub shell_broadcast: iced_wayland_subscriber::shell::ShellSender,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -47,6 +52,7 @@ impl Default for Settings {
             default_text_size: Pixels(16.0),
             antialiasing: false,
             with_connection: None,
+            shell_broadcast: iced_wayland_subscriber::shell::channel().0,
         }
     }
 }

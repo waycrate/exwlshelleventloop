@@ -1,257 +1,34 @@
-use std::{hash::Hash, mem::ManuallyDrop};
+mod info;
+mod worker;
 
-use futures::SinkExt;
-use wayland_client::{
-    Connection, Dispatch, DispatchError, EventQueue, Proxy, WEnum, delegate_noop,
-    globals::{BindError, GlobalError, GlobalListContents, registry_queue_init},
-    protocol::{
-        wl_output::{self, Transform, WlOutput},
-        wl_registry,
-    },
-};
+pub mod output;
+pub mod shell;
 
-use wayland_protocols::xdg::xdg_output::zv1::client::{
-    zxdg_output_manager_v1::ZxdgOutputManagerV1,
-    zxdg_output_v1::{self, ZxdgOutputV1},
-};
+#[cfg(feature = "workspace")]
+pub mod workspace;
 
-use iced::futures::channel::mpsc::Sender;
+pub use info::{OutputId, OutputInfo, pixel_size};
+pub use worker::Error;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Error during registry")]
-    RegistryErr(#[from] GlobalError),
-    #[error("Bind Error")]
-    BindErr(#[from] BindError),
-    #[error("Dispatch error")]
-    RoundtripErr(#[from] DispatchError),
-}
+use std::hash::Hash;
+use std::os::fd::{AsFd, AsRawFd};
+use wayland_client::Connection;
 
-#[derive(Debug)]
-struct BaseState;
-
-// so interesting, it is just need to invoke once, it just used to get the globals
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for BaseState {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_registry::WlRegistry,
-        _event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &GlobalListContents,
-        _conn: &Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
-    }
-}
-
-#[derive(Debug)]
-struct SubscribeState {
-    xdg_output_manager: ZxdgOutputManagerV1,
-    events: Vec<WaylandEvent>,
-    pending_events: Vec<OutputInfo>,
-}
-
+/// A [`Connection`] usable as a subscription key
 #[derive(Debug, Clone)]
-pub struct OutputInfo {
-    pub wl_output: WlOutput,
-    pub name: String,
-    pub description: String,
-    pub transform: Transform,
-    pub physical_size: Size,
-    pub logical_region: LogicalRegion,
-    zxdg_output: ZxdgOutputV1,
-    is_ready: bool,
-    wl_output_done: bool,
-    zxdg_output_done: bool,
-}
-
-impl OutputInfo {
-    fn new(wl_output: WlOutput, zxdg_output: ZxdgOutputV1) -> Self {
-        Self {
-            wl_output,
-            name: "".to_owned(),
-            description: "".to_owned(),
-            zxdg_output,
-            transform: Transform::Normal,
-            physical_size: Size::default(),
-            logical_region: LogicalRegion::default(),
-            is_ready: false,
-            wl_output_done: false,
-            zxdg_output_done: false,
-        }
-    }
-    fn check_is_ready(&mut self) {
-        self.is_ready = self.wl_output_done
-            && (self.zxdg_output_done
-                || (!self.name.is_empty()
-                    && !self.description.is_empty()
-                    && self.logical_region.size
-                        != Size {
-                            width: 0,
-                            height: 0,
-                        }))
-    }
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct Size<T = i32> {
-    pub width: T,
-    pub height: T,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct LogicalRegion<T = i32> {
-    pub position: Position<T>,
-    pub size: Size<T>,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Position<T = i32> {
-    pub x: T,
-    pub y: T,
-}
-
-impl SubscribeState {
-    fn new(xdg_output_manager: ZxdgOutputManagerV1) -> Self {
-        Self {
-            xdg_output_manager,
-            events: Vec::new(),
-            pending_events: Vec::new(),
-        }
-    }
-}
-
-impl Dispatch<wl_registry::WlRegistry, ()> for SubscribeState {
-    fn event(
-        state: &mut Self,
-        proxy: &wl_registry::WlRegistry,
-        event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        match event {
-            wl_registry::Event::Global {
-                name,
-                interface,
-                version,
-            } => {
-                if interface == wl_output::WlOutput::interface().name {
-                    let output = proxy.bind::<wl_output::WlOutput, _, _>(name, version, qh, ());
-                    let zxdg_output = state.xdg_output_manager.get_xdg_output(&output, qh, ());
-                    state
-                        .pending_events
-                        .push(OutputInfo::new(output, zxdg_output));
-                }
-            }
-            wl_registry::Event::GlobalRemove { .. } => {}
-            _ => unreachable!(),
-        }
-    }
-}
-impl Dispatch<zxdg_output_v1::ZxdgOutputV1, ()> for SubscribeState {
-    fn event(
-        state: &mut Self,
-        zxdg_output: &zxdg_output_v1::ZxdgOutputV1,
-        event: <zxdg_output_v1::ZxdgOutputV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        let Some((index, pending)) = state
-            .pending_events
-            .iter_mut()
-            .enumerate()
-            .find(|(_, event)| event.zxdg_output == *zxdg_output)
-        else {
-            return;
-        };
-        match event {
-            zxdg_output_v1::Event::Name { name } => {
-                pending.name = name;
-            }
-            zxdg_output_v1::Event::Description { description } => {
-                pending.description = description;
-            }
-            zxdg_output_v1::Event::LogicalSize { width, height } => {
-                pending.logical_region.size = Size { width, height };
-            }
-            zxdg_output_v1::Event::LogicalPosition { x, y } => {
-                pending.logical_region.position = Position { x, y };
-            }
-            // NOTE: the done is deprecated.
-            zxdg_output_v1::Event::Done => {
-                pending.zxdg_output_done = true;
-            }
-            _ => {}
-        }
-        pending.check_is_ready();
-        let is_ready = pending.is_ready;
-        let _ = pending;
-        if is_ready {
-            let pending = state.pending_events.remove(index);
-            state.events.push(WaylandEvent::OutputInsert(pending));
-        }
-    }
-}
-
-impl Dispatch<wl_output::WlOutput, ()> for SubscribeState {
-    fn event(
-        state: &mut Self,
-        wl_output: &wl_output::WlOutput,
-        event: <wl_output::WlOutput as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        let Some((index, pending)) = state
-            .pending_events
-            .iter_mut()
-            .enumerate()
-            .find(|(_, event)| event.wl_output == *wl_output)
-        else {
-            return;
-        };
-        match event {
-            wl_output::Event::Geometry {
-                transform: WEnum::Value(transform),
-                ..
-            } => {
-                pending.transform = transform;
-            }
-            wl_output::Event::Done => {
-                pending.wl_output_done = true;
-            }
-            wl_output::Event::Mode { width, height, .. } => {
-                pending.physical_size = Size { width, height };
-            }
-            _ => {}
-        }
-        pending.check_is_ready();
-        let is_ready = pending.is_ready;
-        let _ = pending;
-        if is_ready {
-            let pending = state.pending_events.remove(index);
-            state.events.push(WaylandEvent::OutputInsert(pending));
-        }
-    }
-}
-
-delegate_noop!(SubscribeState: ignore ZxdgOutputManagerV1);
-
-#[derive(Debug)]
-pub enum WaylandEvent {
-    OutputInsert(OutputInfo),
-    Stop(Error),
-}
-
-#[derive(Debug, Clone)]
-pub struct HashConnection {
+pub(crate) struct HashConnection {
     conn: Connection,
+}
+
+impl HashConnection {
+    pub(crate) fn into_inner(self) -> Connection {
+        self.conn
+    }
 }
 
 impl Hash for HashConnection {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.conn.display().hash(state);
+        self.conn.as_fd().as_raw_fd().hash(state);
     }
 }
 
@@ -259,88 +36,4 @@ impl From<Connection> for HashConnection {
     fn from(value: Connection) -> Self {
         Self { conn: value }
     }
-}
-
-#[derive(Debug)]
-struct QueuePoll<'a, 'b> {
-    queue: ManuallyDrop<&'a mut EventQueue<SubscribeState>>,
-    state: ManuallyDrop<&'b mut SubscribeState>,
-}
-
-impl<'a, 'b> QueuePoll<'a, 'b> {
-    fn new(queue: &'a mut EventQueue<SubscribeState>, state: &'b mut SubscribeState) -> Self {
-        Self {
-            queue: ManuallyDrop::new(queue),
-            state: ManuallyDrop::new(state),
-        }
-    }
-}
-
-async fn async_dispatch(
-    event_queue: &mut EventQueue<SubscribeState>,
-    state: &mut SubscribeState,
-) -> Result<WaylandEvent, Error> {
-    let poll_conn = QueuePoll::new(event_queue, state);
-    poll_conn.await
-}
-
-use std::task::Poll;
-
-impl<'a, 'b> Future for QueuePoll<'a, 'b> {
-    type Output = Result<WaylandEvent, Error>;
-    fn poll(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> Poll<Self::Output> {
-        let mut poll_init = self.as_mut();
-        let state = unsafe { ManuallyDrop::take(&mut poll_init.state) };
-        let queue = unsafe { ManuallyDrop::take(&mut poll_init.queue) };
-        if state.events.is_empty() {
-            if let Err(e) = queue.roundtrip(state) {
-                return Poll::Ready(Err(e.into()));
-            };
-            poll_init.queue = ManuallyDrop::new(queue);
-            poll_init.state = ManuallyDrop::new(state);
-            cx.waker().wake_by_ref();
-            Poll::Pending
-        } else {
-            let event = state.events.pop().unwrap();
-            poll_init.queue = ManuallyDrop::new(queue);
-            poll_init.state = ManuallyDrop::new(state);
-            Poll::Ready(Ok(event))
-        }
-    }
-}
-
-async fn subscription(
-    output: &mut Sender<WaylandEvent>,
-    conn: HashConnection,
-) -> Result<(), Error> {
-    let connection = conn.conn.clone();
-    let (globals, _) = registry_queue_init::<BaseState>(&connection)?;
-
-    let mut event_queue = connection.new_event_queue::<SubscribeState>();
-    let qhandle = event_queue.handle();
-    let display = connection.display();
-
-    let xdg_output_manager = globals.bind::<ZxdgOutputManagerV1, _, _>(&qhandle, 1..=3, ())?; // 
-    let mut state = SubscribeState::new(xdg_output_manager);
-
-    display.get_registry(&qhandle, ());
-    loop {
-        let event = async_dispatch(&mut event_queue, &mut state).await?;
-        output.send(event).await.ok();
-    }
-}
-
-pub fn listen(connection: Connection) -> iced::Subscription<WaylandEvent> {
-    let connection: HashConnection = connection.into();
-    iced::Subscription::run_with(connection, |conn| {
-        let conn = conn.clone();
-        iced::stream::channel(100, |mut output: Sender<WaylandEvent>| async move {
-            if let Err(e) = subscription(&mut output, conn).await {
-                output.send(WaylandEvent::Stop(e)).await.ok();
-            }
-        })
-    })
 }

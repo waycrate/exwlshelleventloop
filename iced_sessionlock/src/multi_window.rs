@@ -16,6 +16,7 @@ use super::DefaultStyle;
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
 use iced_core::theme::Mode;
 use iced_graphics::{Compositor, Shell, compositor};
+use iced_wayland_subscriber::shell;
 
 use iced_core::{Size, time::Instant};
 use iced_runtime::{Action, UserInterface, user_interface};
@@ -159,6 +160,7 @@ where
         settings.fonts,
         system_theme,
         proxy_back,
+        settings.shell_broadcast,
     );
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
@@ -249,6 +251,7 @@ where
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
+    shell_broadcast: shell::ShellSender,
 }
 
 impl<P, E, C> Context<P, E, C>
@@ -266,6 +269,7 @@ where
         fonts: Vec<Cow<'static, [u8]>>,
         system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
+        shell_broadcast: shell::ShellSender,
     ) -> Self {
         Self {
             compositor_settings,
@@ -280,6 +284,7 @@ where
             iced_events: Default::default(),
             messages: Default::default(),
             proxy,
+            shell_broadcast,
         }
     }
 
@@ -333,11 +338,8 @@ where
             };
             tracing::debug!("creating compositor");
             let context_state = ContextState::Future(
-                self.create_compositor(
-                    Arc::new(layer_shell_window.gen_wrapper()),
-                    ev.display_wrapper(),
-                )
-                .boxed_local(),
+                self.create_compositor(layer_shell_window.gen_wrapper(), ev.display_wrapper())
+                    .boxed_local(),
             );
             return (context_state, Some(session_lock_event));
         }
@@ -394,8 +396,20 @@ where
             }
             (id, window)
         } else {
-            let wrapper = Arc::new(session_lock_window.gen_wrapper());
+            let wrapper = session_lock_window.gen_wrapper();
             let iced_id = IcedId::unique();
+            self.shell_broadcast
+                .send(shell::ShellEvent::NewShell(shell::ShellInfo {
+                    window: iced_id,
+                    shell: shell::ShellType::SessionLock,
+                }));
+            if let Some(output) = ev.get_output_info_of(session_lock_window.get_wloutput()) {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::WindowOutputChanged {
+                        window: iced_id,
+                        output: Some(output),
+                    });
+            }
             debug::theme_changed(|| {
                 self.window_manager
                     .first()
@@ -559,6 +573,8 @@ where
         self.cached_layer_dimensions.remove(&iced_id);
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
+        self.iced_events.retain(|(id, _)| *id != iced_id);
+        self.shell_broadcast.forget(iced_id);
         self.runtime
             .broadcast(iced_futures::subscription::Event::Interaction {
                 window: iced_id,
@@ -571,6 +587,25 @@ where
     }
 
     fn handle_window_event(&mut self, session_lock_id: Option<SessionLockId>, event: WindowEvent) {
+        match &event {
+            WindowEvent::OutputAdded(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputAdded(info.clone()));
+                return;
+            }
+            WindowEvent::OutputUpdated(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputUpdated(info.clone()));
+                return;
+            }
+            WindowEvent::OutputRemoved(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputRemoved(info.clone()));
+                return;
+            }
+            _ => {}
+        }
+
         let id_and_window = if let Some(layer_shell_id) = session_lock_id {
             self.window_manager.get_mut_alias(layer_shell_id)
         } else {

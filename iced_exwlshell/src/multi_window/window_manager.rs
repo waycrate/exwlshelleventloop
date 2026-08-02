@@ -67,14 +67,8 @@ where
     }
 
     pub fn remove(&mut self, id: IcedId) {
-        let remove_alias = self
-            .aliases
-            .iter()
-            .find(|(_, oriid)| **oriid == id)
-            .map(|(layid, _)| *layid);
-        if let Some(oriid) = remove_alias {
-            self.aliases.remove(&oriid);
-        }
+        // Every alias, not just the first
+        self.aliases.retain(|_, aliased| *aliased != id);
         self.back_aliases.remove(&id);
         self.entries.remove(&id);
     }

@@ -1,3 +1,4 @@
+use sctk::output::OutputInfo;
 use wayland_client::{
     QueueHandle, WEnum,
     globals::GlobalList,
@@ -102,6 +103,9 @@ pub struct AxisScroll {
 #[derive(Debug, Clone)]
 pub(crate) enum DispatchMessageInner {
     NewDisplay(WlOutput),
+    OutputAdded(OutputInfo),
+    OutputUpdated(OutputInfo),
+    OutputRemoved(OutputInfo),
     MouseButton {
         state: WEnum<ButtonState>,
         serial: u32,
@@ -268,13 +272,24 @@ pub enum DispatchMessage {
         scale_u32: u32,
     },
     // because wlouput is dead, the window is closed
+    /// monitor was connected
+    OutputAdded(OutputInfo),
+    /// monitor mode, scale, name or position changed
+    OutputUpdated(OutputInfo),
+    /// monitor was disconnected
+    OutputRemoved(OutputInfo),
     Closed,
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
     fn from(val: DispatchMessageInner) -> Self {
         match val {
-            DispatchMessageInner::NewDisplay(_) => unimplemented!(),
+            DispatchMessageInner::NewDisplay(_) => {
+                unreachable!("NewDisplay is handled before conversion")
+            }
+            DispatchMessageInner::OutputAdded(info) => DispatchMessage::OutputAdded(info),
+            DispatchMessageInner::OutputUpdated(info) => DispatchMessage::OutputUpdated(info),
+            DispatchMessageInner::OutputRemoved(info) => DispatchMessage::OutputRemoved(info),
             DispatchMessageInner::MouseButton {
                 state,
                 serial,

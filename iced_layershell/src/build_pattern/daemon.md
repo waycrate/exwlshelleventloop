@@ -1,5 +1,12 @@
 # the daemon function allows you to pass just the function to create the program.
 
+Two hooks report the surfaces the runtime creates and the monitors they are
+shown on. `on_new_shell` runs synchronously, before a surface's first frame,
+use it when that first frame would otherwise be wrong, as for session lock.
+would otherwise be wrong, as for session lock. `Settings::shell_broadcast`
+is the asynchronous half: hand the runtime the sending end of
+`iced_wayland_subscriber::shell::channel()`, keep the receiver, and subscribe
+to it for surface and monitor changes as they happen.
 
 ```rust, no_run
 use std::collections::HashMap;

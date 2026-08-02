@@ -12,7 +12,6 @@ use crate::{
 };
 use crate::{
     event::{IcedLayerShellEvent, WindowEvent as LayerShellWindowEvent},
-    output::{OutputEvent, OutputInfo},
     proxy::IcedProxy,
     settings::Settings,
 };
@@ -32,9 +31,10 @@ use iced_program::Instance;
 use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
+use iced_wayland_subscriber::shell;
 use layershellev::{
-    DispatchMessage, DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopUpRepositionSettings,
-    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DisplayWrapper, LayerShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
+    RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{WlCompositor, WlRegion},
@@ -83,6 +83,7 @@ pub fn run<P>(
     namespace: &str,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
+    on_new_shell: Option<crate::NewShellHook<P::Message>>,
 ) -> Result<(), Error>
 where
     P: IcedProgram + 'static,
@@ -177,6 +178,8 @@ where
         application,
         compositor_settings,
         runtime,
+        on_new_shell,
+        settings.shell_broadcast,
         settings.fonts,
         system_theme,
         proxy_back,
@@ -223,14 +226,7 @@ where
                 }
             }
             LayerShellEvent::RequestMessages(message) => {
-                let window_event = match message {
-                    DispatchMessage::OutputChanged(_) => LayerShellWindowEvent::OutputChanged(
-                        layer_shell_id
-                            .and_then(|id| ev.get_output_info(id))
-                            .map(OutputInfo::from),
-                    ),
-                    message => LayerShellWindowEvent::from(message),
-                };
+                let window_event = LayerShellWindowEvent::from_dispatch(message, ev);
                 waiting_layer_shell_events
                     .push_back((layer_shell_id, IcedLayerShellEvent::Window(window_event)));
             }
@@ -302,6 +298,8 @@ where
 {
     compositor_settings: iced_graphics::Settings,
     runtime: MultiRuntime<E, P::Message>,
+    on_new_shell: Option<crate::NewShellHook<P::Message>>,
+    shell_broadcast: shell::ShellSender,
     system_theme: iced_core::theme::Mode,
     fonts: Vec<Cow<'static, [u8]>>,
     compositor: Option<C>,
@@ -325,10 +323,13 @@ where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         application: Instance<P>,
         compositor_settings: iced_graphics::Settings,
         runtime: MultiRuntime<E, P::Message>,
+        on_new_shell: Option<crate::NewShellHook<P::Message>>,
+        shell_broadcast: shell::ShellSender,
         fonts: Vec<Cow<'static, [u8]>>,
         system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
@@ -336,6 +337,8 @@ where
         Self {
             compositor_settings,
             runtime,
+            on_new_shell,
+            shell_broadcast,
             system_theme,
             fonts,
             compositor: Default::default(),
@@ -403,11 +406,8 @@ where
             };
             tracing::debug!("creating compositor");
             let context_state = ContextState::Future(
-                self.create_compositor(
-                    Arc::new(layer_shell_window.gen_wrapper()),
-                    ev.display_wrapper(),
-                )
-                .boxed_local(),
+                self.create_compositor(layer_shell_window.gen_wrapper(), ev.display_wrapper())
+                    .boxed_local(),
             );
             return (context_state, Some(layer_shell_event));
         }
@@ -451,79 +451,131 @@ where
         else {
             return;
         };
+        let unit_id = layer_shell_window.id();
         let (width, height) = layer_shell_window.get_size();
         let scale_float = layer_shell_window.scale_float();
         // events may not be handled after RequestRefreshWithWrapper in the same
         // interaction, we dispatched them immediately.
         let mut events = Vec::new();
-        let (iced_id, window) = if let Some((iced_id, window)) =
-            self.window_manager.get_mut_alias(layer_shell_window.id())
-        {
-            let window_size = window.state.window_size();
+        let (iced_id, window) =
+            if let Some((iced_id, window)) = self.window_manager.get_mut_alias(unit_id) {
+                let window_size = window.state.window_size();
 
-            if window_size.width != width
-                || window_size.height != height
-                || window.state.wayland_scale_factor() != scale_float
-            {
-                let layout_span = iced_debug::layout(iced_id);
-                window.state.update_view_port(width, height, scale_float);
-                if let Some(ui) = self.user_interfaces.ui_mut(&iced_id) {
-                    ui.relayout(window.state.viewport().logical_size(), &mut window.renderer);
+                if window_size.width != width
+                    || window_size.height != height
+                    || window.state.wayland_scale_factor() != scale_float
+                {
+                    let layout_span = iced_debug::layout(iced_id);
+                    window.state.update_view_port(width, height, scale_float);
+                    if let Some(ui) = self.user_interfaces.ui_mut(&iced_id) {
+                        ui.relayout(window.state.viewport().logical_size(), &mut window.renderer);
+                    }
+                    layout_span.finish();
+                    events.push(IcedEvent::Window(IcedWindowEvent::Resized(
+                        window.state.window_size_f32(),
+                    )));
                 }
-                layout_span.finish();
-                events.push(IcedEvent::Window(IcedWindowEvent::Resized(
-                    window.state.window_size_f32(),
-                )));
-            }
-            (iced_id, window)
-        } else {
-            let wrapper = Arc::new(layer_shell_window.gen_wrapper());
-            let iced_id = layer_shell_window
-                .get_binding()
-                .copied()
-                .unwrap_or_else(IcedId::unique);
+                (iced_id, window)
+            } else {
+                let wrapper = layer_shell_window.gen_wrapper();
+                let iced_id = layer_shell_window
+                    .get_binding()
+                    .copied()
+                    .unwrap_or_else(IcedId::unique);
 
-            let is_first = self.window_manager.is_empty();
-
-            let window = self.window_manager.insert(
-                iced_id,
-                (width, height),
-                scale_float,
-                wrapper,
-                self.user_interfaces.application(),
-                self.compositor
-                    .as_mut()
-                    .expect("It should have been created"),
-                self.system_theme,
-            );
-
-            iced_debug::theme_changed(|| {
-                if is_first {
-                    theme::Base::palette(window.state.theme())
-                } else {
-                    None
+                let shell_type = match layer_shell_window.wl_shell_type() {
+                    layershellev::WlShellType::LayerShell => shell::ShellType::LayerShell,
+                    layershellev::WlShellType::PopUp => shell::ShellType::PopUp,
+                    layershellev::WlShellType::XdgTopLevel => shell::ShellType::XdgTopLevel,
+                    layershellev::WlShellType::InputPanel => shell::ShellType::InputPanel,
+                };
+                let info = shell::ShellInfo {
+                    window: iced_id,
+                    shell: shell_type,
+                };
+                self.shell_broadcast.send(shell::ShellEvent::NewShell(info));
+                if let Some(output) = ev
+                    .get_unit_with_id(unit_id)
+                    .and_then(|unit| unit.get_wloutput().cloned())
+                    && let Some(inner) = ev.get_output_info_of(&output)
+                {
+                    self.shell_broadcast
+                        .send(shell::ShellEvent::WindowOutputChanged {
+                            window: iced_id,
+                            output: Some(inner),
+                        });
                 }
-            });
+                if let Some(message) = self.on_new_shell.as_ref().and_then(|f| f(info)) {
+                    ev.request_refresh_all(RefreshRequest::NextFrame);
+                    let (caches, application) = self.user_interfaces.extract_all();
+                    update(
+                        application,
+                        &mut self.runtime,
+                        &mut vec![message],
+                        &mut self.waiting_layer_shell_actions,
+                    );
+                    for (_, window) in self.window_manager.iter_mut() {
+                        window.state.synchronize(application);
+                    }
+                    iced_debug::theme_changed(|| {
+                        self.window_manager
+                            .first()
+                            .and_then(|window| theme::Base::palette(window.state.theme()))
+                    });
+                    for (cached_id, cache) in caches {
+                        let Some(window) = self.window_manager.get_mut(cached_id) else {
+                            continue;
+                        };
+                        self.user_interfaces.build(
+                            cached_id,
+                            cache,
+                            &mut window.renderer,
+                            window.state.viewport().logical_size(),
+                        );
+                    }
+                }
 
-            let theme = window.state.theme().mode();
-            if self.system_theme != theme {
-                self.runtime
-                    .broadcast(iced_futures::subscription::Event::SystemThemeChanged(theme));
-            }
+                let is_first = self.window_manager.is_empty();
 
-            self.user_interfaces.build(
-                iced_id,
-                user_interface::Cache::default(),
-                &mut window.renderer,
-                window.state.viewport().logical_size(),
-            );
+                let window = self.window_manager.insert(
+                    iced_id,
+                    (width, height),
+                    scale_float,
+                    wrapper,
+                    self.user_interfaces.application(),
+                    self.compositor
+                        .as_mut()
+                        .expect("It should have been created"),
+                    self.system_theme,
+                );
 
-            events.push(IcedEvent::Window(IcedWindowEvent::Opened {
-                position: None,
-                size: window.state.window_size_f32(),
-            }));
-            (iced_id, window)
-        };
+                iced_debug::theme_changed(|| {
+                    if is_first {
+                        theme::Base::palette(window.state.theme())
+                    } else {
+                        None
+                    }
+                });
+
+                let theme = window.state.theme().mode();
+                if self.system_theme != theme {
+                    self.runtime
+                        .broadcast(iced_futures::subscription::Event::SystemThemeChanged(theme));
+                }
+
+                self.user_interfaces.build(
+                    iced_id,
+                    user_interface::Cache::default(),
+                    &mut window.renderer,
+                    window.state.viewport().logical_size(),
+                );
+
+                events.push(IcedEvent::Window(IcedWindowEvent::Opened {
+                    position: None,
+                    size: window.state.window_size_f32(),
+                }));
+                (iced_id, window)
+            };
 
         let compositor = self
             .compositor
@@ -535,7 +587,7 @@ where
             .ui_mut(&iced_id)
             .expect("Get User interface");
 
-        let cursor = if ev.is_mouse_surface(layer_shell_window.id()) {
+        let cursor = if ev.is_mouse_surface(unit_id) {
             window.state.cursor()
         } else {
             Cursor::Unavailable
@@ -599,7 +651,7 @@ where
         draw_span.finish();
 
         // get layer_shell_id so that layer_shell_window can be drop, and ev can be borrow mut
-        let layer_shell_id = layer_shell_window.id();
+        let layer_shell_id = unit_id;
 
         Self::handle_ui_state(ev, window, ui_state, false, true);
 
@@ -658,16 +710,21 @@ where
         ev: &mut WindowState<IcedId>,
         layer_shell_id: Option<LayerShellId>,
     ) {
-        let Some(iced_id) = layer_shell_id
-            .and_then(|lid| ev.get_unit_with_id(lid))
-            .and_then(|layer_shell_window| layer_shell_window.get_binding().copied())
-        else {
+        let Some(iced_id) = layer_shell_id.and_then(|lid| {
+            self.window_manager
+                .get_alias(lid)
+                .map(|(iced_id, _)| iced_id)
+                .or_else(|| ev.get_unit_with_id(lid)?.get_binding().copied())
+        }) else {
             return;
         };
         self.cached_layer_dimensions.remove(&iced_id);
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
-        crate::output::forget(iced_id);
+        self.iced_events.retain(|(id, _)| *id != iced_id);
+        self.waiting_layer_shell_actions
+            .retain(|(id, _)| *id != Some(iced_id));
+        self.shell_broadcast.forget(iced_id);
         self.runtime
             .broadcast(iced_futures::subscription::Event::Interaction {
                 window: iced_id,
@@ -685,6 +742,24 @@ where
         layer_shell_id: Option<LayerShellId>,
         event: LayerShellWindowEvent,
     ) {
+        match &event {
+            LayerShellWindowEvent::OutputAdded(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputAdded(info.clone()));
+                return;
+            }
+            LayerShellWindowEvent::OutputUpdated(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputUpdated(info.clone()));
+                return;
+            }
+            LayerShellWindowEvent::OutputRemoved(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputRemoved(info.clone()));
+                return;
+            }
+            _ => {}
+        }
         let id_and_window = if let Some(layer_shell_id) = layer_shell_id {
             self.window_manager.get_mut_alias(layer_shell_id)
         } else {
@@ -694,10 +769,11 @@ where
             return;
         };
         if let LayerShellWindowEvent::OutputChanged(output) = &event {
-            crate::output::broadcast(OutputEvent {
-                window: iced_id,
-                output: output.clone(),
-            });
+            self.shell_broadcast
+                .send(shell::ShellEvent::WindowOutputChanged {
+                    window: iced_id,
+                    output: output.clone(),
+                });
         }
         // In previous implementation, event without layer_shell_id won't call `update` here, but
         // will broadcast to the application. I'm not sure why, but I think it is

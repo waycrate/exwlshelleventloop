@@ -6,7 +6,7 @@ mod conversion;
 mod error;
 mod event;
 mod multi_window;
-pub mod output;
+pub use iced_wayland_subscriber::shell;
 mod proxy;
 mod user_interface;
 
@@ -41,6 +41,9 @@ mod ime_preedit;
 pub use iced_layershell_macros::to_layer_message;
 
 pub use error::Error;
+
+/// Hook invoked for every surface the runtime materializes
+pub type NewShellHook<Message> = Box<dyn Fn(shell::ShellInfo) -> Option<Message>>;
 
 /// Opt-out for clipboard initialization. Call this before starting the
 /// runtime when your app has no text input and doesn't need paste/copy —

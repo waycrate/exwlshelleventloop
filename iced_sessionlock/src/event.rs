@@ -94,6 +94,9 @@ pub enum WindowEvent {
         y: f64,
     },
     Refresh,
+    OutputAdded(sessionlockev::OutputInfo),
+    OutputUpdated(sessionlockev::OutputInfo),
+    OutputRemoved(sessionlockev::OutputInfo),
     Closed,
     ThemeChanged(iced_core::theme::Mode),
 }
@@ -109,6 +112,9 @@ impl From<&DispatchMessage> for WindowEvent {
     fn from(value: &DispatchMessage) -> Self {
         match value {
             DispatchMessage::RequestRefresh { .. } => WindowEvent::Refresh,
+            DispatchMessage::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
+            DispatchMessage::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),
+            DispatchMessage::OutputRemoved(info) => WindowEvent::OutputRemoved(info.clone()),
             DispatchMessage::Closed => WindowEvent::Closed,
             DispatchMessage::MouseEnter {
                 surface_x: x,
