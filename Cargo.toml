@@ -95,8 +95,8 @@ winit-core = "0.31.0-beta.2"                                                # Ha
 tracing = "0.1.40"
 futures = "0.3.31"
 
-darling = { version = "0.20.10", features = ["suggestions"] }
-manyhow = { version = "0.11.4", features = ["darling"] }
+darling = { version = "0.24.0", features = ["suggestions"] }
+manyhow = { version = "0.13.0", features = ["darling"] }
 proc-macro2 = "1.0.89"
 quote = "1.0.37"
-syn = { version = "2.0.87", features = ["full"] }
+syn = { version = "3.0", features = ["full"] }
