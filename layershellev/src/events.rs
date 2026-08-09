@@ -1,3 +1,4 @@
+use sctk::output::OutputInfo;
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer,
     zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity},
@@ -79,6 +80,9 @@ pub enum OutputOption {
     LastOutput,
 
     OutputName(String),
+
+    /// The `wl_registry` global name, as carried by `iced_wayland_subscriber::OutputId`
+    GlobalName(u32),
 
     /// NOTE: The output should be in the same connection with the layershellev, that means if you
     /// want to pass a [wl_output::WlOutput] to create a new layershell, you need to pass your
@@ -280,6 +284,9 @@ pub enum Ime {
 #[derive(Debug, Clone)]
 pub(crate) enum DispatchMessageInner {
     NewDisplay(WlOutput),
+    OutputAdded(OutputInfo),
+    OutputUpdated(OutputInfo),
+    OutputRemoved(OutputInfo),
     MouseButton {
         state: WEnum<ButtonState>,
         serial: u32,
@@ -453,13 +460,24 @@ pub enum DispatchMessage {
     Ime(Ime),
     /// surface entered output, or left the one it was on
     OutputChanged(Option<WlOutput>),
+    /// monitor was connected
+    OutputAdded(OutputInfo),
+    /// monitor mode, scale, name or position changed
+    OutputUpdated(OutputInfo),
+    /// monitor was disconnected
+    OutputRemoved(OutputInfo),
     Closed,
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
     fn from(val: DispatchMessageInner) -> Self {
         match val {
-            DispatchMessageInner::NewDisplay(_) => unimplemented!(),
+            DispatchMessageInner::NewDisplay(_) => {
+                unreachable!("NewDisplay is handled before conversion")
+            }
+            DispatchMessageInner::OutputAdded(info) => DispatchMessage::OutputAdded(info),
+            DispatchMessageInner::OutputUpdated(info) => DispatchMessage::OutputUpdated(info),
+            DispatchMessageInner::OutputRemoved(info) => DispatchMessage::OutputRemoved(info),
             DispatchMessageInner::MouseButton {
                 state,
                 serial,

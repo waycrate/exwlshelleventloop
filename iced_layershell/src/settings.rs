@@ -1,6 +1,7 @@
 use std::{borrow::Cow, fs::File};
 
 use iced_core::{Font, Pixels};
+use iced_wayland_subscriber::shell;
 
 use crate::reexport::{Anchor, KeyboardInteractivity, Layer, WithConnection};
 
@@ -57,6 +58,11 @@ pub struct Settings {
     /// set the used wayland connection, all wayland object will share it, and they can be used by
     /// each other.
     pub with_connection: Option<WithConnection>,
+
+    /// Where the runtime reports the surfaces it creates and the outputs they
+    /// land on. Clone the same handle into `Broadcast::listen` to receive them.
+    /// The default is a fresh one, which nothing is listening to.
+    pub shell_broadcast: shell::ShellSender,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -69,6 +75,7 @@ impl Default for Settings {
             antialiasing: false,
             virtual_keyboard_support: None,
             with_connection: None,
+            shell_broadcast: shell::channel().0,
         }
     }
 }

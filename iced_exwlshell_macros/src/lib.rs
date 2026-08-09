@@ -29,9 +29,6 @@ pub fn to_exwlshell_message(
 
     let (additional_variants, impl_quote) = {
         let additional_variants = quote! {
-            /// The new information about the new shell
-            /// Must be addressed during update
-            NewShell(iced_exwlshell::NewShellInfo),
             /// Action, Anchor and size change
             LayoutChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize},
             /// Action, input region
@@ -104,12 +101,6 @@ pub fn to_exwlshell_message(
                         iced_exwlshell::reexport::Task::done(Self::NewBaseWindow { settings, id })
                     )
 
-                }
-            }
-
-            impl #impl_gen iced_exwlshell::FromShellInfo for #ident #ty_gen #where_gen {
-                fn get(shell: iced_exwlshell::NewShellInfo) -> Self {
-                    Self::NewShell(shell)
                 }
             }
 

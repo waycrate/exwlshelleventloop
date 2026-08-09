@@ -2,11 +2,10 @@
 //! Similar with the one of origin iced.
 
 mod daemon;
-use crate::{FromShellInfo, NewShellInfo};
 /// The renderer of some Program.
 use iced_exdevtools::gen_attach;
 
-gen_attach! {Action = ExwlShellCustomActionWithId, GetTrait = FromShellInfo, NewShellInfo = NewShellInfo}
+gen_attach! {Action = ExwlShellCustomActionWithId}
 
 #[doc = include_str!("./build_pattern/daemon.md")]
 pub use daemon::daemon;

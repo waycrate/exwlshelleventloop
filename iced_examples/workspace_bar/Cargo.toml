@@ -1,0 +1,18 @@
+[package]
+name = "workspace_bar"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+iced.workspace = true
+iced_layershell.workspace = true
+iced_wayland_subscriber = { workspace = true, features = ["workspace"] }
+wayland-client.workspace = true
+tracing-subscriber.workspace = true

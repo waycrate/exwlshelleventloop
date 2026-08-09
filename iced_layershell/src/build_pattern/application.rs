@@ -616,7 +616,7 @@ impl<P: Program> SingleApplication<P> {
             settings.layer_settings.start_mode,
             StartMode::AllScreens | StartMode::Background
         ));
-        crate::multi_window::run(program, &self.namespace, settings, renderer_settings)
+        crate::multi_window::run(program, &self.namespace, settings, renderer_settings, None)
     }
 
     pub fn settings(self, settings: Settings) -> Self {

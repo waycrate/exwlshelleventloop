@@ -4,7 +4,6 @@ use iced_core::Element;
 use iced_core::Font;
 use iced_runtime::Task;
 
-use crate::FromShellInfo;
 use crate::actions::ExwlShellCustomActionWithId;
 
 use crate::DefaultStyle;
@@ -144,12 +143,13 @@ where
 }
 
 use iced_program::Program;
+use iced_wayland_subscriber::shell::ShellInfo;
 
-#[derive(Debug)]
 pub struct Daemon<A: Program> {
     raw: A,
     settings: Settings,
     namespace: String,
+    on_new_shell: Option<crate::NewShellHook<A::Message>>,
 }
 
 pub fn daemon<State, Message, Theme, Renderer>(
@@ -160,11 +160,8 @@ pub fn daemon<State, Message, Theme, Renderer>(
 ) -> Daemon<impl Program<Message = Message, Theme = Theme, State = State>>
 where
     State: 'static,
-    Message: 'static
-        + TryInto<ExwlShellCustomActionWithId, Error = Message>
-        + FromShellInfo
-        + Send
-        + std::fmt::Debug,
+    Message:
+        'static + TryInto<ExwlShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle,
     Renderer: iced_program::Renderer,
 {
@@ -239,6 +236,7 @@ where
         },
         settings: Settings::default(),
         namespace: namespace.namespace(),
+        on_new_shell: None,
     }
 }
 
@@ -664,19 +662,24 @@ impl<P: Program> Daemon<P> {
         P::Message: std::fmt::Debug
             + Send
             + 'static
-            + FromShellInfo
             + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
     {
         let settings = self.settings;
+        let on_new_shell = self.on_new_shell;
+
         #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
-        let program = {
+        let (program, on_new_shell) = {
             iced_debug::init(iced_debug::Metadata {
                 name: P::name(),
                 theme: None,
                 can_time_travel: cfg!(feature = "time-travel"),
             });
 
-            super::attach(self.raw)
+            let hook = on_new_shell.map(|f| {
+                Box::new(move |info| f(info).map(iced_exdevtools::Event::Program))
+                    as Box<dyn Fn(ShellInfo) -> Option<_>>
+            });
+            (super::attach(self.raw), hook)
         };
 
         #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
@@ -691,7 +694,13 @@ impl<P: Program> Daemon<P> {
             },
             ..Default::default()
         };
-        crate::multi_window::run(program, &self.namespace, settings, renderer_settings)
+        crate::multi_window::run(
+            program,
+            &self.namespace,
+            settings,
+            renderer_settings,
+            on_new_shell,
+        )
     }
 
     pub fn settings(self, settings: Settings) -> Self {
@@ -760,6 +769,7 @@ impl<P: Program> Daemon<P> {
             raw: with_style(self.raw, move |state, theme| f(state, theme)),
             settings: self.settings,
             namespace: self.namespace,
+            on_new_shell: self.on_new_shell,
         }
     }
     /// Sets the subscription logic of the [`Daemon`].
@@ -771,6 +781,7 @@ impl<P: Program> Daemon<P> {
             raw: with_subscription(self.raw, move |state| f(state)),
             settings: self.settings,
             namespace: self.namespace,
+            on_new_shell: self.on_new_shell,
         }
     }
 
@@ -783,6 +794,16 @@ impl<P: Program> Daemon<P> {
             raw: with_title(self.raw, move |state, id| f(state, id)),
             settings: self.settings,
             namespace: self.namespace,
+            on_new_shell: self.on_new_shell,
+        }
+    }
+
+    /// Sets a hook called for every surface the runtime materializes
+    /// State applies before the first frame, shell actions land one frame later.
+    pub fn on_new_shell(self, f: impl Fn(ShellInfo) -> Option<P::Message> + 'static) -> Self {
+        Self {
+            on_new_shell: Some(Box::new(f)),
+            ..self
         }
     }
 
@@ -795,6 +816,7 @@ impl<P: Program> Daemon<P> {
             raw: with_theme(self.raw, move |state, id| f.theme(state, id)),
             settings: self.settings,
             namespace: self.namespace,
+            on_new_shell: self.on_new_shell,
         }
     }
 
@@ -807,6 +829,7 @@ impl<P: Program> Daemon<P> {
             raw: with_scale_factor(self.raw, move |state, id| f(state, id)),
             settings: self.settings,
             namespace: self.namespace,
+            on_new_shell: self.on_new_shell,
         }
     }
     /// Sets the executor of the [`Daemon`].
@@ -820,6 +843,7 @@ impl<P: Program> Daemon<P> {
             raw: with_executor::<P, E>(self.raw),
             settings: self.settings,
             namespace: self.namespace,
+            on_new_shell: self.on_new_shell,
         }
     }
 }

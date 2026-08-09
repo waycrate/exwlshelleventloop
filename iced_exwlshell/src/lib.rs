@@ -6,7 +6,6 @@ mod conversion;
 mod error;
 mod event;
 mod multi_window;
-pub mod output;
 mod proxy;
 mod user_interface;
 
@@ -18,7 +17,6 @@ pub mod reexport {
     pub use exwlshellev::OutputOption;
     pub use exwlshellev::PopupPlacement;
     pub use exwlshellev::WithConnection;
-    pub use exwlshellev::WlShellType;
     pub use exwlshellev::blur::BlurOption;
     pub use exwlshellev::blur::BlurRegion;
     pub use exwlshellev::reexport::Anchor;
@@ -42,22 +40,16 @@ mod ime_preedit;
 pub use iced_exwlshell_macros::to_exwlshell_message;
 
 pub use error::Error;
+pub use iced_wayland_subscriber::shell;
+
+/// Hook invoked for every surface the runtime materializes
+pub type NewShellHook<Message> = Box<dyn Fn(shell::ShellInfo) -> Option<Message>>;
 
 /// Opt-out for clipboard initialization. Call this before starting the
 /// runtime when your app has no text input and doesn't need paste/copy —
 /// this skips spawning the always-on smithay-clipboard worker thread.
 pub fn disable_clipboard() {
     clipboard::set_disabled();
-}
-
-pub trait FromShellInfo {
-    fn get(shell: NewShellInfo) -> Self;
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct NewShellInfo {
-    pub id: iced_core::window::Id,
-    pub shell: exwlshellev::WlShellType,
 }
 
 pub type Result = std::result::Result<(), error::Error>;

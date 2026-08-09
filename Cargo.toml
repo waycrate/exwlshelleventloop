@@ -63,6 +63,7 @@ wayland-protocols-wlr = { version = "0.3.5", default-features = false, features 
 
 wayland-protocols-misc = { version = "0.3.5", features = ["client"] }
 wayland-backend = { version = "0.3.7", features = ["client_system"] }
+rustix = { version = "1.1.4", features = ["event"] }
 
 calloop = "0.14.1"
 calloop-wayland-source = "0.4.0"

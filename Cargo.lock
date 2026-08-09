@@ -1927,6 +1927,7 @@ dependencies = [
  "iced_program",
  "iced_renderer",
  "iced_runtime",
+ "iced_wayland_subscriber",
  "layershellev",
  "log",
  "mundy",
@@ -1997,6 +1998,7 @@ dependencies = [
  "iced_renderer",
  "iced_runtime",
  "iced_sessionlock_macros",
+ "iced_wayland_subscriber",
  "log",
  "mundy",
  "sessionlockev",
@@ -2050,7 +2052,10 @@ name = "iced_wayland_subscriber"
 version = "0.19.1"
 dependencies = [
  "futures",
- "iced",
+ "iced_core",
+ "iced_futures",
+ "rustix 1.1.4",
+ "smithay-client-toolkit 0.20.0",
  "thiserror 2.0.17",
  "wayland-client",
  "wayland-protocols",
@@ -5786,6 +5791,17 @@ name = "wit-bindgen"
 version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
+
+[[package]]
+name = "workspace_bar"
+version = "0.19.1"
+dependencies = [
+ "iced",
+ "iced_layershell",
+ "iced_wayland_subscriber",
+ "tracing-subscriber",
+ "wayland-client",
+]
 
 [[package]]
 name = "x11-dl"
