@@ -722,5 +722,4 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
     }
 }
 
-sctk::delegate_seat!(@<T: 'static > WindowState<T>);
 delegate_noop!(@<T: 'static> WindowState<T>: ignore WlSeat);

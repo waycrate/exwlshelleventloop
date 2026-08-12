@@ -2357,7 +2357,7 @@ delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockV1); // buffer show the
 delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
 
 sctk::delegate_registry!(@<T: 'static> WindowState<T>);
-sctk::delegate_output!(@<T: 'static> WindowState<T>);
+sctk::delegate_dispatch2!(@<T: 'static> WindowState<T>);
 // we need to reply to the ping event otherwise
 // top-level windows will be marked as unresponsive
 // by the compositor.

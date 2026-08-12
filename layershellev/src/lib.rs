@@ -2301,7 +2301,7 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
 sctk::delegate_registry!(@<T: 'static> WindowState<T>);
-sctk::delegate_output!(@<T: 'static> WindowState<T>);
+sctk::delegate_dispatch2!(@<T: 'static> WindowState<T>);
 
 // we need to reply to the ping event otherwise
 // top-level windows will be marked as unresponsive

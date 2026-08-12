@@ -292,7 +292,7 @@ pub(crate) fn listen<S: Worker>(connection: Connection) -> Subscription<S::Event
                     return;
                 }
                 while let Some(mut event) = rx.next().await {
-                    while let Ok(Some(newer)) = rx.try_next() {
+                    while let Ok(newer) = rx.try_recv() {
                         if !S::disposition(&newer).supersedes() && output.send(event).await.is_err()
                         {
                             return;
