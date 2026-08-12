@@ -1001,7 +1001,7 @@ delegate_noop!(@<T>WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 delegate_noop!(@<T>WindowState<T>: ignore WpFractionalScaleManagerV1);
 
 sctk::delegate_registry!(@<T: 'static> WindowState<T>);
-sctk::delegate_output!(@<T: 'static> WindowState<T>);
+sctk::delegate_dispatch2!(@<T: 'static> WindowState<T>);
 
 impl<T: 'static> WindowState<T> {
     pub fn build(mut self) -> Result<Self, SessionLockEventError> {

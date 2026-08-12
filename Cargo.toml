@@ -44,35 +44,35 @@ iced_exwlshell_macros = { version = "0.19.1", path = "./iced_exwlshell_macros" }
 waycrate_xkbkeycode = { version = "0.19.1", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.27.0"
-thiserror = "2.0.12"
-wayland-client = { version = "0.31.7" }
+thiserror = "2.0.20"
+wayland-client = { version = "0.31.15" }
 
-wayland-protocols = { version = "0.32.5", default-features = false, features = [
+wayland-protocols = { version = "0.32.13", default-features = false, features = [
   "unstable",
   "staging",
   "client",
 ] }
 
-tracing-subscriber = { version = "0.3.18", features = ["std", "env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["std", "env-filter"] }
 
-wayland-cursor = "0.31.7"
+wayland-cursor = "0.31.14"
 
-wayland-protocols-wlr = { version = "0.3.5", default-features = false, features = [
+wayland-protocols-wlr = { version = "0.3.12", default-features = false, features = [
   "client",
 ] }
 
-wayland-protocols-misc = { version = "0.3.5", features = ["client"] }
-wayland-backend = { version = "0.3.7", features = ["client_system"] }
+wayland-protocols-misc = { version = "0.3.12", features = ["client"] }
+wayland-backend = { version = "0.3.16", features = ["client_system"] }
 rustix = { version = "1.1.4", features = ["event"] }
 
-calloop = "0.14.1"
-calloop-wayland-source = "0.4.0"
+calloop = "0.14.4"
+calloop-wayland-source = "0.4.1"
 
 rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
   "std",
 ] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
-sctk = { package = "smithay-client-toolkit", version = "0.20.0" }
+sctk = { package = "smithay-client-toolkit", version = "0.21.1" }
 iced = "0.14"
 iced_runtime = "0.14"
 iced_core = "0.14"
@@ -83,21 +83,21 @@ iced_graphics = "0.14"
 iced_debug = "0.14"
 iced_devtools = "0.14"
 iced_widget = "0.14"
-window_clipboard = "0.5.0"
+window_clipboard = "0.5.1"
 
-log = "0.4.22"
+log = "0.4.33"
 enumflags2 = "0.7.11"
 
 xkbcommon-dl = "0.4.2"
-memmap2 = "0.9.5"
+memmap2 = "0.9.11"
 winit-common = { version = "0.31.0-beta.2", features = ["xkb", "wayland"] }
 winit-core = "0.31.0-beta.2"                                                # Has some important types
 
 tracing = "0.1.40"
-futures = "0.3.31"
+futures = "0.3.34"
 
 darling = { version = "0.24.0", features = ["suggestions"] }
 manyhow = { version = "0.13.0", features = ["darling"] }
-proc-macro2 = "1.0.89"
-quote = "1.0.37"
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
 syn = { version = "3.0", features = ["full"] }

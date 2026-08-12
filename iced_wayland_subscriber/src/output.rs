@@ -1,5 +1,5 @@
 use sctk::{
-    delegate_output, delegate_registry,
+    delegate_dispatch2, delegate_registry,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
@@ -103,7 +103,7 @@ impl ProvidesRegistryState for Outputs {
 }
 
 delegate_registry!(Outputs);
-delegate_output!(Outputs);
+delegate_dispatch2!(Outputs);
 delegate_noop!(Outputs: ignore WlCallback);
 
 /// Watch the compositor's outputs

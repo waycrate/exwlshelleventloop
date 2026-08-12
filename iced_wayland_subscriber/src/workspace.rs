@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use sctk::{
-    delegate_output, delegate_registry,
+    delegate_dispatch2, delegate_registry,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
@@ -662,7 +662,7 @@ impl ProvidesRegistryState for Workspaces {
 }
 
 delegate_registry!(Workspaces);
-delegate_output!(Workspaces);
+delegate_dispatch2!(Workspaces);
 delegate_noop!(Workspaces: ignore WlCallback);
 
 /// Watch the compositor's workspaces.
