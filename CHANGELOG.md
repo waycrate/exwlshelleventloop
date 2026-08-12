@@ -6,13 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Migration
+Current update is hudge, so [Migration Guide is provided](https://github.com/waycrate/exwlshelleventloop/docs/MIGRATION-19.1->20.0.md)
+
 ### Changed (breaking)
 - Feat: track outputs with sctk's `OutputState` instead of manual `zxdg_output_v1` handling, removed `XdgInfoChanged` event, `XdgInfoChangedType`, `ZxdgOutputInfo` and `get_xdgoutput_info`
 - Feat: new `DispatchMessage::OutputChanged` event sent when surface enters another output or its output info changes
+- Feat: rework iced_wayland_subscriber: `listen()`/`WaylandEvent` replaced by `output::listen()` and the `shell::channel()` broadcast
+- Feat: new `LayerSize` sizing type with init guards for zero values, `set_layout()` replaces `set_anchor_with_size()`
 
 ### Changed
 - Feat: add `WindowState::outputs()`, `output_by_name()`, `get_output_info()`, `get_output_info_of()` and `WindowStateUnit::get_wloutput()`
 - Feat: add `output::listen()` subscription to iced_layershell and iced_exwlshell to track the output a window is displayed on
+- Feat: ext-workspace-v1 support behind the `workspace` feature: `workspace::listen()` and workspace requests
+- Feat: support ext-background-effect-v1 blur via `BlurOption`
+- Feat: xdg_popup reposition via `PopUpRepositionSettings`
 
 ## [0.19.1] - 2026-07-12
 ### Changed
