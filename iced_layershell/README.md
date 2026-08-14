@@ -13,6 +13,10 @@ With this crate, you can use iced to build your kde-shell, notification applicat
 
 To learn about surfaces the runtime creates for you, set the `on_new_shell` hook, which maps the new surface to a message of your own before its first frame is drawn. For the same information asynchronously, pass a `iced_wayland_subscriber::shell::channel()` sender to `Settings::shell_broadcast` and subscribe from the receiver. The same broadcast reports the monitors via `OutputAdded`, `OutputUpdated`, `OutputRemoved`, and which monitor each of your windows is on, through `WindowOutputChanged`. When a window is removed, listen to the iced window events.
 
+`Settings::keep_compositor_alive` (default `true`) keeps compositor alive when
+the last surface closes instead of dropping it. Set it to `false` for programs that
+open rarely and the cold start delay doesn't matter, but GPU/RAM resources do.
+
 ## Example
 
 ### Single Window iced_layershell

@@ -12,6 +12,10 @@ iced-exwlshelll provides all extra shell bindings on wayland for iced.
 
 With this crate, you can use iced to build your kde-shell, notification application, and etc.
 
+`Settings::keep_compositor_alive` (default `true`) keeps compositor alive when
+the last surface closes instead of dropping it. Set it to `false` for programs that
+open rarely and the cold start delay doesn't matter, but GPU/RAM resources do.
+
 ## Design
 
 Since iced cannot define custom system actions and custom system events now, though I have a pr for it https://github.com/iced-rs/iced/pull/2658, but now I can use trait for the Message and let it become my custom system events and custom system actions. What you need is just add `#[to_exwlshell_message]` to your message, Then you will get a lot of extra fields on you `Message`. 

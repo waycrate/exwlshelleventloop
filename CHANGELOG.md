@@ -21,6 +21,7 @@ Current update is hudge, so [Migration Guide is provided](https://github.com/way
 - Feat: ext-workspace-v1 support behind the `workspace` feature: `workspace::listen()` and workspace requests
 - Feat: support ext-background-effect-v1 blur via `BlurOption`
 - Feat: xdg_popup reposition via `PopUpRepositionSettings`
+- Feat: add opt-in `Settings::keep_compositor_alive` keeping the compositor alive when the last surface closes toreduce next "first" surface spawn
 
 ## [0.19.1] - 2026-07-12
 ### Changed
