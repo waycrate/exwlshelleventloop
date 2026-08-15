@@ -6,6 +6,16 @@ iced-layershell provides binding for iced and sessionlock.
 
 Session lock is the wayland protocol for lock. This protocol is supported in river, sway and etc. We use it make a beautiful lock program in [twenty](https://github.com/waycrate/twenty). You can also use it to build your sessionlock. This will become very easy to use our crate with pam crate.
 
+## Cargo features
+
+The `macros` feature is enabled by default and re-exports
+`to_session_message`. Consumers that do not use the macro can skip its
+proc-macro dependencies while retaining theme detection like so:
+
+```toml
+iced_sessionlock = { version = "...", default-features = false, features = ["linux-theme-detection"] }
+```
+
 The smallest example is like
 
 ```rust, no_run

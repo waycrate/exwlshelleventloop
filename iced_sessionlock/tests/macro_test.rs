@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use iced_sessionlock::to_session_message;
 
 #[test]
