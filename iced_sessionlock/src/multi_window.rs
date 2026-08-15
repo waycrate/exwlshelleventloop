@@ -7,7 +7,6 @@ use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
     sync::Arc,
-    task::Poll,
 };
 
 use crate::{clipboard::SessionLockClipboard, conversion, error::Error};
@@ -38,7 +37,6 @@ use window_manager::Window;
 
 #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
 use futures::StreamExt;
-use futures::{FutureExt, future::LocalBoxFuture};
 
 use crate::{event::IcedSessionLockEvent, proxy::IcedProxy, settings::Settings};
 
@@ -78,7 +76,6 @@ where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<UnLockAction, Error = P::Message>,
 {
-    use futures::task;
     use sessionlockev::calloop::channel::channel;
 
     let (message_sender, message_receiver) = channel::<Action<P::Message>>();
@@ -148,7 +145,6 @@ where
         .build()
         .expect("Seems sessionlock is not supported");
 
-    let mut task_context = task::Context::from_waker(task::noop_waker_ref());
     let context = Context::<
         P,
         <P as iced_program::Program>::Executor,
@@ -187,18 +183,6 @@ where
             let mut need_continue = false;
             context_state = match std::mem::replace(&mut context_state, ContextState::None) {
                 ContextState::None => unreachable!("context state is taken but not returned"),
-                ContextState::Future(mut future) => {
-                    tracing::debug!("poll context future");
-                    match future.as_mut().poll(&mut task_context) {
-                        Poll::Ready(context) => {
-                            tracing::debug!("context future is ready");
-                            // context is ready, continue to run.
-                            need_continue = true;
-                            ContextState::Context(context)
-                        }
-                        Poll::Pending => ContextState::Future(future),
-                    }
-                }
                 ContextState::Context(context) => {
                     if let Some((session_lock_id, session_lock_event)) =
                         waiting_session_lock_events.pop_front()
@@ -228,7 +212,6 @@ where
 enum ContextState<Context> {
     None,
     Context(Context),
-    Future(LocalBoxFuture<'static, Context>),
 }
 
 struct Context<P, E, C>
@@ -288,15 +271,13 @@ where
         }
     }
 
-    async fn create_compositor(
-        mut self,
-        window: Arc<WindowWrapper>,
-        display: DisplayWrapper,
-    ) -> Self {
+    /// Create compositor synchronously. This is a one-time init that must finish
+    /// before the first frame can render. Copies iced_winit logic.
+    fn create_compositor(&mut self, window: Arc<WindowWrapper>, display: DisplayWrapper) {
         let shell = Shell::new(self.proxy.clone());
-        let mut new_compositor = C::new(self.compositor_settings, display, window.clone(), shell)
-            .await
-            .expect("Cannot create compositer");
+        let compositor_future = C::new(self.compositor_settings, display, window.clone(), shell);
+        let mut new_compositor =
+            futures::executor::block_on(compositor_future).expect("Cannot create compositor");
         for font in self.fonts.clone() {
             new_compositor.load_font(font);
         }
@@ -309,7 +290,6 @@ where
         } else {
             SessionLockClipboard::connect(&window)
         };
-        self
     }
 
     fn remove_compositor(&mut self) {
@@ -337,11 +317,9 @@ where
                 return (ContextState::Context(self), None);
             };
             tracing::debug!("creating compositor");
-            let context_state = ContextState::Future(
-                self.create_compositor(layer_shell_window.gen_wrapper(), ev.display_wrapper())
-                    .boxed_local(),
-            );
-            return (context_state, Some(session_lock_event));
+            let window = layer_shell_window.gen_wrapper();
+            let display = ev.display_wrapper();
+            self.create_compositor(window, display);
         }
         match session_lock_event {
             IcedSessionLockEvent::Window(WindowEvent::Refresh) => {

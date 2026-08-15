@@ -62,6 +62,11 @@ pub struct Settings {
     /// land on. Clone the same handle into `Broadcast::listen` to receive them.
     /// The default is a fresh one, which nothing is listening to.
     pub shell_broadcast: shell::ShellSender,
+
+    /// Keep the compositor alive when the last surface closes, instead of
+    /// dropping it. Avoids cold-start delay at the cost of idle GPU/RAM.
+    /// Defaults to `true`. Useful for daemons that show surfaces rarely.
+    pub keep_compositor_alive: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -75,6 +80,7 @@ impl Default for Settings {
             virtual_keyboard_support: None,
             with_connection: None,
             shell_broadcast: shell::channel().0,
+            keep_compositor_alive: true,
         }
     }
 }

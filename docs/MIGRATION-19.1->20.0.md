@@ -175,3 +175,9 @@ Requests (`activate`, `deactivate`, `remove`, `assign`, `create_workspace`) go
 on the snapshot and are capability-gated: check `WorkspaceCapabilities` /
 `GroupCapabilities` before showing UI. A snapshot outliving its protocol objects
 returns `RequestError::Gone`.
+
+## Keep compositor alive (new)
+
+`Settings::keep_compositor_alive` (default `true`) keeps compositor alive when
+the last surface closes instead of dropping it. Set it to `false` for programs that
+open rarely and the cold start delay doesn't matter, but GPU/RAM resources do.

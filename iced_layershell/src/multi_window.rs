@@ -17,7 +17,6 @@ use crate::{
 };
 #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
 use futures::StreamExt;
-use futures::{FutureExt, future::LocalBoxFuture};
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
 use iced_core::theme::Mode;
 use iced_core::{
@@ -48,7 +47,6 @@ use std::{
     mem,
     os::fd::AsFd,
     sync::Arc,
-    task::Poll,
     time::Duration,
 };
 use window_manager::Window;
@@ -90,7 +88,6 @@ where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<LayerShellCustomActionWithId, Error = P::Message>,
 {
-    use futures::task;
     use layershellev::calloop::channel::channel;
     let (message_sender, message_receiver) = channel::<Action<P::Message>>();
 
@@ -183,12 +180,12 @@ where
         settings.fonts,
         system_theme,
         proxy_back,
+        settings.keep_compositor_alive,
     );
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
 
     let mut waiting_layer_shell_events = VecDeque::new();
-    let mut task_context = task::Context::from_waker(task::noop_waker_ref());
 
     ev.running_with_proxy(message_receiver, move |event, ev, layer_shell_id| {
         let mut def_returndata = ReturnData::None;
@@ -244,18 +241,6 @@ where
             let mut need_continue = false;
             context_state = match std::mem::replace(&mut context_state, ContextState::None) {
                 ContextState::None => unreachable!("context state is taken but not returned"),
-                ContextState::Future(mut future) => {
-                    tracing::debug!("poll context future");
-                    match future.as_mut().poll(&mut task_context) {
-                        Poll::Ready(context) => {
-                            tracing::debug!("context future is ready");
-                            // context is ready, continue to run.
-                            need_continue = true;
-                            ContextState::Context(context)
-                        }
-                        Poll::Pending => ContextState::Future(future),
-                    }
-                }
                 ContextState::Context(context) => {
                     if let Some((layer_shell_id, layer_shell_event)) =
                         waiting_layer_shell_events.pop_front()
@@ -285,7 +270,6 @@ where
 enum ContextState<Context> {
     None,
     Context(Context),
-    Future(LocalBoxFuture<'static, Context>),
 }
 
 struct Context<P, E, C>
@@ -313,6 +297,7 @@ where
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
     time: Instant,
+    keep_compositor_alive: bool,
 }
 
 impl<P, E, C> Context<P, E, C>
@@ -333,6 +318,7 @@ where
         fonts: Vec<Cow<'static, [u8]>>,
         system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
+        keep_compositor_alive: bool,
     ) -> Self {
         Self {
             compositor_settings,
@@ -341,6 +327,7 @@ where
             shell_broadcast,
             system_theme,
             fonts,
+            keep_compositor_alive,
             compositor: Default::default(),
             window_manager: WindowManager::new(),
             cached_layer_dimensions: HashMap::new(),
@@ -355,15 +342,13 @@ where
         }
     }
 
-    async fn create_compositor(
-        mut self,
-        window: Arc<WindowWrapper>,
-        display: DisplayWrapper,
-    ) -> Self {
+    /// Create compositor synchronously. This is a one-time init that must finish
+    /// before the first frame can render. Copies iced_winit logic.
+    fn create_compositor(&mut self, window: Arc<WindowWrapper>, display: DisplayWrapper) {
         let shell = Shell::new(self.proxy.clone());
-        let mut new_compositor = C::new(self.compositor_settings, display, window.clone(), shell)
-            .await
-            .expect("Cannot create compositer");
+        let compositor_future = C::new(self.compositor_settings, display, window.clone(), shell);
+        let mut new_compositor =
+            futures::executor::block_on(compositor_future).expect("Cannot create compositor");
         for font in self.fonts.clone() {
             new_compositor.load_font(font);
         }
@@ -376,7 +361,6 @@ where
         } else {
             LayerShellClipboard::connect(&window)
         };
-        self
     }
 
     fn remove_compositor(&mut self) {
@@ -405,11 +389,9 @@ where
                 return (ContextState::Context(self), None);
             };
             tracing::debug!("creating compositor");
-            let context_state = ContextState::Future(
-                self.create_compositor(layer_shell_window.gen_wrapper(), ev.display_wrapper())
-                    .boxed_local(),
-            );
-            return (context_state, Some(layer_shell_event));
+            let window = layer_shell_window.gen_wrapper();
+            let display = ev.display_wrapper();
+            self.create_compositor(window, display);
         }
 
         match layer_shell_event {
@@ -732,7 +714,8 @@ where
                 status: iced_core::event::Status::Ignored,
             });
         // if now there is no windows now, then break the compositor, and unlink the clipboard
-        if self.window_manager.is_empty() {
+        // unless opted-in to keep the compositor alive
+        if self.window_manager.is_empty() && !self.keep_compositor_alive {
             self.remove_compositor();
         }
     }
