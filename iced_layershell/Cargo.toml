@@ -11,8 +11,9 @@ description = "layershell binding for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["linux-theme-detection"]
+default = ["linux-theme-detection", "macros"]
 
+macros = ["dep:iced_layershell_macros"]
 debug = ["iced_debug/enable"]
 time-travel = ["iced_exdevtools/time-travel", "debug"]
 unconditional-rendering = []
@@ -25,7 +26,7 @@ iced_runtime.workspace = true
 iced_core.workspace = true
 iced_futures.workspace = true
 iced_graphics.workspace = true
-iced_layershell_macros.workspace = true
+iced_layershell_macros = { workspace = true, optional = true }
 iced_program.workspace = true
 iced_debug.workspace = true
 iced_exdevtools.workspace = true
