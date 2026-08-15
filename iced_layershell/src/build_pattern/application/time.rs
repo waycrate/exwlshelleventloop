@@ -13,8 +13,8 @@ use std::time::Instant;
 /// This constructor is useful to create animated applications that
 /// are _pure_ (e.g. without relying on side-effect calls like [`Instant::now`]).
 ///
-/// This function is the same as the timed in iced, and you also need to use
-/// [crate::to_layer_message] to mark the Message
+/// This function matches iced's timed constructor. Use `to_layer_message` to mark the
+/// message enum when the default `macros` feature is enabled.
 pub fn timed<State, Message, Theme, Renderer>(
     boot: impl BootFn<State, Message>,
     namespace: impl NameSpace,

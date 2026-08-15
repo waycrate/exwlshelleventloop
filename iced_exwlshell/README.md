@@ -10,6 +10,16 @@ iced-exwlshelll provides all extra shell bindings on wayland for iced.
 - support sessionlock
 - support ext-virtual-keyboard
 
+## Cargo features
+
+The `macros` feature is enabled by default and re-exports
+`to_exwlshell_message`. Consumers that do not use the macro can skip its
+proc-macro dependencies while retaining theme detection like so:
+
+```toml
+iced_exwlshell = { version = "...", default-features = false, features = ["linux-theme-detection"] }
+```
+
 With this crate, you can use iced to build your kde-shell, notification application, and etc.
 
 `Settings::keep_compositor_alive` (default `true`) keeps compositor alive when

@@ -11,15 +11,16 @@ description = "sessionlock binding for iced"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["linux-theme-detection"]
+default = ["linux-theme-detection", "macros"]
 
+macros = ["dep:iced_sessionlock_macros"]
 debug = ["iced_debug/enable"]
 time-travel = ["iced_exdevtools/time-travel", "debug"]
 unconditional-rendering = []
 linux-theme-detection = ["dep:mundy"]
 
 [dependencies]
-iced_sessionlock_macros.workspace = true
+iced_sessionlock_macros = { workspace = true, optional = true }
 iced_renderer.workspace = true
 iced_runtime.workspace = true
 iced_core.workspace = true

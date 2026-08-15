@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use iced_layershell::reexport::{Anchor, LayerSize};
 use iced_layershell::to_layer_message;
 

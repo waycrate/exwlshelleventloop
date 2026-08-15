@@ -1,3 +1,4 @@
+#![doc(test(attr(cfg(feature = "macros"))))]
 #![doc = include_str!("../README.md")]
 pub mod actions;
 pub mod build_pattern;
@@ -11,6 +12,7 @@ mod event;
 mod proxy;
 mod user_interface;
 
+#[cfg(feature = "macros")]
 pub use iced_sessionlock_macros::to_session_message;
 
 pub use error::Error;

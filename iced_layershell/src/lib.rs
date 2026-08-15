@@ -1,3 +1,4 @@
+#![doc(test(attr(cfg(feature = "macros"))))]
 #![doc = include_str!("../README.md")]
 pub mod actions;
 pub mod build_pattern;
@@ -38,6 +39,7 @@ pub mod reexport {
 
 mod ime_preedit;
 
+#[cfg(feature = "macros")]
 pub use iced_layershell_macros::to_layer_message;
 
 pub use error::Error;

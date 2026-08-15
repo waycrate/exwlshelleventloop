@@ -1,3 +1,5 @@
+#![cfg(feature = "macros")]
+
 use iced_exwlshell::reexport::{Anchor, LayerSize};
 use iced_exwlshell::to_exwlshell_message;
 

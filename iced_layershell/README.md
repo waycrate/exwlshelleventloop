@@ -9,6 +9,16 @@ iced-layershell provides binding for iced and layershell.
 - support to open new layershell and support popup window.
 - support ext-virtual-keyboard
 
+## Cargo features
+
+The `macros` feature is enabled by default and re-exports
+`to_layer_message`.  Consumers that do not use the macro can skip its
+proc-macro dependencies while retaining theme detection like so:
+
+```toml
+iced_layershell = { version = "...", default-features = false, features = ["linux-theme-detection"] }
+```
+
 With this crate, you can use iced to build your kde-shell, notification application, and etc.
 
 To learn about surfaces the runtime creates for you, set the `on_new_shell` hook, which maps the new surface to a message of your own before its first frame is drawn. For the same information asynchronously, pass a `iced_wayland_subscriber::shell::channel()` sender to `Settings::shell_broadcast` and subscribe from the receiver. The same broadcast reports the monitors via `OutputAdded`, `OutputUpdated`, `OutputRemoved`, and which monitor each of your windows is on, through `WindowOutputChanged`. When a window is removed, listen to the iced window events.
