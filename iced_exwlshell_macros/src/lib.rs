@@ -1,6 +1,6 @@
 use darling::{FromDeriveInput, ast::Data, util::Ignored};
 use proc_macro2::TokenStream as TokenStream2;
-use syn::{DeriveInput, Generics, Ident, Variant, Visibility};
+use syn::{DeriveInput, Generics, Ident, Path, Variant, Visibility};
 
 use quote::quote;
 
@@ -151,7 +151,46 @@ pub fn to_exwlshell_message(
         #impl_quote
     })
 }
+#[manyhow::manyhow]
+#[proc_macro_attribute]
+pub fn to_sessionlock_message(
+    _attr: TokenStream2,
+    input: TokenStream2,
+) -> manyhow::Result<TokenStream2> {
+    let derive_input = syn::parse2::<DeriveInput>(input)?;
+    let attrs = &derive_input.attrs;
+    let MessageEnum {
+        vis,
+        ident,
+        generics,
+        data,
+    } = MessageEnum::from_derive_input(&derive_input)?;
 
+    let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
+    let variants = data.take_enum().unwrap();
+
+    let wlshell_action: Path =
+        syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
+
+    let try_into = quote! {
+        impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
+            type Error = Self;
+
+            fn try_into(self) -> Result<#wlshell_action, Self::Error> {
+                Err(self)
+            }
+        }
+    };
+
+    Ok(quote! {
+        #(#attrs)*
+        #vis enum #ident #ty_gen #where_gen {
+            #(#variants,)*
+        }
+
+        #try_into
+    })
+}
 #[derive(FromDeriveInput)]
 #[darling(supports(enum_any))]
 struct MessageEnum {

@@ -12,4 +12,7 @@ pub use daemon::daemon;
 
 pub use daemon::Daemon;
 
+#[doc = include_str!("./build_pattern/sessionlock.md")]
+pub mod sessionlock;
+
 use crate::actions::ExwlShellCustomActionWithId;

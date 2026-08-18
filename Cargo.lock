@@ -830,8 +830,8 @@ name = "counter_lock"
 version = "0.19.1"
 dependencies = [
  "iced",
+ "iced_exwlshell",
  "iced_runtime",
- "iced_sessionlock",
 ]
 
 [[package]]
@@ -1977,41 +1977,6 @@ dependencies = [
  "iced_futures",
  "raw-window-handle",
  "thiserror 2.0.20",
-]
-
-[[package]]
-name = "iced_sessionlock"
-version = "0.19.1"
-dependencies = [
- "futures",
- "iced",
- "iced_core",
- "iced_debug",
- "iced_exdevtools",
- "iced_futures",
- "iced_graphics",
- "iced_program",
- "iced_renderer",
- "iced_runtime",
- "iced_sessionlock_macros",
- "iced_wayland_subscriber",
- "log",
- "mundy",
- "sessionlockev",
- "thiserror 2.0.20",
- "tracing",
- "window_clipboard",
-]
-
-[[package]]
-name = "iced_sessionlock_macros"
-version = "0.19.1"
-dependencies = [
- "darling",
- "manyhow",
- "proc-macro2",
- "quote",
- "syn 3.0.3",
 ]
 
 [[package]]
@@ -3969,26 +3934,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e24345aa0fe688594e73770a5f6d1b216508b4f93484c0026d521acd30134392"
 dependencies = [
  "serde_core",
-]
-
-[[package]]
-name = "sessionlockev"
-version = "0.19.1"
-dependencies = [
- "calloop 0.14.4",
- "calloop-wayland-source 0.4.1",
- "log",
- "raw-window-handle",
- "smithay-client-toolkit 0.21.1",
- "tempfile",
- "thiserror 2.0.20",
- "waycrate_xkbkeycode",
- "wayland-backend",
- "wayland-client",
- "wayland-cursor",
- "wayland-protocols",
- "wayland-protocols-misc",
- "wayland-protocols-wlr",
 ]
 
 [[package]]
