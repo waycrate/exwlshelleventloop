@@ -181,3 +181,12 @@ returns `RequestError::Gone`.
 `Settings::keep_compositor_alive` (default `true`) keeps compositor alive when
 the last surface closes instead of dropping it. Set it to `false` for programs that
 open rarely and the cold start delay doesn't matter, but GPU/RAM resources do.
+
+
+## SessionLock
+
+Before sessionlock is already be supported in iced_exwlshell. So this time we remove all the code related to the iced_sessionlock. We just deprecated it.
+
+The logic is removed to iced_exwlshell, and also the macro of `to_sessionlock_message`. Before, the macro name was `to_session_message`, it was a wrong name, so it is also fixed in 0.20.0
+
+With using the sessionlock application function in iced_exwlshell, you need to call iced::exit to unlock the sessionlock. The program will unlock and exit the eventlopp.

@@ -15,4 +15,4 @@ publish = false
 [dependencies]
 iced.workspace = true
 iced_runtime.workspace = true
-iced_sessionlock.workspace = true
+iced_exwlshell.workspace = true

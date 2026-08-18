@@ -81,6 +81,7 @@ pub fn run<P>(
     namespace: &str,
     settings: Settings,
     compositor_settings: iced_graphics::Settings,
+    lock: bool,
     on_new_shell: Option<crate::NewShellHook<P::Message>>,
 ) -> Result<(), Error>
 where
@@ -181,7 +182,8 @@ where
         system_theme,
         proxy_back,
         settings.keep_compositor_alive,
-    );
+    )
+    .lock(lock);
     let mut context_state = ContextState::Context(context);
     boot_span.finish();
 
@@ -340,6 +342,14 @@ where
             proxy,
             time: Instant::now(),
         }
+    }
+
+    pub fn lock(mut self, lock: bool) -> Self {
+        if lock {
+            self.waiting_layer_shell_actions
+                .push((None, ExwlShellCustomAction::Lock));
+        }
+        self
     }
 
     /// Create compositor synchronously. This is a one-time init that must finish

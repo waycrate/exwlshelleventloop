@@ -1,3 +1,10 @@
+# the sessionlock application allow you to create a sessionlock
+
+This application will create the lock application, which view all be all the same on all screens. If you want to control every screens, use the daemon instead.
+
+It is the replacement for iced_sessionlock.
+
+```rust, no_run
 use iced::widget::{Space, button, column, text, text_input};
 use iced::{Alignment, Element, Event, Length, Task as Command, event};
 use iced_exwlshell::sessionlock::application;
@@ -77,3 +84,4 @@ impl Counter {
         .into()
     }
 }
+```

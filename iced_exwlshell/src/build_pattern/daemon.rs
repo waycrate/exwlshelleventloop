@@ -699,6 +699,7 @@ impl<P: Program> Daemon<P> {
             &self.namespace,
             settings,
             renderer_settings,
+            false,
             on_new_shell,
         )
     }
