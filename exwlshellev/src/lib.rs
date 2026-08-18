@@ -2873,6 +2873,15 @@ impl<T: 'static> WindowState<T> {
                     for data in return_data {
                         match data {
                             ReturnData::RequestExit => {
+                                if let Some(lock) = lock.take() {
+                                    lock.unlock_and_destroy();
+                                    let _ = connection.roundtrip();
+                                    let removed_states =
+                                        window_state.units.extract_if(.., |unit| unit.is_lock());
+                                    for deleled in removed_states.into_iter() {
+                                        window_state.closed_ids.push(deleled.id);
+                                    }
+                                }
                                 signal.stop();
                                 return true;
                             }
