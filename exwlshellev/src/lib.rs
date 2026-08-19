@@ -2762,7 +2762,11 @@ impl<T: 'static> WindowState<T> {
                     match msg {
                         (_, DispatchMessageInner::NewDisplay(output_display)) => {
                             if let Some(lock) = lock {
-                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more
+                                // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display is in
+                                // if it is the same with layershell and wmbase, we can send commit
+                                // later, but we cannot
+                                wl_surface.commit();
                                 let session_lock_surface =
                                     lock.get_lock_surface(&wl_surface, output_display, &qh, ());
 
@@ -2876,6 +2880,10 @@ impl<T: 'static> WindowState<T> {
                             let wl_outputs = window_state.outputs.clone();
                             for wl_output in wl_outputs.iter() {
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display was in
+                                // if it is the same with layershell and wmbase, we can send commit
+                                // later, but we cannot
+                                wl_surface.commit();
                                 let session_lock_surface =
                                     l_lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
 
