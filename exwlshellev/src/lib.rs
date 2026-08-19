@@ -2876,7 +2876,12 @@ impl<T: 'static> WindowState<T> {
                             );
                         }
                         (_, DispatchMessageInner::Locked) => {
-                            let l_lock = lock.as_ref().unwrap();
+                            let Some(l_lock) = lock.as_ref() else {
+                                // NOTE: even we have received a lock event, we still need to check
+                                // if lock is on. For possible race condition
+                                log::info!("lock is unlocked in other place");
+                                continue;
+                            };
                             let wl_outputs = window_state.outputs.clone();
                             for wl_output in wl_outputs.iter() {
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
