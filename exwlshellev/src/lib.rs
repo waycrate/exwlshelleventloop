@@ -2466,7 +2466,7 @@ impl<T: 'static> WindowState<T> {
             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
             let layer_shell = globals
                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
-                .unwrap();
+                .expect("We need the layershell here");
             let layer = layer_shell.get_layer_surface(
                 &wl_surface,
                 binded_output.as_ref(),
@@ -2537,7 +2537,7 @@ impl<T: 'static> WindowState<T> {
                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                 let layer_shell = globals
                     .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
-                    .unwrap();
+                    .expect("We need the layershell here");
                 let layer = layer_shell.get_layer_surface(
                     &wl_surface,
                     Some(output_display),
@@ -2786,7 +2786,7 @@ impl<T: 'static> WindowState<T> {
                             let wl_surface = wmcompositer.create_surface(&qh, ());
                             let layer_shell = globals
                                 .bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ())
-                                .unwrap();
+                                .expect("We need the layershell here");
                             let layer = layer_shell.get_layer_surface(
                                 &wl_surface,
                                 Some(output_display),

@@ -1,10 +1,11 @@
 use super::attach;
-use super::daemon::{NameSpace, UpdateFn, with_executor, with_style, with_subscription};
+use super::daemon::{UpdateFn, with_executor, with_style, with_subscription};
 pub use pattern::application;
 mod pattern {
     use super::*;
     use std::borrow::Cow;
 
+    use exwlshellev::StartMode;
     use iced_core::Element;
     use iced_core::Font;
     use iced_runtime::Task;
@@ -115,7 +116,6 @@ mod pattern {
 
     pub fn application<State, Message, Theme, Renderer>(
         boot: impl BootFn<State, Message>,
-        namespace: impl NameSpace,
         update: impl UpdateFn<State, Message>,
         view: impl for<'a> self::ViewFn<'a, State, Message, Theme, Renderer>,
     ) -> SingleApplication<impl Program<Message = Message, Theme = Theme, State = State>>
@@ -196,8 +196,14 @@ mod pattern {
                 _theme: PhantomData,
                 _renderer: PhantomData,
             },
-            settings: Settings::default(),
-            namespace: namespace.namespace(),
+            settings: Settings {
+                layer_settings: LayerShellSettings {
+                    start_mode: exwlshellev::StartMode::Background,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            namespace: "lock".to_string(),
         }
     }
 
@@ -393,6 +399,8 @@ mod pattern {
                 ..iced_graphics::Settings::default()
             };
 
+            // NOTE: session_lock should be started with backend
+            assert_eq!(settings.layer_settings.start_mode, StartMode::Background);
             crate::multi_window::run(
                 program,
                 &self.namespace,
@@ -423,17 +431,6 @@ mod pattern {
             Self {
                 settings: Settings {
                     default_font,
-                    ..self.settings
-                },
-                ..self
-            }
-        }
-
-        /// Sets the layershell setting of the [`SingleApplication`]
-        pub fn layer_settings(self, layer_settings: LayerShellSettings) -> Self {
-            Self {
-                settings: Settings {
-                    layer_settings,
                     ..self.settings
                 },
                 ..self

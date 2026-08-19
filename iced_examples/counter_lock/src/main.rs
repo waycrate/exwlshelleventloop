@@ -4,7 +4,7 @@ use iced_exwlshell::sessionlock::application;
 use iced_exwlshell::to_sessionlock_message;
 
 pub fn main() -> Result<(), iced_exwlshell::Error> {
-    application(Counter::new, "lock", Counter::update, Counter::view)
+    application(Counter::new, Counter::update, Counter::view)
         .subscription(Counter::subscription)
         .run()
 }
