@@ -61,7 +61,7 @@ use iced_core::theme::Base as DefaultStyle;
 
 // layershell application
 pub use build_pattern::daemon;
-pub use build_pattern::sessionlock;
 pub use build_pattern::layershell;
+pub use build_pattern::sessionlock;
 
 pub use settings::Settings;
