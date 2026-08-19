@@ -190,3 +190,11 @@ Before sessionlock is already be supported in iced_exwlshell. So this time we re
 The logic is removed to iced_exwlshell, and also the macro of `to_sessionlock_message`. Before, the macro name was `to_session_message`, it was a wrong name, so it is also fixed in 0.20.0
 
 With using the sessionlock application function in iced_exwlshell, you need to call iced::exit to unlock the sessionlock. The program will unlock and exit the eventlopp.
+
+## LayerShell
+
+Before layershell is already be supported in iced_exwlshell. So this time we remove all the code related to the iced_exwlshell. We just deprecated it.
+
+The iced_layershell::daemon can be changed to iced_exwlshell::daemon. The iced_layershell::application should be changed to iced_exwlshell::layershell::application
+
+We kept the macro of to_layershell_message, in iced_exwlshell_macros, you can just import it with `use iced_exwlshell::to_layershell_message`
