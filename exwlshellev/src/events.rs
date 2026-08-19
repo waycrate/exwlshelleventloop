@@ -471,6 +471,7 @@ pub enum DispatchMessage {
     /// monitor was disconnected
     OutputRemoved(OutputInfo),
     Locked,
+    LockDenied,
     LockFinished,
     Closed,
 }

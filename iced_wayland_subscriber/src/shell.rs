@@ -45,6 +45,8 @@ pub enum ShellEvent {
     OutputRemoved(OutputInfo),
     /// The monitor is locked
     Locked,
+    /// The compositor denied lock request
+    LockDenied,
     /// The lock is finished
     LockedFinished,
 }
