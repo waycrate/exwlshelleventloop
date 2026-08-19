@@ -2433,7 +2433,9 @@ impl<T: 'static> WindowState<T> {
         let text_input_manager = globals
             .bind::<ZwpTextInputManagerV3, _, _>(&qh, 1..=1, ())
             .ok();
-        let lock_manager = globals.bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())?;
+        let lock_manager = globals
+            .bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())
+            .ok();
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
         self.text_input_manager = text_input_manager;
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
@@ -2611,7 +2613,7 @@ impl<T: 'static> WindowState<T> {
         self.wl_compositor = Some(wmcompositer);
         self.fractional_scale_manager = fractional_scale_manager;
         self.cursor_manager = cursor_manager;
-        self.lock_manager = Some(lock_manager);
+        self.lock_manager = lock_manager;
         self.connection = Some(connection);
 
         Ok(self)
@@ -2670,7 +2672,7 @@ impl<T: 'static> WindowState<T> {
         let wmbase = self.wmbase.take().unwrap();
         let viewporter = self.viewporter.take();
         let zxdg_decoration_manager = self.xdg_decoration_manager.take();
-        let lock_manager = self.lock_manager.take().unwrap();
+        let lock_manager = self.lock_manager.take();
 
         let cursor_update_context = CursorUpdateContext {
             cursor_manager,
@@ -2707,7 +2709,7 @@ impl<T: 'static> WindowState<T> {
             raw: Raw,
             fun: F,
             loop_handle: LoopHandle<'static, Self>,
-            lock_manager: ExtSessionLockManagerV1,
+            lock_manager: Option<ExtSessionLockManagerV1>,
             lock: Option<ExtSessionLockV1>,
         }
 
@@ -2730,7 +2732,7 @@ impl<T: 'static> WindowState<T> {
         let process_window_state =
             |window_state: &mut WindowState<T>,
              event_handler: &mut F,
-             lock_manager: &ExtSessionLockManagerV1,
+             lock_manager: Option<&ExtSessionLockManagerV1>,
              lock: &mut Option<ExtSessionLockV1>| {
                 let mut messages = Vec::new();
                 std::mem::swap(&mut messages, &mut window_state.message);
@@ -2886,6 +2888,10 @@ impl<T: 'static> WindowState<T> {
                                 return true;
                             }
                             ReturnData::RequestLock => {
+                                let Some(lock_manager) = lock_manager else {
+                                    log::error!("SessionLock is not supported");
+                                    continue;
+                                };
                                 let l_lock = lock_manager.lock(&qh, ());
                                 let wl_outputs = window_state.outputs.clone();
                                 for wl_output in wl_outputs.iter() {
@@ -3465,7 +3471,7 @@ impl<T: 'static> WindowState<T> {
             let lock = &mut r_window_state.lock;
             event_queue_origin.dispatch_pending(window_state)?;
             let event_handler = &mut r_window_state.fun;
-            if process_window_state(window_state, event_handler, lock_manager, lock) {
+            if process_window_state(window_state, event_handler, lock_manager.as_ref(), lock) {
                 break;
             }
             let looph = &r_window_state.loop_handle;
