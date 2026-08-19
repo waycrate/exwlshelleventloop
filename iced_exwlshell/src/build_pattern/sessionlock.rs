@@ -399,12 +399,6 @@ mod pattern {
                 ..iced_graphics::Settings::default()
             };
 
-            // NOTE: session_lock should be started with backend
-            assert_eq!(
-                settings.layer_settings.start_mode,
-                StartMode::Background,
-                "when using session_lock application, you should not modified the start_mode in layer_settings, it should always be run in Background mode"
-            );
             crate::multi_window::run(
                 program,
                 &self.namespace,
@@ -415,8 +409,21 @@ mod pattern {
             )
         }
 
+        /// Sets the [`Settings`] of the [`SingleApplication`].
+        ///
+        /// A session lock always runs in [`StartMode::Background`], it's
+        /// forced instead of panic.
         pub fn settings(self, settings: Settings) -> Self {
-            Self { settings, ..self }
+            Self {
+                settings: Settings {
+                    layer_settings: LayerShellSettings {
+                        start_mode: StartMode::Background,
+                        ..settings.layer_settings
+                    },
+                    ..settings
+                },
+                ..self
+            }
         }
 
         /// Sets the [`Settings::antialiasing`] of the [`SingleApplication`].
