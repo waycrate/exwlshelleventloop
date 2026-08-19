@@ -2740,10 +2740,10 @@ impl<T: 'static> WindowState<T> {
                         (_, DispatchMessageInner::NewDisplay(output_display)) => {
                             if let Some(lock) = lock {
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                wl_surface.commit();
                                 let session_lock_surface =
                                     lock.get_lock_surface(&wl_surface, output_display, &qh, ());
 
-                                wl_surface.commit();
                                 // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                                 // and if you need to reconfigure it, you need to commit the wl_surface again
                                 // so because this is just an example, so we just commit it once
