@@ -2332,6 +2332,30 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
     }
 }
 
+impl<T> Dispatch<ExtSessionLockV1, ()> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        _proxy: &ExtSessionLockV1,
+        event: <ExtSessionLockV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use wayland_protocols::ext::session_lock::v1::client::ext_session_lock_v1::Event;
+        match event {
+            Event::Locked => {
+                state.message.push((None, DispatchMessageInner::Locked));
+            }
+            Event::Finished => {
+                state
+                    .message
+                    .push((None, DispatchMessageInner::LockFinished));
+            }
+            _ => unreachable!(),
+        }
+    }
+}
+
 delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
 // it is not used
@@ -2353,7 +2377,6 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
-delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockV1); // buffer show the picture
 delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
 
 sctk::delegate_registry!(@<T: 'static> WindowState<T>);
@@ -2740,7 +2763,6 @@ impl<T: 'static> WindowState<T> {
                         (_, DispatchMessageInner::NewDisplay(output_display)) => {
                             if let Some(lock) = lock {
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                wl_surface.commit();
                                 let session_lock_surface =
                                     lock.get_lock_surface(&wl_surface, output_display, &qh, ());
 
@@ -2849,6 +2871,69 @@ impl<T: 'static> WindowState<T> {
                                 .build(),
                             );
                         }
+                        (_, DispatchMessageInner::Locked) => {
+                            let l_lock = lock.as_ref().unwrap();
+                            let wl_outputs = window_state.outputs.clone();
+                            for wl_output in wl_outputs.iter() {
+                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                let session_lock_surface =
+                                    l_lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
+
+                                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                                // and if you need to reconfigure it, you need to commit the wl_surface again
+                                // so because this is just an example, so we just commit it once
+                                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+                                let mut fractional_scale = None;
+                                if let Some(ref fractional_scale_manager) = fractional_scale_manager
+                                {
+                                    fractional_scale =
+                                        Some(fractional_scale_manager.get_fractional_scale(
+                                            &wl_surface,
+                                            &qh,
+                                            (),
+                                        ));
+                                }
+
+                                let viewport = viewporter
+                                    .as_ref()
+                                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                                window_state.push_window(
+                                    WindowStateUnitBuilder::new(
+                                        id::Id::unique(),
+                                        qh.clone(),
+                                        connection.display(),
+                                        wl_surface,
+                                        wmcompositer.clone(),
+                                        Shell::SessionLock(session_lock_surface),
+                                    )
+                                    .viewport(viewport)
+                                    .fractional_scale(fractional_scale)
+                                    .wl_output(Some(wl_output.clone()))
+                                    .build(),
+                                );
+                            }
+                            window_state.handle_event(
+                                &mut *event_handler,
+                                ExWlShellEvent::RequestMessages(&DispatchMessage::Locked),
+                                None,
+                            );
+                        }
+                        (_, DispatchMessageInner::LockFinished) => {
+                            if let Some(lock) = lock.take() {
+                                lock.unlock_and_destroy();
+                                let _ = connection.roundtrip();
+                                let removed_states =
+                                    window_state.units.extract_if(.., |unit| unit.is_lock());
+                                for deleled in removed_states.into_iter() {
+                                    window_state.closed_ids.push(deleled.id);
+                                }
+                            }
+                            window_state.handle_event(
+                                &mut *event_handler,
+                                ExWlShellEvent::RequestMessages(&DispatchMessage::LockFinished),
+                                None,
+                            );
+                        }
                         _ => {
                             let (index_message, msg) = msg;
 
@@ -2892,47 +2977,6 @@ impl<T: 'static> WindowState<T> {
                                     continue;
                                 };
                                 let l_lock = lock_manager.lock(&qh, ());
-                                let wl_outputs = window_state.outputs.clone();
-                                for wl_output in wl_outputs.iter() {
-                                    let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                    wl_surface.commit();
-                                    let session_lock_surface =
-                                        l_lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
-
-                                    // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                                    // and if you need to reconfigure it, you need to commit the wl_surface again
-                                    // so because this is just an example, so we just commit it once
-                                    // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-                                    let mut fractional_scale = None;
-                                    if let Some(ref fractional_scale_manager) =
-                                        fractional_scale_manager
-                                    {
-                                        fractional_scale =
-                                            Some(fractional_scale_manager.get_fractional_scale(
-                                                &wl_surface,
-                                                &qh,
-                                                (),
-                                            ));
-                                    }
-
-                                    let viewport = viewporter.as_ref().map(|viewport| {
-                                        viewport.get_viewport(&wl_surface, &qh, ())
-                                    });
-                                    window_state.push_window(
-                                        WindowStateUnitBuilder::new(
-                                            id::Id::unique(),
-                                            qh.clone(),
-                                            connection.display(),
-                                            wl_surface,
-                                            wmcompositer.clone(),
-                                            Shell::SessionLock(session_lock_surface),
-                                        )
-                                        .viewport(viewport)
-                                        .fractional_scale(fractional_scale)
-                                        .wl_output(Some(wl_output.clone()))
-                                        .build(),
-                                    );
-                                }
                                 *lock = Some(l_lock);
                             }
 

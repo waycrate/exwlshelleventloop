@@ -105,6 +105,8 @@ pub enum WindowEvent {
     OutputAdded(OutputInfo),
     OutputUpdated(OutputInfo),
     OutputRemoved(OutputInfo),
+    Locked,
+    LockFinished,
 }
 
 #[derive(Debug)]
@@ -212,6 +214,8 @@ impl WindowEvent {
                     .as_ref()
                     .and_then(|output| ev.get_output_info_of(output)),
             ),
+            DispatchMessage::Locked => WindowEvent::Locked,
+            DispatchMessage::LockFinished => WindowEvent::LockFinished,
         }
     }
 }

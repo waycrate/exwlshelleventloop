@@ -749,6 +749,14 @@ where
                     .send(shell::ShellEvent::OutputRemoved(info.clone()));
                 return;
             }
+            LayerShellWindowEvent::Locked => {
+                self.shell_broadcast.send(shell::ShellEvent::Locked);
+                return;
+            }
+            LayerShellWindowEvent::LockFinished => {
+                self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
+                return;
+            }
             _ => {}
         }
         let id_and_window = if let Some(layer_shell_id) = layer_shell_id {

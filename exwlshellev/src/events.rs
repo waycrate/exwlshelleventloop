@@ -362,6 +362,8 @@ pub(crate) enum DispatchMessageInner {
         scale_float: f64,
     },
     OutputChanged(Option<WlOutput>),
+    Locked,
+    LockFinished,
     Ime(Ime),
 }
 
@@ -468,6 +470,8 @@ pub enum DispatchMessage {
     OutputUpdated(OutputInfo),
     /// monitor was disconnected
     OutputRemoved(OutputInfo),
+    Locked,
+    LockFinished,
     Closed,
 }
 
@@ -578,6 +582,8 @@ impl From<DispatchMessageInner> for DispatchMessage {
             },
             DispatchMessageInner::Ime(ime) => DispatchMessage::Ime(ime),
             DispatchMessageInner::OutputChanged(output) => DispatchMessage::OutputChanged(output),
+            DispatchMessageInner::Locked => DispatchMessage::Locked,
+            DispatchMessageInner::LockFinished => DispatchMessage::LockFinished,
         }
     }
 }
