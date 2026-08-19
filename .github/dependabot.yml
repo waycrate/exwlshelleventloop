@@ -15,7 +15,7 @@ updates:
       # version bump and thus consume unnecessary workers during release, thus
       # let's open new ones on Wednesday
       day: "wednesday"
-    versioning-strategy: "auto"
+    versioning-strategy: "bump_versions"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
