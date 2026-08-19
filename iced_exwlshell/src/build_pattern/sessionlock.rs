@@ -400,7 +400,11 @@ mod pattern {
             };
 
             // NOTE: session_lock should be started with backend
-            assert_eq!(settings.layer_settings.start_mode, StartMode::Background);
+            assert_eq!(
+                settings.layer_settings.start_mode,
+                StartMode::Background,
+                "when using session_lock application, you should not modified the start_mode in layer_settings, it should always be run in Background mode"
+            );
             crate::multi_window::run(
                 program,
                 &self.namespace,
