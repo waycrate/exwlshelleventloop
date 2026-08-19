@@ -16,9 +16,6 @@ updates:
       # let's open new ones on Wednesday
       day: "wednesday"
     versioning-strategy: "increase-if-necessary"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-patch"]
     groups:
       # Only update polars as a whole as there are many subcrates that need to
       # be updated at once. We explicitly depend on some of them, so batch their
