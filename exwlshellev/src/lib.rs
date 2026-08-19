@@ -2436,7 +2436,6 @@ impl<T: 'static> WindowState<T> {
         let lock_manager = globals
             .bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
-        event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
         self.text_input_manager = text_input_manager;
         event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
 
