@@ -1,5 +1,5 @@
 use super::{BootFn, NameSpace, SingleApplication, ViewFn};
-use crate::{DefaultStyle, actions::LayerShellCustomActionWithId};
+use crate::{DefaultStyle, actions::ExwlShellCustomActionWithId};
 use iced_core::Element;
 use iced_debug as debug;
 use iced_futures::Subscription;
@@ -25,7 +25,7 @@ pub fn timed<State, Message, Theme, Renderer>(
 where
     State: 'static,
     Message:
-        'static + TryInto<LayerShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
+        'static + TryInto<ExwlShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle + 'static,
     Renderer: iced_program::Renderer + 'static,
 {
@@ -125,13 +125,13 @@ where
     }
 }
 
-impl<M> TryInto<LayerShellCustomActionWithId> for (M, Instant)
+impl<M> TryInto<ExwlShellCustomActionWithId> for (M, Instant)
 where
-    M: TryInto<LayerShellCustomActionWithId, Error = M>,
+    M: TryInto<ExwlShellCustomActionWithId, Error = M>,
 {
     type Error = (M, Instant);
 
-    fn try_into(self) -> Result<LayerShellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<ExwlShellCustomActionWithId, Self::Error> {
         let (message, instant) = self;
         message.try_into().map_err(|m| (m, instant))
     }

@@ -1,4 +1,8 @@
-use darling::{FromDeriveInput, ast::Data, util::Ignored};
+use darling::{
+    FromDeriveInput, FromMeta,
+    ast::{Data, NestedMeta},
+    util::{Flag, Ignored},
+};
 use proc_macro2::TokenStream as TokenStream2;
 use syn::{DeriveInput, Generics, Ident, Path, Variant, Visibility};
 
@@ -23,6 +27,8 @@ pub fn to_exwlshell_message(
         generics,
         data,
     } = MessageEnum::from_derive_input(&derive_input)?;
+    let wlshell_action: Path =
+        syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
 
     let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
     let variants = data.take_enum().unwrap();
@@ -104,7 +110,7 @@ pub fn to_exwlshell_message(
                 }
             }
 
-            impl #impl_gen TryInto<iced_exwlshell::actions::ExwlShellCustomActionWithId> for #ident #ty_gen #where_gen {
+            impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
                 type Error = Self;
 
                 fn try_into(self) -> Result<iced_exwlshell::actions::ExwlShellCustomActionWithId, Self::Error> {
@@ -198,4 +204,186 @@ struct MessageEnum {
     ident: Ident,
     generics: Generics,
     data: Data<Variant, Ignored>,
+}
+
+#[derive(FromMeta)]
+struct ToLayerMessageAttr {
+    multi: Flag,
+}
+
+/// to_layer_message is to convert a normal enum to the enum usable in iced_exwlshell
+/// It impl the try_into trait for the enum and make it can be convert to the actions in
+/// layershell.
+///
+/// It will automatic add the fields which match the actions in iced_exwlshell
+#[manyhow::manyhow]
+#[proc_macro_attribute]
+pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Result<TokenStream2> {
+    let meta = NestedMeta::parse_meta_list(attr)?;
+
+    let ToLayerMessageAttr { multi } = ToLayerMessageAttr::from_list(&meta)?;
+
+    let is_multi = multi.is_present();
+    let wlshell_action: Path =
+        syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
+    let derive_input = syn::parse2::<DeriveInput>(input)?;
+    let attrs = &derive_input.attrs;
+    let MessageEnum {
+        vis,
+        ident,
+        generics,
+        data,
+    } = MessageEnum::from_derive_input(&derive_input)?;
+
+    let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
+    let variants = data.take_enum().unwrap();
+
+    let (additional_variants, impl_quote) = match is_multi {
+        true => {
+            let additional_variants = quote! {
+                LayoutChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize},
+                SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },
+                LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
+                /// Margin: top, left, bottom, right
+                MarginChange{id: iced_exwlshell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+                BlurOptionChange{id: iced_exwlshell::reexport::IcedId, option: iced_exwlshell::reexport::BlurOption},
+                ExclusiveZoneChange{id: iced_exwlshell::reexport::IcedId, zone_size: i32},
+                KeyboardInteractivityChange{id: iced_exwlshell::reexport::IcedId, keyboard_interactivity: iced_exwlshell::reexport::KeyboardInteractivity},
+                VirtualKeyboardPressed {
+                    key: u32,
+                },
+                NewLayerShell { settings: iced_exwlshell::reexport::NewLayerShellSettings, id: iced_exwlshell::reexport::IcedId },
+                NewBaseWindow { settings: iced_exwlshell::actions::IcedXdgWindowSettings, id: iced_exwlshell::reexport::IcedId },
+                NewPopUp { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
+                /// During move/resize of a mapped popup `settings.parent` is ignored. Can't be reparented as per spec
+                PopUpReposition { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
+                NewMenu { settings: iced_exwlshell::actions::IcedNewMenuSettings, id: iced_exwlshell::reexport::IcedId },
+                NewInputPanel { settings: iced_exwlshell::reexport::NewInputPanelSettings, id: iced_exwlshell::reexport::IcedId },
+                RemoveWindow(iced_exwlshell::reexport::IcedId),
+                ForgetLastOutput,
+            };
+
+            let impl_quote = quote! {
+                impl #impl_gen #ident #ty_gen #where_gen {
+                    fn layershell_open(settings: iced_exwlshell::reexport::NewLayerShellSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
+                        let id = iced_exwlshell::reexport::IcedId::unique();
+                        (
+                            id,
+                            iced_exwlshell::reexport::Task::done(Self::NewLayerShell { settings, id })
+                        )
+
+                    }
+                    fn popup_open(settings: iced_exwlshell::actions::IcedNewPopupSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
+                        let id = iced_exwlshell::reexport::IcedId::unique();
+                        (
+                            id,
+                            iced_exwlshell::reexport::Task::done(Self::NewPopUp { settings, id })
+                        )
+
+                    }
+                    fn menu_open(settings: iced_exwlshell::actions::IcedNewMenuSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
+                        let id = iced_exwlshell::reexport::IcedId::unique();
+                        (
+                            id,
+                            iced_exwlshell::reexport::Task::done(Self::NewMenu { settings, id })
+                        )
+
+                    }
+                    fn base_window_open(settings: iced_exwlshell::actions::IcedXdgWindowSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
+                        let id = iced_exwlshell::reexport::IcedId::unique();
+                        (
+                            id,
+                            iced_exwlshell::reexport::Task::done(Self::NewBaseWindow { settings, id })
+                        )
+
+                    }
+                }
+                impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
+                    type Error = Self;
+
+                    fn try_into(self) -> Result<#wlshell_action, Self::Error> {
+                        use iced_exwlshell::actions::ExwlShellCustomAction;
+                        use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+
+                        match self {
+                            Self::SetInputRegion{ id, callback } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::SetInputRegion(callback))),
+                            Self::LayoutChange { id, anchor, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayoutChange{ anchor, size })),
+                            Self::LayerChange { id, layer } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayerChange(layer))),
+                            Self::MarginChange { id, margin } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::MarginChange(margin))),
+                            Self::ExclusiveZoneChange { id, zone_size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                            Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(
+                                None,
+                                ExwlShellCustomAction::VirtualKeyboardPressed { key })
+                            ),
+                            Self::NewLayerShell {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewLayerShell { settings, id })),
+                            Self::NewBaseWindow {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewBaseWindow { settings, id })),
+                            Self::NewPopUp { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewPopUp { settings, id })),
+                            Self::PopUpReposition { settings, id } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::PopUpReposition { settings })),
+                            Self::NewMenu { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewMenu { settings, id })),
+                            Self::NewInputPanel {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewInputPanel { settings, id })),
+                            Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),
+                            Self::ForgetLastOutput => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ForgetLastOutput)),
+                            Self::BlurOptionChange {id, option} => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::BlurOptionChange(option))),
+                            _ => Err(self)
+                        }
+                    }
+                }
+            };
+            (additional_variants, impl_quote)
+        }
+        false => {
+            let additional_variants = quote! {
+                LayoutChange { anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize },
+                SetInputRegion(iced_exwlshell::actions::ActionCallback),
+                LayerChange(iced_exwlshell::reexport::Layer),
+                /// Margin: top, left, bottom, right
+                MarginChange((i32, i32, i32, i32)),
+                ExclusiveZoneChange(i32),
+                KeyboardInteractivityChange(iced_exwlshell::reexport::KeyboardInteractivity),
+                VirtualKeyboardPressed {
+                    key: u32,
+                },
+                BlurOptionChange(iced_exwlshell::reexport::BlurOption),
+            };
+            let impl_quote = quote! {
+                impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
+                    type Error = Self;
+
+                    fn try_into(self) -> Result<iced_exwlshell::actions::ExwlShellCustomActionWithId, Self::Error> {
+                        use iced_exwlshell::actions::ExwlShellCustomAction;
+                        use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+
+                        match self {
+                            Self::SetInputRegion(callback) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::SetInputRegion(callback))),
+                            Self::LayoutChange { anchor, size } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::LayoutChange { anchor, size })),
+                            Self::LayerChange(layer) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::LayerChange(layer))),
+
+                            Self::MarginChange(margin) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::MarginChange(margin))),
+                            Self::ExclusiveZoneChange(zone_size) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                            Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::VirtualKeyboardPressed {
+                                key
+                            })),
+
+                            Self::BlurOptionChange(option) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::BlurOptionChange(option))),
+                            _ => Err(self)
+                        }
+                    }
+                }
+            };
+
+            (additional_variants, impl_quote)
+        }
+    };
+
+    Ok(quote! {
+        #(#attrs)*
+        #vis enum #ident #ty_gen #where_gen {
+            #(#variants,)*
+            #additional_variants
+        }
+
+        #impl_quote
+    })
 }

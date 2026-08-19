@@ -1,22 +1,16 @@
-# The application function allow you to create the application with just some functions
+# This document shows how to create a application layershell
 
 ```rust, no_run
-
 use iced::widget::{button, column, row, text, text_input};
-use iced::{event, Alignment, Color, Element, Event, Length, Task as Command};
-use iced_layershell::application;
-use iced_layershell::reexport::{Anchor, LayerSize};
-use iced_layershell::settings::{LayerShellSettings, StartMode, Settings};
-use iced_layershell::to_layer_message;
+use iced::{Alignment, Color, Element, Event, Length, Task as Command, event};
+use iced_exwlshell::Settings;
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::{Anchor, LayerSize};
+use iced_exwlshell::settings::{LayerShellSettings, StartMode};
+use iced_exwlshell::to_layer_message;
 
-pub fn main() -> Result<(), iced_layershell::Error> {
-    let args: Vec<String> = std::env::args().collect();
-
-    let mut binded_output_name = None;
-    if args.len() >= 2 {
-        binded_output_name = Some(args[1].to_string())
-    }
-
+pub fn main() -> Result<(), iced_exwlshell::Error> {
+    let binded_output_name = std::env::args().nth(1);
     let start_mode = match binded_output_name {
         Some(output) => StartMode::TargetScreen(output),
         None => StartMode::Active,
@@ -88,7 +82,6 @@ fn update(counter: &mut Counter, message: Message) -> Command<Message> {
             counter.text = text;
             Command::none()
         }
-
         Message::Direction(direction) => match direction {
             WindowDirection::Left => Command::done(Message::LayoutChange {
                 anchor: Anchor::Left,
@@ -111,7 +104,7 @@ fn update(counter: &mut Counter, message: Message) -> Command<Message> {
     }
 }
 
-fn view(counter: &Counter) -> Element<Message> {
+fn view<'a>(counter: &'a Counter) -> Element<'a, Message> {
     let center = column![
         button("Increment").on_press(Message::IncrementPressed),
         text(counter.value).size(50),
@@ -156,5 +149,4 @@ fn style(_counter: &Counter, theme: &iced::Theme) -> iced::theme::Style {
         text_color: theme.palette().text,
     }
 }
-
 ```

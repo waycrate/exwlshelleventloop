@@ -3,22 +3,22 @@ use std::collections::HashMap;
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::window::Id;
 use iced::{Alignment, Element, Event, Length, Task as Command, event};
-use iced_layershell::actions::{IcedNewMenuSettings, IcedNewPopupSettings, IcedXdgWindowSettings};
+use iced_exwlshell::actions::{IcedNewMenuSettings, IcedNewPopupSettings, IcedXdgWindowSettings};
 use iced_runtime::window::Action as WindowAction;
 use iced_runtime::{Action, task};
 
-use iced_layershell::daemon;
-use iced_layershell::reexport::{
+use iced_exwlshell::daemon;
+use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
     PixelSize, PopupGravity,
 };
-use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_layershell::to_layer_message;
+use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::to_layer_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellReceiver};
 use iced_wayland_subscriber::{OutputId, OutputInfo};
 use wayland_client::Connection;
 
-pub fn main() -> Result<(), iced_layershell::Error> {
+pub fn main() -> Result<(), iced_exwlshell::Error> {
     tracing_subscriber::fmt().init();
     let connection = Connection::connect_to_env().unwrap();
     let connection2 = connection.clone();

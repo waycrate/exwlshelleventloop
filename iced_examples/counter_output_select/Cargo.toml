@@ -15,6 +15,6 @@ publish = false
 [dependencies]
 iced = { workspace = true, features = ["thread-pool"] }
 iced_runtime.workspace = true
-iced_layershell = { workspace = true, features = ["debug"] }
+iced_exwlshell = { workspace = true, features = ["debug"] }
 wayland-client.workspace = true
 libwaysip = "0.7.0"

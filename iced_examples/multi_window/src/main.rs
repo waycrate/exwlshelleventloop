@@ -4,17 +4,17 @@ use iced::widget::{
 };
 use iced::window;
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
-use iced_layershell::daemon;
-use iced_layershell::reexport::{Anchor, Layer, LayerSize, NewLayerShellSettings, OutputOption};
-use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_layershell::to_layer_message;
+use iced_exwlshell::daemon;
+use iced_exwlshell::reexport::{Anchor, Layer, LayerSize, NewLayerShellSettings, OutputOption};
+use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
 
 use std::collections::BTreeMap;
 
-fn main() -> iced_layershell::Result {
+fn main() -> iced_exwlshell::Result {
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())

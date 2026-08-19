@@ -1,15 +1,15 @@
 use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Color, Element, Event, Length, Task as Command, event};
-use iced_layershell::Settings;
-use iced_layershell::build_pattern::application;
-use iced_layershell::reexport::{Anchor, LayerSize};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
-use iced_layershell::to_layer_message;
+use iced_exwlshell::Settings;
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::{Anchor, LayerSize};
+use iced_exwlshell::settings::{LayerShellSettings, StartMode};
+use iced_exwlshell::to_layer_message;
 
 use libwaysip::{SelectionType, WaySip};
 use wayland_client::Connection;
 
-pub fn main() -> Result<(), iced_layershell::Error> {
+pub fn main() -> Result<(), iced_exwlshell::Error> {
     let connection = Connection::connect_to_env().unwrap();
 
     let area_info = WaySip::new()

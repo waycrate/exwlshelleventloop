@@ -15,4 +15,7 @@ pub use daemon::Daemon;
 #[doc = include_str!("./build_pattern/sessionlock.md")]
 pub mod sessionlock;
 
+#[doc = include_str!("./build_pattern/layershell.md")]
+pub mod layershell;
+
 use crate::actions::ExwlShellCustomActionWithId;

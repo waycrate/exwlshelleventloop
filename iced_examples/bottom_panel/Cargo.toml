@@ -15,7 +15,7 @@ publish = false
 [dependencies]
 iced = { workspace = true, features = ["tokio", "image", "svg"] }
 iced_runtime.workspace = true
-iced_layershell.workspace = true
+iced_exwlshell.workspace = true
 xdg = "3.0.0"
 freedesktop-desktop-entry = "0.8.1"
 zbus = "5.16.0"

@@ -2,15 +2,15 @@ use futures::future::pending;
 use iced::widget::{button, column, container, text, text_input};
 use iced::window::Id;
 use iced::{Element, Length, Task as Command};
-use iced_layershell::to_layer_message;
+use iced_exwlshell::to_layer_message;
 use iced_runtime::Action;
 use iced_runtime::window::Action as WindowAction;
 
-use iced_layershell::daemon;
-use iced_layershell::reexport::{
+use iced_exwlshell::daemon;
+use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
 };
-use iced_layershell::settings::{LayerShellSettings, StartMode};
+use iced_exwlshell::settings::{LayerShellSettings, StartMode};
 use zbus::{connection, interface};
 
 use futures::channel::mpsc::Sender;
@@ -19,7 +19,7 @@ struct Counter {
     window_shown: bool,
     text: String,
 }
-pub fn main() -> Result<(), iced_layershell::Error> {
+pub fn main() -> Result<(), iced_exwlshell::Error> {
     daemon(
         Counter::new,
         Counter::namespace,

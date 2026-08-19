@@ -1,12 +1,12 @@
 use iced::widget::{button, row};
 use iced::{Color, Element, Length, Task as Command};
-use iced_layershell::actions::ActionCallback;
-use iced_layershell::application;
-use iced_layershell::reexport::LayerSize;
-use iced_layershell::settings::LayerShellSettings;
-use iced_layershell::to_layer_message;
+use iced_exwlshell::actions::ActionCallback;
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::LayerSize;
+use iced_exwlshell::settings::LayerShellSettings;
+use iced_exwlshell::to_layer_message;
 
-pub fn main() -> Result<(), iced_layershell::Error> {
+pub fn main() -> Result<(), iced_exwlshell::Error> {
     application(
         InputRegionExample::new,
         InputRegionExample::namespace,
