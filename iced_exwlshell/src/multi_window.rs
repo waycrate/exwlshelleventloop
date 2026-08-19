@@ -753,6 +753,10 @@ where
                 self.shell_broadcast.send(shell::ShellEvent::Locked);
                 return;
             }
+            LayerShellWindowEvent::LockDenied => {
+                self.shell_broadcast.send(shell::ShellEvent::LockDenied);
+                return;
+            }
             LayerShellWindowEvent::LockFinished => {
                 self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
                 return;

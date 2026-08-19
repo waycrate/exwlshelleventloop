@@ -398,13 +398,14 @@ mod pattern {
                 ..iced_graphics::Settings::default()
             };
             use exwlshellev::StartMode;
-            assert!(
-                !matches!(
-                    settings.layer_settings.start_mode,
-                    StartMode::AllScreens | StartMode::Background
-                ),
-                "when using application of layershell, you should not set the mode to AllScreens and Background, please give it a display or use the Active"
-            );
+            if matches!(
+                settings.layer_settings.start_mode,
+                StartMode::AllScreens | StartMode::Background
+            ) {
+                return Err(crate::Error::InvalidSettings(
+                    "when using application of layershell, you should not set the mode to AllScreens and Background, please give it a display or use the Active",
+                ));
+            }
             crate::multi_window::run(
                 program,
                 &self.namespace,

@@ -106,6 +106,7 @@ pub enum WindowEvent {
     OutputUpdated(OutputInfo),
     OutputRemoved(OutputInfo),
     Locked,
+    LockDenied,
     LockFinished,
 }
 
@@ -215,6 +216,7 @@ impl WindowEvent {
                     .and_then(|output| ev.get_output_info_of(output)),
             ),
             DispatchMessage::Locked => WindowEvent::Locked,
+            DispatchMessage::LockDenied => WindowEvent::LockDenied,
             DispatchMessage::LockFinished => WindowEvent::LockFinished,
         }
     }
