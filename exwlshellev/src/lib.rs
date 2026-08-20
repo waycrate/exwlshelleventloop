@@ -505,7 +505,6 @@ impl<T> WindowStateUnitBuilder<T> {
         self
     }
 
-
     fn parent(mut self, parent: Option<id::Id>) -> Self {
         self.inner.parent = parent;
         self
