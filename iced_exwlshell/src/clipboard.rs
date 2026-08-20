@@ -14,7 +14,7 @@ pub(crate) fn is_disabled() -> bool {
     DISABLED.load(Ordering::Relaxed)
 }
 
-pub struct LayerShellClipboard {
+pub struct ExwlShellClipboard {
     state: State,
 }
 
@@ -23,7 +23,7 @@ enum State {
     Unavailable,
 }
 
-impl LayerShellClipboard {
+impl ExwlShellClipboard {
     /// Creates a new [`Clipboard`] for the given window.
     pub fn connect(window: &WindowWrapper) -> Self {
         #[allow(unsafe_code)]
@@ -76,7 +76,7 @@ impl LayerShellClipboard {
     }
 }
 
-impl Clipboard for LayerShellClipboard {
+impl Clipboard for ExwlShellClipboard {
     fn read(&self, kind: Kind) -> Option<String> {
         self.read(kind)
     }

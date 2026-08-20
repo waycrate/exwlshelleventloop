@@ -8,10 +8,10 @@ use crate::{
     user_interface::UserInterfaces,
 };
 use crate::{
-    actions::ExwlShellCustomAction, clipboard::LayerShellClipboard, conversion, error::Error,
+    actions::ExwlShellCustomAction, clipboard::ExwlShellClipboard, conversion, error::Error,
 };
 use crate::{
-    event::{IcedWlShellEvent, WindowEvent as LayerShellWindowEvent},
+    event::{IcedWlShellEvent, WindowEvent as ExwlShellWindowEvent},
     proxy::IcedProxy,
     settings::Settings,
 };
@@ -225,7 +225,7 @@ where
                 }
             }
             ExWlShellEvent::RequestMessages(message) => {
-                let window_event = LayerShellWindowEvent::from_dispatch(message, ev);
+                let window_event = ExwlShellWindowEvent::from_dispatch(message, ev);
                 waiting_layer_shell_events
                     .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
             }
@@ -291,7 +291,7 @@ where
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
     cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f32)>,
-    clipboard: LayerShellClipboard,
+    clipboard: ExwlShellClipboard,
     wl_input_region: Option<WlRegion>,
     user_interfaces: UserInterfaces<P>,
     waiting_layer_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
@@ -333,7 +333,7 @@ where
             compositor: Default::default(),
             window_manager: WindowManager::new(),
             cached_layer_dimensions: HashMap::new(),
-            clipboard: LayerShellClipboard::unconnected(),
+            clipboard: ExwlShellClipboard::unconnected(),
             wl_input_region: Default::default(),
             user_interfaces: UserInterfaces::new(application),
             waiting_layer_shell_actions: Default::default(),
@@ -367,15 +367,15 @@ where
         // connect() avoids spawning the smithay-clipboard worker thread,
         // which otherwise runs an always-on wayland event loop (~0.4% CPU).
         self.clipboard = if crate::clipboard::is_disabled() {
-            LayerShellClipboard::unconnected()
+            ExwlShellClipboard::unconnected()
         } else {
-            LayerShellClipboard::connect(&window)
+            ExwlShellClipboard::connect(&window)
         };
     }
 
     fn remove_compositor(&mut self) {
         self.compositor = None;
-        self.clipboard = LayerShellClipboard::unconnected();
+        self.clipboard = ExwlShellClipboard::unconnected();
     }
 
     fn handle_event(
@@ -390,7 +390,7 @@ where
             self.waiting_layer_shell_actions.len(),
             self.messages.len(),
         );
-        if let IcedWlShellEvent::Window(LayerShellWindowEvent::Refresh) = layer_shell_event
+        if let IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) = layer_shell_event
             && self.compositor.is_none()
         {
             let Some(layer_shell_window) = layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
@@ -406,10 +406,10 @@ where
 
         match layer_shell_event {
             IcedWlShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
-            IcedWlShellEvent::Window(LayerShellWindowEvent::Refresh) => {
+            IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) => {
                 self.handle_refresh_event(ev, layer_shell_id)
             }
-            IcedWlShellEvent::Window(LayerShellWindowEvent::Closed) => {
+            IcedWlShellEvent::Window(ExwlShellWindowEvent::Closed) => {
                 self.handle_closed_event(ev, layer_shell_id)
             }
             IcedWlShellEvent::Window(window_event) => {
@@ -731,33 +731,33 @@ where
     fn handle_window_event(
         &mut self,
         layer_shell_id: Option<LayerShellId>,
-        event: LayerShellWindowEvent,
+        event: ExwlShellWindowEvent,
     ) {
         match &event {
-            LayerShellWindowEvent::OutputAdded(info) => {
+            ExwlShellWindowEvent::OutputAdded(info) => {
                 self.shell_broadcast
                     .send(shell::ShellEvent::OutputAdded(info.clone()));
                 return;
             }
-            LayerShellWindowEvent::OutputUpdated(info) => {
+            ExwlShellWindowEvent::OutputUpdated(info) => {
                 self.shell_broadcast
                     .send(shell::ShellEvent::OutputUpdated(info.clone()));
                 return;
             }
-            LayerShellWindowEvent::OutputRemoved(info) => {
+            ExwlShellWindowEvent::OutputRemoved(info) => {
                 self.shell_broadcast
                     .send(shell::ShellEvent::OutputRemoved(info.clone()));
                 return;
             }
-            LayerShellWindowEvent::Locked => {
+            ExwlShellWindowEvent::Locked => {
                 self.shell_broadcast.send(shell::ShellEvent::Locked);
                 return;
             }
-            LayerShellWindowEvent::LockDenied => {
+            ExwlShellWindowEvent::LockDenied => {
                 self.shell_broadcast.send(shell::ShellEvent::LockDenied);
                 return;
             }
-            LayerShellWindowEvent::LockFinished => {
+            ExwlShellWindowEvent::LockFinished => {
                 self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
                 return;
             }
@@ -771,7 +771,7 @@ where
         let Some((iced_id, window)) = id_and_window else {
             return;
         };
-        if let LayerShellWindowEvent::OutputChanged(output) = &event {
+        if let ExwlShellWindowEvent::OutputChanged(output) = &event {
             self.shell_broadcast
                 .send(shell::ShellEvent::WindowOutputChanged {
                     window: iced_id,
@@ -1279,7 +1279,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     compositor: &mut Option<C>,
     event: Action<P::Message>,
     messages: &mut Vec<P::Message>,
-    clipboard: &mut LayerShellClipboard,
+    clipboard: &mut ExwlShellClipboard,
     waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
@@ -1403,7 +1403,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
 
                 for (_id, window) in window_manager.iter_mut() {
                     window.state.update(
-                        &LayerShellWindowEvent::ThemeChanged(mode),
+                        &ExwlShellWindowEvent::ThemeChanged(mode),
                         user_interfaces.application(),
                     );
                 }
