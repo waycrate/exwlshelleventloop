@@ -454,7 +454,6 @@ pub enum DispatchMessage {
         width: u32,
         height: u32,
         scale_float: f64,
-        is_created: bool,
     },
     /// fractal scale handle
     PreferredScale {

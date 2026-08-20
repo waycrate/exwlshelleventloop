@@ -446,7 +446,6 @@ impl<T> WindowStateUnitBuilder<T> {
                 wl_outputs: Default::default(),
                 pending_leave: None,
                 binding: Default::default(),
-                becreated: Default::default(),
                 configured,
                 blur_option: BlurOption::None,
                 pending_reposition: None,
@@ -506,10 +505,6 @@ impl<T> WindowStateUnitBuilder<T> {
         self
     }
 
-    fn becreated(mut self, becreated: bool) -> Self {
-        self.inner.becreated = becreated;
-        self
-    }
 
     fn parent(mut self, parent: Option<id::Id>) -> Self {
         self.inner.parent = parent;
@@ -561,7 +556,6 @@ pub struct WindowStateUnit<T> {
     pending_leave: Option<WlOutput>,
     effect: Option<ExtBackgroundEffectSurfaceV1>,
     binding: Option<T>,
-    becreated: bool,
     /// True after the compositor sends the initial configure for this shell role.
     configured: bool,
 
@@ -3186,7 +3180,6 @@ impl<T: 'static> WindowState<T> {
                                 .fractional_scale(fractional_scale)
                                 .wl_output(output)
                                 .binding(info)
-                                .becreated(true)
                                 .build(),
                             );
                         }
@@ -3284,7 +3277,6 @@ impl<T: 'static> WindowState<T> {
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .binding(info)
-                                .becreated(true)
                                 .build(),
                             );
                         }
@@ -3389,7 +3381,6 @@ impl<T: 'static> WindowState<T> {
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .binding(info)
-                                .becreated(true)
                                 .build(),
                             );
                         }
@@ -3452,7 +3443,6 @@ impl<T: 'static> WindowState<T> {
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .binding(info)
-                                .becreated(true)
                                 .build(),
                             );
                         }
@@ -3520,7 +3510,6 @@ impl<T: 'static> WindowState<T> {
                 }
                 if unit.take_present_slot() {
                     let unit_id = unit.id;
-                    let is_created = unit.becreated;
                     let scale_float = unit.scale_float();
                     let wl_surface = unit.window.wl_surface.clone();
                     if unit.buffer.is_none() && !window_state.use_display_handle {
@@ -3572,7 +3561,6 @@ impl<T: 'static> WindowState<T> {
                         ExWlShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                             width,
                             height,
-                            is_created,
                             scale_float,
                         }),
                         Some(unit_id),
