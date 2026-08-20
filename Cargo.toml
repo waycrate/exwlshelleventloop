@@ -1,10 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
-  "layershellev",
   "exwlshellev",
-  "iced_layershell",
-  "iced_layershell_macros",
   "iced_exwlshell",
   "iced_exwlshell_macros",
   "iced_wayland_subscriber",
@@ -27,12 +24,9 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-layershellev = { version = "0.19.1", path = "./layershellev" }
 exwlshellev = { version = "0.19.1", path = "./exwlshellev" }
 iced_wayland_subscriber = { version = "0.19.1", path = "./iced_wayland_subscriber" }
-iced_layershell = { version = "0.19.1", path = "./iced_layershell" }
 iced_exdevtools = { version = "0.19.1", path = "./iced_exdevtools" }
-iced_layershell_macros = { version = "0.19.1", path = "./iced_layershell_macros" }
 iced_exwlshell = { version = "0.19.1", path = "./iced_exwlshell" }
 iced_exwlshell_macros = { version = "0.19.1", path = "./iced_exwlshell_macros" }
 waycrate_xkbkeycode = { version = "0.19.1", path = "./waycrate_xkbkeycode" }

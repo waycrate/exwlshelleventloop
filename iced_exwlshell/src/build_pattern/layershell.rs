@@ -1,11 +1,15 @@
 use super::attach;
-use super::daemon::{UpdateFn, with_executor, with_style, with_subscription};
+use super::daemon::{NameSpace, UpdateFn, with_executor, with_style, with_subscription};
 pub use pattern::application;
+
+use pattern::{BootFn, SingleApplication, ViewFn};
+mod time;
+pub use time::timed;
 mod pattern {
+
     use super::*;
     use std::borrow::Cow;
 
-    use exwlshellev::StartMode;
     use iced_core::Element;
     use iced_core::Font;
     use iced_runtime::Task;
@@ -109,13 +113,14 @@ mod pattern {
 
     #[derive(Debug)]
     pub struct SingleApplication<A: Program> {
-        raw: A,
-        settings: Settings,
-        namespace: String,
+        pub(super) raw: A,
+        pub(super) settings: Settings,
+        pub(super) namespace: String,
     }
 
     pub fn application<State, Message, Theme, Renderer>(
         boot: impl BootFn<State, Message>,
+        namespace: impl NameSpace,
         update: impl UpdateFn<State, Message>,
         view: impl for<'a> self::ViewFn<'a, State, Message, Theme, Renderer>,
     ) -> SingleApplication<impl Program<Message = Message, Theme = Theme, State = State>>
@@ -196,14 +201,8 @@ mod pattern {
                 _theme: PhantomData,
                 _renderer: PhantomData,
             },
-            settings: Settings {
-                layer_settings: LayerShellSettings {
-                    start_mode: exwlshellev::StartMode::Background,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            namespace: "lock".to_string(),
+            settings: Settings::default(),
+            namespace: namespace.namespace(),
         }
     }
 
@@ -398,32 +397,27 @@ mod pattern {
                 },
                 ..iced_graphics::Settings::default()
             };
-
+            use exwlshellev::StartMode;
+            if matches!(
+                settings.layer_settings.start_mode,
+                StartMode::AllScreens | StartMode::Background
+            ) {
+                return Err(crate::Error::InvalidSettings(
+                    "when using application of layershell, you should not set the mode to AllScreens and Background, please give it a display or use the Active",
+                ));
+            }
             crate::multi_window::run(
                 program,
                 &self.namespace,
                 settings,
                 renderer_settings,
-                true,
+                false,
                 None,
             )
         }
 
-        /// Sets the [`Settings`] of the [`SingleApplication`].
-        ///
-        /// A session lock always runs in [`StartMode::Background`], it's
-        /// forced instead of panic.
         pub fn settings(self, settings: Settings) -> Self {
-            Self {
-                settings: Settings {
-                    layer_settings: LayerShellSettings {
-                        start_mode: StartMode::Background,
-                        ..settings.layer_settings
-                    },
-                    ..settings
-                },
-                ..self
-            }
+            Self { settings, ..self }
         }
 
         /// Sets the [`Settings::antialiasing`] of the [`SingleApplication`].
@@ -442,6 +436,17 @@ mod pattern {
             Self {
                 settings: Settings {
                     default_font,
+                    ..self.settings
+                },
+                ..self
+            }
+        }
+
+        /// Sets the layershell setting of the [`SingleApplication`]
+        pub fn layer_settings(self, layer_settings: LayerShellSettings) -> Self {
+            Self {
+                settings: Settings {
+                    layer_settings,
                     ..self.settings
                 },
                 ..self

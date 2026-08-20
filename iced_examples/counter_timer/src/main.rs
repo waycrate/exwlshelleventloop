@@ -1,12 +1,12 @@
 use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Color, Element, Event, Length, Subscription, Task as Command};
-use iced_layershell::Settings;
-use iced_layershell::build_pattern::timed;
-use iced_layershell::reexport::{Anchor, LayerSize};
-use iced_layershell::settings::{LayerShellSettings, StartMode};
-use iced_layershell::to_layer_message;
+use iced_exwlshell::Settings;
+use iced_exwlshell::layershell::timed;
+use iced_exwlshell::reexport::{Anchor, LayerSize};
+use iced_exwlshell::settings::{LayerShellSettings, StartMode};
+use iced_exwlshell::to_layer_message;
 use std::time::Instant;
-pub fn main() -> Result<(), iced_layershell::Error> {
+pub fn main() -> Result<(), iced_exwlshell::Error> {
     let binded_output_name = std::env::args().nth(1);
     let start_mode = match binded_output_name {
         Some(output) => StartMode::TargetScreen(output),

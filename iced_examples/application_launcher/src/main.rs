@@ -4,10 +4,10 @@ use applications::{App, all_apps};
 use iced::widget::operation::focus;
 use iced::widget::{column, scrollable, text_input};
 use iced::{Element, Event, Length, Task as Command, event};
-use iced_layershell::actions::LayerShellCustomActionWithId;
-use iced_layershell::application;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
-use iced_layershell::settings::{LayerShellSettings, Settings};
+use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
+use iced_exwlshell::settings::{LayerShellSettings, Settings};
 use iced_runtime::Action;
 
 use std::sync::LazyLock;
@@ -15,7 +15,7 @@ use std::sync::LazyLock;
 static SCROLLABLE_ID: LazyLock<iced::widget::Id> = LazyLock::new(iced::widget::Id::unique);
 static INPUT_ID: LazyLock<iced::widget::Id> = LazyLock::new(iced::widget::Id::unique);
 
-fn main() -> Result<(), iced_layershell::Error> {
+fn main() -> Result<(), iced_exwlshell::Error> {
     application(
         Launcher::new,
         Launcher::namespace,
@@ -36,9 +36,9 @@ fn main() -> Result<(), iced_layershell::Error> {
     Ok(())
 }
 
-impl TryInto<LayerShellCustomActionWithId> for Message {
+impl TryInto<ExwlShellCustomActionWithId> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<LayerShellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<ExwlShellCustomActionWithId, Self::Error> {
         Err(self)
     }
 }

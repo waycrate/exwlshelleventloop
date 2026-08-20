@@ -43,6 +43,12 @@ pub enum ShellEvent {
     OutputUpdated(OutputInfo),
     /// monitor was disconnected.
     OutputRemoved(OutputInfo),
+    /// The monitor is locked
+    Locked,
+    /// The compositor denied lock request
+    LockDenied,
+    /// The lock is finished
+    LockedFinished,
 }
 
 #[derive(Default)]
@@ -173,6 +179,7 @@ fn publish(registry: &mut Registry, event: ShellEvent) {
         ShellEvent::OutputRemoved(info) => {
             registry.monitors.remove(&info.id);
         }
+        _ => {}
     }
     registry
         .subscribers

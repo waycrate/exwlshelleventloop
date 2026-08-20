@@ -21,7 +21,7 @@ iced = { workspace = true, features = [
   "svg",
 ] }
 iced_runtime.workspace = true
-iced_layershell.workspace = true
+iced_exwlshell.workspace = true
 regex = "1.11.1"
 xdg = "3.0.0"
 tracing = "0.1.40"

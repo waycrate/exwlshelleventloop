@@ -3,11 +3,11 @@ use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_layershell::actions::{LayerShellCustomAction, LayerShellCustomActionWithId};
-use iced_layershell::application;
-use iced_layershell::reexport::wl_keyboard::KeymapFormat;
-use iced_layershell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
-use iced_layershell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
+use iced_exwlshell::actions::{ExwlShellCustomAction, ExwlShellCustomActionWithId};
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::wl_keyboard::KeymapFormat;
+use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
+use iced_exwlshell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
@@ -87,13 +87,13 @@ enum Message {
     InputKeyPressed { key: u32 },
 }
 
-impl TryInto<LayerShellCustomActionWithId> for Message {
+impl TryInto<ExwlShellCustomActionWithId> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<LayerShellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<ExwlShellCustomActionWithId, Self::Error> {
         let Message::InputKeyPressed { key } = self;
-        Ok(LayerShellCustomActionWithId(
+        Ok(ExwlShellCustomActionWithId(
             None,
-            LayerShellCustomAction::VirtualKeyboardPressed { key },
+            ExwlShellCustomAction::VirtualKeyboardPressed { key },
         ))
     }
 }
@@ -127,7 +127,7 @@ impl KeyboardView {
     }
 }
 
-fn main() -> Result<(), iced_layershell::Error> {
+fn main() -> Result<(), iced_exwlshell::Error> {
     let (file, keymap_size) = get_keymap_as_file();
 
     application(

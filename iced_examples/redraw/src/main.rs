@@ -20,12 +20,12 @@ use iced::{Color, window};
 use iced::{Element, Task};
 use std::time::{Duration, Instant};
 
-use iced_layershell::build_pattern::application;
-use iced_layershell::reexport::{Anchor, LayerSize};
-use iced_layershell::settings::LayerShellSettings;
-use iced_layershell::to_layer_message;
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::{Anchor, LayerSize};
+use iced_exwlshell::settings::LayerShellSettings;
+use iced_exwlshell::to_layer_message;
 
-fn main() -> iced_layershell::Result {
+fn main() -> iced_exwlshell::Result {
     application(Panel::new, "Example", Panel::update, Panel::view)
         .layer_settings(LayerShellSettings {
             size: LayerSize::px(600, 50),

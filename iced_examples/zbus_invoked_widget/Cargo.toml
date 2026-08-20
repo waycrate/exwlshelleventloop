@@ -13,7 +13,7 @@ publish = false
 [dependencies]
 iced.workspace = true
 iced_runtime.workspace = true
-iced_layershell.workspace = true
+iced_exwlshell.workspace = true
 
 zbus = "5.16.0"
 futures = "0.3.31"

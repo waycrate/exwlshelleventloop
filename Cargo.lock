@@ -113,7 +113,7 @@ dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "regex",
  "serde",
@@ -446,7 +446,7 @@ dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "regex",
  "serde",
@@ -821,7 +821,7 @@ name = "counter"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
 ]
 
@@ -839,7 +839,7 @@ name = "counter_multi"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "iced_wayland_subscriber",
  "tracing-subscriber",
@@ -851,7 +851,7 @@ name = "counter_output_select"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "libwaysip",
  "wayland-client",
@@ -862,7 +862,7 @@ name = "counter_timer"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
 ]
 
@@ -1907,43 +1907,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iced_layershell"
-version = "0.19.1"
-dependencies = [
- "enumflags2",
- "futures",
- "iced",
- "iced_core",
- "iced_debug",
- "iced_devtools",
- "iced_exdevtools",
- "iced_futures",
- "iced_graphics",
- "iced_layershell_macros",
- "iced_program",
- "iced_renderer",
- "iced_runtime",
- "iced_wayland_subscriber",
- "layershellev",
- "log",
- "mundy",
- "thiserror 2.0.20",
- "tracing",
- "window_clipboard",
-]
-
-[[package]]
-name = "iced_layershell_macros"
-version = "0.19.1"
-dependencies = [
- "darling",
- "manyhow",
- "proc-macro2",
- "quote",
- "syn 3.0.3",
-]
-
-[[package]]
 name = "iced_program"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2002,7 +1965,7 @@ name = "iced_virtualkeyboard"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "tempfile",
  "xkbcommon 0.9.0",
@@ -2144,7 +2107,7 @@ name = "input_regions"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
 ]
 
@@ -2265,26 +2228,6 @@ dependencies = [
  "arrayvec",
  "euclid",
  "smallvec",
-]
-
-[[package]]
-name = "layershellev"
-version = "0.19.1"
-dependencies = [
- "calloop 0.14.4",
- "calloop-wayland-source 0.4.1",
- "log",
- "raw-window-handle",
- "smithay-client-toolkit 0.21.1",
- "tempfile",
- "thiserror 2.0.20",
- "waycrate_xkbkeycode",
- "wayland-backend",
- "wayland-client",
- "wayland-cursor",
- "wayland-protocols",
- "wayland-protocols-misc",
- "wayland-protocols-wlr",
 ]
 
 [[package]]
@@ -2615,7 +2558,7 @@ name = "multi_window"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "tracing",
  "tracing-subscriber",
@@ -3695,7 +3638,7 @@ name = "redraw"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
 ]
 
 [[package]]
@@ -5764,7 +5707,7 @@ name = "workspace_bar"
 version = "0.19.1"
 dependencies = [
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_wayland_subscriber",
  "tracing-subscriber",
  "wayland-client",
@@ -5917,7 +5860,7 @@ version = "0.19.1"
 dependencies = [
  "futures",
  "iced",
- "iced_layershell",
+ "iced_exwlshell",
  "iced_runtime",
  "zbus",
 ]

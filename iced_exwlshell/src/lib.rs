@@ -39,7 +39,7 @@ pub mod reexport {
 mod ime_preedit;
 
 #[cfg(feature = "macros")]
-pub use iced_exwlshell_macros::{to_exwlshell_message, to_sessionlock_message};
+pub use iced_exwlshell_macros::{to_exwlshell_message, to_layer_message, to_sessionlock_message};
 
 pub use error::Error;
 pub use iced_wayland_subscriber::shell;
@@ -61,6 +61,7 @@ use iced_core::theme::Base as DefaultStyle;
 
 // layershell application
 pub use build_pattern::daemon;
+pub use build_pattern::layershell;
 pub use build_pattern::sessionlock;
 
 pub use settings::Settings;

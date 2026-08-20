@@ -1,9 +1,9 @@
 use iced::widget::{button, row, text};
 use iced::{Element, Length, Task as Command};
-use iced_layershell::application;
-use iced_layershell::reexport::{Anchor, Layer, LayerSize};
-use iced_layershell::settings::{LayerShellSettings, Settings, StartMode};
-use iced_layershell::to_layer_message;
+use iced_exwlshell::layershell::application;
+use iced_exwlshell::reexport::{Anchor, Layer, LayerSize};
+use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::to_layer_message;
 use iced_wayland_subscriber::OutputId;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellReceiver};
 use iced_wayland_subscriber::workspace::{
@@ -15,7 +15,7 @@ use wayland_client::Connection;
 /// Example to show even dead(unswitchable) slots
 const SLOTS: std::ops::RangeInclusive<u32> = 1..=10;
 
-pub fn main() -> Result<(), iced_layershell::Error> {
+pub fn main() -> Result<(), iced_exwlshell::Error> {
     tracing_subscriber::fmt().init();
     let connection = Connection::connect_to_env().unwrap();
     let subscriber_connection = connection.clone();

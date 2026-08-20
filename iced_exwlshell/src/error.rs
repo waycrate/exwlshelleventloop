@@ -18,6 +18,9 @@ pub enum Error {
 
     #[error("Error during dispatch")]
     WaylandDispatchFailed(#[from] ExShellEventError),
+
+    #[error("invalid settings: {0}")]
+    InvalidSettings(&'static str),
 }
 
 impl From<iced_graphics::Error> for Error {
