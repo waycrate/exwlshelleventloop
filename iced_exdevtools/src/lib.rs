@@ -10,7 +10,7 @@ pub use crate::core::window;
 pub use crate::core::{Alignment::Center, Color, Element, Length::Fill};
 pub use crate::futures::Subscription;
 pub use crate::program::Program;
-pub use crate::program::message::MaybeDebug;
+pub use crate::program::message::{MaybeClone, MaybeDebug};
 pub use crate::runtime::Task;
 
 pub use iced_devtools::{DevTools, Event};
@@ -44,7 +44,11 @@ macro_rules! gen_attach {
         fn attach<P>(program: P) -> impl $crate::Program<Message = $crate::Event<P>>
         where
             P: $crate::Program + 'static,
-            P::Message: $crate::MaybeDebug + Send + 'static + TryInto<$Action, Error = P::Message>,
+            P::Message: $crate::MaybeDebug
+                + $crate::MaybeClone
+                + Send
+                + 'static
+                + TryInto<$Action, Error = P::Message>,
             $crate::Event<P>: TryInto<$Action, Error = $crate::Event<P>> + Send + 'static,
         {
             struct Attach<P> {
@@ -54,7 +58,7 @@ macro_rules! gen_attach {
             impl<P> $crate::Program for Attach<P>
             where
                 P: $crate::Program + 'static,
-                P::Message: $crate::MaybeDebug,
+                P::Message: $crate::MaybeDebug + $crate::MaybeClone,
             {
                 type State = $crate::DevTools<P>;
                 type Message = $crate::Event<P>;
