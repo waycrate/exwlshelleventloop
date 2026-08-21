@@ -1224,11 +1224,14 @@ where
                 }
 
                 if mouse_interaction != window.mouse_interaction {
-                    for pointer in ev.get_pointers() {
-                        ev.append_return_data(ReturnData::RequestSetCursorShape((
-                            conversion::mouse_interaction(mouse_interaction),
-                            pointer,
-                        )));
+                    // Only the window that contains the pointer can change cursor
+                    if ev.pointer_surface_id() == Some(window.id) {
+                        for pointer in ev.get_pointers() {
+                            ev.append_return_data(ReturnData::RequestSetCursorShape((
+                                conversion::mouse_interaction(mouse_interaction),
+                                pointer,
+                            )));
+                        }
                     }
                     window.mouse_interaction = mouse_interaction;
                 }
