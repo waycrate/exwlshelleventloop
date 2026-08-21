@@ -110,6 +110,10 @@ impl Drop for SeatStorage {
         {
             pointer.release();
         }
+        // destroy text_input during drop
+        if let Some(text_input) = self.text_input.take() {
+            text_input.destroy();
+        }
     }
 }
 
@@ -142,6 +146,14 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                 return;
             }
         };
+        // We should always allow a seat has a text_input, even there is not a keyboard, because
+        // maybe we can have virtual-keyboard
+        if seat_state.text_input.is_none() {
+            let text_input = self.text_input_manager.as_ref().map(|manager| {
+                manager.get_text_input(&seat, queue_handle, TextInputData::default())
+            });
+            seat_state.text_input = text_input;
+        }
 
         use xkb_keyboard::KeyboardState;
         match capability {
@@ -151,10 +163,6 @@ impl<T: 'static> SeatHandler for WindowState<T> {
             SeatCapability::Keyboard if seat_state.keyboard_state.is_none() => {
                 seat_state.keyboard_state =
                     Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
-                let text_input = self.text_input_manager.as_ref().map(|manager| {
-                    manager.get_text_input(&seat, queue_handle, TextInputData::default())
-                });
-                seat_state.text_input = text_input;
             }
             SeatCapability::Pointer if seat_state.pointer.is_none() => {
                 seat_state.pointer = Some(seat.get_pointer(queue_handle, ()));
@@ -176,9 +184,7 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                 return;
             }
         };
-        if let Some(text_input) = seat_state.text_input.take() {
-            text_input.destroy();
-        }
+
         match capability {
             SeatCapability::Touch => {
                 if let Some(touch) = seat_state.touch.take()
