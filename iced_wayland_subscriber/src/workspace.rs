@@ -234,8 +234,10 @@ impl WorkspaceSnapshot {
 /// Coordinates arrive as raw byte array
 fn decode_coordinates(bytes: &[u8]) -> Vec<u32> {
     bytes
-        .chunks_exact(4)
-        .map(|chunk| u32::from_ne_bytes(chunk.try_into().unwrap()))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|chunk| u32::from_ne_bytes(*chunk))
         .collect()
 }
 
