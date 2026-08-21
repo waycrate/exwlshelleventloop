@@ -31,13 +31,6 @@ impl<T> WindowState<T> {
             .cloned()
             .collect()
     }
-    pub fn get_keyboard_state_iter_mut(
-        &mut self,
-    ) -> impl Iterator<Item = &mut xkb_keyboard::KeyboardState> {
-        self.seats
-            .values_mut()
-            .flat_map(|seat| &mut seat.keyboard_state)
-    }
     pub fn get_keyboard_state_by_id(
         &mut self,
         id: ObjectId,
@@ -219,7 +212,6 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     ) {
         use crate::keyboard::*;
         use xkb_keyboard::ElementState;
-        let surface_id = state.current_surface_id();
 
         match event {
             wl_keyboard::Event::Keymap { format, fd, size } => match format {
@@ -246,47 +238,42 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 _ => unreachable!(),
             },
             wl_keyboard::Event::Enter { surface, .. } => {
-                state.update_current_surface(Some(surface));
-                let Some(keyboard_state) = state
-                    .seats
-                    .values_mut()
-                    .find(|seat_storage| {
-                        seat_storage
-                            .keyboard_state
-                            .as_ref()
-                            .is_some_and(|state| state.keyboard == *wl_keyboard)
-                    })
-                    .map(|storage| storage.keyboard_state.as_mut().unwrap())
-                else {
+                state.update_active_output(&surface);
+                if state.keyboard_focus.as_ref() == Some(&surface) {
+                    log::warn!("wl_keyboard::enter ignoring duplicate call");
+                } else {
+                    let surface_id = state.get_id_from_surface(&surface);
+                    state.keyboard_focus = Some(surface);
+                    if let Some(id) = surface_id {
+                        state
+                            .message
+                            .push((Some(id), DispatchMessageInner::Focused(id)));
+                    }
+                }
+                let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
                     return;
                 };
+                keyboard_state.current_repeat = None;
                 if let Some(token) = keyboard_state.repeat_token.take() {
                     state.to_remove_tokens.push(token);
                 }
             }
-            wl_keyboard::Event::Leave { .. } => {
-                let Some(keyboard_state) = state
-                    .seats
-                    .values_mut()
-                    .find(|seat_storage| {
-                        seat_storage
-                            .keyboard_state
-                            .as_ref()
-                            .is_some_and(|state| state.keyboard == *wl_keyboard)
-                    })
-                    .map(|storage| storage.keyboard_state.as_mut().unwrap())
-                else {
+            wl_keyboard::Event::Leave { surface, .. } => {
+                state.keyboard_focus = None;
+                let surface_id = state.get_id_from_surface(&surface);
+                if surface_id.is_some() {
+                    state.message.push((
+                        surface_id,
+                        DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
+                    ));
+                    state
+                        .message
+                        .push((surface_id, DispatchMessageInner::Unfocus));
+                }
+                let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
                     return;
                 };
                 keyboard_state.current_repeat = None;
-                state.message.push((
-                    surface_id,
-                    DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
-                ));
-                state
-                    .message
-                    .push((surface_id, DispatchMessageInner::Unfocus));
-
                 if let Some(token) = keyboard_state.repeat_token.take() {
                     state.to_remove_tokens.push(token);
                 }
@@ -296,6 +283,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 key,
                 ..
             } => {
+                let surface_id = state.keyboard_focus_id();
                 let pressed_state = match keystate {
                     WEnum::Value(KeyState::Pressed) => ElementState::Pressed,
                     WEnum::Value(KeyState::Released) => ElementState::Released,
@@ -392,7 +380,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 let modifiers = xkb_state.modifiers();
 
                 state.message.push((
-                    state.current_surface_id(),
+                    state.keyboard_focus_id(),
                     DispatchMessageInner::ModifiersChanged(modifiers.into()),
                 ))
             }
@@ -452,7 +440,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 state
                     .active_surfaces
                     .insert(Some(id), (surface.clone(), surface_id));
-                state.update_current_surface(Some(surface));
+                state.update_active_output(&surface);
                 state.message.push((
                     surface_id,
                     DispatchMessageInner::TouchDown {
@@ -685,8 +673,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 if matches!(btnstate, WEnum::Value(wl_pointer::ButtonState::Pressed)) {
                     state.button_serial = Some(serial);
                 }
-                let mouse_surface = mouse_surface.cloned();
-                state.update_current_surface(mouse_surface);
+                if let Some(mouse_surface) = mouse_surface.cloned() {
+                    state.update_active_output(&mouse_surface);
+                }
                 state.message.push((
                     surface_id,
                     DispatchMessageInner::MouseButton {

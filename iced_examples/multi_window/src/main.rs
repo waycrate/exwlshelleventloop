@@ -43,6 +43,7 @@ struct Window {
     scale_input: String,
     current_scale: f32,
     theme: Theme,
+    focused: bool,
 }
 
 #[to_layer_message(multi)]
@@ -52,6 +53,8 @@ enum Message {
     CloseWindow(window::Id),
     WindowOpened(window::Id),
     WindowClosed(window::Id),
+    WindowFocused(window::Id),
+    WindowUnfocused(window::Id),
     ScaleInputChanged(window::Id, String),
     ScaleChanged(window::Id, String),
     TitleChanged(window::Id, String),
@@ -70,7 +73,7 @@ impl Example {
             7 => Anchor::Left | Anchor::Bottom,
             _ => Anchor::Bottom,
         };
-        let size = LayerSize::px(480, 320);
+        let size = LayerSize::px(480, 420);
         let id = window::Id::unique();
         (
             id,
@@ -126,6 +129,20 @@ impl Example {
                     Task::none()
                 }
             }
+            Message::WindowFocused(id) => {
+                eprintln!("Focused: {id:?}");
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.focused = true;
+                }
+                Task::none()
+            }
+            Message::WindowUnfocused(id) => {
+                eprintln!("Unfocused: {id:?}");
+                if let Some(window) = self.windows.get_mut(&id) {
+                    window.focused = false;
+                }
+                Task::none()
+            }
             Message::ScaleInputChanged(id, scale) => {
                 if let Some(window) = self.windows.get_mut(&id) {
                     window.scale_input = scale;
@@ -176,10 +193,15 @@ impl Example {
     fn subscription(&self) -> Subscription<Message> {
         event::listen_with(|event, status, id| {
             tracing::debug!("event: {}, {:?}, {:?}", id, status, event);
-            if let iced::Event::Window(iced::window::Event::Closed) = event {
-                Some(Message::WindowClosed(id))
-            } else {
-                None
+            match event {
+                iced::Event::Window(iced::window::Event::Closed) => Some(Message::WindowClosed(id)),
+                iced::Event::Window(iced::window::Event::Focused) => {
+                    Some(Message::WindowFocused(id))
+                }
+                iced::Event::Window(iced::window::Event::Unfocused) => {
+                    Some(Message::WindowUnfocused(id))
+                }
+                _ => None,
             }
         })
     }
@@ -192,10 +214,21 @@ impl Window {
             scale_input: "1.0".to_string(),
             current_scale: 1.0,
             theme: Theme::ALL[count % Theme::ALL.len()].clone(),
+            focused: false,
         }
     }
 
     fn view(&self, id: window::Id) -> Element<'_, Message> {
+        let focus_status = column![
+            text(format!("{id:?}")),
+            if self.focused {
+                text("focused").size(24)
+            } else {
+                text("unfocused").size(24)
+            },
+        ]
+        .align_x(Center);
+
         let scale_input = column![
             text("Window scale factor:"),
             text_input("Window Scale", &self.scale_input)
@@ -216,6 +249,7 @@ impl Window {
 
         let content = scrollable(
             column![
+                focus_status,
                 scale_input,
                 title_input,
                 row![new_window_button, close_window_button]
