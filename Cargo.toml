@@ -50,15 +50,12 @@ wayland-protocols-wlr = { version = "0.3.12", default-features = false, features
 ] }
 
 wayland-protocols-misc = { version = "0.3.12", features = ["client"] }
-wayland-backend = { version = "0.3.16", features = ["client_system"] }
+wayland-backend = { version = "0.3.17", features = ["client_system"] }
 rustix = { version = "1.1.4", features = ["event"] }
 
 calloop = "0.14.4"
 calloop-wayland-source = "0.4.1"
 
-rwh_05 = { package = "raw-window-handle", version = "0.5.2", features = [
-  "std",
-] }
 rwh_06 = { package = "raw-window-handle", version = "0.6", features = ["std"] }
 sctk = { package = "smithay-client-toolkit", version = "0.21.1" }
 iced = "0.14"
@@ -84,7 +81,7 @@ winit-core = "0.31.0-beta.2"                                                # Ha
 tracing = "0.1.40"
 futures = "0.3.34"
 
-darling = { version = "0.24.0", features = ["suggestions"] }
+darling = { version = "0.24.1", features = ["suggestions"] }
 manyhow = { version = "0.13.0", features = ["darling"] }
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
