@@ -524,15 +524,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             .active_surfaces
             .get(&None)
             .map(|(surface, id)| (Some(surface), *id))
-            .unwrap_or_else(|| {
-                match &event {
-                    wl_pointer::Event::Enter { .. } => {}
-                    _ => {
-                        log::warn!("mouse hasn't entered.");
-                    }
-                }
-                (None, None)
-            });
+            .unwrap_or_else(|| (None, None));
         let scale = surface_id
             .and_then(|id| state.get_unit_with_id(id))
             .map(|unit| unit.scale_float())
@@ -563,7 +555,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     ))
                 }
                 WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    log::warn!(target: "exwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
                 }
             },
             wl_pointer::Event::AxisStop { time, axis } => match axis {
@@ -589,7 +581,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 }
 
                 WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    log::warn!(target: "exwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
                 }
             },
             wl_pointer::Event::AxisSource { axis_source } => match axis_source {
@@ -604,7 +596,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     },
                 )),
                 WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "unknown pointer axis source: {unknown:x}");
+                    log::warn!(target: "exwlshellev", "unknown pointer axis source: {unknown:x}");
                 }
             },
             wl_pointer::Event::AxisValue120 { axis, value120 } => match axis {
@@ -629,7 +621,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 }
 
                 WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    log::warn!(target: "wxwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
                 }
             },
             // AxisDiscrete is deprecated since wl_pointer::Event::AxisValue120 is added, but some compositors may still use it.
@@ -661,7 +653,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 }
 
                 WEnum::Unknown(unknown) => {
-                    log::warn!(target: "layershellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
+                    log::warn!(target: "exwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
                 }
             },
             wl_pointer::Event::Button {
