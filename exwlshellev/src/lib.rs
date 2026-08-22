@@ -1035,7 +1035,7 @@ impl From<Connection> for WithConnection {
 #[derive(Debug)]
 pub struct WindowState<T> {
     outputs: Vec<wl_output::WlOutput>,
-    current_surface: Option<WlSurface>,
+    keyboard_focus: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
     units: Vec<WindowStateUnit<T>>,
     message: Vec<(Option<id::Id>, DispatchMessageInner)>,
@@ -1148,6 +1148,9 @@ impl<T: 'static> WindowState<T> {
     fn remove_shell(&mut self, id: id::Id) -> Option<()> {
         let index = self.units.iter().position(|unit| unit.id == id)?;
 
+        if self.keyboard_focus.as_ref() == Some(&self.units[index].window.wl_surface) {
+            self.keyboard_focus = None;
+        }
         self.units.remove(index);
         Some(())
     }
@@ -1213,8 +1216,8 @@ impl<T> WindowState<T> {
     fn push_window(&mut self, window_state_unit: WindowStateUnit<T>) {
         let surface = window_state_unit.window.wl_surface.clone();
         self.units.push(window_state_unit);
-        // new created surface will be current_surface.
-        self.update_current_surface(Some(surface));
+        // update newest window output for `OutputOption::LastOutput`
+        self.update_active_output(&surface);
     }
 }
 
@@ -1596,7 +1599,7 @@ impl<T> Default for WindowState<T> {
     fn default() -> Self {
         Self {
             outputs: Vec::new(),
-            current_surface: None,
+            keyboard_focus: None,
             active_surfaces: HashMap::new(),
             units: Vec::new(),
             message: Vec::new(),
@@ -1751,12 +1754,33 @@ impl<T> WindowState<T> {
         self.get_output_info_of(&output)
     }
 
-    /// get the current focused surface id
-    pub fn current_surface_id(&self) -> Option<id::Id> {
+    /// get the current keyboard focus window id
+    pub fn keyboard_focus_id(&self) -> Option<id::Id> {
         self.units
             .iter()
-            .find(|unit| Some(&unit.window.wl_surface) == self.current_surface.as_ref())
+            .find(|unit| Some(&unit.window.wl_surface) == self.keyboard_focus.as_ref())
             .map(|unit| unit.id())
+    }
+
+    /// parent popup/menu when no parent from caller
+    pub fn popup_parent_id(&self) -> Option<id::Id> {
+        self.keyboard_focus_id()
+            .or_else(|| self.pointer_surface_id())
+            .or_else(|| {
+                self.active_surfaces
+                    .values()
+                    .filter_map(|(_, id)| *id)
+                    .find(|id| self.get_unit_with_id(*id).is_some())
+            })
+            .or_else(|| self.units.last().map(|unit| unit.id()))
+    }
+
+    /// window id under the pointer
+    pub fn pointer_surface_id(&self) -> Option<id::Id> {
+        self.active_surfaces
+            .get(&None)
+            .and_then(|(_, id)| *id)
+            .filter(|id| self.get_unit_with_id(*id).is_some())
     }
 
     fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
@@ -1773,33 +1797,21 @@ impl<T> WindowState<T> {
             .is_some()
     }
 
-    /// update `current_surface` only if a finger is down or a mouse button is clicked or a surface
-    /// is created.
-    fn update_current_surface(&mut self, surface: Option<WlSurface>) {
-        if surface == self.current_surface {
+    /// update output window is on, for `OutputOption::LastOutput`
+    fn update_active_output(&mut self, surface: &WlSurface) {
+        let Some(unit) = self
+            .units
+            .iter()
+            .find(|unit| &unit.window.wl_surface == surface)
+        else {
             return;
-        }
-        if let Some(surface) = surface {
-            self.current_surface = Some(surface);
-
-            // reset repeat when surface is changed
-            for keyboard_state in self.get_keyboard_state_iter_mut() {
-                keyboard_state.current_repeat = None;
-            }
-
-            let unit = self
-                .units
-                .iter()
-                .find(|unit| Some(&unit.window.wl_surface) == self.current_surface.as_ref());
-            if let Some(unit) = unit {
-                self.message
-                    .push((Some(unit.id), DispatchMessageInner::Focused(unit.id)));
-                self.last_unit_index = self
-                    .outputs
-                    .iter()
-                    .position(|output| Some(output) == unit.get_wloutput())
-                    .unwrap_or(0);
-            }
+        };
+        if let Some(index) = self
+            .outputs
+            .iter()
+            .position(|output| Some(output) == unit.get_wloutput())
+        {
+            self.last_unit_index = index;
         }
     }
 
@@ -1899,6 +1911,12 @@ impl<T: 'static> OutputHandler for WindowState<T> {
                 !unit.window.wl_surface.is_alive() || unit.wl_outputs.as_slice() == [output.clone()]
             })
             .collect();
+        if removed_states
+            .iter()
+            .any(|unit| Some(&unit.window.wl_surface) == self.keyboard_focus.as_ref())
+        {
+            self.keyboard_focus = None;
+        }
         for unit in &mut self.units {
             let previous = unit.wl_outputs.first().cloned();
             unit.wl_outputs.retain(|o| o != &output);
@@ -2751,8 +2769,10 @@ impl<T: 'static> WindowState<T> {
         }
 
         fn remove_lock_units<T>(window_state: &mut WindowState<T>) {
-            let removed_states = window_state.units.extract_if(.., |unit| unit.is_lock());
-            for removed in removed_states.into_iter() {
+            for removed in window_state.units.extract_if(.., |unit| unit.is_lock()) {
+                if window_state.keyboard_focus.as_ref() == Some(&removed.window.wl_surface) {
+                    window_state.keyboard_focus = None;
+                }
                 window_state.closed_ids.push(removed.id);
             }
         }

@@ -964,7 +964,7 @@ where
                 } = settings;
                 let parent_layer_id = match parent {
                     Some(parent) => self.window_manager.get(parent).map(|w| w.id),
-                    None => ev.current_surface_id(),
+                    None => ev.popup_parent_id(),
                 };
                 let Some(parent_layer_id) = parent_layer_id else {
                     return;
@@ -1013,7 +1013,9 @@ where
                 settings: menu_setting,
                 id: iced_id,
             } => {
-                let Some(parent_layer_shell_id) = ev.current_surface_id() else {
+                let Some(parent_layer_shell_id) =
+                    ev.pointer_surface_id().or_else(|| ev.popup_parent_id())
+                else {
                     return;
                 };
                 let Some((_, window)) = self.window_manager.get_alias(parent_layer_shell_id) else {
@@ -1222,11 +1224,14 @@ where
                 }
 
                 if mouse_interaction != window.mouse_interaction {
-                    for pointer in ev.get_pointers() {
-                        ev.append_return_data(ReturnData::RequestSetCursorShape((
-                            conversion::mouse_interaction(mouse_interaction),
-                            pointer,
-                        )));
+                    // Only the window that contains the pointer can change cursor
+                    if ev.pointer_surface_id() == Some(window.id) {
+                        for pointer in ev.get_pointers() {
+                            ev.append_return_data(ReturnData::RequestSetCursorShape((
+                                conversion::mouse_interaction(mouse_interaction),
+                                pointer,
+                            )));
+                        }
                     }
                     window.mouse_interaction = mouse_interaction;
                 }

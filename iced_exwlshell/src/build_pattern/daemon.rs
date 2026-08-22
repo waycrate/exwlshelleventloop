@@ -660,6 +660,7 @@ impl<P: Program> Daemon<P> {
     where
         Self: 'static,
         P::Message: std::fmt::Debug
+            + iced_program::message::MaybeClone
             + Send
             + 'static
             + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
