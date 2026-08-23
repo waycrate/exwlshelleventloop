@@ -454,6 +454,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 scale: 120,
                 request_flag: Default::default(),
                 present_available_state: Default::default(),
+                frame_callback: None,
             },
         }
     }
@@ -566,12 +567,20 @@ pub struct WindowStateUnit<T> {
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
     present_available_state: PresentAvailableState,
+    frame_callback: Option<WlCallback>,
 }
 
 /// wayland-rs sends nothing on drop.
 /// A destructor request has to be issued, so every object the unit owns is released.
 impl<T> Drop for WindowStateUnit<T> {
     fn drop(&mut self) {
+        // wl_callback has no destructor request, so something like
+        // this needs to be done
+        if let Some(callback) = self.frame_callback.take()
+            && let Some(backend) = callback.backend().upgrade()
+        {
+            let _ = backend.destroy_object(&callback.id());
+        }
         self.shell.destroy();
         if let Some(buffer) = &self.buffer {
             buffer.destroy();
@@ -958,9 +967,11 @@ impl<T: 'static> WindowStateUnit<T> {
         match self.present_available_state {
             PresentAvailableState::Taken => {
                 self.present_available_state = PresentAvailableState::Requested;
-                self.window
-                    .wl_surface
-                    .frame(&self.qh, (self.id, PresentAvailableState::Available));
+                self.frame_callback = Some(
+                    self.window
+                        .wl_surface
+                        .frame(&self.qh, (self.id, PresentAvailableState::Available)),
+                );
             }
             PresentAvailableState::Requested | PresentAvailableState::Available => {}
         }
@@ -2345,6 +2356,7 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
         if let WlCallbackEvent::Done { callback_data: _ } = event
             && let Some(unit) = state.get_mut_unit_with_id(data.0)
         {
+            unit.frame_callback = None;
             unit.present_available_state = data.1;
         }
     }
