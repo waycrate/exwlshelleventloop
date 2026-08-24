@@ -1059,6 +1059,9 @@ where
             ExwlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();
             }
+            ExwlShellCustomAction::NoRefresh => {
+                tracing::warn!("NoRefresh should not be used as an action");
+            }
         }
     }
 
@@ -1117,25 +1120,27 @@ where
         }
 
         if !self.messages.is_empty() {
-            ev.request_refresh_all(RefreshRequest::NextFrame);
             let (caches, application) = self.user_interfaces.extract_all();
 
             // Update application
-            update(
+            let do_fresh = update(
                 application,
                 &mut self.runtime,
                 &mut self.messages,
                 &mut self.waiting_layer_shell_actions,
             );
 
-            for (_, window) in self.window_manager.iter_mut() {
-                window.state.synchronize(application);
+            if do_fresh {
+                ev.request_refresh_all(RefreshRequest::NextFrame);
+                for (_, window) in self.window_manager.iter_mut() {
+                    window.state.synchronize(application);
+                }
+                iced_debug::theme_changed(|| {
+                    self.window_manager
+                        .first()
+                        .and_then(|window| theme::Base::palette(window.state.theme()))
+                });
             }
-            iced_debug::theme_changed(|| {
-                self.window_manager
-                    .first()
-                    .and_then(|window| theme::Base::palette(window.state.theme()))
-            });
 
             for (iced_id, cache) in caches {
                 let Some(window) = self.window_manager.get_mut(iced_id) else {
@@ -1246,10 +1251,12 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     runtime: &mut MultiRuntime<E, P::Message>,
     messages: &mut Vec<P::Message>,
     waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
-) where
+) -> bool
+where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
 {
+    let mut do_refresh = true;
     for message in messages.drain(..) {
         // NOTE: avoid something like
         // match message {
@@ -1259,6 +1266,10 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
         let message = match message.try_into() {
             Ok(action) => {
                 let ExwlShellCustomActionWithId(id, action) = action;
+                if matches!(action, ExwlShellCustomAction::NoRefresh) {
+                    do_refresh = false;
+                    continue;
+                }
                 waiting_layer_shell_actions.push((id, action));
                 continue;
             }
@@ -1276,6 +1287,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
 
     iced_debug::subscriptions_tracked(recipes.len());
     runtime.track(recipes);
+    do_refresh
 }
 
 #[allow(clippy::too_many_arguments)]

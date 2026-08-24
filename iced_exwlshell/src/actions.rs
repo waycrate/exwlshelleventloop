@@ -190,6 +190,8 @@ pub enum ExwlShellCustomAction {
     ForgetLastOutput,
     Lock,
     UnLock,
+
+    NoRefresh,
 }
 
 /// Please do not use this struct directly

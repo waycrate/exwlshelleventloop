@@ -71,11 +71,16 @@ pub fn to_exwlshell_message(
             /// Action, Lock
             Lock,
             /// Action, UnLock
-            UnLock
+            UnLock,
+            /// Action, Skip Refresh
+            NoRefresh
         };
 
         let impl_quote = quote! {
             impl #impl_gen #ident #ty_gen #where_gen {
+                fn no_refresh() -> iced_exwlshell::reexport::Task<Self> {
+                    iced_exwlshell::reexport::Task::done(Self::NoRefresh)
+                }
                 fn layershell_open(settings: iced_exwlshell::reexport::NewLayerShellSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
                     let id = iced_exwlshell::reexport::IcedId::unique();
                     (
@@ -139,6 +144,7 @@ pub fn to_exwlshell_message(
                         Self::BlurOptionChange {id, option} => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::BlurOptionChange(option))),
                         Self::Lock => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::Lock)),
                         Self::UnLock => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::UnLock)),
+                        Self::NoRefresh => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NoRefresh)),
                         _ => Err(self)
                     }
                 }
@@ -178,12 +184,26 @@ pub fn to_sessionlock_message(
     let wlshell_action: Path =
         syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
 
-    let try_into = quote! {
+    let additional_variants = quote! {
+        /// Skip refresh
+        NoRefresh
+    };
+    let impl_quote = quote! {
+        impl #impl_gen #ident #ty_gen #where_gen {
+            fn no_refresh() -> iced_exwlshell::reexport::Task<Self> {
+                iced_exwlshell::reexport::Task::done(Self::NoRefresh)
+            }
+        }
         impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
             type Error = Self;
 
             fn try_into(self) -> Result<#wlshell_action, Self::Error> {
-                Err(self)
+                use iced_exwlshell::actions::ExwlShellCustomAction;
+                use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+                match self {
+                    Self::NoRefresh => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NoRefresh)),
+                    _ => Err(self)
+                }
             }
         }
     };
@@ -192,9 +212,10 @@ pub fn to_sessionlock_message(
         #(#attrs)*
         #vis enum #ident #ty_gen #where_gen {
             #(#variants,)*
+            #additional_variants
         }
 
-        #try_into
+        #impl_quote
     })
 }
 #[derive(FromDeriveInput)]
@@ -261,10 +282,15 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 NewInputPanel { settings: iced_exwlshell::reexport::NewInputPanelSettings, id: iced_exwlshell::reexport::IcedId },
                 RemoveWindow(iced_exwlshell::reexport::IcedId),
                 ForgetLastOutput,
+                /// Action, to skip Refresh
+                NoRefresh
             };
 
             let impl_quote = quote! {
                 impl #impl_gen #ident #ty_gen #where_gen {
+                    fn no_refresh() -> iced_exwlshell::reexport::Task<Self> {
+                        iced_exwlshell::reexport::Task::done(Self::NoRefresh)
+                    }
                     fn layershell_open(settings: iced_exwlshell::reexport::NewLayerShellSettings) -> (iced_exwlshell::reexport::IcedId, iced_exwlshell::reexport::Task<Self>) {
                         let id = iced_exwlshell::reexport::IcedId::unique();
                         (
@@ -325,6 +351,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),
                             Self::ForgetLastOutput => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ForgetLastOutput)),
                             Self::BlurOptionChange {id, option} => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::BlurOptionChange(option))),
+                            Self::NoRefresh => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NoRefresh)),
                             _ => Err(self)
                         }
                     }
@@ -345,8 +372,15 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     key: u32,
                 },
                 BlurOptionChange(iced_exwlshell::reexport::BlurOption),
+                /// Action, NoRefresh
+                NoRefresh
             };
             let impl_quote = quote! {
+                impl #impl_gen #ident #ty_gen #where_gen {
+                    fn no_refresh() -> iced_exwlshell::reexport::Task<Self> {
+                        iced_exwlshell::reexport::Task::done(Self::NoRefresh)
+                    }
+                }
                 impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
@@ -367,6 +401,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             })),
 
                             Self::BlurOptionChange(option) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::BlurOptionChange(option))),
+                            Self::NoRefresh => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NoRefresh)),
                             _ => Err(self)
                         }
                     }

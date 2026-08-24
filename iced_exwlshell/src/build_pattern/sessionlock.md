@@ -62,6 +62,7 @@ impl Counter {
                 Command::none()
             }
             Message::UnLock => iced::exit(),
+            _ => unreachable!()
         }
     }
 
