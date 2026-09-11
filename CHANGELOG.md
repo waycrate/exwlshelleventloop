@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.1] - 2026-09-11
+### Hot Fix
+- Fix: iced_exdevtools cannot compiled due to the new winit-core
+
+### Changed
+- Update winit-core related crate to beta.3
+- Update manyhow to 0.14.0
+
+[0.20.1]: https://github.com/waycrate/exwlshelleventloop/compare/v0.20.1...v0.20.0
+
 ## [0.20.0] - 2026-08-29
 ### Migration
 Current update is hudge, so [Migration Guide is provided](https://github.com/waycrate/exwlshelleventloop/docs/MIGRATION-19.1->20.0.md)
