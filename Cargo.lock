@@ -115,7 +115,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "application-launcher"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
@@ -480,7 +480,7 @@ dependencies = [
 
 [[package]]
 name = "bottom_panel"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "anyhow",
  "freedesktop-desktop-entry",
@@ -828,7 +828,7 @@ dependencies = [
 
 [[package]]
 name = "counter"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -837,7 +837,7 @@ dependencies = [
 
 [[package]]
 name = "counter_lock"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "counter_multi"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -858,7 +858,7 @@ dependencies = [
 
 [[package]]
 name = "counter_output_select"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -869,7 +869,7 @@ dependencies = [
 
 [[package]]
 name = "counter_timer"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -878,7 +878,7 @@ dependencies = [
 
 [[package]]
 name = "counter_universe"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -1192,7 +1192,7 @@ dependencies = [
 
 [[package]]
 name = "exwlshellev"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "calloop 0.14.4",
  "calloop-wayland-source 0.4.1",
@@ -1872,7 +1872,7 @@ dependencies = [
 
 [[package]]
 name = "iced_exdevtools"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced_debug",
  "iced_devtools",
@@ -1884,7 +1884,7 @@ dependencies = [
 
 [[package]]
 name = "iced_exwlshell"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "enumflags2",
  "exwlshellev",
@@ -1912,7 +1912,7 @@ dependencies = [
 
 [[package]]
 name = "iced_exwlshell_macros"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "darling",
  "manyhow",
@@ -2014,7 +2014,7 @@ dependencies = [
 
 [[package]]
 name = "iced_virtualkeyboard"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -2025,7 +2025,7 @@ dependencies = [
 
 [[package]]
 name = "iced_wayland_subscriber"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "futures",
  "iced_core",
@@ -2260,7 +2260,7 @@ dependencies = [
 
 [[package]]
 name = "input_regions"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -2642,9 +2642,9 @@ dependencies = [
 
 [[package]]
 name = "manyhow"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e480c047342e73ccc05fb821f0953512868b9257c2559b22a7e3efafc4aad85d"
+checksum = "8c69ea6e469ca785c846b25dd69eac9e9c916b51d8ada1f212866787ee1da12d"
 dependencies = [
  "darling_core",
  "manyhow-macros",
@@ -2655,9 +2655,9 @@ dependencies = [
 
 [[package]]
 name = "manyhow-macros"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3330ca83c69fe1691d12126d522dda965e58735ac26052580f95f56e4169ec4"
+checksum = "22fc5c1b2c4000056dae3619fea36e79ce79dabfee4907d2dcad6612b189e370"
 dependencies = [
  "proc-macro-utils",
  "proc-macro2",
@@ -2765,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "multi_window"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -3947,7 +3947,7 @@ dependencies = [
 
 [[package]]
 name = "redraw"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -5139,7 +5139,7 @@ dependencies = [
 
 [[package]]
 name = "waycrate_xkbkeycode"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "calloop 0.14.4",
  "log",
@@ -5884,7 +5884,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "workspace_bar"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "iced",
  "iced_exwlshell",
@@ -6071,7 +6071,7 @@ dependencies = [
 
 [[package]]
 name = "zbus_invoked_widget"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "futures",
  "iced",

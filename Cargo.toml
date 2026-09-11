@@ -16,7 +16,7 @@ authors = [
   "Aakash Sen Sharma <aakashsensharma@gmail.com>",
 ]
 edition = "2024"
-version = "0.20.0"
+version = "0.20.1"
 license = "MIT"
 repository = "https://github.com/waycrate/exwlshelleventloop"
 description = "Wayland extra shell lib"
@@ -24,12 +24,12 @@ keywords = ["wayland", "wlroots"]
 readme = "README.md"
 
 [workspace.dependencies]
-exwlshellev = { version = "0.20.0", path = "./exwlshellev" }
-iced_wayland_subscriber = { version = "0.20.0", path = "./iced_wayland_subscriber" }
-iced_exdevtools = { version = "0.20.0", path = "./iced_exdevtools" }
-iced_exwlshell = { version = "0.20.0", path = "./iced_exwlshell" }
-iced_exwlshell_macros = { version = "0.20.0", path = "./iced_exwlshell_macros" }
-waycrate_xkbkeycode = { version = "0.20.0", path = "./waycrate_xkbkeycode" }
+exwlshellev = { version = "0.20.1", path = "./exwlshellev" }
+iced_wayland_subscriber = { version = "0.20.1", path = "./iced_wayland_subscriber" }
+iced_exdevtools = { version = "0.20.1", path = "./iced_exdevtools" }
+iced_exwlshell = { version = "0.20.1", path = "./iced_exwlshell" }
+iced_exwlshell_macros = { version = "0.20.1", path = "./iced_exwlshell_macros" }
+waycrate_xkbkeycode = { version = "0.20.1", path = "./waycrate_xkbkeycode" }
 
 tempfile = "3.27.0"
 thiserror = "2.0.20"
@@ -82,7 +82,7 @@ tracing = "0.1"
 futures = "0.3"
 
 darling = { version = "0.24.1", features = ["suggestions"] }
-manyhow = { version = "0.13.0", features = ["darling"] }
+manyhow = { version = "0.14.0", features = ["darling"] }
 proc-macro2 = "1.0.107"
 quote = "1.0.47"
 syn = { version = "3.0", features = ["full"] }
