@@ -573,10 +573,10 @@ pub fn native_key_code(
     use winit_core::keyboard::NativeKeyCode;
 
     match native_key_code {
-        NativeKeyCode::Unidentified => keyboard::key::NativeCode::Unidentified,
         NativeKeyCode::Android(code) => keyboard::key::NativeCode::Android(code),
         NativeKeyCode::MacOS(code) => keyboard::key::NativeCode::MacOS(code),
         NativeKeyCode::Windows(code) => keyboard::key::NativeCode::Windows(code),
         NativeKeyCode::Xkb(code) => keyboard::key::NativeCode::Xkb(code),
+        NativeKeyCode::Unidentified | _ => keyboard::key::NativeCode::Unidentified,
     }
 }
