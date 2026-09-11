@@ -383,7 +383,7 @@ mod pattern {
                     can_time_travel: cfg!(feature = "time-travel"),
                 });
 
-                super::attach(self.raw)
+                attach(self.raw)
             };
 
             #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
