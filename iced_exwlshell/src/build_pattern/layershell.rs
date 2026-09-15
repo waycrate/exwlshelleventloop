@@ -18,8 +18,8 @@ mod pattern {
 
     use crate::DefaultStyle;
     use crate::redraw::Policy;
-    use crate::settings::LayerShellSettings;
     use crate::reexport::WithConnection;
+    use crate::settings::LayerShellSettings;
 
     use crate::Result;
     use crate::settings::Settings;
