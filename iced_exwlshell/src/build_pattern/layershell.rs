@@ -19,6 +19,7 @@ mod pattern {
     use crate::DefaultStyle;
     use crate::redraw::Policy;
     use crate::settings::LayerShellSettings;
+    use crate::reexport::WithConnection;
 
     use crate::Result;
     use crate::settings::Settings;
@@ -428,6 +429,16 @@ mod pattern {
             Self {
                 settings: Settings {
                     antialiasing,
+                    ..self.settings
+                },
+                ..self
+            }
+        }
+        /// Set the wayland connection
+        pub fn with_connection(self, connection: impl Into<WithConnection>) -> Self {
+            Self {
+                settings: Settings {
+                    with_connection: Some(connection.into()),
                     ..self.settings
                 },
                 ..self

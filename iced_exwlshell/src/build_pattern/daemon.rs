@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use exwlshellev::WithConnection;
 use iced_core::Element;
 use iced_core::Font;
 use iced_runtime::Task;
@@ -750,6 +751,17 @@ impl<P: Program> Daemon<P> {
         Self {
             settings: Settings {
                 layer_settings,
+                ..self.settings
+            },
+            ..self
+        }
+    }
+
+    /// Set the wayland connection
+    pub fn with_connection(self, connection: impl Into<WithConnection>) -> Self {
+        Self {
+            settings: Settings {
+                with_connection: Some(connection.into()),
                 ..self.settings
             },
             ..self
