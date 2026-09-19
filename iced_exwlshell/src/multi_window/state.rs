@@ -28,6 +28,7 @@ where
     modifiers: ModifiersState,
     wpviewport: WpViewport,
     toplevel: Option<XdgToplevel>,
+    toplevel_state: exwlshellev::ToplevelState,
     title: String,
 }
 
@@ -83,6 +84,7 @@ where
             modifiers: ModifiersState::default(),
             wpviewport,
             toplevel,
+            toplevel_state: exwlshellev::ToplevelState::default(),
             title: "".to_owned(),
         }
     }
@@ -149,6 +151,18 @@ where
         self.mouse_position.as_ref()
     }
 
+    pub fn is_maximized(&self) -> bool {
+        self.toplevel_state.maximized
+    }
+
+    pub fn is_fullscreen(&self) -> bool {
+        self.toplevel_state.fullscreen
+    }
+
+    pub(crate) fn set_toplevel_state(&mut self, toplevel_state: exwlshellev::ToplevelState) {
+        self.toplevel_state = toplevel_state;
+    }
+
     pub fn cursor(&self) -> IcedMouse::Cursor {
         self.mouse_position
             .map(IcedMouse::Cursor::Available)
@@ -179,6 +193,9 @@ where
             } => {
                 self.wayland_scale_factor = *scale_float;
                 self.resize_viewport();
+            }
+            WindowEvent::ToplevelStateChanged(toplevel_state) => {
+                self.toplevel_state = *toplevel_state;
             }
             WindowEvent::ThemeChanged(mode) => {
                 self.default_theme = <P::Theme as iced_core::theme::Base>::default(*mode);

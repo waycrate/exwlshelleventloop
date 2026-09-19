@@ -17,11 +17,11 @@ use crate::{
     settings::Settings,
 };
 use exwlshellev::{
-    DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
-    RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DispatchMessage, DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
+    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
-        wayland_client::{WlCompositor, WlRegion},
+        wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
         zwp_virtual_keyboard_v1,
     },
 };
@@ -228,6 +228,11 @@ where
                 }
             }
             ExWlShellEvent::RequestMessages(message) => {
+                if let (ContextState::Context(context), Some(serial)) =
+                    (&mut context_state, action_serial(message))
+                {
+                    context.action_serial = Some(serial);
+                }
                 let window_event = ExwlShellWindowEvent::from_dispatch(message, ev);
                 waiting_layer_shell_events
                     .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
@@ -277,6 +282,19 @@ enum ContextState<Context> {
     Context(Context),
 }
 
+/// Input serial for xdg_shell move, window menu and popup grab requests.
+fn action_serial(message: &DispatchMessage) -> Option<u32> {
+    match message {
+        DispatchMessage::MouseButton {
+            state: WEnum::Value(ButtonState::Pressed),
+            serial,
+            ..
+        }
+        | DispatchMessage::TouchDown { serial, .. } => Some(*serial),
+        _ => None,
+    }
+}
+
 struct Context<P, E, C>
 where
     P: IcedProgram + 'static,
@@ -298,6 +316,8 @@ where
     wl_input_region: Option<WlRegion>,
     user_interfaces: UserInterfaces<P>,
     waiting_layer_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
+    action_serial: Option<u32>,
+    pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
     iced_events: Vec<(IcedId, IcedEvent)>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
@@ -342,6 +362,8 @@ where
             wl_input_region: Default::default(),
             user_interfaces: UserInterfaces::new(application),
             waiting_layer_shell_actions: Default::default(),
+            action_serial: None,
+            pending_window_controls: Default::default(),
             iced_events: Default::default(),
             messages: Default::default(),
             proxy,
@@ -448,6 +470,7 @@ where
             return;
         };
         let unit_id = ex_wlshell_window.id();
+        let toplevel_state = ex_wlshell_window.toplevel_state();
         let (width, height) = ex_wlshell_window.get_size();
         let scale_float = ex_wlshell_window.scale_float();
         // events may not be handled after RequestRefreshWithWrapper in the same
@@ -544,6 +567,14 @@ where
                         .expect("It should have been created"),
                     self.system_theme,
                 );
+                window.state.set_toplevel_state(toplevel_state);
+                let (ready, still_pending) = mem::take(&mut self.pending_window_controls)
+                    .into_iter()
+                    .partition(|(id, _)| *id == iced_id);
+                self.pending_window_controls = still_pending;
+                for (_, control) in ready {
+                    apply_window_control(ev, window, control);
+                }
 
                 iced_debug::theme_changed(|| {
                     if is_first {
@@ -720,6 +751,8 @@ where
         self.iced_events.retain(|(id, _)| *id != iced_id);
         self.waiting_layer_shell_actions
             .retain(|(id, _)| *id != Some(iced_id));
+        self.pending_window_controls
+            .retain(|(id, _)| *id != iced_id);
         self.shell_broadcast.forget(iced_id);
         self.runtime
             .broadcast(iced_futures::subscription::Event::Interaction {
@@ -813,6 +846,8 @@ where
             &mut self.system_theme,
             &mut self.runtime,
             ev,
+            self.action_serial,
+            &mut self.pending_window_controls,
         );
         if should_exit {
             ev.append_return_data(ReturnData::RequestExit);
@@ -975,7 +1010,7 @@ where
                 let Some(parent_layer_id) = parent_layer_id else {
                     return;
                 };
-                let grab_serial = ev.take_popup_grab_serial();
+                let grab_serial = self.action_serial;
                 let popup_settings = NewPopUpSettings {
                     size,
                     id: parent_layer_id,
@@ -1250,8 +1285,10 @@ where
                     // Only the window that contains the pointer can change cursor
                     if ev.pointer_surface_id() == Some(window.id) {
                         for pointer in ev.get_pointers() {
-                            ev.append_return_data(ReturnData::RequestSetCursorShape((
-                                conversion::mouse_interaction(mouse_interaction),
+                            ev.append_return_data(ReturnData::RequestSetCursor((
+                                exwlshellev::Cursor::Shape(conversion::mouse_interaction(
+                                    mouse_interaction,
+                                )),
                                 pointer,
                             )));
                         }
@@ -1301,6 +1338,52 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     runtime.track(recipes);
 }
 
+/// Window controls that can be requested before the window is mapped.
+pub(crate) enum PendingWindowControl {
+    Maximize(bool),
+    ToggleMaximize,
+    Minimize,
+}
+
+fn apply_window_control<P, C>(
+    ev: &WindowState<IcedId>,
+    window: &Window<P, C>,
+    control: PendingWindowControl,
+) where
+    P: IcedProgram + 'static,
+    C: Compositor<Renderer = P::Renderer> + 'static,
+    P::Theme: DefaultStyle,
+{
+    match control {
+        PendingWindowControl::Maximize(maximized) => ev.request_maximized(window.id, maximized),
+        PendingWindowControl::ToggleMaximize => {
+            ev.request_maximized(window.id, !window.state.is_maximized())
+        }
+        PendingWindowControl::Minimize => ev.request_minimized(window.id),
+    }
+}
+
+/// Check whether window `id` has been requested and is still waiting to register in `window_manager`.
+fn window_in_flight(
+    id: IcedId,
+    waiting_layer_shell_actions: &[(Option<IcedId>, ExwlShellCustomAction)],
+    ev: &WindowState<IcedId>,
+) -> bool {
+    waiting_layer_shell_actions.iter().any(|(_, action)| {
+        matches!(
+            action,
+            ExwlShellCustomAction::NewBaseWindow { id: new_id, .. }
+                | ExwlShellCustomAction::NewLayerShell { id: new_id, .. }
+                | ExwlShellCustomAction::NewPopUp { id: new_id, .. }
+                | ExwlShellCustomAction::NewMenu { id: new_id, .. }
+                | ExwlShellCustomAction::NewInputPanel { id: new_id, .. }
+                if *new_id == id
+        )
+    }) || ev
+        .get_unit_iter()
+        .any(|unit| unit.get_binding() == Some(&id))
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_action<P, C, E: Executor>(
     user_interfaces: &mut UserInterfaces<P>,
@@ -1314,6 +1397,8 @@ pub(crate) fn run_action<P, C, E: Executor>(
     system_theme: &mut iced_core::theme::Mode,
     runtime: &mut MultiRuntime<E, P::Message>,
     ev: &mut WindowState<IcedId>,
+    action_serial: Option<u32>,
+    pending_window_controls: &mut Vec<(IcedId, PendingWindowControl)>,
 ) where
     P: IcedProgram + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
@@ -1415,6 +1500,94 @@ pub(crate) fn run_action<P, C, E: Executor>(
                 if let Some(window) = window_manager.get_mut(id) {
                     let _ = channel.send(window.state.wayland_scale_factor() as f32);
                 };
+            }
+            WindowAction::Drag(id) => {
+                let (Some(window), Some(serial)) = (window_manager.get(id), action_serial) else {
+                    tracing::warn!("window::drag: unknown window or no input serial for {id:?}");
+                    return;
+                };
+                ev.request_move(window.id, serial);
+            }
+            WindowAction::Maximize(id, maximized) => match window_manager.get(id) {
+                Some(window) => {
+                    apply_window_control(ev, window, PendingWindowControl::Maximize(maximized))
+                }
+                None if window_in_flight(id, waiting_layer_shell_actions, ev) => {
+                    pending_window_controls.push((id, PendingWindowControl::Maximize(maximized)))
+                }
+                None => tracing::warn!("window::maximize: unknown window {id:?}, dropping"),
+            },
+            WindowAction::ToggleMaximize(id) => match window_manager.get(id) {
+                Some(window) => {
+                    apply_window_control(ev, window, PendingWindowControl::ToggleMaximize)
+                }
+                None if window_in_flight(id, waiting_layer_shell_actions, ev) => {
+                    pending_window_controls.push((id, PendingWindowControl::ToggleMaximize))
+                }
+                None => tracing::warn!("window::toggle_maximize: unknown window {id:?}, dropping"),
+            },
+            WindowAction::GetMaximized(id, channel) => {
+                let _ = channel.send(
+                    window_manager
+                        .get(id)
+                        .is_some_and(|window| window.state.is_maximized()),
+                );
+            }
+            WindowAction::Minimize(id, minimized) => {
+                if !minimized {
+                    tracing::warn!(
+                        "xdg_shell does not support window::minimize(false); ignoring request for {id:?}"
+                    );
+                } else if let Some(window) = window_manager.get(id) {
+                    apply_window_control(ev, window, PendingWindowControl::Minimize);
+                } else if window_in_flight(id, waiting_layer_shell_actions, ev) {
+                    pending_window_controls.push((id, PendingWindowControl::Minimize));
+                } else {
+                    tracing::warn!("window::minimize: unknown window {id:?}, dropping");
+                }
+            }
+            WindowAction::GetMinimized(_id, channel) => {
+                let _ = channel.send(None);
+            }
+            WindowAction::GetMode(id, channel) => {
+                let mode = if window_manager
+                    .get(id)
+                    .is_some_and(|window| window.state.is_fullscreen())
+                {
+                    iced_core::window::Mode::Fullscreen
+                } else {
+                    iced_core::window::Mode::Windowed
+                };
+                let _ = channel.send(mode);
+            }
+            WindowAction::ShowSystemMenu(id) => {
+                let (Some(window), Some(serial)) = (window_manager.get(id), action_serial) else {
+                    tracing::warn!(
+                        "window::show_system_menu: unknown window or no input serial for {id:?}"
+                    );
+                    return;
+                };
+                // Convert the pointer position back to surface coordinates for the menu.
+                let scale = window.state.application_scale_factor();
+                let Some(point) = window.state.mouse_position() else {
+                    tracing::warn!("window::show_system_menu: no pointer position for {id:?}");
+                    return;
+                };
+                ev.request_show_window_menu(
+                    window.id,
+                    serial,
+                    (
+                        (point.x as f64 * scale) as i32,
+                        (point.y as f64 * scale) as i32,
+                    ),
+                );
+            }
+            WindowAction::Run(id, f) => {
+                if let Some(exshell_id) = window_manager.get(id).map(|window| window.id)
+                    && let Some(unit) = ev.get_unit_with_id(exshell_id)
+                {
+                    f(unit);
+                }
             }
             _ => {}
         },

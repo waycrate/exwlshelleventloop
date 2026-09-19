@@ -108,6 +108,7 @@ pub enum WindowEvent {
     Locked,
     LockDenied,
     LockFinished,
+    ToplevelStateChanged(exwlshellev::ToplevelState),
 }
 
 #[derive(Debug)]
@@ -218,6 +219,9 @@ impl WindowEvent {
             DispatchMessage::Locked => WindowEvent::Locked,
             DispatchMessage::LockDenied => WindowEvent::LockDenied,
             DispatchMessage::LockFinished => WindowEvent::LockFinished,
+            DispatchMessage::ToplevelStateChanged(state) => {
+                WindowEvent::ToplevelStateChanged(*state)
+            }
         }
     }
 }

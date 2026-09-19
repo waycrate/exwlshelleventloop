@@ -79,8 +79,8 @@ fn main() {
             LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
             LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
                 pointer, ..
-            }) => ReturnData::RequestSetCursorShape((
-                "crosshair".to_owned(),
+            }) => ReturnData::RequestSetCursor((
+                Cursor::Shape(CursorShape::Crosshair),
                 pointer.clone(),
             )),
             LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {

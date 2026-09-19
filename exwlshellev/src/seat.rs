@@ -435,6 +435,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                 x,
                 y,
             } => {
+                state.popup_grab_serial = Some(serial);
                 state.finger_locations.insert(id, (x, y));
                 let surface_id = state.get_id_from_surface(&surface);
                 state
@@ -663,7 +664,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 time,
             } => {
                 if matches!(btnstate, WEnum::Value(wl_pointer::ButtonState::Pressed)) {
-                    state.button_serial = Some(serial);
+                    state.popup_grab_serial = Some(serial);
                 }
                 if let Some(mouse_surface) = mouse_surface.cloned() {
                     state.update_active_output(&mouse_surface);

@@ -21,6 +21,7 @@ use wayland_client::{
     },
 };
 
+use crate::CursorShape;
 use crate::size::{LayerSize, PixelSize};
 
 use crate::{blur::BlurOption, id, xkb_keyboard::KeyEvent};
@@ -172,6 +173,19 @@ pub struct NewXdgWindowSettings {
     pub client_side_decorations: bool,
 }
 
+/// Window state reported by `xdg_toplevel::configure`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ToplevelState {
+    /// The surface is maximized.
+    pub maximized: bool,
+    /// The surface is fullscreen.
+    pub fullscreen: bool,
+    /// At least one edge is tiled against another surface or the output.
+    pub tiled: bool,
+    /// The compositor considers this surface active.
+    pub activated: bool,
+}
+
 /// input panel settings to create a new input panel surface
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewInputPanelSettings {
@@ -201,6 +215,15 @@ impl Default for NewLayerShellSettings {
     }
 }
 
+/// A standard cursor shape or a named cursor from the current theme.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Cursor {
+    /// Use the [cursor-shape](https://wayland.app/protocols/cursor-shape-v1#wp_cursor_shape_device_v1:enum:shape) protocol, with the matching theme cursor as a fallback.
+    Shape(CursorShape),
+    /// Load a cursor by its exact Xcursor name, even when the cursor-shape protocol is available.
+    ThemeName(String),
+}
+
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
@@ -210,8 +233,8 @@ impl Default for NewLayerShellSettings {
 ///
 /// When send RequestExit, it will tell the event to finish.
 ///
-/// When send RequestSetCursorShape, you can set current pointer shape. please take
-/// [cursor-shape](https://wayland.app/protocols/cursor-shape-v1#wp_cursor_shape_device_v1:enum:shape) as reference.
+/// Use `RequestSetCursor` with [`Cursor::Shape`] for standard shapes or [`Cursor::ThemeName`] for
+/// an exact cursor name from the theme.
 ///
 /// None means nothing will happened, no request, and no return data
 #[derive(Debug, PartialEq, Eq)]
@@ -224,7 +247,7 @@ pub enum ReturnData<INFO> {
     RequestCompositor,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
-    RequestSetCursorShape((String, WlPointer)),
+    RequestSetCursor((Cursor, WlPointer)),
     NewLayerShell((NewLayerShellSettings, id::Id, Option<INFO>)),
     NewPopUp((NewPopUpSettings, id::Id, Option<INFO>)),
     PopUpReposition((PopUpRepositionSettings, id::Id)),
@@ -365,6 +388,7 @@ pub(crate) enum DispatchMessageInner {
     Locked,
     LockFinished,
     Ime(Ime),
+    ToplevelStateChanged(ToplevelState),
 }
 
 /// This tell the DispatchMessage by dispatch
@@ -473,6 +497,8 @@ pub enum DispatchMessage {
     LockDenied,
     LockFinished,
     Closed,
+    /// The compositor changed the state of an xdg toplevel window.
+    ToplevelStateChanged(ToplevelState),
 }
 
 impl From<DispatchMessageInner> for DispatchMessage {
@@ -584,6 +610,9 @@ impl From<DispatchMessageInner> for DispatchMessage {
             DispatchMessageInner::OutputChanged(output) => DispatchMessage::OutputChanged(output),
             DispatchMessageInner::Locked => DispatchMessage::Locked,
             DispatchMessageInner::LockFinished => DispatchMessage::LockFinished,
+            DispatchMessageInner::ToplevelStateChanged(state) => {
+                DispatchMessage::ToplevelStateChanged(state)
+            }
         }
     }
 }
