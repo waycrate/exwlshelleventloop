@@ -28,15 +28,17 @@ impl WindowTrait<()> for Window {
                 println!("{:?}", virtual_keyboard_manager);
                 ReturnData::RequestCompositor
             }
-            ExWlShellEvent::CompositorProvide(compositor, qh) => {
+            ExWlShellEvent::CompositorProvide(_compositor, _qh) => {
+                // NOTE: this is an example to use the CompositorProvide,
+                // but this is quite useless, because you can get the window_unit to set it directly
                 // NOTE: you can set input region to limit area which gets input events
                 // surface outside region becomes transparent for input events
                 // To ignore all input events use region with (0,0) size
-                for x in state.get_unit_iter() {
-                    let region = compositor.create_region(qh, ());
-                    region.add(0, 0, 0, 0);
-                    x.get_wlsurface().set_input_region(Some(&region));
-                }
+                // for x in state.get_unit_iter() {
+                //     let region = _compositor.create_region(_qh, ());
+                //     region.add(0, 0, 0, 0);
+                //     x.get_wlsurface().set_input_region(Some(&region));
+                // }
                 ReturnData::None
             }
             ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
