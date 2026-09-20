@@ -69,7 +69,10 @@ fn main() {
                 ReturnData::None
             }
             ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
-                ReturnData::RequestSetCursorShape(("crosshair".to_owned(), pointer.clone()))
+                ReturnData::RequestSetCursor((
+                    Cursor::Shape(CursorShape::Crosshair),
+                    pointer.clone(),
+                ))
             }
             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,

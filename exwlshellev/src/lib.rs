@@ -58,8 +58,8 @@
 //!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
 //!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter {
 //!                 pointer, ..
-//!             }) => ReturnData::RequestSetCursorShape((
-//!                 "crosshair".to_owned(),
+//!             }) => ReturnData::RequestSetCursor((
+//!                 Cursor::Shape(CursorShape::Crosshair),
 //!                 pointer.clone(),
 //!             )),
 //!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
@@ -105,6 +105,7 @@ pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
 pub use events::NewXdgWindowSettings;
 pub use events::OutputOption;
+pub use events::ToplevelState;
 pub use events::{NewPopUpSettings, PopUpRepositionSettings, PopupPlacement};
 pub use sctk::output::OutputInfo;
 pub use waycrate_xkbkeycode::keyboard;
@@ -114,7 +115,6 @@ pub mod dpi;
 mod events;
 mod seat;
 mod size;
-mod strtoshape;
 
 use events::DispatchMessageInner;
 use size::warn_if_exclusive_zone_ignored;
@@ -122,9 +122,8 @@ pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
-pub use events::{AxisScroll, DispatchMessage, ExWlShellEvent, Ime, ReturnData};
-
-use strtoshape::str_to_shape;
+pub use events::{AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, Ime, ReturnData};
+pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
 use waycrate_xkbkeycode::xkb_keyboard::RepeatInfo;
@@ -220,6 +219,7 @@ use calloop::{
     timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -287,7 +287,6 @@ pub mod reexport {
         };
     }
     pub mod wp_cursor_shape_device_v1 {
-        pub use crate::strtoshape::ShapeName;
         pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
     }
     pub mod xdg_toplevel {
@@ -449,6 +448,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 configured,
                 blur_option: BlurOption::None,
                 pending_reposition: None,
+                toplevel_state: ToplevelState::default(),
                 effect: None,
                 // Unknown why it is 120
                 scale: 120,
@@ -563,6 +563,9 @@ pub struct WindowStateUnit<T> {
 
     /// Only meaningful for PopUp
     pending_reposition: Option<u32>,
+
+    /// Last configure state. Only used for `XdgTopLevel` windows.
+    toplevel_state: ToplevelState,
 
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
@@ -841,6 +844,55 @@ impl<T> WindowStateUnit<T> {
         }
     }
 
+    /// State reported by the last `xdg_toplevel::configure` event.
+    pub fn toplevel_state(&self) -> ToplevelState {
+        self.toplevel_state
+    }
+
+    pub fn is_maximized(&self) -> bool {
+        self.toplevel_state.maximized
+    }
+
+    pub fn is_fullscreen(&self) -> bool {
+        self.toplevel_state.fullscreen
+    }
+
+    /// Request compositor to maximize or unmaximize this toplevel.
+    pub fn set_maximized(&self, maximized: bool) {
+        let Some(toplevel) = self.shell.top_level() else {
+            return;
+        };
+        if maximized {
+            toplevel.set_maximized();
+        } else {
+            toplevel.unset_maximized();
+        }
+    }
+
+    /// Request compositor to minimize this xdg toplevel.
+    pub fn set_minimized(&self) {
+        let Some(toplevel) = self.shell.top_level() else {
+            return;
+        };
+        toplevel.set_minimized();
+    }
+
+    /// Request compositor to start an interactive move of this xdg toplevel.
+    pub fn start_move(&self, seat: &WlSeat, serial: u32) {
+        let Some(toplevel) = self.shell.top_level() else {
+            return;
+        };
+        toplevel._move(seat, serial);
+    }
+
+    /// Request compositor to show the window menu for this xdg toplevel.
+    pub fn show_window_menu(&self, seat: &WlSeat, serial: u32, x: i32, y: i32) {
+        let Some(toplevel) = self.shell.top_level() else {
+            return;
+        };
+        toplevel.show_window_menu(seat, serial, x, y);
+    }
+
     /// you can use this function to set a binding data. the message passed back contain
     /// a index, you can use that to get the unit. It will be very useful, because you can
     /// use the binding data to operate the file binding to the buffer. you can take
@@ -1106,7 +1158,7 @@ pub struct WindowState<T> {
     return_data: Vec<ReturnData<T>>,
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
-    button_serial: Option<u32>,
+    popup_grab_serial: Option<u32>,
 
     start_mode: StartMode,
     init_finished: bool,
@@ -1127,9 +1179,14 @@ impl<T: 'static> WindowState<T> {
         self.return_data.push(data);
     }
 
+    /// Read the latest button press or touch down serial without consuming it.
+    pub fn popup_grab_serial(&self) -> Option<u32> {
+        self.popup_grab_serial
+    }
+
     /// Take the serial to use for the next popup grab, consuming it.
     pub fn take_popup_grab_serial(&mut self) -> Option<u32> {
-        self.button_serial.take().or(self.enter_serial)
+        self.popup_grab_serial.take()
     }
 
     /// Compute the minimum dispatch timeout across all window units.
@@ -1667,7 +1724,7 @@ impl<T> Default for WindowState<T> {
             return_data: Vec::new(),
             finger_locations: HashMap::new(),
             enter_serial: None,
-            button_serial: None,
+            popup_grab_serial: None,
 
             start_mode: StartMode::Active,
             init_finished: false,
@@ -1850,6 +1907,48 @@ impl<T> WindowState<T> {
             .map(WindowStateUnit::request_close);
     }
 
+    /// Request compositor to move window `id` with the pointer.
+    pub fn request_move(&self, id: id::Id, serial: u32) {
+        let Some(seat) = self.seat_back.as_ref() else {
+            log::warn!(target: "exwlshellev", "no seat, cannot move {id:?}");
+            return;
+        };
+        if let Some(unit) = self.get_unit_with_id(id) {
+            unit.start_move(seat, serial);
+        }
+    }
+
+    /// Request compositor to maximize or unmaximize window `id`.
+    pub fn request_maximized(&self, id: id::Id, maximized: bool) {
+        if let Some(unit) = self.get_unit_with_id(id) {
+            unit.set_maximized(maximized);
+        }
+    }
+
+    /// Request compositor to minimize window `id`.
+    pub fn request_minimized(&self, id: id::Id) {
+        if let Some(unit) = self.get_unit_with_id(id) {
+            unit.set_minimized();
+        }
+    }
+
+    /// Request compositor to show the menu for window `id` at the given surface coordinates.
+    pub fn request_show_window_menu(&self, id: id::Id, serial: u32, (x, y): (i32, i32)) {
+        let Some(seat) = self.seat_back.as_ref() else {
+            log::warn!(target: "exwlshellev", "no seat, cannot show the window menu for {id:?}");
+            return;
+        };
+        if let Some(unit) = self.get_unit_with_id(id) {
+            unit.show_window_menu(seat, serial, x, y);
+        }
+    }
+
+    /// State from the last `xdg_toplevel::configure` event for window `id`.
+    pub fn toplevel_state(&self, id: id::Id) -> Option<ToplevelState> {
+        self.get_unit_with_id(id)
+            .map(WindowStateUnit::toplevel_state)
+    }
+
     pub fn get_binding_mut(&mut self, id: id::Id) -> Option<&mut T> {
         self.get_mut_unit_with_id(id)
             .and_then(WindowStateUnit::get_binding_mut)
@@ -2010,6 +2109,27 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
     }
 }
 
+fn toplevel_state_from_configure(states: &[u8]) -> ToplevelState {
+    let mut toplevel_state = ToplevelState::default();
+    for raw in states.as_chunks::<4>().0 {
+        let raw = u32::from_ne_bytes([raw[0], raw[1], raw[2], raw[3]]);
+        let Ok(state) = xdg_toplevel::State::try_from(raw) else {
+            continue;
+        };
+        match state {
+            xdg_toplevel::State::Maximized => toplevel_state.maximized = true,
+            xdg_toplevel::State::Fullscreen => toplevel_state.fullscreen = true,
+            xdg_toplevel::State::Activated => toplevel_state.activated = true,
+            xdg_toplevel::State::TiledLeft
+            | xdg_toplevel::State::TiledRight
+            | xdg_toplevel::State::TiledTop
+            | xdg_toplevel::State::TiledBottom => toplevel_state.tiled = true,
+            _ => {}
+        }
+    }
+    toplevel_state
+}
+
 impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -2021,12 +2141,26 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
     ) {
         let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
         match event {
-            xdg_toplevel::Event::Configure { width, height, .. } => {
+            xdg_toplevel::Event::Configure {
+                width,
+                height,
+                states,
+            } => {
                 let Some(unit_index) = unit_index else {
                     return;
                 };
                 if width != 0 && height != 0 {
                     state.units[unit_index].size = (width as u32, height as u32);
+                }
+
+                let toplevel_state = toplevel_state_from_configure(&states);
+                if state.units[unit_index].toplevel_state != toplevel_state {
+                    state.units[unit_index].toplevel_state = toplevel_state;
+                    let id = state.units[unit_index].id;
+                    state.message.push((
+                        Some(id),
+                        DispatchMessageInner::ToplevelStateChanged(toplevel_state),
+                    ));
                 }
 
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
@@ -2468,7 +2602,7 @@ impl<T: 'static> WindowState<T> {
         self.wmbase = Some(wmbase);
 
         let cursor_manager = globals
-            .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=1, ())
+            .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=2, ())
             .ok();
         let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
 
@@ -2734,7 +2868,7 @@ impl<T: 'static> WindowState<T> {
             qh: qh.clone(),
             connection: connection.clone(),
             shm: shm.clone(),
-            wmcompositer: wmcompositer.clone(),
+            cursor_surface: wmcompositer.create_surface(&qh, ()),
         };
 
         while !matches!(init_event, Some(ReturnData::None)) {
@@ -3137,11 +3271,11 @@ impl<T: 'static> WindowState<T> {
                             }
                             LockLifecycle::Unlocked => {}
                         },
-                        ReturnData::RequestSetCursorShape((shape_name, pointer)) => {
+                        ReturnData::RequestSetCursor((cursor, pointer)) => {
                             let Some(serial) = window_state.enter_serial else {
                                 continue;
                             };
-                            set_cursor_shape(&cursor_update_context, shape_name, pointer, serial);
+                            set_cursor(&cursor_update_context, cursor, pointer, serial);
                         }
                         ReturnData::NewLayerShell((
                             NewLayerShellSettings {
@@ -3278,10 +3412,12 @@ impl<T: 'static> WindowState<T> {
                                     &qh,
                                     (),
                                 ),
+                                Shell::XdgTopLevel((_, parent_xdg_surface, _)) => wl_xdg_surface
+                                    .get_popup(Some(parent_xdg_surface), &positioner, &qh, ()),
                                 _ => {
                                     log::warn!(
                                         target: "exwlshellev",
-                                        "popup parent {:?} is neither a layer surface nor a popup; skipping popup creation",
+                                        "cannot create popup: parent {:?} must be a layer surface, an xdg_toplevel or a popup",
                                         id
                                     );
                                     positioner.destroy();
@@ -3822,54 +3958,105 @@ fn build_positioner<T: 'static>(
 }
 
 fn get_cursor_buffer(
-    shape: &str,
+    name: &str,
     connection: &Connection,
     shm: &WlShm,
 ) -> Option<CursorImageBuffer> {
     let mut cursor_theme = CursorTheme::load(connection, shm.clone(), 23).ok()?;
-    let cursor = cursor_theme.get_cursor(shape);
-    Some(cursor?[0].clone())
+    let cursor = cursor_theme.get_cursor(name)?;
+    Some(cursor[0].clone())
 }
 
-/// avoid too_many_arguments alert in `set_cursor_shape`
 struct CursorUpdateContext<T: 'static> {
     cursor_manager: Option<WpCursorShapeManagerV1>,
     qh: QueueHandle<WindowState<T>>,
     connection: Connection,
     shm: WlShm,
-    wmcompositer: WlCompositor,
+    cursor_surface: WlSurface,
 }
 
-fn set_cursor_shape<T: 'static>(
+fn set_cursor<T: 'static>(
     context: &CursorUpdateContext<T>,
-    shape_name: String,
+    cursor: Cursor,
     pointer: WlPointer,
     serial: u32,
 ) {
-    if let Some(cursor_manager) = &context.cursor_manager {
-        let Some(shape) = str_to_shape(&shape_name) else {
-            log::error!("Not supported shape");
-            return;
-        };
-        let device = cursor_manager.get_pointer(&pointer, &context.qh, ());
-        device.set_shape(serial, shape);
-        device.destroy();
-    } else {
-        let Some(cursor_buffer) = get_cursor_buffer(&shape_name, &context.connection, &context.shm)
-        else {
-            log::error!("Cannot find cursor {shape_name}");
-            return;
-        };
-        let cursor_surface = context.wmcompositer.create_surface(&context.qh, ());
-        cursor_surface.attach(Some(&cursor_buffer), 0, 0);
-        // and create a surface. if two or more,
-        let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
-        pointer.set_cursor(
-            serial,
-            Some(&cursor_surface),
-            hotspot_x as i32,
-            hotspot_y as i32,
-        );
-        cursor_surface.commit();
-    }
+    let theme_name = match cursor {
+        Cursor::Shape(shape) => {
+            let name = match shape {
+                CursorShape::Default => "default",
+                CursorShape::ContextMenu => "context-menu",
+                CursorShape::Help => "help",
+                CursorShape::Pointer => "pointer",
+                CursorShape::Progress => "progress",
+                CursorShape::Wait => "wait",
+                CursorShape::Cell => "cell",
+                CursorShape::Crosshair => "crosshair",
+                CursorShape::Text => "text",
+                CursorShape::VerticalText => "vertical-text",
+                CursorShape::Alias => "alias",
+                CursorShape::Copy => "copy",
+                CursorShape::Move => "move",
+                CursorShape::NoDrop => "no-drop",
+                CursorShape::NotAllowed => "not-allowed",
+                CursorShape::Grab => "grab",
+                CursorShape::Grabbing => "grabbing",
+                CursorShape::EResize => "e-resize",
+                CursorShape::NResize => "n-resize",
+                CursorShape::NeResize => "ne-resize",
+                CursorShape::EwResize => "ew-resize",
+                CursorShape::NwResize => "nw-resize",
+                CursorShape::SResize => "s-resize",
+                CursorShape::SeResize => "se-resize",
+                CursorShape::SwResize => "sw-resize",
+                CursorShape::WResize => "w-resize",
+                CursorShape::NsResize => "ns-resize",
+                CursorShape::NeswResize => "nesw-resize",
+                CursorShape::NwseResize => "nwse-resize",
+                CursorShape::ColResize => "col-resize",
+                CursorShape::RowResize => "row-resize",
+                CursorShape::AllScroll => "all-scroll",
+                CursorShape::ZoomIn => "zoom-in",
+                CursorShape::ZoomOut => "zoom-out",
+                CursorShape::DndAsk => "dnd-ask",
+                CursorShape::AllResize => "all-resize",
+                _ => {
+                    log::warn!("Unsupported cursor shape: {shape:?}");
+                    return;
+                }
+            };
+            let required_version = if matches!(shape, CursorShape::DndAsk | CursorShape::AllResize)
+            {
+                2
+            } else {
+                1
+            };
+            if let Some(manager) = &context.cursor_manager
+                && manager.version() >= required_version
+            {
+                let device = manager.get_pointer(&pointer, &context.qh, ());
+                device.set_shape(serial, shape);
+                device.destroy();
+                return;
+            }
+            Cow::Borrowed(name)
+        }
+        Cursor::ThemeName(name) => Cow::Owned(name),
+    };
+    let Some(cursor_buffer) = get_cursor_buffer(&theme_name, &context.connection, &context.shm)
+    else {
+        log::error!("Cannot find cursor {theme_name}");
+        return;
+    };
+    let cursor_surface = &context.cursor_surface;
+    cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+    cursor_surface.damage(0, 0, i32::MAX, i32::MAX);
+    let (hotspot_x, hotspot_y) = cursor_buffer.hotspot();
+    pointer.set_cursor(
+        serial,
+        Some(cursor_surface),
+        hotspot_x as i32,
+        hotspot_y as i32,
+    );
+    cursor_surface.commit();
 }

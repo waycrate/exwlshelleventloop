@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed (breaking)
+
+- Replace `RequestSetCursorShape` with `RequestSetCursor`, using `Cursor::Shape` or `Cursor::ThemeName`. Remove `ShapeName` and string-based shape parsing
+- Remove the pointer-enter fallback from `take_popup_grab_serial`
+
+### Changed
+
+- Improve xdg toplevel support with compositor state tracking and window controls in `exwlshellev` and `iced_exwlshell`
+- Allow xdg toplevel windows to parent popups
+- Add `popup_grab_serial` alongside `take_popup_grab_serial`
+- Support custom theme cursors, correct cursor mappings and fallbacks, and reuse the cursor surface
+
 ## [0.20.1] - 2026-09-11
 ### Hot Fix
 - Fix: iced_exdevtools cannot compiled due to the new winit-core

@@ -167,30 +167,35 @@ pub fn ime_purpose(purpose: input_method::Purpose) -> exwlshellev::ImePurpose {
     }
 }
 
-pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> String {
-    use exwlshellev::reexport::wp_cursor_shape_device_v1::{Shape, ShapeName};
+pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> exwlshellev::CursorShape {
+    use exwlshellev::CursorShape as Shape;
     use mouse::Interaction;
     match interaction {
-        Interaction::None => Shape::Default.name().to_owned(),
-        Interaction::Idle => Shape::Wait.name().to_owned(),
-        Interaction::Wait => Shape::Wait.name().to_owned(),
-        Interaction::Pointer => Shape::Pointer.name().to_owned(),
-        Interaction::Grab => Shape::Grab.name().to_owned(),
-        Interaction::Text => Shape::Text.name().to_owned(),
-        Interaction::ZoomIn => Shape::ZoomIn.name().to_owned(),
-        Interaction::Grabbing => Shape::Grabbing.name().to_owned(),
-        Interaction::Crosshair => Shape::Crosshair.name().to_owned(),
-        Interaction::NotAllowed => Shape::NotAllowed.name().to_owned(),
-        Interaction::ResizingVertically => Shape::NsResize.name().to_owned(),
-        Interaction::ResizingHorizontally => Shape::EwResize.name().to_owned(),
-        Interaction::Cell => Shape::Cell.name().to_owned(),
-        Interaction::Move => Shape::Move.name().to_owned(),
-        Interaction::Copy => Shape::Copy.name().to_owned(),
-        Interaction::Help => Shape::Help.name().to_owned(),
-        Interaction::ZoomOut => Shape::ZoomOut.name().to_owned(),
-        Interaction::ResizingDiagonallyUp => Shape::NwseResize.name().to_owned(),
-        Interaction::ResizingDiagonallyDown => Shape::NwseResize.name().to_owned(),
-        _ => Shape::Default.name().to_owned(),
+        Interaction::None | Interaction::Idle | Interaction::Hidden => Shape::Default,
+        Interaction::ContextMenu => Shape::ContextMenu,
+        Interaction::Help => Shape::Help,
+        Interaction::Pointer => Shape::Pointer,
+        Interaction::Progress => Shape::Progress,
+        Interaction::Wait => Shape::Wait,
+        Interaction::Cell => Shape::Cell,
+        Interaction::Crosshair => Shape::Crosshair,
+        Interaction::Text => Shape::Text,
+        Interaction::Alias => Shape::Alias,
+        Interaction::Copy => Shape::Copy,
+        Interaction::Move => Shape::Move,
+        Interaction::NoDrop => Shape::NoDrop,
+        Interaction::NotAllowed => Shape::NotAllowed,
+        Interaction::Grab => Shape::Grab,
+        Interaction::Grabbing => Shape::Grabbing,
+        Interaction::ResizingHorizontally => Shape::EwResize,
+        Interaction::ResizingVertically => Shape::NsResize,
+        Interaction::ResizingDiagonallyUp => Shape::NeswResize,
+        Interaction::ResizingDiagonallyDown => Shape::NwseResize,
+        Interaction::ResizingColumn => Shape::ColResize,
+        Interaction::ResizingRow => Shape::RowResize,
+        Interaction::AllScroll => Shape::AllScroll,
+        Interaction::ZoomIn => Shape::ZoomIn,
+        Interaction::ZoomOut => Shape::ZoomOut,
     }
 }
 
