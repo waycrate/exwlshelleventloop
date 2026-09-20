@@ -103,7 +103,7 @@ fn main() {
         .with_layer(Layer::Top)
         .with_margin((20, 20, 100, 20))
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
+        .with_keyboard_interacivity(KeyboardInteractivity::None)
         .with_exclusive_zone(-1)
         .build(window)
         .unwrap();
