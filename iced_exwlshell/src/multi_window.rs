@@ -125,7 +125,7 @@ where
 
     let virtual_keyboard_support = settings.virtual_keyboard_support;
     let context_ev = ContextEv {
-        context_state: ContextState::None,
+        context_state: ContextState::UnReady,
         waiting_layer_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
@@ -291,9 +291,12 @@ where
             }
             loop {
                 let mut need_continue = false;
+                if matches!(self.context_state, ContextState::UnReady) {
+                    break;
+                }
                 self.context_state =
                     match std::mem::replace(&mut self.context_state, ContextState::None) {
-                        ContextState::None => {
+                        ContextState::None | ContextState::UnReady => {
                             unreachable!("context state is taken but not returned")
                         }
                         ContextState::Context(context) => {
@@ -326,6 +329,7 @@ where
 }
 
 enum ContextState<Context> {
+    UnReady,
     None,
     Context(Context),
 }
