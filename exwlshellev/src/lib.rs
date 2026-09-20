@@ -2627,7 +2627,7 @@ impl LockLifecycle {
     }
 }
 
-pub struct EventLoopBuilder<T: 'static, W: WindowTrait<T>> {
+pub struct ExEventLoop<T: 'static, W: WindowTrait<T>> {
     raw: WindowState<T>,
     window: W,
     event_loop: Option<EventLoop<'static, Self>>,
@@ -2637,7 +2637,7 @@ pub struct EventLoopBuilder<T: 'static, W: WindowTrait<T>> {
     tokens: Vec<RegistrationToken>,
     cursor_update_context: CursorUpdateContext<T>,
 }
-impl<T: 'static, W: WindowTrait<T>> Drop for EventLoopBuilder<T, W> {
+impl<T: 'static, W: WindowTrait<T>> Drop for ExEventLoop<T, W> {
     fn drop(&mut self) {
         if let Some(lock) = self.raw.lock_manager.take() {
             lock.destroy();
@@ -2648,7 +2648,7 @@ impl<T: 'static, W: WindowTrait<T>> Drop for EventLoopBuilder<T, W> {
     }
 }
 
-impl<T: 'static, W: WindowTrait<T>> EventLoopBuilder<T, W> {
+impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
     pub fn window(&mut self) -> &mut W {
         &mut self.window
     }
@@ -3621,7 +3621,7 @@ impl<T: 'static> WindowState<T> {
     pub fn build<Window>(
         mut self,
         mut window: Window,
-    ) -> Result<EventLoopBuilder<T, Window>, ExShellEventError>
+    ) -> Result<ExEventLoop<T, Window>, ExShellEventError>
     where
         Window: WindowTrait<T> + 'static,
     {
@@ -3675,12 +3675,12 @@ impl<T: 'static> WindowState<T> {
         let event_loop: EventLoop<_> =
             EventLoop::try_new().expect("Failed to initialize the event loop");
 
-        let event_queue = connection.new_event_queue::<EventLoopBuilder<T, Window>>();
+        let event_queue = connection.new_event_queue::<ExEventLoop<T, Window>>();
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
             .expect("Failed to init wayland source");
         let signal = event_loop.get_signal();
-        Ok(EventLoopBuilder {
+        Ok(ExEventLoop {
             raw: self,
             window,
             looph: event_loop.handle(),

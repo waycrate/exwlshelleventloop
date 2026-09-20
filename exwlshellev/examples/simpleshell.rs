@@ -97,13 +97,13 @@ impl WindowTrait<()> for Window {
 
 fn main() {
     let window = Window;
-    let ev: EventLoopBuilder<(), _> = WindowState::new("Hello")
+    let ev: ExEventLoop<(), _> = WindowState::new("Hello")
         .with_allscreens()
         .with_size(LayerSize::fill_width(400))
         .with_layer(Layer::Top)
         .with_margin((20, 20, 100, 20))
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_keyboard_interacivity(KeyboardInteractivity::None)
+        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusive_zone(-1)
         .build(window)
         .unwrap();
