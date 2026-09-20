@@ -2680,7 +2680,9 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
     }
 
     fn handle_event(&mut self, event: ExWlShellEvent<T>, unit_id: Option<id::Id>) {
-        let return_data = self.window_context.on_event(event, &mut self.state, unit_id);
+        let return_data = self
+            .window_context
+            .on_event(event, &mut self.state, unit_id);
         if !matches!(return_data, ReturnData::None) {
             self.state.append_return_data(return_data);
         }
@@ -3048,7 +3050,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                                 &wl_surface,
                                 output.as_ref(),
                                 layer,
-                                namespace.unwrap_or_else(|| context.state.default_namespace.clone()),
+                                namespace
+                                    .unwrap_or_else(|| context.state.default_namespace.clone()),
                                 &qh,
                                 (),
                             );
@@ -3124,7 +3127,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             targetid,
                             info,
                         )) => {
-                            let Some(index) = context.state.units.iter().position(|unit| unit.id == id)
+                            let Some(index) =
+                                context.state.units.iter().position(|unit| unit.id == id)
                             else {
                                 continue;
                             };
@@ -3219,7 +3223,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             },
                             id,
                         )) => {
-                            let Some(unit) = context.state.units.iter_mut().find(|unit| unit.id == id)
+                            let Some(unit) =
+                                context.state.units.iter_mut().find(|unit| unit.id == id)
                             else {
                                 continue;
                             };
@@ -3529,7 +3534,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                 self.looph.remove(*token);
             }
             self.state.to_remove_tokens.clear();
-            if let Some(VirtualKeyRelease { delay, time, key }) = self.state.to_be_released_key.take()
+            if let Some(VirtualKeyRelease { delay, time, key }) =
+                self.state.to_be_released_key.take()
             {
                 self.looph
                     .insert_source(Timer::from_duration(delay), move |_, _, r_window_state| {
@@ -3551,7 +3557,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
             }) = self.state.repeat_delay.take()
             {
                 let timer = Timer::from_duration(delay);
-                if let Some(keyboard_state) = self.state.get_keyboard_state_by_id(object_id.clone()) {
+                if let Some(keyboard_state) = self.state.get_keyboard_state_by_id(object_id.clone())
+                {
                     keyboard_state.repeat_token = self
                         .looph
                         .insert_source(timer, move |_, _, r_window_state| {
