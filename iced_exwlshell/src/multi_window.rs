@@ -17,8 +17,8 @@ use crate::{
     settings::Settings,
 };
 use exwlshellev::{
-    DispatchMessage, DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
-    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DispatchMessage, DisplayWrapper, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
+    RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -91,8 +91,54 @@ where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
 {
-    use exwlshellev::calloop::channel::channel;
-    let (message_sender, message_receiver) = channel::<Action<P::Message>>();
+    let ev: WindowState<iced_core::window::Id> = exwlshellev::WindowState::new(namespace)
+        .with_start_mode(settings.layer_settings.start_mode)
+        .with_use_display_handle(true)
+        .with_events_transparent(settings.layer_settings.events_transparent)
+        .with_size(settings.layer_settings.size)
+        .with_layer(settings.layer_settings.layer)
+        .with_anchor(settings.layer_settings.anchor)
+        .with_exclusive_zone(settings.layer_settings.exclusive_zone)
+        .with_margin(settings.layer_settings.margin)
+        .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+        .with_blur_option(settings.layer_settings.blur_option)
+        .with_connection(settings.with_connection)
+        .build()
+        .expect("Cannot create layershell");
+    struct ContextEv<P>
+    where
+        P: IcedProgram + 'static,
+        P::Theme: DefaultStyle,
+        P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+    {
+        context_state: ContextState<
+            Context<
+                P,
+                <P as iced_program::Program>::Executor,
+                <P::Renderer as iced_graphics::compositor::Default>::Compositor,
+            >,
+        >,
+        waiting_layer_shell_events:
+            VecDeque<(Option<exwlshellev::id::Id>, IcedWlShellEvent<P::Message>)>,
+        virtual_keyboard_support: Option<VirtualKeyboardSettings>,
+    }
+
+    let virtual_keyboard_support = settings.virtual_keyboard_support;
+    let context_ev = ContextEv {
+        context_state: ContextState::None,
+        waiting_layer_shell_events: VecDeque::new(),
+        virtual_keyboard_support,
+    };
+
+    let mut wrapper = ev.ready(context_ev);
+
+    let message_sender = wrapper
+        .register(|window, event: Action<P::Message>| {
+            window
+                .waiting_layer_shell_events
+                .push_back((None, IcedWlShellEvent::UserAction(event)));
+        })
+        .unwrap();
 
     let boot_span = iced_debug::boot();
     let proxy = IcedProxy::new(message_sender);
@@ -122,21 +168,6 @@ where
     runtime.track(iced_futures::subscription::into_recipes(
         runtime.enter(|| application.subscription().map(Action::Output)),
     ));
-
-    let ev: WindowState<iced_core::window::Id> = exwlshellev::WindowState::new(namespace)
-        .with_start_mode(settings.layer_settings.start_mode)
-        .with_use_display_handle(true)
-        .with_events_transparent(settings.layer_settings.events_transparent)
-        .with_size(settings.layer_settings.size)
-        .with_layer(settings.layer_settings.layer)
-        .with_anchor(settings.layer_settings.anchor)
-        .with_exclusive_zone(settings.layer_settings.exclusive_zone)
-        .with_margin(settings.layer_settings.margin)
-        .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-        .with_blur_option(settings.layer_settings.blur_option)
-        .with_connection(settings.with_connection)
-        .build()
-        .expect("Cannot create layershell");
 
     #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
     let system_theme = {
@@ -187,93 +218,110 @@ where
         redraw_policy,
     )
     .lock(lock);
-    let mut context_state = ContextState::Context(context);
+
+    wrapper.window().context_state = ContextState::Context(context);
     boot_span.finish();
 
-    let mut waiting_layer_shell_events = VecDeque::new();
-
-    ev.running_with_proxy(message_receiver, move |event, ev, layer_shell_id| {
-        let mut def_returndata = ReturnData::None;
-        match event {
-            ExWlShellEvent::InitRequest => {
-                def_returndata = ReturnData::RequestBind;
-            }
-            ExWlShellEvent::BindProvide(globals, qh) => {
-                let wl_compositor = globals
-                    .bind::<WlCompositor, _, _>(qh, 1..=1, ())
-                    .expect("could not bind wl_compositor");
-                waiting_layer_shell_events.push_back((
-                    None,
-                    IcedWlShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
-                ));
-
-                if let Some(virtual_keyboard_setting) = settings.virtual_keyboard_support.as_ref() {
-                    let virtual_keyboard_manager = globals
-                        .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                            qh,
-                            1..=1,
-                            (),
-                        )
-                        .expect("no support virtual_keyboard");
-                    let VirtualKeyboardSettings {
-                        file,
-                        keymap_size,
-                        keymap_format,
-                    } = virtual_keyboard_setting;
-                    let seat = ev.get_seat();
-                    let virtual_keyboard_in =
-                        virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
-                    virtual_keyboard_in.keymap((*keymap_format).into(), file.as_fd(), *keymap_size);
-                    ev.set_virtual_keyboard(virtual_keyboard_in);
+    use exwlshellev::ExWlShellEventR;
+    impl<P> exwlshellev::WindowTrait<iced_core::window::Id> for ContextEv<P>
+    where
+        P: IcedProgram + 'static,
+        P::Theme: DefaultStyle,
+        P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+    {
+        fn on_event(
+            &mut self,
+            event: exwlshellev::ExWlShellEventR<iced_core::window::Id>,
+            state: &mut WindowState<iced_core::window::Id>,
+            layer_shell_id: Option<exwlshellev::id::Id>,
+        ) -> ReturnData<iced_core::window::Id> {
+            let mut def_returndata = ReturnData::None;
+            match event {
+                ExWlShellEventR::InitRequest => {
+                    def_returndata = ReturnData::RequestBind;
                 }
-            }
-            ExWlShellEvent::RequestMessages(message) => {
-                if let (ContextState::Context(context), Some(serial)) =
-                    (&mut context_state, action_serial(message))
-                {
-                    context.action_serial = Some(serial);
-                }
-                let window_event = ExwlShellWindowEvent::from_dispatch(message, ev);
-                waiting_layer_shell_events
-                    .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
-            }
-            ExWlShellEvent::UserEvent(event) => {
-                waiting_layer_shell_events
-                    .push_back((layer_shell_id, IcedWlShellEvent::UserAction(event)));
-            }
-            ExWlShellEvent::NormalDispatch => {
-                waiting_layer_shell_events
-                    .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
-            }
-            _ => {}
-        }
-        loop {
-            let mut need_continue = false;
-            context_state = match std::mem::replace(&mut context_state, ContextState::None) {
-                ContextState::None => unreachable!("context state is taken but not returned"),
-                ContextState::Context(context) => {
-                    if let Some((layer_shell_id, layer_shell_event)) =
-                        waiting_layer_shell_events.pop_front()
-                    {
-                        need_continue = true;
-                        let (context_state, waiting_layer_shell_event) =
-                            context.handle_event(ev, layer_shell_id, layer_shell_event);
-                        if let Some(waiting_layer_shell_event) = waiting_layer_shell_event {
-                            waiting_layer_shell_events
-                                .push_front((layer_shell_id, waiting_layer_shell_event));
-                        }
-                        context_state
-                    } else {
-                        ContextState::Context(context)
+                ExWlShellEventR::BindProvide(globals, qh) => {
+                    let wl_compositor = globals
+                        .bind::<WlCompositor, _, _>(qh, 1..=1, ())
+                        .expect("could not bind wl_compositor");
+                    self.waiting_layer_shell_events.push_back((
+                        None,
+                        IcedWlShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
+                    ));
+
+                    if let Some(virtual_keyboard_setting) = self.virtual_keyboard_support.as_ref() {
+                        let virtual_keyboard_manager = globals
+                            .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                                qh,
+                                1..=1,
+                                (),
+                            )
+                            .expect("no support virtual_keyboard");
+                        let VirtualKeyboardSettings {
+                            file,
+                            keymap_size,
+                            keymap_format,
+                        } = virtual_keyboard_setting;
+                        let seat = state.get_seat();
+                        let virtual_keyboard_in =
+                            virtual_keyboard_manager.create_virtual_keyboard(seat, qh, ());
+                        virtual_keyboard_in.keymap(
+                            (*keymap_format).into(),
+                            file.as_fd(),
+                            *keymap_size,
+                        );
+                        state.set_virtual_keyboard(virtual_keyboard_in);
                     }
                 }
-            };
-            if !need_continue {
-                break;
+                ExWlShellEventR::RequestMessages(message) => {
+                    if let (ContextState::Context(context), Some(serial)) =
+                        (&mut self.context_state, action_serial(message))
+                    {
+                        context.action_serial = Some(serial);
+                    }
+                    let window_event = ExwlShellWindowEvent::from_dispatch(message, state);
+                    self.waiting_layer_shell_events
+                        .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
+                }
+                ExWlShellEventR::NormalDispatch => {
+                    self.waiting_layer_shell_events
+                        .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
+                }
+                _ => {}
             }
+            loop {
+                let mut need_continue = false;
+                self.context_state =
+                    match std::mem::replace(&mut self.context_state, ContextState::None) {
+                        ContextState::None => {
+                            unreachable!("context state is taken but not returned")
+                        }
+                        ContextState::Context(context) => {
+                            if let Some((layer_shell_id, layer_shell_event)) =
+                                self.waiting_layer_shell_events.pop_front()
+                            {
+                                need_continue = true;
+                                let (context_state, waiting_layer_shell_event) =
+                                    context.handle_event(state, layer_shell_id, layer_shell_event);
+                                if let Some(waiting_layer_shell_event) = waiting_layer_shell_event {
+                                    self.waiting_layer_shell_events
+                                        .push_front((layer_shell_id, waiting_layer_shell_event));
+                                }
+                                context_state
+                            } else {
+                                ContextState::Context(context)
+                            }
+                        }
+                    };
+                if !need_continue {
+                    break;
+                }
+            }
+            def_returndata
         }
-        def_returndata
-    })?;
+    }
+
+    wrapper.run()?;
     Ok(())
 }
 

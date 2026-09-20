@@ -230,7 +230,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::blur::{BlurOption, BlurRegion};
-use crate::events::ExWlShellEventR;
+pub use crate::events::ExWlShellEventR;
 use crate::seat::SeatStorage;
 
 #[derive(Debug, thiserror::Error)]
@@ -2619,6 +2619,9 @@ impl<T: 'static, W: WindowTrait<T>> Drop for EventWrapper<T, W> {
 }
 
 impl<T: 'static, W: WindowTrait<T>> EventWrapper<T, W> {
+    pub fn window(&mut self) -> &mut W {
+        &mut self.window
+    }
     pub fn register<Event, F>(&mut self, callback: F) -> Option<channel::Sender<Event>>
     where
         F: Fn(&mut W, Event) + 'static,
