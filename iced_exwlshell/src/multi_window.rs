@@ -16,10 +16,9 @@ use crate::{
     proxy::IcedProxy,
     settings::Settings,
 };
-use exwlshellev::EventContext;
 use exwlshellev::{
-    DispatchMessage, DisplayWrapper, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
-    RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    DispatchMessage, DisplayWrapper, EventContext, NewPopUpSettings, PopUpRepositionSettings,
+    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -116,7 +115,7 @@ where
         waiting_layer_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
-    let mut wrapper: EventContext<iced_core::window::Id, _> =
+    let mut wl_context: EventContext<iced_core::window::Id, _> =
         exwlshellev::WindowState::new(namespace)
             .with_start_mode(settings.layer_settings.start_mode)
             .with_use_display_handle(true)
@@ -130,9 +129,9 @@ where
             .with_blur_option(settings.layer_settings.blur_option)
             .with_connection(settings.with_connection)
             .build(context_ev)
-            .expect("Cannot create layershell");
+            .expect("Cannot create context for exwlshellev");
 
-    let message_sender = wrapper
+    let message_sender = wl_context
         .register(|window, event: Action<P::Message>| {
             window
                 .waiting_layer_shell_events
@@ -219,7 +218,7 @@ where
     )
     .lock(lock);
 
-    wrapper.window_context().context_state = ContextState::Context(context);
+    wl_context.window_context().context_state = ContextState::Context(context);
     boot_span.finish();
 
     use exwlshellev::ExWlShellEvent;
@@ -324,7 +323,7 @@ where
         }
     }
 
-    wrapper.run()?;
+    wl_context.run()?;
     Ok(())
 }
 
