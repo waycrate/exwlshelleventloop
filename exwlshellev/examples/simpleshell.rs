@@ -99,7 +99,7 @@ impl WindowTrait<()> for Window {
 
 fn main() {
     let window = Window;
-    let ev: ExEventLoop<(), _> = WindowState::new("Hello")
+    let ev: ExEventContext<(), _> = WindowState::new("Hello")
         .with_allscreens()
         .with_size(LayerSize::fill_width(400))
         .with_layer(Layer::Top)

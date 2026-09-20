@@ -2629,9 +2629,10 @@ impl LockLifecycle {
     }
 }
 
-pub struct ExEventLoop<T: 'static, W: WindowTrait<T>> {
-    raw: WindowState<T>,
-    window: W,
+/// storage the context for the events
+pub struct ExEventContext<T: 'static, W: WindowTrait<T>> {
+    state: WindowState<T>,
+    window_context: W,
     event_loop: Option<EventLoop<'static, Self>>,
     looph: LoopHandle<'static, Self>,
     lock: LockLifecycle,
@@ -2639,21 +2640,25 @@ pub struct ExEventLoop<T: 'static, W: WindowTrait<T>> {
     tokens: Vec<RegistrationToken>,
     cursor_update_context: CursorUpdateContext<T>,
 }
-impl<T: 'static, W: WindowTrait<T>> Drop for ExEventLoop<T, W> {
+
+impl<T: 'static, W: WindowTrait<T>> Drop for ExEventContext<T, W> {
     fn drop(&mut self) {
-        if let Some(lock) = self.raw.lock_manager.take() {
+        if let Some(lock) = self.state.lock_manager.take() {
             lock.destroy();
         }
-        if let Some(layer_shell) = self.raw.layer_shell.take() {
+        if let Some(layer_shell) = self.state.layer_shell.take() {
             layer_shell.destroy();
         }
     }
 }
 
-impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
-    pub fn window(&mut self) -> &mut W {
-        &mut self.window
+impl<T: 'static, W: WindowTrait<T>> ExEventContext<T, W> {
+    /// return the context, you can use it to change the state before enter [Self::run]
+    pub fn window_context(&mut self) -> &mut W {
+        &mut self.window_context
     }
+
+    /// Registry other events, for example, the UserEvent or a11y
     pub fn register<Event, F>(&mut self, callback: F) -> Option<channel::Sender<Event>>
     where
         F: Fn(&mut W, Event) + 'static,
@@ -2666,7 +2671,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                 let channel::Event::Msg(event) = event else {
                     return;
                 };
-                callback(&mut state.window, event);
+                callback(&mut state.window_context, event);
             })
             .ok()?;
         let _ = self.looph.disable(&token);
@@ -2675,24 +2680,25 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
     }
 
     fn handle_event(&mut self, event: ExWlShellEvent<T>, unit_id: Option<id::Id>) {
-        let return_data = self.window.on_event(event, &mut self.raw, unit_id);
+        let return_data = self.window_context.on_event(event, &mut self.state, unit_id);
         if !matches!(return_data, ReturnData::None) {
-            self.raw.append_return_data(return_data);
+            self.state.append_return_data(return_data);
         }
     }
 
+    /// Run the program
     pub fn run(mut self) -> Result<(), ExShellEventError> {
-        let connection = self.raw.connection.take().unwrap();
-        let mut event_queue_origin = self.raw.event_queue.take().unwrap();
+        let connection = self.state.connection.take().unwrap();
+        let mut event_queue_origin = self.state.event_queue.take().unwrap();
         let qh = event_queue_origin.handle();
 
-        let wmcompositer = self.raw.wl_compositor.take().unwrap();
+        let wmcompositer = self.state.wl_compositor.take().unwrap();
 
-        let shm = self.raw.shm.take().unwrap();
-        let fractional_scale_manager = self.raw.fractional_scale_manager.take();
-        let wmbase = self.raw.wmbase.take().unwrap();
-        let viewporter = self.raw.viewporter.take();
-        let zxdg_decoration_manager = self.raw.xdg_decoration_manager.take();
+        let shm = self.state.shm.take().unwrap();
+        let fractional_scale_manager = self.state.fractional_scale_manager.take();
+        let wmbase = self.state.wmbase.take().unwrap();
+        let viewporter = self.state.viewporter.take();
+        let zxdg_decoration_manager = self.state.xdg_decoration_manager.take();
         fn remove_lock_units<T>(window_state: &mut WindowState<T>) {
             for removed in window_state.units.extract_if(.., |unit| unit.is_lock()) {
                 if window_state.keyboard_focus.as_ref() == Some(&removed.window.wl_surface) {
@@ -2702,14 +2708,14 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
             }
         }
 
-        let process_window_state = |state: &mut Self| {
+        let process_window_state = |context: &mut Self| {
             let mut messages = Vec::new();
-            std::mem::swap(&mut messages, &mut state.raw.message);
+            std::mem::swap(&mut messages, &mut context.state.message);
             for msg in messages.iter() {
                 match msg {
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
                         if let LockLifecycle::Pending { lock, .. }
-                        | LockLifecycle::Locked { lock } = &state.lock
+                        | LockLifecycle::Locked { lock } = &context.lock
                         {
                             let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more
                             // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display is in
@@ -2736,7 +2742,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             let viewport = viewporter
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            state.raw.push_window(
+                            context.state.push_window(
                                 WindowStateUnitBuilder::new(
                                     id::Id::unique(),
                                     qh.clone(),
@@ -2745,7 +2751,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                     wmcompositer.clone(),
                                     Shell::SessionLock(session_lock_surface),
                                 )
-                                .layout(state.raw.anchor, state.raw.size)
+                                .layout(context.state.anchor, context.state.size)
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .wl_output(Some(output_display.clone()))
@@ -2753,43 +2759,43 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             );
                         }
 
-                        if !state.raw.is_allscreens() {
+                        if !context.state.is_allscreens() {
                             continue;
                         }
                         let wl_surface = wmcompositer.create_surface(&qh, ());
-                        let layer_shell = state
-                            .raw
+                        let layer_shell = context
+                            .state
                             .layer_shell
                             .as_ref()
                             .expect("We need layershell here");
                         let layer = layer_shell.get_layer_surface(
                             &wl_surface,
                             Some(output_display),
-                            state.raw.layer,
-                            state.raw.default_namespace.clone(),
+                            context.state.layer,
+                            context.state.default_namespace.clone(),
                             &qh,
                             (),
                         );
-                        let wire_anchor = state.raw.size.resolve_anchor(state.raw.anchor);
+                        let wire_anchor = context.state.size.resolve_anchor(context.state.anchor);
                         layer.set_anchor(wire_anchor);
-                        layer.set_keyboard_interactivity(state.raw.keyboard_interactivity);
-                        let (init_w, init_h) = state.raw.size.to_set();
+                        layer.set_keyboard_interactivity(context.state.keyboard_interactivity);
+                        let (init_w, init_h) = context.state.size.to_set();
                         layer.set_size(init_w, init_h);
 
-                        if let Some(zone) = state.raw.exclusive_zone {
+                        if let Some(zone) = context.state.exclusive_zone {
                             warn_if_exclusive_zone_ignored(zone, wire_anchor);
                             layer.set_exclusive_zone(zone);
                         }
 
-                        if let Some(zone) = state.raw.exclusive_zone {
+                        if let Some(zone) = context.state.exclusive_zone {
                             layer.set_exclusive_zone(zone);
                         }
 
-                        if let Some((top, right, bottom, left)) = state.raw.margin {
+                        if let Some((top, right, bottom, left)) = context.state.margin {
                             layer.set_margin(top, right, bottom, left);
                         }
 
-                        if state.raw.events_transparent {
+                        if context.state.events_transparent {
                             let region = wmcompositer.create_region(&qh, ());
                             wl_surface.set_input_region(Some(&region));
                             region.destroy();
@@ -2808,7 +2814,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             .as_ref()
                             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
-                        state.raw.push_window(
+                        context.state.push_window(
                             WindowStateUnitBuilder::new(
                                 id::Id::unique(),
                                 qh.clone(),
@@ -2817,24 +2823,24 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                 wmcompositer.clone(),
                                 Shell::LayerShell(layer),
                             )
-                            .layout(state.raw.anchor, state.raw.size)
+                            .layout(context.state.anchor, context.state.size)
                             .viewport(viewport)
                             .fractional_scale(fractional_scale)
                             .wl_output(Some(output_display.clone()))
                             .build(),
                         );
                     }
-                    (_, DispatchMessageInner::Locked) => match state.lock.take() {
+                    (_, DispatchMessageInner::Locked) => match context.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown: Some(goal),
                         } => {
                             l_lock.unlock_and_destroy();
-                            remove_lock_units(&mut state.raw);
+                            remove_lock_units(&mut context.state);
                             match goal {
                                 LockTeardown::Exit => {
                                     let _ = connection.roundtrip();
-                                    state.signal.stop();
+                                    context.signal.stop();
                                     return true;
                                 }
                                 LockTeardown::Unlock => {
@@ -2846,8 +2852,8 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             lock: l_lock,
                             teardown: None,
                         } => {
-                            state.lock = LockLifecycle::Locked { lock: l_lock };
-                            state.handle_event(
+                            context.lock = LockLifecycle::Locked { lock: l_lock };
+                            context.handle_event(
                                 ExWlShellEvent::RequestMessages(&DispatchMessage::Locked),
                                 None,
                             );
@@ -2856,31 +2862,31 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             log::warn!(
                                 "Received `locked` without a pending lock request; ignoring"
                             );
-                            state.lock = other;
+                            context.lock = other;
                         }
                     },
-                    (_, DispatchMessageInner::LockFinished) => match state.lock.take() {
+                    (_, DispatchMessageInner::LockFinished) => match context.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown,
                         } => {
                             l_lock.destroy();
                             let _ = connection.flush();
-                            remove_lock_units(&mut state.raw);
-                            state.handle_event(
+                            remove_lock_units(&mut context.state);
+                            context.handle_event(
                                 ExWlShellEvent::RequestMessages(&DispatchMessage::LockDenied),
                                 None,
                             );
                             if matches!(teardown, Some(LockTeardown::Exit)) {
-                                state.signal.stop();
+                                context.signal.stop();
                                 return true;
                             }
                         }
                         LockLifecycle::Locked { lock: l_lock } => {
                             l_lock.unlock_and_destroy();
                             let _ = connection.flush();
-                            remove_lock_units(&mut state.raw);
-                            state.handle_event(
+                            remove_lock_units(&mut context.state);
+                            context.handle_event(
                                 ExWlShellEvent::RequestMessages(&DispatchMessage::LockFinished),
                                 None,
                             );
@@ -2893,27 +2899,27 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                         let (index_message, msg) = msg;
 
                         let msg: DispatchMessage = msg.clone().into();
-                        state.handle_event(ExWlShellEvent::RequestMessages(&msg), *index_message);
+                        context.handle_event(ExWlShellEvent::RequestMessages(&msg), *index_message);
                     }
                 }
             }
 
-            state.handle_event(ExWlShellEvent::NormalDispatch, None);
+            context.handle_event(ExWlShellEvent::NormalDispatch, None);
             loop {
                 let mut return_data = vec![];
-                std::mem::swap(&mut state.raw.return_data, &mut return_data);
+                std::mem::swap(&mut context.state.return_data, &mut return_data);
 
                 for data in return_data {
                     match data {
                         ReturnData::RequestExit => {
-                            match state.lock.take() {
+                            match context.lock.take() {
                                 LockLifecycle::Locked { lock: l_lock } => {
                                     l_lock.unlock_and_destroy();
                                     let _ = connection.roundtrip();
-                                    remove_lock_units(&mut state.raw);
+                                    remove_lock_units(&mut context.state);
                                 }
                                 LockLifecycle::Pending { lock: l_lock, .. } => {
-                                    state.lock = LockLifecycle::Pending {
+                                    context.lock = LockLifecycle::Pending {
                                         lock: l_lock,
                                         teardown: Some(LockTeardown::Exit),
                                     };
@@ -2921,26 +2927,26 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                 }
                                 LockLifecycle::Unlocked => {}
                             }
-                            state.signal.stop();
+                            context.signal.stop();
                             return true;
                         }
                         ReturnData::RequestLock => {
-                            if !matches!(state.lock, LockLifecycle::Unlocked) {
+                            if !matches!(context.lock, LockLifecycle::Unlocked) {
                                 log::warn!(
                                     "Session lock already requested or active; ignoring duplicate lock request"
                                 );
                                 continue;
                             }
-                            let Some(lock_manager) = state.raw.lock_manager.as_ref() else {
+                            let Some(lock_manager) = context.state.lock_manager.as_ref() else {
                                 log::error!("SessionLock is not supported");
-                                state.handle_event(
+                                context.handle_event(
                                     ExWlShellEvent::RequestMessages(&DispatchMessage::LockDenied),
                                     None,
                                 );
                                 continue;
                             };
                             let l_lock = lock_manager.lock(&qh, ());
-                            let wl_outputs = state.raw.outputs.clone();
+                            let wl_outputs = context.state.outputs.clone();
                             for wl_output in wl_outputs.iter() {
                                 let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
                                 // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display was in
@@ -2968,7 +2974,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                 let viewport = viewporter
                                     .as_ref()
                                     .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                                state.raw.push_window(
+                                context.state.push_window(
                                     WindowStateUnitBuilder::new(
                                         id::Id::unique(),
                                         qh.clone(),
@@ -2983,23 +2989,23 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                     .build(),
                                 );
                             }
-                            state.lock = LockLifecycle::Pending {
+                            context.lock = LockLifecycle::Pending {
                                 lock: l_lock,
                                 teardown: None,
                             };
                         }
 
-                        ReturnData::RequestUnLock => match state.lock.take() {
+                        ReturnData::RequestUnLock => match context.lock.take() {
                             LockLifecycle::Locked { lock: l_lock } => {
                                 l_lock.unlock_and_destroy();
                                 let _ = connection.flush();
-                                remove_lock_units(&mut state.raw);
+                                remove_lock_units(&mut context.state);
                             }
                             LockLifecycle::Pending {
                                 lock: l_lock,
                                 teardown,
                             } => {
-                                state.lock = LockLifecycle::Pending {
+                                context.lock = LockLifecycle::Pending {
                                     lock: l_lock,
                                     teardown: teardown.or(Some(LockTeardown::Unlock)),
                                 };
@@ -3007,10 +3013,10 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             LockLifecycle::Unlocked => {}
                         },
                         ReturnData::RequestSetCursor((cursor, pointer)) => {
-                            let Some(serial) = state.raw.enter_serial else {
+                            let Some(serial) = context.state.enter_serial else {
                                 continue;
                             };
-                            set_cursor(&state.cursor_update_context, cursor, pointer, serial);
+                            set_cursor(&context.cursor_update_context, cursor, pointer, serial);
                         }
                         ReturnData::NewLayerShell((
                             NewLayerShellSettings {
@@ -3029,12 +3035,12 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             info,
                         )) => {
                             let wire_anchor = size.resolve_anchor(anchor);
-                            let output = state.raw.resolve_output(output_type);
+                            let output = context.state.resolve_output(output_type);
 
                             let wl_surface = wmcompositer.create_surface(&qh, ());
 
-                            let layer_shell = state
-                                .raw
+                            let layer_shell = context
+                                .state
                                 .layer_shell
                                 .as_ref()
                                 .expect("We need layershell here");
@@ -3042,7 +3048,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                 &wl_surface,
                                 output.as_ref(),
                                 layer,
-                                namespace.unwrap_or_else(|| state.raw.default_namespace.clone()),
+                                namespace.unwrap_or_else(|| context.state.default_namespace.clone()),
                                 &qh,
                                 (),
                             );
@@ -3069,7 +3075,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             wl_surface.commit();
 
                             let mut effect = None;
-                            if let Some(effect_manger) = &state.raw.background_effect_manager {
+                            if let Some(effect_manger) = &context.state.background_effect_manager {
                                 effect =
                                     Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
                             }
@@ -3086,7 +3092,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
-                            state.raw.push_window(
+                            context.state.push_window(
                                 WindowStateUnitBuilder::new(
                                     id,
                                     qh.clone(),
@@ -3095,7 +3101,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                     wmcompositer.clone(),
                                     Shell::LayerShell(layer),
                                 )
-                                .layout(state.raw.anchor, state.raw.size)
+                                .layout(context.state.anchor, context.state.size)
                                 .viewport(viewport)
                                 .blur_option(blur_option)
                                 .effect_surface(effect)
@@ -3118,7 +3124,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             targetid,
                             info,
                         )) => {
-                            let Some(index) = state.raw.units.iter().position(|unit| unit.id == id)
+                            let Some(index) = context.state.units.iter().position(|unit| unit.id == id)
                             else {
                                 continue;
                             };
@@ -3134,7 +3140,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             );
                             let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
 
-                            let popup = match &state.raw.units[index].shell {
+                            let popup = match &context.state.units[index].shell {
                                 Shell::LayerShell(shell) => {
                                     let popup =
                                         wl_xdg_surface.get_popup(None, &positioner, &qh, ());
@@ -3163,7 +3169,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             };
                             positioner.destroy();
 
-                            match (state.raw.seat_back.as_ref(), grab_serial) {
+                            match (context.state.seat_back.as_ref(), grab_serial) {
                                 (Some(seat), Some(serial)) => popup.grab(seat, serial),
                                 (None, Some(_)) => log::warn!(
                                     target: "exwlshellev",
@@ -3186,7 +3192,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             let viewport = viewporter
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            state.raw.push_window(
+                            context.state.push_window(
                                 WindowStateUnitBuilder::new(
                                     targetid,
                                     qh.clone(),
@@ -3213,7 +3219,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             },
                             id,
                         )) => {
-                            let Some(unit) = state.raw.units.iter_mut().find(|unit| unit.id == id)
+                            let Some(unit) = context.state.units.iter_mut().find(|unit| unit.id == id)
                             else {
                                 continue;
                             };
@@ -3290,7 +3296,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             let viewport = viewporter
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            state.raw.push_window(
+                            context.state.push_window(
                                 WindowStateUnitBuilder::new(
                                     id,
                                     qh.clone(),
@@ -3316,7 +3322,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             id,
                             info,
                         )) => {
-                            let output = state.raw.resolve_output(output_type);
+                            let output = context.state.resolve_output(output_type);
 
                             let Some(output) = output else {
                                 log::warn!("no WlOutput, skip creating input panel");
@@ -3324,8 +3330,8 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             };
 
                             let wl_surface = wmcompositer.create_surface(&qh, ());
-                            let input_panel = state
-                                .raw
+                            let input_panel = context
+                                .state
                                 .input_panel
                                 .as_ref()
                                 .expect("This request needs input_panel support");
@@ -3354,7 +3360,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                             let viewport = viewporter
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            state.raw.push_window(
+                            context.state.push_window(
                                 WindowStateUnitBuilder::new(
                                     id,
                                     qh.clone(),
@@ -3374,17 +3380,17 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                     }
                 }
                 // added guard to match `sessionlockev`.
-                state
-                    .raw
+                context
+                    .state
                     .return_data
                     .retain(|data| !matches!(data, ReturnData::None));
-                if state.raw.return_data.is_empty() {
+                if context.state.return_data.is_empty() {
                     break;
                 }
             }
 
-            let requested: Vec<id::Id> = state
-                .raw
+            let requested: Vec<id::Id> = context
+                .state
                 .units
                 .iter()
                 .filter(|unit| unit.request_flag.close)
@@ -3392,44 +3398,44 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                 .collect();
             let mut close_roots: Vec<id::Id> = Vec::new();
             for id in requested {
-                if state.raw.can_remove_shell(id) {
+                if context.state.can_remove_shell(id) {
                     close_roots.push(id);
                 } else {
-                    state.raw.clear_close_request(id);
+                    context.state.clear_close_request(id);
                 }
             }
             let mut to_be_closed_ids: Vec<id::Id> = Vec::new();
             for root in close_roots {
-                state
-                    .raw
+                context
+                    .state
                     .collect_descendants_then_self(root, &mut to_be_closed_ids);
             }
             for id in to_be_closed_ids {
-                state.handle_event(
+                context.handle_event(
                     ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
                     Some(id),
                 );
-                state.raw.remove_shell(id);
+                context.state.remove_shell(id);
             }
 
-            let closed_ids = state.raw.closed_ids.clone();
+            let closed_ids = context.state.closed_ids.clone();
             for id in closed_ids {
-                state.handle_event(
+                context.handle_event(
                     ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
                     Some(id),
                 );
             }
-            state.raw.closed_ids.clear();
-            if state.raw.units.is_empty()
-                && !state.raw.is_allscreens()
-                && !state.raw.is_background()
+            context.state.closed_ids.clear();
+            if context.state.units.is_empty()
+                && !context.state.is_allscreens()
+                && !context.state.is_background()
             {
-                state.signal.stop();
+                context.signal.stop();
                 return true;
             }
 
-            for idx in 0..state.raw.units.len() {
-                let unit = &mut state.raw.units[idx];
+            for idx in 0..context.state.units.len() {
+                let unit = &mut context.state.units[idx];
                 let (width, height) = unit.size;
                 if width == 0 || height == 0 {
                     continue;
@@ -3438,26 +3444,26 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                     let unit_id = unit.id;
                     let scale_float = unit.scale_float();
                     let wl_surface = unit.window.wl_surface.clone();
-                    if unit.buffer.is_none() && !state.raw.use_display_handle {
+                    if unit.buffer.is_none() && !context.state.use_display_handle {
                         let Ok(mut file) = tempfile::tempfile() else {
                             log::error!("Cannot create new file from tempfile");
                             // note: could lead to infinite loop or spam log
                             // if the error is persistent.
                             return false;
                         };
-                        let ReturnData::WlBuffer(buffer) = state.window.on_event(
+                        let ReturnData::WlBuffer(buffer) = context.window_context.on_event(
                             ExWlShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
-                            &mut state.raw,
+                            &mut context.state,
                             Some(unit_id),
                         ) else {
                             panic!("You cannot return this one");
                         };
                         wl_surface.attach(Some(&buffer), 0, 0);
                         wl_surface.commit();
-                        state.raw.units[idx].buffer = Some(buffer);
+                        context.state.units[idx].buffer = Some(buffer);
                     }
-                    if let Some(effect) = &state.raw.units[idx].effect {
-                        match &state.raw.units[idx].blur_option {
+                    if let Some(effect) = &context.state.units[idx].effect {
+                        match &context.state.units[idx].blur_option {
                             BlurOption::None => {}
                             BlurOption::FullRegion => {
                                 let region = wmcompositer.create_region(&qh, ());
@@ -3480,9 +3486,9 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                                 region.destroy();
                             }
                         }
-                        state.raw.units[idx].window.wl_surface.commit();
+                        context.state.units[idx].window.wl_surface.commit();
                     }
-                    state.handle_event(
+                    context.handle_event(
                         ExWlShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
                             width,
                             height,
@@ -3490,7 +3496,7 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                         }),
                         Some(unit_id),
                     );
-                    state.raw.units[idx].reset_present_slot();
+                    context.state.units[idx].reset_present_slot();
                 }
             }
 
@@ -3505,29 +3511,29 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
         // Use zero-timeout on first dispatch if we don't have any windows
         // added in order to avoid getting stuck. For windowed startup, use
         // normal timeout to preserve standard lifecycle.
-        let mut force_first_tick = self.raw.units.is_empty();
+        let mut force_first_tick = self.state.units.is_empty();
         loop {
             let timeout = if force_first_tick {
                 Some(Duration::ZERO)
             } else {
-                self.raw.min_dispatch_timeout()
+                self.state.min_dispatch_timeout()
             };
             event_loop.dispatch(timeout, &mut self)?;
             force_first_tick = false;
 
-            event_queue_origin.dispatch_pending(&mut self.raw)?;
+            event_queue_origin.dispatch_pending(&mut self.state)?;
             if process_window_state(&mut self) {
                 break;
             }
-            for token in self.raw.to_remove_tokens.iter() {
+            for token in self.state.to_remove_tokens.iter() {
                 self.looph.remove(*token);
             }
-            self.raw.to_remove_tokens.clear();
-            if let Some(VirtualKeyRelease { delay, time, key }) = self.raw.to_be_released_key.take()
+            self.state.to_remove_tokens.clear();
+            if let Some(VirtualKeyRelease { delay, time, key }) = self.state.to_be_released_key.take()
             {
                 self.looph
                     .insert_source(Timer::from_duration(delay), move |_, _, r_window_state| {
-                        let state = &mut r_window_state.raw;
+                        let state = &mut r_window_state.state;
                         let ky = state.get_virtual_keyboard().unwrap();
 
                         ky.key(time, key, KeyState::Released.into());
@@ -3542,14 +3548,14 @@ impl<T: 'static, W: WindowTrait<T>> ExEventLoop<T, W> {
                 surface_id,
                 pressed_state,
                 object_id,
-            }) = self.raw.repeat_delay.take()
+            }) = self.state.repeat_delay.take()
             {
                 let timer = Timer::from_duration(delay);
-                if let Some(keyboard_state) = self.raw.get_keyboard_state_by_id(object_id.clone()) {
+                if let Some(keyboard_state) = self.state.get_keyboard_state_by_id(object_id.clone()) {
                     keyboard_state.repeat_token = self
                         .looph
                         .insert_source(timer, move |_, _, r_window_state| {
-                            let state = &mut r_window_state.raw;
+                            let state = &mut r_window_state.state;
                             let keyboard_state = match state
                                 .seats
                                 .values_mut()
@@ -3623,7 +3629,7 @@ impl<T: 'static> WindowState<T> {
     pub fn build<Window>(
         mut self,
         mut window: Window,
-    ) -> Result<ExEventLoop<T, Window>, ExShellEventError>
+    ) -> Result<ExEventContext<T, Window>, ExShellEventError>
     where
         Window: WindowTrait<T> + 'static,
     {
@@ -3677,14 +3683,14 @@ impl<T: 'static> WindowState<T> {
         let event_loop: EventLoop<_> =
             EventLoop::try_new().expect("Failed to initialize the event loop");
 
-        let event_queue = connection.new_event_queue::<ExEventLoop<T, Window>>();
+        let event_queue = connection.new_event_queue::<ExEventContext<T, Window>>();
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
             .expect("Failed to init wayland source");
         let signal = event_loop.get_signal();
-        Ok(ExEventLoop {
-            raw: self,
-            window,
+        Ok(ExEventContext {
+            state: self,
+            window_context: window,
             looph: event_loop.handle(),
             event_loop: Some(event_loop),
             lock: LockLifecycle::Unlocked,
