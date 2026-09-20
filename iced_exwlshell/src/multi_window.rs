@@ -16,7 +16,7 @@ use crate::{
     proxy::IcedProxy,
     settings::Settings,
 };
-use exwlshellev::ExEventContext;
+use exwlshellev::EventContext;
 use exwlshellev::{
     DispatchMessage, DisplayWrapper, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
     RefreshRequest, ReturnData, WindowState, WindowWrapper,
@@ -116,7 +116,7 @@ where
         waiting_layer_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
-    let mut wrapper: ExEventContext<iced_core::window::Id, _> =
+    let mut wrapper: EventContext<iced_core::window::Id, _> =
         exwlshellev::WindowState::new(namespace)
             .with_start_mode(settings.layer_settings.start_mode)
             .with_use_display_handle(true)

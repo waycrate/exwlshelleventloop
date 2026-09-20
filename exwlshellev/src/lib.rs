@@ -2630,7 +2630,7 @@ impl LockLifecycle {
 }
 
 /// storage the context for the events
-pub struct ExEventContext<T: 'static, W: WindowTrait<T>> {
+pub struct EventContext<T: 'static, W: WindowTrait<T>> {
     state: WindowState<T>,
     window_context: W,
     event_loop: Option<EventLoop<'static, Self>>,
@@ -2641,7 +2641,7 @@ pub struct ExEventContext<T: 'static, W: WindowTrait<T>> {
     cursor_update_context: CursorUpdateContext<T>,
 }
 
-impl<T: 'static, W: WindowTrait<T>> Drop for ExEventContext<T, W> {
+impl<T: 'static, W: WindowTrait<T>> Drop for EventContext<T, W> {
     fn drop(&mut self) {
         if let Some(lock) = self.state.lock_manager.take() {
             lock.destroy();
@@ -2652,7 +2652,7 @@ impl<T: 'static, W: WindowTrait<T>> Drop for ExEventContext<T, W> {
     }
 }
 
-impl<T: 'static, W: WindowTrait<T>> ExEventContext<T, W> {
+impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
     /// return the context, you can use it to change the state before enter [Self::run]
     pub fn window_context(&mut self) -> &mut W {
         &mut self.window_context
@@ -3629,7 +3629,7 @@ impl<T: 'static> WindowState<T> {
     pub fn build<Window>(
         mut self,
         mut window: Window,
-    ) -> Result<ExEventContext<T, Window>, ExShellEventError>
+    ) -> Result<EventContext<T, Window>, ExShellEventError>
     where
         Window: WindowTrait<T> + 'static,
     {
@@ -3683,12 +3683,12 @@ impl<T: 'static> WindowState<T> {
         let event_loop: EventLoop<_> =
             EventLoop::try_new().expect("Failed to initialize the event loop");
 
-        let event_queue = connection.new_event_queue::<ExEventContext<T, Window>>();
+        let event_queue = connection.new_event_queue::<EventContext<T, Window>>();
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
             .expect("Failed to init wayland source");
         let signal = event_loop.get_signal();
-        Ok(ExEventContext {
+        Ok(EventContext {
             state: self,
             window_context: window,
             looph: event_loop.handle(),
