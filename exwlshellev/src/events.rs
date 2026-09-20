@@ -45,38 +45,7 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum ExWlShellEvent<'a, T, Message> {
-    /// the first event when start a new gui, program. you can return [ReturnData::None] or
-    /// [ReturnData::RequestBind], then it will continue to the next request.
-    /// Here only the above two [ReturnData] are acceptable.
-    InitRequest,
-    /// After you return [ReturnData::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
-    /// event is [LayerShellEvent::BindProvide], you can use the GlobalList and QueueHandle to create
-    /// new wayland objects.
-    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
-    /// After you return [ReturnData::RequestCompositor] in the init stage, next
-    /// event is [LayerShellEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
-    /// create new wayland objects.
-    CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
-    /// create a new buffer after request. if you use display_handle, you do not need to care about
-    /// it.
-    RequestBuffer(
-        &'a mut File,
-        &'a WlShm,
-        &'a QueueHandle<WindowState<T>>,
-        u32,
-        u32,
-    ),
-    /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
-    RequestMessages(&'a DispatchMessage),
-    /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.
-    NormalDispatch,
-    /// It return the event you passed with message_receiver, and return it back.
-    UserEvent(Message),
-}
-
-
-pub enum ExWlShellEventR<'a, T> {
+pub enum ExWlShellEvent<'a, T> {
     /// the first event when start a new gui, program. you can return [ReturnData::None] or
     /// [ReturnData::RequestBind], then it will continue to the next request.
     /// Here only the above two [ReturnData] are acceptable.

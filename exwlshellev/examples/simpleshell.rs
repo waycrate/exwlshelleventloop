@@ -5,19 +5,14 @@ use exwlshellev::keyboard::{KeyCode, PhysicalKey};
 use exwlshellev::reexport::*;
 use exwlshellev::*;
 
-fn main() {
-    let ev: WindowState<()> = WindowState::new("Hello")
-        .with_allscreens()
-        .with_size(LayerSize::fill_width(400))
-        .with_layer(Layer::Top)
-        .with_margin((20, 20, 100, 20))
-        .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
-        .with_exclusive_zone(-1)
-        .build()
-        .unwrap();
-
-    ev.running(move |event, ev, _index| {
+struct Window;
+impl WindowTrait<()> for Window {
+    fn on_event(
+        &mut self,
+        event: ExWlShellEvent<()>,
+        state: &mut WindowState<()>,
+        _id: Option<id::Id>,
+    ) -> ReturnData<()> {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
             ExWlShellEvent::InitRequest => ReturnData::RequestBind,
@@ -37,7 +32,7 @@ fn main() {
                 // NOTE: you can set input region to limit area which gets input events
                 // surface outside region becomes transparent for input events
                 // To ignore all input events use region with (0,0) size
-                for x in ev.get_unit_iter() {
+                for x in state.get_unit_iter() {
                     let region = compositor.create_region(qh, ());
                     region.add(0, 0, 0, 0);
                     x.get_wlsurface().set_input_region(Some(&region));
@@ -84,7 +79,7 @@ fn main() {
             }
             ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
                 // NOTE: sent when surface enters another output, or its output info changes
-                let info = output.as_ref().and_then(|o| ev.get_output_info_of(o));
+                let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
                 println!("{info:?}");
                 ReturnData::None
             }
@@ -97,8 +92,23 @@ fn main() {
             }
             _ => ReturnData::None,
         }
-    })
-    .unwrap();
+    }
+}
+
+fn main() {
+    let window = Window;
+    let ev: EventLoopBuilder<(), _> = WindowState::new("Hello")
+        .with_allscreens()
+        .with_size(LayerSize::fill_width(400))
+        .with_layer(Layer::Top)
+        .with_margin((20, 20, 100, 20))
+        .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
+        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
+        .with_exclusive_zone(-1)
+        .build(window)
+        .unwrap();
+
+    ev.run().unwrap()
 }
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {

@@ -16,6 +16,7 @@ use crate::{
     proxy::IcedProxy,
     settings::Settings,
 };
+use exwlshellev::EventLoopBuilder;
 use exwlshellev::{
     DispatchMessage, DisplayWrapper, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
     RefreshRequest, ReturnData, WindowState, WindowWrapper,
@@ -91,20 +92,6 @@ where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
 {
-    let ev: WindowState<iced_core::window::Id> = exwlshellev::WindowState::new(namespace)
-        .with_start_mode(settings.layer_settings.start_mode)
-        .with_use_display_handle(true)
-        .with_events_transparent(settings.layer_settings.events_transparent)
-        .with_size(settings.layer_settings.size)
-        .with_layer(settings.layer_settings.layer)
-        .with_anchor(settings.layer_settings.anchor)
-        .with_exclusive_zone(settings.layer_settings.exclusive_zone)
-        .with_margin(settings.layer_settings.margin)
-        .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-        .with_blur_option(settings.layer_settings.blur_option)
-        .with_connection(settings.with_connection)
-        .build()
-        .expect("Cannot create layershell");
     struct ContextEv<P>
     where
         P: IcedProgram + 'static,
@@ -129,8 +116,21 @@ where
         waiting_layer_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
-
-    let mut wrapper = ev.ready(context_ev);
+    let mut wrapper: EventLoopBuilder<iced_core::window::Id, _> =
+        exwlshellev::WindowState::new(namespace)
+            .with_start_mode(settings.layer_settings.start_mode)
+            .with_use_display_handle(true)
+            .with_events_transparent(settings.layer_settings.events_transparent)
+            .with_size(settings.layer_settings.size)
+            .with_layer(settings.layer_settings.layer)
+            .with_anchor(settings.layer_settings.anchor)
+            .with_exclusive_zone(settings.layer_settings.exclusive_zone)
+            .with_margin(settings.layer_settings.margin)
+            .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
+            .with_blur_option(settings.layer_settings.blur_option)
+            .with_connection(settings.with_connection)
+            .build(context_ev)
+            .expect("Cannot create layershell");
 
     let message_sender = wrapper
         .register(|window, event: Action<P::Message>| {
@@ -222,7 +222,7 @@ where
     wrapper.window().context_state = ContextState::Context(context);
     boot_span.finish();
 
-    use exwlshellev::ExWlShellEventR;
+    use exwlshellev::ExWlShellEvent;
     impl<P> exwlshellev::WindowTrait<iced_core::window::Id> for ContextEv<P>
     where
         P: IcedProgram + 'static,
@@ -231,16 +231,16 @@ where
     {
         fn on_event(
             &mut self,
-            event: exwlshellev::ExWlShellEventR<iced_core::window::Id>,
+            event: exwlshellev::ExWlShellEvent<iced_core::window::Id>,
             state: &mut WindowState<iced_core::window::Id>,
             layer_shell_id: Option<exwlshellev::id::Id>,
         ) -> ReturnData<iced_core::window::Id> {
             let mut def_returndata = ReturnData::None;
             match event {
-                ExWlShellEventR::InitRequest => {
+                ExWlShellEvent::InitRequest => {
                     def_returndata = ReturnData::RequestBind;
                 }
-                ExWlShellEventR::BindProvide(globals, qh) => {
+                ExWlShellEvent::BindProvide(globals, qh) => {
                     let wl_compositor = globals
                         .bind::<WlCompositor, _, _>(qh, 1..=1, ())
                         .expect("could not bind wl_compositor");
@@ -273,7 +273,7 @@ where
                         state.set_virtual_keyboard(virtual_keyboard_in);
                     }
                 }
-                ExWlShellEventR::RequestMessages(message) => {
+                ExWlShellEvent::RequestMessages(message) => {
                     if let (ContextState::Context(context), Some(serial)) =
                         (&mut self.context_state, action_serial(message))
                     {
@@ -283,7 +283,7 @@ where
                     self.waiting_layer_shell_events
                         .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
                 }
-                ExWlShellEventR::NormalDispatch => {
+                ExWlShellEvent::NormalDispatch => {
                     self.waiting_layer_shell_events
                         .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
                 }
