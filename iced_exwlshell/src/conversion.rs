@@ -26,14 +26,14 @@ where
 }
 
 pub fn window_event(
-    shellevent: &ExWlShellEvent,
+    shellevent: ExWlShellEvent,
     application_scale_factor: f64,
     modifiers: ModifiersState,
 ) -> Option<IcedEvent> {
     match shellevent {
         ExWlShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
         ExWlShellEvent::CursorMoved { x, y } => {
-            let (x, y) = scale_down((*x, *y), application_scale_factor);
+            let (x, y) = scale_down((x, y), application_scale_factor);
             Some(IcedEvent::Mouse(mouse::Event::CursorMoved {
                 position: iced_core::Point {
                     x: x as f32,
@@ -43,16 +43,16 @@ pub fn window_event(
         }
         ExWlShellEvent::CursorEnter { .. } => Some(IcedEvent::Mouse(mouse::Event::CursorEntered)),
         ExWlShellEvent::MouseInput(state) => Some(IcedEvent::Mouse(match state {
-            IcedButtonState::Pressed(btn) => mouse::Event::ButtonPressed(*btn),
-            IcedButtonState::Released(btn) => mouse::Event::ButtonReleased(*btn),
+            IcedButtonState::Pressed(btn) => mouse::Event::ButtonPressed(btn),
+            IcedButtonState::Released(btn) => mouse::Event::ButtonReleased(btn),
         })),
         ExWlShellEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
-            delta: mouse::ScrollDelta::Lines { x: *x, y: *y },
+            delta: mouse::ScrollDelta::Lines { x, y },
         })),
 
         ExWlShellEvent::PixelDelta { x, y } => {
             Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
-                delta: mouse::ScrollDelta::Pixels { x: *x, y: *y },
+                delta: mouse::ScrollDelta::Pixels { x, y },
             }))
         }
         ExWlShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
@@ -73,7 +73,7 @@ pub fn window_event(
             let key = self::key(key);
             let modified_key = self::key(logical_key.clone());
 
-            let physical_key = self::physical_key(*physical_key);
+            let physical_key = self::physical_key(physical_key);
 
             let modifiers = keymap::modifiers(modifiers);
 
@@ -91,7 +91,7 @@ pub fn window_event(
                     text,
                     modified_key,
                     physical_key,
-                    repeat: *repeat,
+                    repeat,
                 },
                 ElementState::Released => keyboard::Event::KeyReleased {
                     key,
@@ -103,9 +103,9 @@ pub fn window_event(
             }
         })),
         ExWlShellEvent::TouchDown { id, x, y } => {
-            let (x, y) = scale_down((*x, *y), application_scale_factor);
+            let (x, y) = scale_down((x, y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerPressed {
-                id: touch::Finger(*id as u64),
+                id: touch::Finger(id as u64),
                 position: iced_core::Point {
                     x: x as f32,
                     y: y as f32,
@@ -113,9 +113,9 @@ pub fn window_event(
             }))
         }
         ExWlShellEvent::TouchUp { id, x, y } => {
-            let (x, y) = scale_down((*x, *y), application_scale_factor);
+            let (x, y) = scale_down((x, y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLifted {
-                id: touch::Finger(*id as u64),
+                id: touch::Finger(id as u64),
                 position: iced_core::Point {
                     x: x as f32,
                     y: y as f32,
@@ -123,9 +123,9 @@ pub fn window_event(
             }))
         }
         ExWlShellEvent::TouchMotion { id, x, y } => {
-            let (x, y) = scale_down((*x, *y), application_scale_factor);
+            let (x, y) = scale_down((x, y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerMoved {
-                id: touch::Finger(*id as u64),
+                id: touch::Finger(id as u64),
                 position: iced_core::Point {
                     x: x as f32,
                     y: y as f32,
@@ -133,9 +133,9 @@ pub fn window_event(
             }))
         }
         ExWlShellEvent::TouchCancel { id, x, y } => {
-            let (x, y) = scale_down((*x, *y), application_scale_factor);
+            let (x, y) = scale_down((x, y), application_scale_factor);
             Some(IcedEvent::Touch(touch::Event::FingerLost {
-                id: touch::Finger(*id as u64),
+                id: touch::Finger(id as u64),
                 position: iced_core::Point {
                     x: x as f32,
                     y: y as f32,
@@ -143,14 +143,14 @@ pub fn window_event(
             }))
         }
         ExWlShellEvent::ModifiersChanged(new_modifiers) => Some(IcedEvent::Keyboard(
-            keyboard::Event::ModifiersChanged(keymap::modifiers(*new_modifiers)),
+            keyboard::Event::ModifiersChanged(keymap::modifiers(new_modifiers)),
         )),
         ExWlShellEvent::Unfocus => Some(IcedEvent::Window(iced_core::window::Event::Unfocused)),
         ExWlShellEvent::Focused => Some(IcedEvent::Window(iced_core::window::Event::Focused)),
         ExWlShellEvent::Ime(event) => Some(IcedEvent::InputMethod(match event {
             exwlshellev::Ime::Enabled => input_method::Event::Opened,
             exwlshellev::Ime::Preedit(content, size) => {
-                input_method::Event::Preedit(content.clone(), size.map(|(start, end)| start..end))
+                input_method::Event::Preedit(content, size.map(|(start, end)| start..end))
             }
             exwlshellev::Ime::Commit(content) => input_method::Event::Commit(content.clone()),
             exwlshellev::Ime::Disabled => input_method::Event::Closed,

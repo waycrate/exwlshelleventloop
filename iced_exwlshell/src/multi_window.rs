@@ -881,7 +881,7 @@ where
             .state
             .update(&event, self.user_interfaces.application());
         if let Some(event) = conversion::window_event(
-            &event,
+            event,
             window.state.application_scale_factor(),
             window.state.modifiers(),
         ) {
