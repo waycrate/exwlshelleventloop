@@ -2737,7 +2737,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
         let process_window_state = |context: &mut Self| {
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut context.state.message);
-            for msg in messages.iter() {
+            for msg in messages {
                 match msg {
                     (_, DispatchMessageInner::NewDisplay(output_display)) => {
                         if let LockLifecycle::Pending { lock, .. }
@@ -2749,7 +2749,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             // later, but we cannot
                             wl_surface.commit();
                             let session_lock_surface =
-                                lock.get_lock_surface(&wl_surface, output_display, &qh, ());
+                                lock.get_lock_surface(&wl_surface, &output_display, &qh, ());
 
                             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
                             // and if you need to reconfigure it, you need to commit the wl_surface again
@@ -2796,7 +2796,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             .expect("We need layershell here");
                         let layer = layer_shell.get_layer_surface(
                             &wl_surface,
-                            Some(output_display),
+                            Some(&output_display),
                             context.state.layer,
                             context.state.default_namespace.clone(),
                             &qh,
@@ -2880,7 +2880,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                         } => {
                             context.lock = LockLifecycle::Locked { lock: l_lock };
                             context.handle_event(
-                                ExWlShellEvent::RequestMessages(&DispatchMessage::Locked),
+                                ExWlShellEvent::RequestMessages(DispatchMessage::Locked),
                                 None,
                             );
                         }
@@ -2900,7 +2900,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             let _ = connection.flush();
                             remove_lock_units(&mut context.state);
                             context.handle_event(
-                                ExWlShellEvent::RequestMessages(&DispatchMessage::LockDenied),
+                                ExWlShellEvent::RequestMessages(DispatchMessage::LockDenied),
                                 None,
                             );
                             if matches!(teardown, Some(LockTeardown::Exit)) {
@@ -2913,7 +2913,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             let _ = connection.flush();
                             remove_lock_units(&mut context.state);
                             context.handle_event(
-                                ExWlShellEvent::RequestMessages(&DispatchMessage::LockFinished),
+                                ExWlShellEvent::RequestMessages(DispatchMessage::LockFinished),
                                 None,
                             );
                         }
@@ -2924,8 +2924,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                     _ => {
                         let (index_message, msg) = msg;
 
-                        let msg: DispatchMessage = msg.clone().into();
-                        context.handle_event(ExWlShellEvent::RequestMessages(&msg), *index_message);
+                        let msg: DispatchMessage = msg.into();
+                        context.handle_event(ExWlShellEvent::RequestMessages(msg), index_message);
                     }
                 }
             }
@@ -2966,7 +2966,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             let Some(lock_manager) = context.state.lock_manager.as_ref() else {
                                 log::error!("SessionLock is not supported");
                                 context.handle_event(
-                                    ExWlShellEvent::RequestMessages(&DispatchMessage::LockDenied),
+                                    ExWlShellEvent::RequestMessages(DispatchMessage::LockDenied),
                                     None,
                                 );
                                 continue;
@@ -3436,7 +3436,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
             }
             for id in to_be_closed_ids {
                 context.handle_event(
-                    ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
+                    ExWlShellEvent::RequestMessages(DispatchMessage::Closed),
                     Some(id),
                 );
                 context.state.remove_shell(id);
@@ -3445,7 +3445,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
             let closed_ids = context.state.closed_ids.clone();
             for id in closed_ids {
                 context.handle_event(
-                    ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
+                    ExWlShellEvent::RequestMessages(DispatchMessage::Closed),
                     Some(id),
                 );
             }
@@ -3514,7 +3514,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                         context.state.units[idx].window.wl_surface.commit();
                     }
                     context.handle_event(
-                        ExWlShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
+                        ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
                             width,
                             height,
                             scale_float,

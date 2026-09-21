@@ -286,7 +286,7 @@ where
             match event {
                 ExWlShellEvent::RequestMessages(message) => {
                     if let (ContextState::Context(context), Some(serial)) =
-                        (&mut self.context_state, action_serial(message))
+                        (&mut self.context_state, action_serial(&message))
                     {
                         context.action_serial = Some(serial);
                     }

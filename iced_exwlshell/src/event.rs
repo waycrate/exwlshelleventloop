@@ -120,7 +120,7 @@ pub enum IcedWlShellEvent<Message> {
 }
 
 impl WindowEvent {
-    pub(crate) fn from_dispatch<T>(value: &DispatchMessage, ev: &WindowState<T>) -> Self {
+    pub(crate) fn from_dispatch<T>(value: DispatchMessage, ev: &WindowState<T>) -> Self {
         match value {
             DispatchMessage::RequestRefresh { .. } => WindowEvent::Refresh,
             DispatchMessage::Closed => WindowEvent::Closed,
@@ -128,15 +128,15 @@ impl WindowEvent {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => WindowEvent::CursorEnter { x: *x, y: *y },
+            } => WindowEvent::CursorEnter { x, y },
             DispatchMessage::MouseMotion {
                 surface_x: x,
                 surface_y: y,
                 ..
-            } => WindowEvent::CursorMoved { x: *x, y: *y },
+            } => WindowEvent::CursorMoved { x, y },
             DispatchMessage::MouseLeave => WindowEvent::CursorLeft,
             DispatchMessage::MouseButton { state, button, .. } => {
-                let btn = from_u32_to_icedmouse(*button);
+                let btn = from_u32_to_icedmouse(button);
                 match state {
                     WEnum::Value(ButtonState::Pressed) => {
                         WindowEvent::MouseInput(IcedButtonState::Pressed(btn))
@@ -147,45 +147,29 @@ impl WindowEvent {
                     _ => unreachable!(),
                 }
             }
-            DispatchMessage::TouchUp { id, x, y, .. } => WindowEvent::TouchUp {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
-            DispatchMessage::TouchDown { id, x, y, .. } => WindowEvent::TouchDown {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
-            DispatchMessage::TouchMotion { id, x, y, .. } => WindowEvent::TouchMotion {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
-            DispatchMessage::TouchCancel { id, x, y, .. } => WindowEvent::TouchCancel {
-                id: *id,
-                x: *x,
-                y: *y,
-            },
+            DispatchMessage::TouchUp { id, x, y, .. } => WindowEvent::TouchUp { id, x, y },
+            DispatchMessage::TouchDown { id, x, y, .. } => WindowEvent::TouchDown { id, x, y },
+            DispatchMessage::TouchMotion { id, x, y, .. } => WindowEvent::TouchMotion { id, x, y },
+            DispatchMessage::TouchCancel { id, x, y, .. } => WindowEvent::TouchCancel { id, x, y },
             DispatchMessage::PreferredScale {
                 scale_u32,
                 scale_float,
             } => WindowEvent::ScaleFactorChanged {
-                scale_u32: *scale_u32,
-                scale_float: *scale_float,
+                scale_u32,
+                scale_float,
             },
 
             DispatchMessage::KeyboardInput {
                 event,
                 is_synthetic,
             } => WindowEvent::KeyBoardInput {
-                event: event.clone(),
-                is_synthetic: *is_synthetic,
+                event,
+                is_synthetic,
             },
             DispatchMessage::Unfocus => WindowEvent::Unfocus,
             DispatchMessage::Focused(_) => WindowEvent::Focused,
             DispatchMessage::ModifiersChanged(modifiers) => {
-                WindowEvent::ModifiersChanged(*modifiers)
+                WindowEvent::ModifiersChanged(modifiers)
             }
             DispatchMessage::Axis {
                 horizontal,
@@ -220,7 +204,7 @@ impl WindowEvent {
             DispatchMessage::LockDenied => WindowEvent::LockDenied,
             DispatchMessage::LockFinished => WindowEvent::LockFinished,
             DispatchMessage::ToplevelStateChanged(state) => {
-                WindowEvent::ToplevelStateChanged(*state)
+                WindowEvent::ToplevelStateChanged(state)
             }
         }
     }

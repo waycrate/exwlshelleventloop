@@ -76,9 +76,10 @@ pub enum InitRequest {
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum ExWlShellEvent<'a> {
+#[derive(Debug, Clone)]
+pub enum ExWlShellEvent {
     /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
-    RequestMessages(&'a DispatchMessage),
+    RequestMessages(DispatchMessage),
     /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.
     NormalDispatch,
 }
@@ -396,7 +397,7 @@ pub(crate) enum DispatchMessageInner {
 }
 
 /// This tell the DispatchMessage by dispatch
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DispatchMessage {
     /// forward the event of wayland-mouse
     MouseButton {
