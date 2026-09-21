@@ -2693,17 +2693,17 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
     /// Registry other events, for example, the UserEvent or a11y
     pub fn register<Event, F>(&mut self, callback: F) -> Option<channel::Sender<Event>>
     where
-        F: Fn(&mut W, Event) + 'static,
+        F: Fn(&mut W, &mut WindowState<T>, Event) + 'static,
         Event: 'static,
     {
         let (sender, receiver) = channel::channel::<Event>();
         let token = self
             .looph
-            .insert_source(receiver, move |event, _, state| {
+            .insert_source(receiver, move |event, _, context| {
                 let channel::Event::Msg(event) = event else {
                     return;
                 };
-                callback(&mut state.window_context, event);
+                callback(&mut context.window_context, &mut context.state, event);
             })
             .ok()?;
         let _ = self.looph.disable(&token);

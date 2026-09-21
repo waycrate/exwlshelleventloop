@@ -133,7 +133,7 @@ where
             .expect("Cannot create context for exwlshellev");
 
     let message_sender = wl_context
-        .register(|window, event: Action<P::Message>| {
+        .register(|window, _state, event: Action<P::Message>| {
             window
                 .waiting_layer_shell_events
                 .push_back((None, IcedWlShellEvent::UserAction(event)));
