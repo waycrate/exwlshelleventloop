@@ -7,7 +7,7 @@ use iced::{Element, Event, Length, Task as Command, event};
 use iced_exwlshell::actions::ExwlShellCustomActionWithId;
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
-use iced_exwlshell::settings::{LayerShellSettings, Settings};
+use iced_exwlshell::settings::LayerShellSettings;
 use iced_runtime::Action;
 
 use std::sync::LazyLock;
@@ -22,13 +22,10 @@ fn main() -> Result<(), iced_exwlshell::Error> {
         Launcher::update,
         Launcher::view,
     )
-    .settings(Settings {
-        layer_settings: LayerShellSettings {
-            size: LayerSize::px(1000, 1000),
-            anchor: Anchor::all(),
-            keyboard_interactivity: KeyboardInteractivity::Exclusive,
-            ..Default::default()
-        },
+    .layer_settings(LayerShellSettings {
+        size: LayerSize::px(1000, 1000),
+        anchor: Anchor::all(),
+        keyboard_interactivity: KeyboardInteractivity::Exclusive,
         ..Default::default()
     })
     .subscription(Launcher::subscription)
