@@ -763,11 +763,7 @@ where
         }
     }
 
-    fn handle_closed_event(
-        &mut self,
-        ev: &mut WindowState<IcedId>,
-        shell_id: Option<ExWlShellId>,
-    ) {
+    fn handle_closed_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: Option<ExWlShellId>) {
         let Some(iced_id) = shell_id.and_then(|lid| {
             self.window_manager
                 .get_alias(lid)
@@ -798,11 +794,7 @@ where
         }
     }
 
-    fn handle_window_event(
-        &mut self,
-        shell_id: Option<ExWlShellId>,
-        event: ExwlShellWindowEvent,
-    ) {
+    fn handle_window_event(&mut self, shell_id: Option<ExWlShellId>, event: ExwlShellWindowEvent) {
         match &event {
             ExwlShellWindowEvent::OutputAdded(info) => {
                 self.shell_broadcast
