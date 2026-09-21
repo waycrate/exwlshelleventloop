@@ -105,8 +105,7 @@ where
                 <P::Renderer as iced_graphics::compositor::Default>::Compositor,
             >,
         >,
-        waiting_layer_shell_events:
-            VecDeque<(Option<exwlshellev::id::Id>, IcedWlShellEvent<P::Message>)>,
+        waiting_layer_shell_events: VecDeque<(Option<exwlshellev::id::Id>, IcedWlShellEvent)>,
         virtual_keyboard_support: Option<VirtualKeyboardSettings>,
     }
 
@@ -133,10 +132,11 @@ where
             .expect("Cannot create context for exwlshellev");
 
     let message_sender = wl_context
-        .register(|window, _state, event: Action<P::Message>| {
-            window
-                .waiting_layer_shell_events
-                .push_back((None, IcedWlShellEvent::UserAction(event)));
+        .register(|window, state, action: Action<P::Message>| {
+            let ContextState::Context(context) = &mut window.context_state else {
+                return;
+            };
+            context.handle_user_action(state, action);
         })
         .unwrap();
 
@@ -276,10 +276,13 @@ where
             def_returndata
         }
 
-        fn on_normal_dispatch(&mut self, _state: &mut WindowState<iced_core::window::Id>) {
-            self.waiting_layer_shell_events
-                .push_back((None, IcedWlShellEvent::NormalDispatch));
+        fn on_normal_dispatch(&mut self, state: &mut WindowState<iced_core::window::Id>) {
+            let ContextState::Context(context) = &mut self.context_state else {
+                return;
+            };
+            context.handle_normal_dispatch(state);
         }
+
         fn on_event(
             &mut self,
             event: exwlshellev::ExWlShellEvent,
@@ -462,21 +465,20 @@ where
     fn handle_event(
         mut self,
         ev: &mut WindowState<IcedId>,
-        layer_shell_id: Option<LayerShellId>,
-        layer_shell_event: IcedWlShellEvent<P::Message>,
-    ) -> (ContextState<Self>, Option<IcedWlShellEvent<P::Message>>) {
+        shell_id: Option<LayerShellId>,
+        shell_event: IcedWlShellEvent,
+    ) -> (ContextState<Self>, Option<IcedWlShellEvent>) {
         tracing::debug!(
             "Handle layer shell event, layer_shell_id: {:?},  waiting actions: {}, messages: {}",
-            layer_shell_id,
+            shell_id,
             self.waiting_layer_shell_actions.len(),
             self.messages.len(),
         );
-        if let IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) = layer_shell_event
+        if let IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) = shell_event
             && self.compositor.is_none()
         {
-            let Some(layer_shell_window) = layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
-            else {
-                tracing::error!("layer shell window not found: {:?}", layer_shell_id);
+            let Some(layer_shell_window) = shell_id.and_then(|lid| ev.get_unit_with_id(lid)) else {
+                tracing::error!("layer shell window not found: {:?}", shell_id);
                 return (ContextState::Context(self), None);
             };
             tracing::debug!("creating compositor");
@@ -485,31 +487,18 @@ where
             self.create_compositor(window, display);
         }
 
-        match layer_shell_event {
+        match shell_event {
             IcedWlShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
             IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) => {
-                self.handle_refresh_event(ev, layer_shell_id)
+                self.handle_refresh_event(ev, shell_id)
             }
             IcedWlShellEvent::Window(ExwlShellWindowEvent::Closed) => {
-                self.handle_closed_event(ev, layer_shell_id)
+                self.handle_closed_event(ev, shell_id)
             }
             IcedWlShellEvent::Window(window_event) => {
-                self.handle_window_event(layer_shell_id, window_event)
+                self.handle_window_event(shell_id, window_event)
             }
-            IcedWlShellEvent::UserAction(user_action) => self.handle_user_action(ev, user_action),
-            IcedWlShellEvent::NormalDispatch => self.handle_normal_dispatch(ev),
         }
-
-        // at each interaction try to resolve those waiting actions.
-        let mut waiting_layer_shell_actions = Vec::new();
-        mem::swap(
-            &mut self.waiting_layer_shell_actions,
-            &mut waiting_layer_shell_actions,
-        );
-        for (iced_id, action) in waiting_layer_shell_actions {
-            self.handle_layer_shell_action(ev, iced_id, action);
-        }
-
         (ContextState::Context(self), None)
     }
 
@@ -1157,6 +1146,18 @@ where
     }
 
     fn handle_normal_dispatch(&mut self, ev: &mut WindowState<IcedId>) {
+        // NOTE: since normal_dispatch is not a WindowEvent anymore, so we need to address the
+        // actions here
+        // at each interaction try to resolve those waiting actions.
+        let mut waiting_layer_shell_actions = Vec::new();
+        mem::swap(
+            &mut self.waiting_layer_shell_actions,
+            &mut waiting_layer_shell_actions,
+        );
+        for (iced_id, action) in waiting_layer_shell_actions {
+            self.handle_layer_shell_action(ev, iced_id, action);
+        }
+
         if self.iced_events.is_empty() && self.messages.is_empty() {
             return;
         }

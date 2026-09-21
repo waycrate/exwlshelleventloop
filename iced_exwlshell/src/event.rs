@@ -3,7 +3,6 @@ use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, WlRegi
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 use exwlshellev::{ExWlShellEvent, WindowState};
 use iced_core::mouse;
-use iced_runtime::Action;
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
 
@@ -112,11 +111,9 @@ pub enum WindowEvent {
 }
 
 #[derive(Debug)]
-pub enum IcedWlShellEvent<Message> {
+pub enum IcedWlShellEvent {
     UpdateInputRegion(WlRegion),
     Window(WindowEvent),
-    UserAction(Action<Message>),
-    NormalDispatch,
 }
 
 impl WindowEvent {
