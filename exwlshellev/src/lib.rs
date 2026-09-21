@@ -13,16 +13,15 @@
 //! impl WindowTrait<()> for Window {
 //!    fn request_buffer(
 //!        &mut self,
-//!        _state: &mut WindowState<()>,
+//!        state: &mut WindowState<()>,
 //!        _id: id::Id,
 //!        file: &mut std::fs::File,
-//!        shm: &wl_shm::WlShm,
 //!        qh: &wayland_client::QueueHandle<WindowState<()>>,
 //!        width: u32,
 //!        height: u32,
 //!    ) -> wayland_client::WlBuffer {
 //!        draw(file, (width, height));
-//!        let pool = shm.create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+//!        let pool = state.get_shm().create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
 //!        pool.create_buffer(
 //!            0,
 //!            width as i32,
@@ -1225,6 +1224,10 @@ impl<T: 'static> WindowState<T> {
     /// add a new pending_request to state
     pub fn push_request(&mut self, data: Request<T>) {
         self.pending_requests.push(data);
+    }
+
+    pub fn get_shm(&self) -> &WlShm {
+        self.shm.as_ref().expect("should get it after build")
     }
 
     /// Read the latest button press or touch down serial without consuming it.
@@ -2627,7 +2630,6 @@ pub trait WindowTrait<T: 'static> {
         _state: &mut WindowState<T>,
         _id: id::Id,
         _file: &mut std::fs::File,
-        _shm: &WlShm,
         _qh: &QueueHandle<WindowState<T>>,
         _width: u32,
         _height: u32,
@@ -2722,7 +2724,6 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
 
         let wmcompositer = self.state.wl_compositor.take().unwrap();
 
-        let shm = self.state.shm.take().unwrap();
         let fractional_scale_manager = self.state.fractional_scale_manager.take();
         let wmbase = self.state.wmbase.take().unwrap();
         let viewporter = self.state.viewporter.take();
@@ -3481,7 +3482,6 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             &mut context.state,
                             unit_id,
                             &mut file,
-                            &shm,
                             &qh,
                             width,
                             height,

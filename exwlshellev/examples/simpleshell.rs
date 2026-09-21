@@ -9,16 +9,17 @@ struct Window;
 impl WindowTrait<()> for Window {
     fn request_buffer(
         &mut self,
-        _state: &mut WindowState<()>,
+        state: &mut WindowState<()>,
         _id: id::Id,
         file: &mut std::fs::File,
-        shm: &wl_shm::WlShm,
         qh: &wayland_client::QueueHandle<WindowState<()>>,
         width: u32,
         height: u32,
     ) -> wayland_client::WlBuffer {
         draw(file, (width, height));
-        let pool = shm.create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+        let pool = state
+            .get_shm()
+            .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
         pool.create_buffer(
             0,
             width as i32,
