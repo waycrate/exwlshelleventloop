@@ -11,6 +11,27 @@
 //!
 //! struct Window;
 //! impl WindowTrait<()> for Window {
+//!    fn request_buffer(
+//!        &mut self,
+//!        _state: &mut WindowState<()>,
+//!        file: &mut std::fs::File,
+//!        shm: &wl_shm::WlShm,
+//!        qh: &wayland_client::QueueHandle<WindowState<()>>,
+//!        width: u32,
+//!        height: u32,
+//!    ) -> wayland_client::WlBuffer {
+//!        draw(file, (width, height));
+//!        let pool = shm.create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+//!        pool.create_buffer(
+//!            0,
+//!            width as i32,
+//!            height as i32,
+//!            (width * 4) as i32,
+//!            wl_shm::Format::Argb8888,
+//!            qh,
+//!            (),
+//!        )
+//!    }
 //!     fn on_event(
 //!         &mut self,
 //!         event: ExWlShellEvent<()>,
@@ -45,19 +66,6 @@
 //!                // }
 //!                ReturnData::None
 //!            }
-//!             ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
-//!                 draw(file, (init_w, init_h));
-//!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
-//!                 ReturnData::WlBuffer(pool.create_buffer(
-//!                     0,
-//!                     init_w as i32,
-//!                     init_h as i32,
-//!                     (init_w * 4) as i32,
-//!                     wl_shm::Format::Argb8888,
-//!                     qh,
-//!                     (),
-//!                 ))
-//!             }
 //!             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
 //!                 width,
 //!                 height,
@@ -317,6 +325,7 @@ pub mod reexport {
                 wl_pointer::{self, ButtonState},
                 wl_region::WlRegion,
                 wl_seat::WlSeat,
+                wl_buffer::WlBuffer,
             },
         };
     }
@@ -2604,6 +2613,18 @@ pub trait WindowTrait<T: 'static> {
         state: &mut WindowState<T>,
         id: Option<id::Id>,
     ) -> ReturnData<T>;
+
+    fn request_buffer(
+        &mut self,
+        _state: &mut WindowState<T>,
+        _file: &mut std::fs::File,
+        _shm: &WlShm,
+        _qh: &QueueHandle<WindowState<T>>,
+        _width: u32,
+        _height: u32,
+    ) -> WlBuffer {
+        unimplemented!("you need to implement one")
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -3456,13 +3477,14 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             // if the error is persistent.
                             return false;
                         };
-                        let ReturnData::WlBuffer(buffer) = context.window_context.on_event(
-                            ExWlShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
+                        let buffer = context.window_context.request_buffer(
                             &mut context.state,
-                            Some(unit_id),
-                        ) else {
-                            panic!("You cannot return this one");
-                        };
+                            &mut file,
+                            &shm,
+                            &qh,
+                            width,
+                            height,
+                        );
                         wl_surface.attach(Some(&buffer), 0, 0);
                         wl_surface.commit();
                         context.state.units[idx].buffer = Some(buffer);

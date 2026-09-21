@@ -17,7 +17,6 @@ use wayland_client::{
         wl_compositor::WlCompositor,
         wl_output::{self, WlOutput},
         wl_pointer::{self, ButtonState, WlPointer},
-        wl_shm::WlShm,
     },
 };
 
@@ -32,7 +31,7 @@ use super::WindowState;
 
 use crate::id::Id;
 
-use std::{fmt::Debug, fs::File};
+use std::fmt::Debug;
 
 /// tell program what event is happened
 ///
@@ -58,15 +57,7 @@ pub enum ExWlShellEvent<'a, T> {
     /// event is [LayerShellEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
     /// create new wayland objects.
     CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
-    /// create a new buffer after request. if you use display_handle, you do not need to care about
-    /// it.
-    RequestBuffer(
-        &'a mut File,
-        &'a WlShm,
-        &'a QueueHandle<WindowState<T>>,
-        u32,
-        u32,
-    ),
+
     /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
     RequestMessages(&'a DispatchMessage),
     /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.

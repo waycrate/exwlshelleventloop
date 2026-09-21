@@ -7,6 +7,27 @@ use exwlshellev::*;
 
 struct Window;
 impl WindowTrait<()> for Window {
+    fn request_buffer(
+        &mut self,
+        _state: &mut WindowState<()>,
+        file: &mut std::fs::File,
+        shm: &wl_shm::WlShm,
+        qh: &wayland_client::QueueHandle<WindowState<()>>,
+        width: u32,
+        height: u32,
+    ) -> wayland_client::WlBuffer {
+        draw(file, (width, height));
+        let pool = shm.create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+        pool.create_buffer(
+            0,
+            width as i32,
+            height as i32,
+            (width * 4) as i32,
+            wl_shm::Format::Argb8888,
+            qh,
+            (),
+        )
+    }
     fn on_event(
         &mut self,
         event: ExWlShellEvent<()>,
@@ -40,19 +61,6 @@ impl WindowTrait<()> for Window {
                 //     x.get_wlsurface().set_input_region(Some(&region));
                 // }
                 ReturnData::None
-            }
-            ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
-                draw(file, (init_w, init_h));
-                let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
-                ReturnData::WlBuffer(pool.create_buffer(
-                    0,
-                    init_w as i32,
-                    init_h as i32,
-                    (init_w * 4) as i32,
-                    wl_shm::Format::Argb8888,
-                    qh,
-                    (),
-                ))
             }
             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
                 width,
