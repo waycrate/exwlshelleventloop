@@ -105,14 +105,14 @@ where
                 <P::Renderer as iced_graphics::compositor::Default>::Compositor,
             >,
         >,
-        waiting_layer_shell_events: VecDeque<(Option<exwlshellev::id::Id>, IcedWlShellEvent)>,
+        waiting_shell_events: VecDeque<(Option<exwlshellev::id::Id>, IcedWlShellEvent)>,
         virtual_keyboard_support: Option<VirtualKeyboardSettings>,
     }
 
     let virtual_keyboard_support = settings.virtual_keyboard_support;
     let context_ev = ContextEv {
         context_state: ContextState::None,
-        waiting_layer_shell_events: VecDeque::new(),
+        waiting_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
     let mut wl_context: EventContext<iced_core::window::Id, _> =
@@ -242,7 +242,7 @@ where
                     let wl_compositor = globals
                         .bind::<WlCompositor, _, _>(qh, 1..=1, ())
                         .expect("could not bind wl_compositor");
-                    self.waiting_layer_shell_events.push_back((
+                    self.waiting_shell_events.push_back((
                         None,
                         IcedWlShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
                     ));
@@ -289,39 +289,23 @@ where
             state: &mut WindowState<iced_core::window::Id>,
             layer_shell_id: Option<exwlshellev::id::Id>,
         ) {
-            if let (ContextState::Context(context), Some(serial)) =
-                (&mut self.context_state, action_serial(&event))
-            {
+            let ContextState::Context(context) = &mut self.context_state else {
+                unreachable!("context state is not inited")
+            };
+            if let Some(serial) = action_serial(&event) {
                 context.action_serial = Some(serial);
             }
             let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
-            self.waiting_layer_shell_events
+            self.waiting_shell_events
                 .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
 
             loop {
                 let mut need_continue = false;
-                self.context_state =
-                    match std::mem::replace(&mut self.context_state, ContextState::None) {
-                        ContextState::None => {
-                            unreachable!("context state is taken but not returned")
-                        }
-                        ContextState::Context(context) => {
-                            if let Some((layer_shell_id, layer_shell_event)) =
-                                self.waiting_layer_shell_events.pop_front()
-                            {
-                                need_continue = true;
-                                let (context_state, waiting_layer_shell_event) =
-                                    context.handle_event(state, layer_shell_id, layer_shell_event);
-                                if let Some(waiting_layer_shell_event) = waiting_layer_shell_event {
-                                    self.waiting_layer_shell_events
-                                        .push_front((layer_shell_id, waiting_layer_shell_event));
-                                }
-                                context_state
-                            } else {
-                                ContextState::Context(context)
-                            }
-                        }
-                    };
+
+                if let Some((shell_id, shell_event)) = self.waiting_shell_events.pop_front() {
+                    need_continue = true;
+                    context.handle_event(state, shell_id, shell_event);
+                }
                 if !need_continue {
                     break;
                 }
@@ -463,11 +447,11 @@ where
     }
 
     fn handle_event(
-        mut self,
+        &mut self,
         ev: &mut WindowState<IcedId>,
         shell_id: Option<LayerShellId>,
         shell_event: IcedWlShellEvent,
-    ) -> (ContextState<Self>, Option<IcedWlShellEvent>) {
+    ) {
         tracing::debug!(
             "Handle layer shell event, layer_shell_id: {:?},  waiting actions: {}, messages: {}",
             shell_id,
@@ -479,7 +463,7 @@ where
         {
             let Some(layer_shell_window) = shell_id.and_then(|lid| ev.get_unit_with_id(lid)) else {
                 tracing::error!("layer shell window not found: {:?}", shell_id);
-                return (ContextState::Context(self), None);
+                return;
             };
             tracing::debug!("creating compositor");
             let window = layer_shell_window.gen_wrapper();
@@ -499,7 +483,6 @@ where
                 self.handle_window_event(shell_id, window_event)
             }
         }
-        (ContextState::Context(self), None)
     }
 
     fn handle_refresh_event(
