@@ -290,6 +290,8 @@ pub enum ExShellEventError {
     TempFileCreateFailed(#[from] std::io::Error),
     #[error("Event Loop Error")]
     EventLoopError(#[from] CallLoopError),
+    #[error("Source insert Error {0}")]
+    RegisterFailed(String),
 }
 
 pub mod reexport {
@@ -2669,7 +2671,7 @@ pub struct EventContext<T: 'static, W: WindowTrait<T>> {
     looph: LoopHandle<'static, Self>,
     lock: LockLifecycle,
     signal: LoopSignal,
-    tokens: Vec<RegistrationToken>,
+    cached_tokens: Vec<RegistrationToken>,
     cursor_update_context: CursorUpdateContext<T>,
 }
 
@@ -2691,7 +2693,10 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
     }
 
     /// Registry other events, for example, the UserEvent or a11y
-    pub fn register<Event, F>(&mut self, callback: F) -> Option<channel::Sender<Event>>
+    pub fn register<Event, F>(
+        &mut self,
+        callback: F,
+    ) -> Result<channel::Sender<Event>, ExShellEventError>
     where
         F: Fn(&mut W, &mut WindowState<T>, Event) + 'static,
         Event: 'static,
@@ -2705,10 +2710,10 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                 };
                 callback(&mut context.window_context, &mut context.state, event);
             })
-            .ok()?;
+            .map_err(|e| ExShellEventError::RegisterFailed(e.to_string()))?;
         let _ = self.looph.disable(&token);
-        self.tokens.push(token);
-        Some(sender)
+        self.cached_tokens.push(token);
+        Ok(sender)
     }
 
     fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
@@ -3640,7 +3645,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
 
             // NOTE: we need to start the receiver only after the dispatch is run at least once a
             // time
-            for token in self.tokens.drain(..) {
+            for token in self.cached_tokens.drain(..) {
                 let _ = self.looph.enable(&token);
             }
         }
@@ -3721,7 +3726,7 @@ impl<T: 'static> WindowState<T> {
             event_loop: Some(event_loop),
             lock: LockLifecycle::Unlocked,
             signal,
-            tokens: vec![],
+            cached_tokens: vec![],
             cursor_update_context,
         })
     }
