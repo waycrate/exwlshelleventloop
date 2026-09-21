@@ -134,7 +134,7 @@ where
     let message_sender = wl_context
         .register(|window, state, action: Action<P::Message>| {
             let ContextState::Context(context) = &mut window.context_state else {
-                return;
+                unreachable!("context state is not initialized");
             };
             context.handle_user_action(state, action);
         })
@@ -278,7 +278,7 @@ where
 
         fn on_normal_dispatch(&mut self, state: &mut WindowState<iced_core::window::Id>) {
             let ContextState::Context(context) = &mut self.context_state else {
-                return;
+                unreachable!("context state is not initialized");
             };
             context.handle_normal_dispatch(state);
         }
@@ -290,7 +290,7 @@ where
             layer_shell_id: Option<exwlshellev::id::Id>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
-                unreachable!("context state is not inited")
+                unreachable!("context state is not initialized");
             };
             if let Some(serial) = action_serial(&event) {
                 context.action_serial = Some(serial);
