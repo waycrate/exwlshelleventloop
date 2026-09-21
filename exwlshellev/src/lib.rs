@@ -1,4 +1,4 @@
-//! # Handle the layer_shell in a winit way
+//! # Handle the layer_shell and session_lock in a winit way
 //!
 //! Min example is under
 //! ```rust, no_run
@@ -18,6 +18,8 @@
 //!        qh: &wayland_client::QueueHandle<WindowState<()>>,
 //!        _id: id::Id,
 //!    ) -> wayland_client::WlBuffer {
+//!        let ex_wlshell_window = state.get_unit_unchecked(id);
+//!        let (width, height) = ex_wlshell_window.get_size();
 //!        draw(file, (width, height));
 //!        let pool = state.get_shm().create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
 //!        pool.create_buffer(
@@ -73,10 +75,7 @@
 //!        _looph: &calloop::LoopHandle<'static, EventContext<(), Self>>,
 //!        id: id::Id,
 //!    ) {
-//!        let Some(ex_wlshell_window) = state.get_unit_with_id(id) else {
-//!            return;
-//!        };
-//!
+//!        let ex_wlshell_window = state.get_unit_unchecked(id);
 //!        let (width, height) = ex_wlshell_window.get_size();
 //!
 //!        println!("{width}, {height}");
