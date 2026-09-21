@@ -2614,10 +2614,21 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
     }
 }
 
-pub trait ExWlShellHandler<T: 'static> {
+pub trait ExWlShellHandler<T: 'static>
+where
+    Self: Sized,
+{
     /// When new wayland events come, it will invoke this callback, and you can address the events
     /// here
     fn on_event(&mut self, state: &mut WindowState<T>, event: ExWlShellEvent, id: Option<id::Id>);
+    /// when a refresh request comes out, it will call this callback
+    /// should handle refresh event here
+    fn on_refresh(
+        &mut self,
+        _state: &mut WindowState<T>,
+        _looph: &LoopHandle<'static, EventContext<T, Self>>,
+        _id: id::Id,
+    );
     /// Every round of loop, it will call a normal_dispatch once a time, in this place, you can draw
     /// the surface, or make new requests
     fn on_normal_dispatch(&mut self, state: &mut WindowState<T>);
@@ -2642,6 +2653,29 @@ pub trait ExWlShellHandler<T: 'static> {
         _id: id::Id,
     ) -> WlBuffer {
         unimplemented!("you need to implement one")
+    }
+
+    /// This another way to register event, is used for something like a11y, which need to register
+    /// adapter for a specific window
+    fn register<Event, F>(
+        &mut self,
+        looph: &LoopHandle<'static, EventContext<T, Self>>,
+        callback: F,
+    ) -> Result<channel::Sender<Event>, ExShellEventError>
+    where
+        F: Fn(&mut Self, &mut WindowState<T>, Event) + 'static,
+        Event: 'static,
+    {
+        let (sender, receiver) = channel::channel::<Event>();
+        looph
+            .insert_source(receiver, move |event, _, context| {
+                let channel::Event::Msg(event) = event else {
+                    return;
+                };
+                callback(&mut context.window_context, &mut context.state, event);
+            })
+            .map_err(|e| ExShellEventError::RegisterFailed(e.to_string()))?;
+        Ok(sender)
     }
 }
 
@@ -2725,6 +2759,12 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
         self.window_context
             .on_event(&mut self.state, event, unit_id);
     }
+
+    fn handle_refresh(&mut self, unit_id: id::Id) {
+        self.window_context
+            .on_refresh(&mut self.state, &self.looph, unit_id);
+    }
+
     fn call_normal_dispatch(&mut self) {
         self.window_context.on_normal_dispatch(&mut self.state);
     }
@@ -3464,7 +3504,6 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                 }
                 if unit.take_present_slot() {
                     let unit_id = unit.id;
-                    let scale_float = unit.scale_float();
                     let wl_surface = unit.window.wl_surface.clone();
                     if unit.buffer.is_none() && !context.state.use_display_handle {
                         let Ok(mut file) = tempfile::tempfile() else {
@@ -3511,14 +3550,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                         }
                         context.state.units[idx].window.wl_surface.commit();
                     }
-                    context.handle_event(
-                        ExWlShellEvent::RequestRefresh {
-                            width,
-                            height,
-                            scale_float,
-                        },
-                        Some(unit_id),
-                    );
+                    context.handle_refresh(unit_id);
                     context.state.units[idx].reset_present_slot();
                 }
             }

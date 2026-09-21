@@ -97,7 +97,6 @@ pub enum WindowEvent {
         y: f64,
     },
     Ime(exwlshellev::Ime),
-    Refresh,
     Closed,
     ThemeChanged(iced_core::theme::Mode),
     OutputChanged(Option<OutputInfo>),
@@ -119,7 +118,6 @@ pub enum IcedWlShellEvent {
 impl WindowEvent {
     pub(crate) fn from_dispatch<T>(value: ExWlShellEvent, ev: &WindowState<T>) -> Self {
         match value {
-            ExWlShellEvent::RequestRefresh { .. } => WindowEvent::Refresh,
             ExWlShellEvent::Closed => WindowEvent::Closed,
             ExWlShellEvent::MouseEnter {
                 surface_x: x,

@@ -19,7 +19,7 @@ use crate::{
 use exwlshellev::{
     DisplayWrapper, EventContext, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
     PopupPlacement, RefreshRequest, Request, WindowState, WindowWrapper,
-    id::Id as LayerShellId,
+    id::Id as ExWlShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
         zwp_virtual_keyboard_v1,
@@ -228,6 +228,21 @@ where
         P::Theme: DefaultStyle,
         P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
     {
+        fn on_refresh(
+            &mut self,
+            state: &mut WindowState<iced_core::window::Id>,
+            _looph: &exwlshellev::calloop::LoopHandle<
+                'static,
+                EventContext<iced_core::window::Id, Self>,
+            >,
+            shell_id: exwlshellev::id::Id,
+        ) {
+            let ContextState::Context(context) = &mut self.context_state else {
+                unreachable!("context state is not initialized");
+            };
+            context.handle_refresh_event(state, shell_id);
+        }
+
         fn on_init(
             &mut self,
             state: &mut WindowState<iced_core::window::Id>,
@@ -449,7 +464,7 @@ where
     fn handle_event(
         &mut self,
         ev: &mut WindowState<IcedId>,
-        shell_id: Option<LayerShellId>,
+        shell_id: Option<ExWlShellId>,
         shell_event: IcedWlShellEvent,
     ) {
         tracing::debug!(
@@ -458,24 +473,10 @@ where
             self.waiting_layer_shell_actions.len(),
             self.messages.len(),
         );
-        if let IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) = shell_event
-            && self.compositor.is_none()
-        {
-            let Some(layer_shell_window) = shell_id.and_then(|lid| ev.get_unit_with_id(lid)) else {
-                tracing::error!("layer shell window not found: {:?}", shell_id);
-                return;
-            };
-            tracing::debug!("creating compositor");
-            let window = layer_shell_window.gen_wrapper();
-            let display = ev.display_wrapper();
-            self.create_compositor(window, display);
-        }
 
         match shell_event {
             IcedWlShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
-            IcedWlShellEvent::Window(ExwlShellWindowEvent::Refresh) => {
-                self.handle_refresh_event(ev, shell_id)
-            }
+
             IcedWlShellEvent::Window(ExwlShellWindowEvent::Closed) => {
                 self.handle_closed_event(ev, shell_id)
             }
@@ -485,13 +486,18 @@ where
         }
     }
 
-    fn handle_refresh_event(
-        &mut self,
-        ev: &mut WindowState<IcedId>,
-        layer_shell_id: Option<LayerShellId>,
-    ) {
-        let Some(ex_wlshell_window) = layer_shell_id.and_then(|lid| ev.get_unit_with_id(lid))
-        else {
+    fn handle_refresh_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: ExWlShellId) {
+        if self.compositor.is_none() {
+            let Some(shell_window) = ev.get_unit_with_id(shell_id) else {
+                tracing::error!("layer shell window not found: {:?}", shell_id);
+                return;
+            };
+            tracing::debug!("creating compositor");
+            let window = shell_window.gen_wrapper();
+            let display = ev.display_wrapper();
+            self.create_compositor(window, display);
+        }
+        let Some(ex_wlshell_window) = ev.get_unit_with_id(shell_id) else {
             return;
         };
         let unit_id = ex_wlshell_window.id();
@@ -760,9 +766,9 @@ where
     fn handle_closed_event(
         &mut self,
         ev: &mut WindowState<IcedId>,
-        layer_shell_id: Option<LayerShellId>,
+        shell_id: Option<ExWlShellId>,
     ) {
-        let Some(iced_id) = layer_shell_id.and_then(|lid| {
+        let Some(iced_id) = shell_id.and_then(|lid| {
             self.window_manager
                 .get_alias(lid)
                 .map(|(iced_id, _)| iced_id)
@@ -794,7 +800,7 @@ where
 
     fn handle_window_event(
         &mut self,
-        layer_shell_id: Option<LayerShellId>,
+        shell_id: Option<ExWlShellId>,
         event: ExwlShellWindowEvent,
     ) {
         match &event {
@@ -827,8 +833,8 @@ where
             }
             _ => {}
         }
-        let id_and_window = if let Some(layer_shell_id) = layer_shell_id {
-            self.window_manager.get_mut_alias(layer_shell_id)
+        let id_and_window = if let Some(shell_id) = shell_id {
+            self.window_manager.get_mut_alias(shell_id)
         } else {
             self.window_manager.iter_mut().next()
         };
@@ -879,14 +885,14 @@ where
         }
     }
 
-    fn handle_layer_shell_action(
+    fn handle_exwlshell_action(
         &mut self,
         ev: &mut WindowState<IcedId>,
         mut iced_id: Option<IcedId>,
         action: ExwlShellCustomAction,
     ) {
         let exshell_window;
-        macro_rules! ref_mut_exshell_window {
+        macro_rules! ref_mut_exwlshell_window {
             ($ev: ident, $iced_id: ident, $exshell_id: ident, $layer_shell_window: ident) => {
                 if $iced_id.is_none() {
                     // Make application also works
@@ -921,31 +927,31 @@ where
         }
         match action {
             ExwlShellCustomAction::BlurOptionChange(blur_option) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_blur_option(blur_option);
             }
             ExwlShellCustomAction::LayoutChange { anchor, size } => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_layout(anchor, size);
             }
             ExwlShellCustomAction::LayerChange(layer) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_layer(layer);
             }
             ExwlShellCustomAction::MarginChange(margin) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_margin(margin);
             }
             ExwlShellCustomAction::ExclusiveZoneChange(zone_size) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_exclusive_zone(zone_size);
             }
             ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
             ExwlShellCustomAction::SetInputRegion(set_region) => {
-                ref_mut_exshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 let set_region = set_region.0;
                 let Some(region) = &self.wl_input_region else {
                     tracing::warn!(
@@ -1138,7 +1144,7 @@ where
             &mut waiting_layer_shell_actions,
         );
         for (iced_id, action) in waiting_layer_shell_actions {
-            self.handle_layer_shell_action(ev, iced_id, action);
+            self.handle_exwlshell_action(ev, iced_id, action);
         }
 
         if self.iced_events.is_empty() && self.messages.is_empty() {

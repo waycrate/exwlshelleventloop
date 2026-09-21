@@ -470,13 +470,6 @@ pub enum ExWlShellEvent {
         /// Otherwise, this value is always `false`.
         is_synthetic: bool,
     },
-    /// this will request to do refresh the whole screen, because the layershell tell that a new
-    /// configure happened
-    RequestRefresh {
-        width: u32,
-        height: u32,
-        scale_float: f64,
-    },
     /// fractal scale handle
     PreferredScale {
         scale_u32: u32,
