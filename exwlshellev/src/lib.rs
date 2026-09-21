@@ -16,7 +16,7 @@
 //!        state: &mut WindowState<()>,
 //!        file: &mut std::fs::File,
 //!        qh: &wayland_client::QueueHandle<WindowState<()>>,
-//!        _id: id::Id,
+//!        id: id::Id,
 //!    ) -> wayland_client::WlBuffer {
 //!        let ex_wlshell_window = state.get_unit_unchecked(id);
 //!        let (width, height) = ex_wlshell_window.get_size();
