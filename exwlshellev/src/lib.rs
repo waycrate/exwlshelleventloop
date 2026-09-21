@@ -69,6 +69,20 @@
 //!    }
 //!
 //!    fn on_normal_dispatch(&mut self, _state: &mut WindowState<()>) {}
+//!    fn on_refresh(
+//!        &mut self,
+//!        state: &mut WindowState<()>,
+//!        _looph: &calloop::LoopHandle<'static, EventContext<(), Self>>,
+//!        id: id::Id,
+//!    ) {
+//!        let Some(ex_wlshell_window) = state.get_unit_with_id(id) else {
+//!            return;
+//!        };
+//!
+//!        let (width, height) = ex_wlshell_window.get_size();
+//!
+//!        println!("{width}, {height}");
+//!    }
 //!    fn on_event(
 //!        &mut self,
 //!        state: &mut WindowState<()>,
@@ -76,13 +90,6 @@
 //!        _id: Option<id::Id>,
 //!    ) {
 //!        match event {
-//!            ExWlShellEvent::RequestRefresh {
-//!                width,
-//!                height,
-//!                ..
-//!            } => {
-//!                println!("{width}, {height}");
-//!            }
 //!            ExWlShellEvent::MouseEnter { pointer, .. } => state
 //!                .push_request(Request::RequestSetCursor((
 //!                    Cursor::Shape(CursorShape::Crosshair),
