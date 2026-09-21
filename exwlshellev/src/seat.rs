@@ -524,7 +524,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             .map(|(surface, id)| (Some(surface), *id))
             .unwrap_or_else(|| (None, None));
         let scale = surface_id
-            .and_then(|id| state.get_unit_with_id(id))
+            .and_then(|id| state.get_unit(id))
             .map(|unit| unit.scale_float())
             .unwrap_or(1.0);
         match event {

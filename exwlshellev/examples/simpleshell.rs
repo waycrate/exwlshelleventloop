@@ -12,10 +12,11 @@ impl ExWlShellHandler<()> for Window {
         state: &mut WindowState<()>,
         file: &mut std::fs::File,
         qh: &wayland_client::QueueHandle<WindowState<()>>,
-        width: u32,
-        height: u32,
-        _id: id::Id,
+        id: id::Id,
     ) -> wayland_client::WlBuffer {
+        let ex_wlshell_window = state.get_unit_unchecked(id);
+
+        let (width, height) = ex_wlshell_window.get_size();
         draw(file, (width, height));
         let pool = state
             .get_shm()
@@ -72,9 +73,7 @@ impl ExWlShellHandler<()> for Window {
         _looph: &calloop::LoopHandle<'static, EventContext<(), Self>>,
         id: id::Id,
     ) {
-        let Some(ex_wlshell_window) = state.get_unit_with_id(id) else {
-            return;
-        };
+        let ex_wlshell_window = state.get_unit_unchecked(id);
 
         let (width, height) = ex_wlshell_window.get_size();
 

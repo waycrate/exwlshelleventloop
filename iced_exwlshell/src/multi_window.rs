@@ -488,18 +488,14 @@ where
 
     fn handle_refresh_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: ExWlShellId) {
         if self.compositor.is_none() {
-            let Some(shell_window) = ev.get_unit_with_id(shell_id) else {
-                tracing::error!("layer shell window not found: {:?}", shell_id);
-                return;
-            };
+            // NOTE: when invoke on_refresh, the unit will always exist
+            let shell_window = ev.get_unit_unchecked(shell_id);
             tracing::debug!("creating compositor");
             let window = shell_window.gen_wrapper();
             let display = ev.display_wrapper();
             self.create_compositor(window, display);
         }
-        let Some(ex_wlshell_window) = ev.get_unit_with_id(shell_id) else {
-            return;
-        };
+        let ex_wlshell_window = ev.get_unit_unchecked(shell_id);
         let unit_id = ex_wlshell_window.id();
         let toplevel_state = ex_wlshell_window.toplevel_state();
         let (width, height) = ex_wlshell_window.get_size();
@@ -545,7 +541,7 @@ where
                 };
                 self.shell_broadcast.send(shell::ShellEvent::NewShell(info));
                 if let Some(output) = ev
-                    .get_unit_with_id(unit_id)
+                    .get_unit(unit_id)
                     .and_then(|unit| unit.get_wloutput().cloned())
                     && let Some(inner) = ev.get_output_info_of(&output)
                 {
@@ -709,7 +705,7 @@ where
         draw_span.finish();
 
         // get layer_shell_id so that layer_shell_window can be drop, and ev can be borrow mut
-        let layer_shell_id = unit_id;
+        let shell_id = unit_id;
 
         Self::handle_ui_state(ev, window, ui_state, false, true);
 
@@ -722,7 +718,7 @@ where
             window.state.viewport(),
             window.state.background_color(),
             || {
-                ev.request_next_present(layer_shell_id);
+                ev.request_next_present(shell_id);
             },
         ) {
             Ok(()) => {
@@ -740,20 +736,17 @@ where
                             physical_size.width,
                             physical_size.height,
                         );
-                        ev.request_refresh(layer_shell_id, RefreshRequest::NextFrame);
+                        ev.request_refresh(shell_id, RefreshRequest::NextFrame);
                     }
                     PresentRecovery::Recreate => {
-                        let surface_window = Arc::new(
-                            ev.get_unit_with_id(layer_shell_id)
-                                .expect("the presented shell surface should still exist")
-                                .gen_wrapper(),
-                        );
+                        let surface_window =
+                            Arc::new(ev.get_unit_unchecked(shell_id).gen_wrapper());
                         window.surface = compositor.create_surface(
                             surface_window,
                             physical_size.width,
                             physical_size.height,
                         );
-                        ev.request_refresh(layer_shell_id, RefreshRequest::NextFrame);
+                        ev.request_refresh(shell_id, RefreshRequest::NextFrame);
                     }
                     PresentRecovery::Report => {
                         tracing::error!("Error {error:?} when presenting surface.");
@@ -768,7 +761,7 @@ where
             self.window_manager
                 .get_alias(lid)
                 .map(|(iced_id, _)| iced_id)
-                .or_else(|| ev.get_unit_with_id(lid)?.get_binding().copied())
+                .or_else(|| ev.get_unit(lid)?.get_binding().copied())
         }) else {
             return;
         };
@@ -900,7 +893,7 @@ where
                     }
                 }
                 if let Some(ls_window) =
-                    $exshell_id.and_then(|exshell_id| $ev.get_mut_unit_with_id(exshell_id))
+                    $exshell_id.and_then(|exshell_id| $ev.get_mut_unit(exshell_id))
                 {
                     exshell_window = ls_window;
                 } else {
@@ -1619,7 +1612,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
             }
             WindowAction::Run(id, f) => {
                 if let Some(exshell_id) = window_manager.get(id).map(|window| window.id)
-                    && let Some(unit) = ev.get_unit_with_id(exshell_id)
+                    && let Some(unit) = ev.get_unit(exshell_id)
                 {
                     f(unit);
                 }

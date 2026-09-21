@@ -16,8 +16,6 @@
 //!        state: &mut WindowState<()>,
 //!        file: &mut std::fs::File,
 //!        qh: &wayland_client::QueueHandle<WindowState<()>>,
-//!        width: u32,
-//!        height: u32,
 //!        _id: id::Id,
 //!    ) -> wayland_client::WlBuffer {
 //!        draw(file, (width, height));
@@ -1817,15 +1815,25 @@ impl<T> WindowState<T> {
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit]
-    pub fn get_mut_unit_with_id(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
+    pub fn get_mut_unit(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
         self.units.iter_mut().find(|unit| unit.id == id)
     }
 
+    /// use [id::Id] to get the mut [WindowStateUnit], unchecked
+    pub fn get_mut_unit_unchecked(&mut self, id: id::Id) -> &mut WindowStateUnit<T> {
+        self.get_mut_unit(id)
+            .expect("You should not use this function for unknown id")
+    }
     /// use [id::Id] to get the immutable [WindowStateUnit]
-    pub fn get_unit_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
+    pub fn get_unit(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
         self.units.iter().find(|unit| unit.id == id)
     }
 
+    /// use [id::Id] to get the immutable [WindowStateUnit], unchecked
+    pub fn get_unit_unchecked(&self, id: id::Id) -> &WindowStateUnit<T> {
+        self.get_unit(id)
+            .expect("You should not use this function for unknown id")
+    }
     /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
         self.units.iter()
@@ -1885,7 +1893,7 @@ impl<T> WindowState<T> {
 
     /// the output info the surface `id` is currently displayed on
     pub fn get_output_info(&self, id: id::Id) -> Option<OutputInfo> {
-        let output = self.get_unit_with_id(id)?.get_wloutput().cloned()?;
+        let output = self.get_unit(id)?.get_wloutput().cloned()?;
         self.get_output_info_of(&output)
     }
 
@@ -1905,7 +1913,7 @@ impl<T> WindowState<T> {
                 self.active_surfaces
                     .values()
                     .filter_map(|(_, id)| *id)
-                    .find(|id| self.get_unit_with_id(*id).is_some())
+                    .find(|id| self.get_unit(*id).is_some())
             })
             .or_else(|| self.units.last().map(|unit| unit.id()))
     }
@@ -1915,7 +1923,7 @@ impl<T> WindowState<T> {
         self.active_surfaces
             .get(&None)
             .and_then(|(_, id)| *id)
-            .filter(|id| self.get_unit_with_id(*id).is_some())
+            .filter(|id| self.get_unit(*id).is_some())
     }
 
     fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
@@ -1957,14 +1965,13 @@ impl<T> WindowState<T> {
     }
 
     pub fn request_refresh(&mut self, id: id::Id, request: RefreshRequest) {
-        if let Some(unit) = self.get_mut_unit_with_id(id) {
+        if let Some(unit) = self.get_mut_unit(id) {
             unit.request_refresh(request);
         }
     }
 
     pub fn request_close(&mut self, id: id::Id) {
-        self.get_mut_unit_with_id(id)
-            .map(WindowStateUnit::request_close);
+        self.get_mut_unit(id).map(WindowStateUnit::request_close);
     }
 
     /// Request compositor to move window `id` with the pointer.
@@ -1973,21 +1980,21 @@ impl<T> WindowState<T> {
             log::warn!(target: "exwlshellev", "no seat, cannot move {id:?}");
             return;
         };
-        if let Some(unit) = self.get_unit_with_id(id) {
+        if let Some(unit) = self.get_unit(id) {
             unit.start_move(seat, serial);
         }
     }
 
     /// Request compositor to maximize or unmaximize window `id`.
     pub fn request_maximized(&self, id: id::Id, maximized: bool) {
-        if let Some(unit) = self.get_unit_with_id(id) {
+        if let Some(unit) = self.get_unit(id) {
             unit.set_maximized(maximized);
         }
     }
 
     /// Request compositor to minimize window `id`.
     pub fn request_minimized(&self, id: id::Id) {
-        if let Some(unit) = self.get_unit_with_id(id) {
+        if let Some(unit) = self.get_unit(id) {
             unit.set_minimized();
         }
     }
@@ -1998,19 +2005,18 @@ impl<T> WindowState<T> {
             log::warn!(target: "exwlshellev", "no seat, cannot show the window menu for {id:?}");
             return;
         };
-        if let Some(unit) = self.get_unit_with_id(id) {
+        if let Some(unit) = self.get_unit(id) {
             unit.show_window_menu(seat, serial, x, y);
         }
     }
 
     /// State from the last `xdg_toplevel::configure` event for window `id`.
     pub fn toplevel_state(&self, id: id::Id) -> Option<ToplevelState> {
-        self.get_unit_with_id(id)
-            .map(WindowStateUnit::toplevel_state)
+        self.get_unit(id).map(WindowStateUnit::toplevel_state)
     }
 
     pub fn get_binding_mut(&mut self, id: id::Id) -> Option<&mut T> {
-        self.get_mut_unit_with_id(id)
+        self.get_mut_unit(id)
             .and_then(WindowStateUnit::get_binding_mut)
     }
 }
@@ -2548,7 +2554,7 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
         _qhandle: &QueueHandle<Self>,
     ) {
         if let WlCallbackEvent::Done { callback_data: _ } = event
-            && let Some(unit) = state.get_mut_unit_with_id(data.0)
+            && let Some(unit) = state.get_mut_unit(data.0)
         {
             unit.frame_callback = None;
             unit.present_available_state = data.1;
@@ -2655,8 +2661,6 @@ where
         _state: &mut WindowState<T>,
         _file: &mut std::fs::File,
         _qh: &QueueHandle<WindowState<T>>,
-        _width: u32,
-        _height: u32,
         _id: id::Id,
     ) -> WlBuffer {
         unimplemented!("you need to implement one")
@@ -3523,8 +3527,6 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             &mut context.state,
                             &mut file,
                             &qh,
-                            width,
-                            height,
                             unit_id,
                         );
                         wl_surface.attach(Some(&buffer), 0, 0);
@@ -3999,12 +4001,12 @@ impl<T: 'static> WindowState<T> {
     }
 
     pub fn request_next_present(&mut self, id: id::Id) {
-        self.get_mut_unit_with_id(id)
+        self.get_mut_unit(id)
             .map(WindowStateUnit::request_next_present);
     }
 
     pub fn reset_present_slot(&mut self, id: id::Id) {
-        self.get_mut_unit_with_id(id)
+        self.get_mut_unit(id)
             .map(WindowStateUnit::reset_present_slot);
     }
 }
