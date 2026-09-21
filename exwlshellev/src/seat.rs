@@ -266,9 +266,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         surface_id,
                         DispatchMessage::ModifiersChanged(ModifiersState::empty()),
                     ));
-                    state
-                        .messages
-                        .push((surface_id, DispatchMessage::Unfocus));
+                    state.messages.push((surface_id, DispatchMessage::Unfocus));
                 }
                 let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
                     return;
@@ -501,10 +499,9 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     })
                     .and_then(|(_, id)| *id);
                 state.finger_locations.insert(id, (x, y));
-                state.messages.push((
-                    surface_id,
-                    DispatchMessage::TouchMotion { time, id, x, y },
-                ));
+                state
+                    .messages
+                    .push((surface_id, DispatchMessage::TouchMotion { time, id, x, y }));
             }
             _ => {}
         }

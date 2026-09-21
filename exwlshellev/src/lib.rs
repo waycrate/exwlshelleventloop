@@ -2718,7 +2718,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
         self.window_context
             .on_event(event, &mut self.state, unit_id);
     }
-    fn handle_normal_dispatch(&mut self) {
+    fn call_normal_dispatch(&mut self) {
         self.window_context.on_normal_dispatch(&mut self.state);
     }
 
@@ -2930,7 +2930,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                 }
             }
 
-            context.handle_normal_dispatch();
+            context.call_normal_dispatch();
             loop {
                 let mut return_data = vec![];
                 std::mem::swap(&mut context.state.pending_requests, &mut return_data);
@@ -3611,7 +3611,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             let repeat_info = keyboard_state.repeat_info;
 
                             let _ = keyboard_state;
-                            r_window_state.handle_normal_dispatch();
+                            r_window_state.call_normal_dispatch();
                             match repeat_info {
                                 RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
                                 RepeatInfo::Disable => TimeoutAction::Drop,
