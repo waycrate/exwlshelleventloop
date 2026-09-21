@@ -10,6 +10,7 @@ impl WindowTrait<()> for Window {
     fn request_buffer(
         &mut self,
         _state: &mut WindowState<()>,
+        _id: id::Id,
         file: &mut std::fs::File,
         shm: &wl_shm::WlShm,
         qh: &wayland_client::QueueHandle<WindowState<()>>,
