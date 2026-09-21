@@ -68,6 +68,7 @@
 //!        }
 //!    }
 //!
+//!    fn on_normal_dispatch(&mut self, _state: &mut WindowState<()>) {}
 //!    fn on_event(
 //!        &mut self,
 //!        event: ExWlShellEvent,
@@ -75,31 +76,31 @@
 //!        _id: Option<id::Id>,
 //!    ) {
 //!        match event {
-//!            ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
+//!            ExWlShellEvent::RequestRefresh {
 //!                width,
 //!                height,
 //!                ..
-//!            }) => {
+//!            } => {
 //!                println!("{width}, {height}");
 //!            }
-//!            ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => state
+//!            ExWlShellEvent::MouseEnter { pointer, .. } => state
 //!                .push_request(Request::RequestSetCursor((
 //!                    Cursor::Shape(CursorShape::Crosshair),
 //!                    pointer.clone(),
 //!                ))),
-//!            ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!            ExWlShellEvent::MouseMotion {
 //!                time,
 //!                surface_x,
 //!                surface_y,
-//!            }) => {
+//!            } => {
 //!                println!("{time}, {surface_x}, {surface_y}");
 //!            }
-//!            ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
+//!            ExWlShellEvent::OutputChanged(output) => {
 //!                // NOTE: sent when surface enters another output, or its output info changes
 //!                let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
 //!                println!("{info:?}");
 //!            }
-//!            ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!            ExWlShellEvent::KeyboardInput { event, .. } => {
 //!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
 //!                    state.push_request(Request::RequestExit);
 //!                }
@@ -159,15 +160,14 @@ mod events;
 mod seat;
 mod size;
 
-use events::DispatchMessageInner;
+use events::DispatchMessage;
 use size::warn_if_exclusive_zone_ignored;
 pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
 pub use events::{
-    AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest,
-    Request,
+    AxisScroll, Cursor, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest, Request,
 };
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
@@ -1149,7 +1149,7 @@ pub struct WindowState<T> {
     keyboard_focus: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
     units: Vec<WindowStateUnit<T>>,
-    message: Vec<(Option<id::Id>, DispatchMessageInner)>,
+    messages: Vec<(Option<id::Id>, DispatchMessage)>,
 
     with_connection: Option<WithConnection>,
     connection: Option<Connection>,
@@ -1728,7 +1728,7 @@ impl<T> Default for WindowState<T> {
             keyboard_focus: None,
             active_surfaces: HashMap::new(),
             units: Vec::new(),
-            message: Vec::new(),
+            messages: Vec::new(),
 
             background_surface: None,
             display: None,
@@ -2027,11 +2027,11 @@ impl<T: 'static> OutputHandler for WindowState<T> {
     ) {
         self.outputs.push(output.clone());
         if let Some(info) = self.get_output_info_of(&output) {
-            self.message
-                .push((None, DispatchMessageInner::OutputAdded(info)));
+            self.messages
+                .push((None, DispatchMessage::OutputAdded(info)));
         }
-        self.message
-            .push((None, DispatchMessageInner::NewDisplay(output)));
+        self.messages
+            .push((None, DispatchMessage::NewDisplay(output)));
     }
     fn update_output(
         &mut self,
@@ -2040,8 +2040,8 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         output: wl_output::WlOutput,
     ) {
         if let Some(info) = self.get_output_info_of(&output) {
-            self.message
-                .push((None, DispatchMessageInner::OutputUpdated(info)));
+            self.messages
+                .push((None, DispatchMessage::OutputUpdated(info)));
         }
         let affected: Vec<id::Id> = self
             .units
@@ -2050,9 +2050,9 @@ impl<T: 'static> OutputHandler for WindowState<T> {
             .map(|unit| unit.id)
             .collect();
         for id in affected {
-            self.message.push((
+            self.messages.push((
                 Some(id),
-                DispatchMessageInner::OutputChanged(Some(output.clone())),
+                DispatchMessage::OutputChanged(Some(output.clone())),
             ));
         }
     }
@@ -2063,8 +2063,8 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         output: wl_output::WlOutput,
     ) {
         if let Some(info) = self.get_output_info_of(&output) {
-            self.message
-                .push((None, DispatchMessageInner::OutputRemoved(info)));
+            self.messages
+                .push((None, DispatchMessage::OutputRemoved(info)));
         }
         if self
             .last_wloutput
@@ -2094,8 +2094,8 @@ impl<T: 'static> OutputHandler for WindowState<T> {
             if unit.wl_outputs.first() != previous.as_ref() {
                 let id = unit.id;
                 let output = unit.wl_outputs.first().cloned();
-                self.message
-                    .push((Some(id), DispatchMessageInner::OutputChanged(output)));
+                self.messages
+                    .push((Some(id), DispatchMessage::OutputChanged(output)));
             }
         }
         for deleled in removed_states {
@@ -2210,9 +2210,9 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
                 if state.units[unit_index].toplevel_state != toplevel_state {
                     state.units[unit_index].toplevel_state = toplevel_state;
                     let id = state.units[unit_index].id;
-                    state.message.push((
+                    state.messages.push((
                         Some(id),
-                        DispatchMessageInner::ToplevelStateChanged(toplevel_state),
+                        DispatchMessage::ToplevelStateChanged(toplevel_state),
                     ));
                 }
 
@@ -2311,9 +2311,9 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
             };
             unit.scale = scale;
             unit.request_refresh(RefreshRequest::NextFrame);
-            state.message.push((
+            state.messages.push((
                 Some(unit.id),
-                DispatchMessageInner::PreferredScale {
+                DispatchMessage::PreferredScale {
                     scale_u32: scale,
                     scale_float: scale as f64 / 120.,
                 },
@@ -2365,8 +2365,8 @@ impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
         if unit.get_wloutput() != previous.as_ref() {
             let output = unit.get_wloutput().cloned();
             state
-                .message
-                .push((Some(id), DispatchMessageInner::OutputChanged(output)));
+                .messages
+                .push((Some(id), DispatchMessage::OutputChanged(output)));
         }
     }
 }
@@ -2446,8 +2446,8 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                     text_input.set_content_type_by_purpose(state.ime_purpose());
                     text_input.commit();
                     state
-                        .message
-                        .push((Some(id), DispatchMessageInner::Ime(events::Ime::Enabled)));
+                        .messages
+                        .push((Some(id), DispatchMessage::Ime(events::Ime::Enabled)));
                 }
                 state.text_input_entered(text_input);
             }
@@ -2461,8 +2461,8 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                 };
                 state.text_input_left(text_input);
                 state
-                    .message
-                    .push((Some(id), DispatchMessageInner::Ime(events::Ime::Disabled)));
+                    .messages
+                    .push((Some(id), DispatchMessage::Ime(events::Ime::Disabled)));
             }
             Event::CommitString { text } => {
                 text_input_data.pending_preedit = None;
@@ -2481,17 +2481,17 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                 if text_input_data.pending_commit.is_some()
                     || text_input_data.pending_preedit.is_none()
                 {
-                    state.message.push((
+                    state.messages.push((
                         Some(id),
-                        DispatchMessageInner::Ime(Ime::Preedit(String::new(), None)),
+                        DispatchMessage::Ime(Ime::Preedit(String::new(), None)),
                     ));
                 }
 
                 // Send `Commit`.
                 if let Some(text) = text_input_data.pending_commit.take() {
                     state
-                        .message
-                        .push((Some(id), DispatchMessageInner::Ime(Ime::Commit(text))));
+                        .messages
+                        .push((Some(id), DispatchMessage::Ime(Ime::Commit(text))));
                 }
 
                 // Send preedit.
@@ -2500,9 +2500,9 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                         .cursor_begin
                         .map(|b| (b, preedit.cursor_end.unwrap_or(b)));
 
-                    state.message.push((
+                    state.messages.push((
                         Some(id),
-                        DispatchMessageInner::Ime(Ime::Preedit(preedit.text, cursor_range)),
+                        DispatchMessage::Ime(Ime::Preedit(preedit.text, cursor_range)),
                     ));
                 }
             }
@@ -2561,12 +2561,10 @@ impl<T> Dispatch<ExtSessionLockV1, ()> for WindowState<T> {
         use wayland_protocols::ext::session_lock::v1::client::ext_session_lock_v1::Event;
         match event {
             Event::Locked => {
-                state.message.push((None, DispatchMessageInner::Locked));
+                state.messages.push((None, DispatchMessage::Locked));
             }
             Event::Finished => {
-                state
-                    .message
-                    .push((None, DispatchMessageInner::LockFinished));
+                state.messages.push((None, DispatchMessage::LockFinished));
             }
             _ => unreachable!(),
         }
@@ -2618,7 +2616,7 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 
 pub trait ExWlShellHandler<T: 'static> {
     fn on_event(&mut self, event: ExWlShellEvent, state: &mut WindowState<T>, id: Option<id::Id>);
-
+    fn on_normal_dispatch(&mut self, state: &mut WindowState<T>);
     fn on_init(
         &mut self,
         _event: ExWlShellInitEvent<T>,
@@ -2720,6 +2718,9 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
         self.window_context
             .on_event(event, &mut self.state, unit_id);
     }
+    fn handle_normal_dispatch(&mut self) {
+        self.window_context.on_normal_dispatch(&mut self.state);
+    }
 
     /// Run the program
     pub fn run(mut self) -> Result<(), ExShellEventError> {
@@ -2744,10 +2745,10 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
 
         let process_window_state = |context: &mut Self| {
             let mut messages = Vec::new();
-            std::mem::swap(&mut messages, &mut context.state.message);
+            std::mem::swap(&mut messages, &mut context.state.messages);
             for msg in messages {
                 match msg {
-                    (_, DispatchMessageInner::NewDisplay(output_display)) => {
+                    (_, DispatchMessage::NewDisplay(output_display)) => {
                         if let LockLifecycle::Pending { lock, .. }
                         | LockLifecycle::Locked { lock } = &context.lock
                         {
@@ -2864,7 +2865,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             .build(),
                         );
                     }
-                    (_, DispatchMessageInner::Locked) => match context.lock.take() {
+                    (_, DispatchMessage::Locked) => match context.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown: Some(goal),
@@ -2887,10 +2888,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             teardown: None,
                         } => {
                             context.lock = LockLifecycle::Locked { lock: l_lock };
-                            context.handle_event(
-                                ExWlShellEvent::RequestMessages(DispatchMessage::Locked),
-                                None,
-                            );
+                            context.handle_event(ExWlShellEvent::Locked, None);
                         }
                         other => {
                             log::warn!(
@@ -2899,7 +2897,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             context.lock = other;
                         }
                     },
-                    (_, DispatchMessageInner::LockFinished) => match context.lock.take() {
+                    (_, DispatchMessage::LockFinished) => match context.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown,
@@ -2907,10 +2905,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             l_lock.destroy();
                             let _ = connection.flush();
                             remove_lock_units(&mut context.state);
-                            context.handle_event(
-                                ExWlShellEvent::RequestMessages(DispatchMessage::LockDenied),
-                                None,
-                            );
+                            context.handle_event(ExWlShellEvent::LockDenied, None);
                             if matches!(teardown, Some(LockTeardown::Exit)) {
                                 context.signal.stop();
                                 return true;
@@ -2920,10 +2915,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             l_lock.unlock_and_destroy();
                             let _ = connection.flush();
                             remove_lock_units(&mut context.state);
-                            context.handle_event(
-                                ExWlShellEvent::RequestMessages(DispatchMessage::LockFinished),
-                                None,
-                            );
+                            context.handle_event(ExWlShellEvent::LockFinished, None);
                         }
                         LockLifecycle::Unlocked => {
                             log::warn!("Received `finished` without an active lock; ignoring");
@@ -2932,13 +2924,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                     _ => {
                         let (index_message, msg) = msg;
 
-                        let msg: DispatchMessage = msg.into();
-                        context.handle_event(ExWlShellEvent::RequestMessages(msg), index_message);
+                        let msg: ExWlShellEvent = msg.into();
+                        context.handle_event(msg, index_message);
                     }
                 }
             }
 
-            context.handle_event(ExWlShellEvent::NormalDispatch, None);
+            context.handle_normal_dispatch();
             loop {
                 let mut return_data = vec![];
                 std::mem::swap(&mut context.state.pending_requests, &mut return_data);
@@ -2973,10 +2965,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             }
                             let Some(lock_manager) = context.state.lock_manager.as_ref() else {
                                 log::error!("SessionLock is not supported");
-                                context.handle_event(
-                                    ExWlShellEvent::RequestMessages(DispatchMessage::LockDenied),
-                                    None,
-                                );
+                                context.handle_event(ExWlShellEvent::LockDenied, None);
                                 continue;
                             };
                             let l_lock = lock_manager.lock(&qh, ());
@@ -3443,19 +3432,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                     .collect_descendants_then_self(root, &mut to_be_closed_ids);
             }
             for id in to_be_closed_ids {
-                context.handle_event(
-                    ExWlShellEvent::RequestMessages(DispatchMessage::Closed),
-                    Some(id),
-                );
+                context.handle_event(ExWlShellEvent::Closed, Some(id));
                 context.state.remove_shell(id);
             }
 
             let closed_ids = context.state.closed_ids.clone();
             for id in closed_ids {
-                context.handle_event(
-                    ExWlShellEvent::RequestMessages(DispatchMessage::Closed),
-                    Some(id),
-                );
+                context.handle_event(ExWlShellEvent::Closed, Some(id));
             }
             context.state.closed_ids.clear();
             if context.state.units.is_empty()
@@ -3522,11 +3505,11 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                         context.state.units[idx].window.wl_surface.commit();
                     }
                     context.handle_event(
-                        ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
+                        ExWlShellEvent::RequestRefresh {
                             width,
                             height,
                             scale_float,
-                        }),
+                        },
                         Some(unit_id),
                     );
                     context.state.units[idx].reset_present_slot();
@@ -3619,16 +3602,16 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                     pressed_state,
                                     false,
                                 );
-                                let event = DispatchMessageInner::KeyboardInput {
+                                let event = DispatchMessage::KeyboardInput {
                                     event,
                                     is_synthetic: false,
                                 };
-                                state.message.push((surface_id, event));
+                                state.messages.push((surface_id, event));
                             }
                             let repeat_info = keyboard_state.repeat_info;
 
                             let _ = keyboard_state;
-                            r_window_state.handle_event(ExWlShellEvent::NormalDispatch, None);
+                            r_window_state.handle_normal_dispatch();
                             match repeat_info {
                                 RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
                                 RepeatInfo::Disable => TimeoutAction::Drop,
@@ -3951,8 +3934,8 @@ impl<T: 'static> WindowState<T> {
                     .build(),
                 );
             }
-            self.message
-                .retain(|(_, message)| !matches!(message, DispatchMessageInner::NewDisplay(_)));
+            self.messages
+                .retain(|(_, message)| !matches!(message, DispatchMessage::NewDisplay(_)));
         }
         self.init_finished = true;
         self.viewporter = viewporter;

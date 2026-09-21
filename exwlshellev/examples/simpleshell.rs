@@ -65,6 +65,7 @@ impl ExWlShellHandler<()> for Window {
             }
         }
     }
+    fn on_normal_dispatch(&mut self, _state: &mut WindowState<()>) {}
     fn on_event(
         &mut self,
         event: ExWlShellEvent,
@@ -72,31 +73,25 @@ impl ExWlShellHandler<()> for Window {
         _id: Option<id::Id>,
     ) {
         match event {
-            ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
-                width,
-                height,
-                ..
-            }) => {
+            ExWlShellEvent::RequestRefresh { width, height, .. } => {
                 println!("{width}, {height}");
             }
-            ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => state
-                .push_request(Request::RequestSetCursor((
-                    Cursor::Shape(CursorShape::Crosshair),
-                    pointer.clone(),
-                ))),
-            ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+            ExWlShellEvent::MouseEnter { pointer, .. } => state.push_request(
+                Request::RequestSetCursor((Cursor::Shape(CursorShape::Crosshair), pointer.clone())),
+            ),
+            ExWlShellEvent::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
-            }) => {
+            } => {
                 println!("{time}, {surface_x}, {surface_y}");
             }
-            ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
+            ExWlShellEvent::OutputChanged(output) => {
                 // NOTE: sent when surface enters another output, or its output info changes
                 let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
                 println!("{info:?}");
             }
-            ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+            ExWlShellEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
                     state.push_request(Request::RequestExit);
                 }

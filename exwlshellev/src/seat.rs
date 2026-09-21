@@ -12,7 +12,7 @@ use wayland_client::{
     },
 };
 
-use crate::{AxisScroll, DispatchMessageInner, KeyboardTokenState, RepeatInfo, TextInputData};
+use crate::{AxisScroll, DispatchMessage, KeyboardTokenState, RepeatInfo, TextInputData};
 use wayland_protocols::wp::text_input::zv3::client::zwp_text_input_v3::ZwpTextInputV3;
 
 use std::time::Duration;
@@ -246,8 +246,8 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                     state.keyboard_focus = Some(surface);
                     if let Some(id) = surface_id {
                         state
-                            .message
-                            .push((Some(id), DispatchMessageInner::Focused(id)));
+                            .messages
+                            .push((Some(id), DispatchMessage::Focused(id)));
                     }
                 }
                 let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
@@ -262,13 +262,13 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 state.keyboard_focus = None;
                 let surface_id = state.get_id_from_surface(&surface);
                 if surface_id.is_some() {
-                    state.message.push((
+                    state.messages.push((
                         surface_id,
-                        DispatchMessageInner::ModifiersChanged(ModifiersState::empty()),
+                        DispatchMessage::ModifiersChanged(ModifiersState::empty()),
                     ));
                     state
-                        .message
-                        .push((surface_id, DispatchMessageInner::Unfocus));
+                        .messages
+                        .push((surface_id, DispatchMessage::Unfocus));
                 }
                 let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
                     return;
@@ -308,11 +308,11 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 };
                 if let Some(mut key_context) = keyboard_state.xkb_context.key_context() {
                     let event = key_context.process_key_event(key, pressed_state, false);
-                    let event = DispatchMessageInner::KeyboardInput {
+                    let event = DispatchMessage::KeyboardInput {
                         event,
                         is_synthetic: false,
                     };
-                    state.message.push((surface_id, event));
+                    state.messages.push((surface_id, event));
                 }
 
                 match pressed_state {
@@ -379,9 +379,9 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 xkb_state.update_modifiers(mods_depressed, mods_latched, mods_locked, 0, 0, group);
                 let modifiers = xkb_state.modifiers();
 
-                state.message.push((
+                state.messages.push((
                     state.keyboard_focus_id(),
-                    DispatchMessageInner::ModifiersChanged(modifiers.into()),
+                    DispatchMessage::ModifiersChanged(modifiers.into()),
                 ))
             }
             wl_keyboard::Event::RepeatInfo { rate, delay } => {
@@ -442,9 +442,9 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     .active_surfaces
                     .insert(Some(id), (surface.clone(), surface_id));
                 state.update_active_output(&surface);
-                state.message.push((
+                state.messages.push((
                     surface_id,
-                    DispatchMessageInner::TouchDown {
+                    DispatchMessage::TouchDown {
                         serial,
                         time,
                         id,
@@ -459,8 +459,8 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     if let Some(id) = k {
                         let (x, y) = state.finger_locations.remove(&id).unwrap_or_default();
                         state
-                            .message
-                            .push((v.1, DispatchMessageInner::TouchCancel { id, x, y }));
+                            .messages
+                            .push((v.1, DispatchMessage::TouchCancel { id, x, y }));
                     } else {
                         // keep the surface of mouse.
                         mouse_surface = Some(v);
@@ -480,9 +480,9 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     })
                     .and_then(|(_, id)| id);
                 let (x, y) = state.finger_locations.remove(&id).unwrap_or_default();
-                state.message.push((
+                state.messages.push((
                     surface_id,
-                    DispatchMessageInner::TouchUp {
+                    DispatchMessage::TouchUp {
                         serial,
                         time,
                         id,
@@ -501,9 +501,9 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     })
                     .and_then(|(_, id)| *id);
                 state.finger_locations.insert(id, (x, y));
-                state.message.push((
+                state.messages.push((
                     surface_id,
-                    DispatchMessageInner::TouchMotion { time, id, x, y },
+                    DispatchMessage::TouchMotion { time, id, x, y },
                 ));
             }
             _ => {}
@@ -544,9 +544,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         _ => unreachable!(),
                     };
 
-                    state.message.push((
+                    state.messages.push((
                         surface_id,
-                        DispatchMessageInner::Axis {
+                        DispatchMessage::Axis {
                             time,
                             scale,
                             horizontal,
@@ -569,9 +569,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         _ => unreachable!(),
                     }
 
-                    state.message.push((
+                    state.messages.push((
                         surface_id,
-                        DispatchMessageInner::Axis {
+                        DispatchMessage::Axis {
                             time,
                             scale,
                             horizontal,
@@ -586,9 +586,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 }
             },
             wl_pointer::Event::AxisSource { axis_source } => match axis_source {
-                WEnum::Value(source) => state.message.push((
+                WEnum::Value(source) => state.messages.push((
                     surface_id,
-                    DispatchMessageInner::Axis {
+                    DispatchMessage::Axis {
                         horizontal: AxisScroll::default(),
                         vertical: AxisScroll::default(),
                         scale,
@@ -609,9 +609,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         _ => unreachable!(),
                     };
 
-                    state.message.push((
+                    state.messages.push((
                         surface_id,
-                        DispatchMessageInner::Axis {
+                        DispatchMessage::Axis {
                             time: 0,
                             scale,
                             horizontal,
@@ -641,9 +641,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         _ => unreachable!(),
                     };
 
-                    state.message.push((
+                    state.messages.push((
                         surface_id,
-                        DispatchMessageInner::Axis {
+                        DispatchMessage::Axis {
                             time: 0,
                             scale,
                             horizontal,
@@ -669,9 +669,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 if let Some(mouse_surface) = mouse_surface.cloned() {
                     state.update_active_output(&mouse_surface);
                 }
-                state.message.push((
+                state.messages.push((
                     surface_id,
-                    DispatchMessageInner::MouseButton {
+                    DispatchMessage::MouseButton {
                         state: btnstate,
                         serial,
                         button,
@@ -689,8 +689,8 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     })
                     .and_then(|(_, id)| id);
                 state
-                    .message
-                    .push((surface_id, DispatchMessageInner::MouseLeave));
+                    .messages
+                    .push((surface_id, DispatchMessage::MouseLeave));
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -703,9 +703,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     .active_surfaces
                     .insert(None, (surface.clone(), surface_id));
                 state.enter_serial = Some(serial);
-                state.message.push((
+                state.messages.push((
                     surface_id,
-                    DispatchMessageInner::MouseEnter {
+                    DispatchMessage::MouseEnter {
                         pointer: pointer.clone(),
                         serial,
                         surface_x,
@@ -718,9 +718,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_x,
                 surface_y,
             } => {
-                state.message.push((
+                state.messages.push((
                     surface_id,
-                    DispatchMessageInner::MouseMotion {
+                    DispatchMessage::MouseMotion {
                         time,
                         surface_x,
                         surface_y,

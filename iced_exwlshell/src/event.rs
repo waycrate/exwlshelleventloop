@@ -1,7 +1,7 @@
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, WlRegion};
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
-use exwlshellev::{DispatchMessage, WindowState};
+use exwlshellev::{ExWlShellEvent, WindowState};
 use iced_core::mouse;
 use iced_runtime::Action;
 
@@ -120,22 +120,22 @@ pub enum IcedWlShellEvent<Message> {
 }
 
 impl WindowEvent {
-    pub(crate) fn from_dispatch<T>(value: DispatchMessage, ev: &WindowState<T>) -> Self {
+    pub(crate) fn from_dispatch<T>(value: ExWlShellEvent, ev: &WindowState<T>) -> Self {
         match value {
-            DispatchMessage::RequestRefresh { .. } => WindowEvent::Refresh,
-            DispatchMessage::Closed => WindowEvent::Closed,
-            DispatchMessage::MouseEnter {
+            ExWlShellEvent::RequestRefresh { .. } => WindowEvent::Refresh,
+            ExWlShellEvent::Closed => WindowEvent::Closed,
+            ExWlShellEvent::MouseEnter {
                 surface_x: x,
                 surface_y: y,
                 ..
             } => WindowEvent::CursorEnter { x, y },
-            DispatchMessage::MouseMotion {
+            ExWlShellEvent::MouseMotion {
                 surface_x: x,
                 surface_y: y,
                 ..
             } => WindowEvent::CursorMoved { x, y },
-            DispatchMessage::MouseLeave => WindowEvent::CursorLeft,
-            DispatchMessage::MouseButton { state, button, .. } => {
+            ExWlShellEvent::MouseLeave => WindowEvent::CursorLeft,
+            ExWlShellEvent::MouseButton { state, button, .. } => {
                 let btn = from_u32_to_icedmouse(button);
                 match state {
                     WEnum::Value(ButtonState::Pressed) => {
@@ -147,11 +147,11 @@ impl WindowEvent {
                     _ => unreachable!(),
                 }
             }
-            DispatchMessage::TouchUp { id, x, y, .. } => WindowEvent::TouchUp { id, x, y },
-            DispatchMessage::TouchDown { id, x, y, .. } => WindowEvent::TouchDown { id, x, y },
-            DispatchMessage::TouchMotion { id, x, y, .. } => WindowEvent::TouchMotion { id, x, y },
-            DispatchMessage::TouchCancel { id, x, y, .. } => WindowEvent::TouchCancel { id, x, y },
-            DispatchMessage::PreferredScale {
+            ExWlShellEvent::TouchUp { id, x, y, .. } => WindowEvent::TouchUp { id, x, y },
+            ExWlShellEvent::TouchDown { id, x, y, .. } => WindowEvent::TouchDown { id, x, y },
+            ExWlShellEvent::TouchMotion { id, x, y, .. } => WindowEvent::TouchMotion { id, x, y },
+            ExWlShellEvent::TouchCancel { id, x, y, .. } => WindowEvent::TouchCancel { id, x, y },
+            ExWlShellEvent::PreferredScale {
                 scale_u32,
                 scale_float,
             } => WindowEvent::ScaleFactorChanged {
@@ -159,19 +159,17 @@ impl WindowEvent {
                 scale_float,
             },
 
-            DispatchMessage::KeyboardInput {
+            ExWlShellEvent::KeyboardInput {
                 event,
                 is_synthetic,
             } => WindowEvent::KeyBoardInput {
                 event,
                 is_synthetic,
             },
-            DispatchMessage::Unfocus => WindowEvent::Unfocus,
-            DispatchMessage::Focused(_) => WindowEvent::Focused,
-            DispatchMessage::ModifiersChanged(modifiers) => {
-                WindowEvent::ModifiersChanged(modifiers)
-            }
-            DispatchMessage::Axis {
+            ExWlShellEvent::Unfocus => WindowEvent::Unfocus,
+            ExWlShellEvent::Focused(_) => WindowEvent::Focused,
+            ExWlShellEvent::ModifiersChanged(modifiers) => WindowEvent::ModifiersChanged(modifiers),
+            ExWlShellEvent::Axis {
                 horizontal,
                 vertical,
                 scale,
@@ -191,21 +189,19 @@ impl WindowEvent {
                     }
                 }
             }
-            DispatchMessage::Ime(ime) => WindowEvent::Ime(ime.clone()),
-            DispatchMessage::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
-            DispatchMessage::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),
-            DispatchMessage::OutputRemoved(info) => WindowEvent::OutputRemoved(info.clone()),
-            DispatchMessage::OutputChanged(wl_output) => WindowEvent::OutputChanged(
+            ExWlShellEvent::Ime(ime) => WindowEvent::Ime(ime.clone()),
+            ExWlShellEvent::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
+            ExWlShellEvent::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),
+            ExWlShellEvent::OutputRemoved(info) => WindowEvent::OutputRemoved(info.clone()),
+            ExWlShellEvent::OutputChanged(wl_output) => WindowEvent::OutputChanged(
                 wl_output
                     .as_ref()
                     .and_then(|output| ev.get_output_info_of(output)),
             ),
-            DispatchMessage::Locked => WindowEvent::Locked,
-            DispatchMessage::LockDenied => WindowEvent::LockDenied,
-            DispatchMessage::LockFinished => WindowEvent::LockFinished,
-            DispatchMessage::ToplevelStateChanged(state) => {
-                WindowEvent::ToplevelStateChanged(state)
-            }
+            ExWlShellEvent::Locked => WindowEvent::Locked,
+            ExWlShellEvent::LockDenied => WindowEvent::LockDenied,
+            ExWlShellEvent::LockFinished => WindowEvent::LockFinished,
+            ExWlShellEvent::ToplevelStateChanged(state) => WindowEvent::ToplevelStateChanged(state),
         }
     }
 }

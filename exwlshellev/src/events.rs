@@ -78,23 +78,6 @@ pub enum InitRequest {
     None,
 }
 
-/// tell program what event happened after init
-///
-/// RequestBuffer request to get the wl-buffer, so you init a buffer_pool here. It return a
-/// GlobalList and a QueueHandle. This will enough for bind a extra wayland-protocol, and also,
-/// seat can be gotten directly from [WindowState]
-///
-/// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
-/// event.
-#[derive(Debug, Clone)]
-pub enum ExWlShellEvent {
-    /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
-    RequestMessages(DispatchMessage),
-    /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.
-    NormalDispatch,
-}
-
-/// Define the output for new layershell
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum OutputOption {
     LastOutput,
@@ -322,7 +305,7 @@ pub enum Ime {
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
-pub(crate) enum DispatchMessageInner {
+pub(crate) enum DispatchMessage {
     NewDisplay(WlOutput),
     OutputAdded(OutputInfo),
     OutputUpdated(OutputInfo),
@@ -408,7 +391,7 @@ pub(crate) enum DispatchMessageInner {
 
 /// This tell the DispatchMessage by dispatch
 #[derive(Debug, Clone)]
-pub enum DispatchMessage {
+pub enum ExWlShellEvent {
     /// forward the event of wayland-mouse
     MouseButton {
         state: WEnum<ButtonState>,
@@ -516,117 +499,115 @@ pub enum DispatchMessage {
     ToplevelStateChanged(ToplevelState),
 }
 
-impl From<DispatchMessageInner> for DispatchMessage {
-    fn from(val: DispatchMessageInner) -> Self {
+impl From<DispatchMessage> for ExWlShellEvent {
+    fn from(val: DispatchMessage) -> Self {
         match val {
-            DispatchMessageInner::NewDisplay(_) => {
+            DispatchMessage::NewDisplay(_) => {
                 unreachable!("NewDisplay is handled before conversion")
             }
-            DispatchMessageInner::OutputAdded(info) => DispatchMessage::OutputAdded(info),
-            DispatchMessageInner::OutputUpdated(info) => DispatchMessage::OutputUpdated(info),
-            DispatchMessageInner::OutputRemoved(info) => DispatchMessage::OutputRemoved(info),
-            DispatchMessageInner::MouseButton {
+            DispatchMessage::OutputAdded(info) => ExWlShellEvent::OutputAdded(info),
+            DispatchMessage::OutputUpdated(info) => ExWlShellEvent::OutputUpdated(info),
+            DispatchMessage::OutputRemoved(info) => ExWlShellEvent::OutputRemoved(info),
+            DispatchMessage::MouseButton {
                 state,
                 serial,
                 button,
                 time,
-            } => DispatchMessage::MouseButton {
+            } => ExWlShellEvent::MouseButton {
                 state,
                 serial,
                 button,
                 time,
             },
-            DispatchMessageInner::MouseLeave => DispatchMessage::MouseLeave,
-            DispatchMessageInner::MouseEnter {
+            DispatchMessage::MouseLeave => ExWlShellEvent::MouseLeave,
+            DispatchMessage::MouseEnter {
                 pointer,
                 serial,
                 surface_x,
                 surface_y,
-            } => DispatchMessage::MouseEnter {
+            } => ExWlShellEvent::MouseEnter {
                 pointer,
                 serial,
                 surface_x,
                 surface_y,
             },
-            DispatchMessageInner::MouseMotion {
+            DispatchMessage::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
-            } => DispatchMessage::MouseMotion {
+            } => ExWlShellEvent::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
             },
-            DispatchMessageInner::TouchDown {
+            DispatchMessage::TouchDown {
                 serial,
                 time,
                 id,
                 x,
                 y,
-            } => DispatchMessage::TouchDown {
-                serial,
-                time,
-                id,
-                x,
-                y,
-            },
-            DispatchMessageInner::TouchUp {
-                serial,
-                time,
-                id,
-                x,
-                y,
-            } => DispatchMessage::TouchUp {
+            } => ExWlShellEvent::TouchDown {
                 serial,
                 time,
                 id,
                 x,
                 y,
             },
-            DispatchMessageInner::TouchMotion { time, id, x, y } => {
-                DispatchMessage::TouchMotion { time, id, x, y }
+            DispatchMessage::TouchUp {
+                serial,
+                time,
+                id,
+                x,
+                y,
+            } => ExWlShellEvent::TouchUp {
+                serial,
+                time,
+                id,
+                x,
+                y,
+            },
+            DispatchMessage::TouchMotion { time, id, x, y } => {
+                ExWlShellEvent::TouchMotion { time, id, x, y }
             }
-            DispatchMessageInner::TouchCancel { id, x, y } => {
-                DispatchMessage::TouchCancel { id, x, y }
-            }
-            DispatchMessageInner::Axis {
+            DispatchMessage::TouchCancel { id, x, y } => ExWlShellEvent::TouchCancel { id, x, y },
+            DispatchMessage::Axis {
                 time,
                 scale,
                 horizontal,
                 vertical,
                 source,
-            } => DispatchMessage::Axis {
+            } => ExWlShellEvent::Axis {
                 time,
                 scale,
                 horizontal,
                 vertical,
                 source,
             },
-            DispatchMessageInner::Focused(id) => DispatchMessage::Focused(id),
-            DispatchMessageInner::Unfocus => DispatchMessage::Unfocus,
-            DispatchMessageInner::ModifiersChanged(modifier) => {
-                DispatchMessage::ModifiersChanged(modifier)
+            DispatchMessage::Focused(id) => ExWlShellEvent::Focused(id),
+            DispatchMessage::Unfocus => ExWlShellEvent::Unfocus,
+            DispatchMessage::ModifiersChanged(modifier) => {
+                ExWlShellEvent::ModifiersChanged(modifier)
             }
-            DispatchMessageInner::KeyboardInput {
+            DispatchMessage::KeyboardInput {
                 event,
                 is_synthetic,
-            } => DispatchMessage::KeyboardInput {
+            } => ExWlShellEvent::KeyboardInput {
                 event,
                 is_synthetic,
             },
-            DispatchMessageInner::PreferredScale {
+            DispatchMessage::PreferredScale {
                 scale_u32,
                 scale_float,
-            } => DispatchMessage::PreferredScale {
+            } => ExWlShellEvent::PreferredScale {
                 scale_u32,
                 scale_float,
             },
-            DispatchMessageInner::Ime(ime) => DispatchMessage::Ime(ime),
-            DispatchMessageInner::OutputChanged(output) => DispatchMessage::OutputChanged(output),
-            DispatchMessageInner::Locked => DispatchMessage::Locked,
-            DispatchMessageInner::LockFinished => DispatchMessage::LockFinished,
-            DispatchMessageInner::ToplevelStateChanged(state) => {
-                DispatchMessage::ToplevelStateChanged(state)
+            DispatchMessage::Ime(ime) => ExWlShellEvent::Ime(ime),
+            DispatchMessage::OutputChanged(output) => ExWlShellEvent::OutputChanged(output),
+            DispatchMessage::Locked => ExWlShellEvent::Locked,
+            DispatchMessage::LockFinished => ExWlShellEvent::LockFinished,
+            DispatchMessage::ToplevelStateChanged(state) => {
+                ExWlShellEvent::ToplevelStateChanged(state)
             }
         }
     }

@@ -17,7 +17,7 @@ use crate::{
     settings::Settings,
 };
 use exwlshellev::{
-    DispatchMessage, DisplayWrapper, EventContext, NewPopUpSettings, PopUpRepositionSettings,
+    DisplayWrapper, EventContext, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
     PopupPlacement, RefreshRequest, Request, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
@@ -222,7 +222,6 @@ where
     wl_context.window_context().context_state = ContextState::Context(context);
     boot_span.finish();
 
-    use exwlshellev::ExWlShellEvent;
     impl<P> exwlshellev::ExWlShellHandler<iced_core::window::Id> for ContextEv<P>
     where
         P: IcedProgram + 'static,
@@ -277,28 +276,25 @@ where
             def_returndata
         }
 
+        fn on_normal_dispatch(&mut self, _state: &mut WindowState<iced_core::window::Id>) {
+            self.waiting_layer_shell_events
+                .push_back((None, IcedWlShellEvent::NormalDispatch));
+        }
         fn on_event(
             &mut self,
             event: exwlshellev::ExWlShellEvent,
             state: &mut WindowState<iced_core::window::Id>,
             layer_shell_id: Option<exwlshellev::id::Id>,
         ) {
-            match event {
-                ExWlShellEvent::RequestMessages(message) => {
-                    if let (ContextState::Context(context), Some(serial)) =
-                        (&mut self.context_state, action_serial(&message))
-                    {
-                        context.action_serial = Some(serial);
-                    }
-                    let window_event = ExwlShellWindowEvent::from_dispatch(message, state);
-                    self.waiting_layer_shell_events
-                        .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
-                }
-                ExWlShellEvent::NormalDispatch => {
-                    self.waiting_layer_shell_events
-                        .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
-                }
+            if let (ContextState::Context(context), Some(serial)) =
+                (&mut self.context_state, action_serial(&event))
+            {
+                context.action_serial = Some(serial);
             }
+            let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
+            self.waiting_layer_shell_events
+                .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
+
             loop {
                 let mut need_continue = false;
                 self.context_state =
@@ -340,14 +336,14 @@ enum ContextState<Context> {
 }
 
 /// Input serial for xdg_shell move, window menu and popup grab requests.
-fn action_serial(message: &DispatchMessage) -> Option<u32> {
+fn action_serial(message: &ExWlShellEvent) -> Option<u32> {
     match message {
-        DispatchMessage::MouseButton {
+        ExWlShellEvent::MouseButton {
             state: WEnum::Value(ButtonState::Pressed),
             serial,
             ..
         }
-        | DispatchMessage::TouchDown { serial, .. } => Some(*serial),
+        | ExWlShellEvent::TouchDown { serial, .. } => Some(*serial),
         _ => None,
     }
 }
