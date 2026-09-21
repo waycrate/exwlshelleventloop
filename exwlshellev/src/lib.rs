@@ -1,7 +1,6 @@
 //! # Handle the layer_shell in a winit way
 //!
 //! Min example is under
-//!
 //! ```rust, no_run
 //! use std::fs::File;
 //! use std::os::fd::AsFd;
@@ -10,8 +9,109 @@
 //! use exwlshellev::reexport::*;
 //! use exwlshellev::*;
 //!
+//! struct Window;
+//! impl WindowTrait<()> for Window {
+//!    fn request_buffer(
+//!        &mut self,
+//!        state: &mut WindowState<()>,
+//!        _id: id::Id,
+//!        file: &mut std::fs::File,
+//!        qh: &wayland_client::QueueHandle<WindowState<()>>,
+//!        width: u32,
+//!        height: u32,
+//!    ) -> wayland_client::WlBuffer {
+//!        draw(file, (width, height));
+//!        let pool = state.get_shm().create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+//!        pool.create_buffer(
+//!            0,
+//!            width as i32,
+//!            height as i32,
+//!            (width * 4) as i32,
+//!            wl_shm::Format::Argb8888,
+//!            qh,
+//!            (),
+//!        )
+//!    }
+//!    fn on_init(
+//!        &mut self,
+//!        event: ExWlShellInitEvent<()>,
+//!        _state: &mut WindowState<()>,
+//!    ) -> InitRequest {
+//!        match event {
+//!            // NOTE: this will send when init, you can request bind extra object from here
+//!            ExWlShellInitEvent::Start => InitRequest::RequestBind,
+//!            ExWlShellInitEvent::BindProvide(globals, qh) => {
+//!                // NOTE: you can get implied wayland object from here
+//!                let virtual_keyboard_manager = globals
+//!                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+//!                        qh,
+//!                        1..=1,
+//!                        (),
+//!                    )
+//!                    .unwrap();
+//!                println!("{:?}", virtual_keyboard_manager);
+//!                InitRequest::RequestCompositor
+//!            }
+//!            ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
+//!                // NOTE: this is an example to use the CompositorProvide,
+//!                // but this is quite useless, because you can get the window_unit to set it directly
+//!                // NOTE: you can set input region to limit area which gets input events
+//!                // surface outside region becomes transparent for input events
+//!                // To ignore all input events use region with (0,0) size
+//!                // for x in state.get_unit_iter() {
+//!                //     let region = _compositor.create_region(_qh, ());
+//!                //     region.add(0, 0, 0, 0);
+//!                //     x.get_wlsurface().set_input_region(Some(&region));
+//!                // }
+//!                InitRequest::None
+//!            }
+//!        }
+//!    }
+//!
+//!    fn on_event(
+//!        &mut self,
+//!        event: ExWlShellEvent,
+//!        state: &mut WindowState<()>,
+//!        _id: Option<id::Id>,
+//!    ) {
+//!        match event {
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
+//!                width,
+//!                height,
+//!                ..
+//!            }) => {
+//!                println!("{width}, {height}");
+//!            }
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => state
+//!                .push_request(Request::RequestSetCursor((
+//!                    Cursor::Shape(CursorShape::Crosshair),
+//!                    pointer.clone(),
+//!                ))),
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!                time,
+//!                surface_x,
+//!                surface_y,
+//!            }) => {
+//!                println!("{time}, {surface_x}, {surface_y}");
+//!            }
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
+//!                // NOTE: sent when surface enters another output, or its output info changes
+//!                let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
+//!                println!("{info:?}");
+//!            }
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+//!                    state.push_request(Request::RequestExit);
+//!                }
+//!            }
+//!            _ => {}
+//!        }
+//!    }
+//! }
+//!
 //! fn main() {
-//!     let mut ev: WindowState<()> = WindowState::new("Hello")
+//!     let window = Window;
+//!     let ev: EventContext<(), _> = WindowState::new("Hello")
 //!         .with_allscreens()
 //!         .with_size(LayerSize::fill_width(400))
 //!         .with_layer(Layer::Top)
@@ -19,68 +119,10 @@
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
 //!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
 //!         .with_exclusive_zone(-1)
-//!         .build()
+//!         .build(window)
 //!         .unwrap();
 //!
-//!     ev.running(|event, ev, index| {
-//!         match event {
-//!             // NOTE: this will send when init, you can request bind extra object from here
-//!             ExWlShellEvent::InitRequest => ReturnData::RequestBind,
-//!             ExWlShellEvent::BindProvide(globals, qh) => {
-//!                 // NOTE: you can get implied wayland object from here
-//!                 let virtual_keyboard_manager = globals
-//!                         .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-//!                             qh,
-//!                             1..=1,
-//!                             (),
-//!                         )
-//!                         .unwrap();
-//!                 println!("{:?}", virtual_keyboard_manager);
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
-//!                 draw(file, (init_w, init_h));
-//!                 let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
-//!                 ReturnData::WlBuffer(pool.create_buffer(
-//!                     0,
-//!                     init_w as i32,
-//!                     init_h as i32,
-//!                     (init_w * 4) as i32,
-//!                     wl_shm::Format::Argb8888,
-//!                     qh,
-//!                     (),
-//!                 ))
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height, .. }) => {
-//!                 println!("{width}, {height}");
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter {
-//!                 pointer, ..
-//!             }) => ReturnData::RequestSetCursor((
-//!                 Cursor::Shape(CursorShape::Crosshair),
-//!                 pointer.clone(),
-//!             )),
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
-//!                 time,
-//!                 surface_x,
-//!                 surface_y,
-//!             }) => {
-//!                 println!("{time}, {surface_x}, {surface_y}");
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
-//!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-//!                    ReturnData::RequestExit
-//!                } else {
-//!                    ReturnData::None
-//!                }
-//!            }
-//!             _ => ReturnData::None,
-//!         }
-//!     })
-//!     .unwrap();
+//!     ev.run().unwrap()
 //! }
 //!
 //! fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
@@ -101,6 +143,7 @@
 //! }
 //! ```
 //!
+use calloop::LoopSignal;
 pub use events::NewInputPanelSettings;
 pub use events::NewLayerShellSettings;
 pub use events::NewXdgWindowSettings;
@@ -122,7 +165,10 @@ pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
-pub use events::{AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, Ime, ReturnData};
+pub use events::{
+    AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest,
+    Request,
+};
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
@@ -214,8 +260,7 @@ use wayland_protocols::xdg::decoration::zv1::client::{
 
 pub use calloop;
 use calloop::{
-    Error as CallLoopError, EventLoop, LoopHandle, RegistrationToken,
-    channel::{self, Channel},
+    Error as CallLoopError, EventLoop, LoopHandle, RegistrationToken, channel,
     timer::{TimeoutAction, Timer},
 };
 use calloop_wayland_source::WaylandSource;
@@ -278,6 +323,7 @@ pub mod reexport {
             Connection, QueueHandle, WEnum,
             globals::GlobalList,
             protocol::{
+                wl_buffer::WlBuffer,
                 wl_compositor::WlCompositor,
                 wl_keyboard::{self, KeyState},
                 wl_pointer::{self, ButtonState},
@@ -1155,7 +1201,7 @@ pub struct WindowState<T> {
     last_unit_index: usize,
     last_wloutput: Option<WlOutput>,
 
-    return_data: Vec<ReturnData<T>>,
+    pending_requests: Vec<Request<T>>,
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
     popup_grab_serial: Option<u32>,
@@ -1175,8 +1221,13 @@ pub struct WindowState<T> {
 }
 
 impl<T: 'static> WindowState<T> {
-    pub fn append_return_data(&mut self, data: ReturnData<T>) {
-        self.return_data.push(data);
+    /// add a new pending_request to state
+    pub fn push_request(&mut self, data: Request<T>) {
+        self.pending_requests.push(data);
+    }
+
+    pub fn get_shm(&self) -> &WlShm {
+        self.shm.as_ref().expect("should get it after build")
     }
 
     /// Read the latest button press or touch down serial without consuming it.
@@ -1721,7 +1772,7 @@ impl<T> Default for WindowState<T> {
             last_wloutput: None,
             last_unit_index: 0,
 
-            return_data: Vec::new(),
+            pending_requests: Vec::new(),
             finger_locations: HashMap::new(),
             enter_serial: None,
             popup_grab_serial: None,
@@ -2563,6 +2614,1040 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
     }
 }
 
+pub trait WindowTrait<T: 'static> {
+    fn on_event(&mut self, event: ExWlShellEvent, state: &mut WindowState<T>, id: Option<id::Id>);
+
+    fn on_init(
+        &mut self,
+        _event: ExWlShellInitEvent<T>,
+        _state: &mut WindowState<T>,
+    ) -> InitRequest {
+        InitRequest::None
+    }
+
+    fn request_buffer(
+        &mut self,
+        _state: &mut WindowState<T>,
+        _id: id::Id,
+        _file: &mut std::fs::File,
+        _qh: &QueueHandle<WindowState<T>>,
+        _width: u32,
+        _height: u32,
+    ) -> WlBuffer {
+        unimplemented!("you need to implement one")
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum LockTeardown {
+    Unlock,
+    Exit,
+}
+
+#[derive(Debug, Clone)]
+enum LockLifecycle {
+    Unlocked,
+    Pending {
+        lock: ExtSessionLockV1,
+        teardown: Option<LockTeardown>,
+    },
+    Locked {
+        lock: ExtSessionLockV1,
+    },
+}
+impl LockLifecycle {
+    fn take(&mut self) -> Self {
+        std::mem::replace(self, LockLifecycle::Unlocked)
+    }
+}
+
+/// storage the context for the events
+pub struct EventContext<T: 'static, W: WindowTrait<T>> {
+    state: WindowState<T>,
+    window_context: W,
+    event_loop: Option<EventLoop<'static, Self>>,
+    looph: LoopHandle<'static, Self>,
+    lock: LockLifecycle,
+    signal: LoopSignal,
+    tokens: Vec<RegistrationToken>,
+    cursor_update_context: CursorUpdateContext<T>,
+}
+
+impl<T: 'static, W: WindowTrait<T>> Drop for EventContext<T, W> {
+    fn drop(&mut self) {
+        if let Some(lock) = self.state.lock_manager.take() {
+            lock.destroy();
+        }
+        if let Some(layer_shell) = self.state.layer_shell.take() {
+            layer_shell.destroy();
+        }
+    }
+}
+
+impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
+    /// return the context, you can use it to change the state before enter [Self::run]
+    pub fn window_context(&mut self) -> &mut W {
+        &mut self.window_context
+    }
+
+    /// Registry other events, for example, the UserEvent or a11y
+    pub fn register<Event, F>(&mut self, callback: F) -> Option<channel::Sender<Event>>
+    where
+        F: Fn(&mut W, Event) + 'static,
+        Event: 'static,
+    {
+        let (sender, receiver) = channel::channel::<Event>();
+        let token = self
+            .looph
+            .insert_source(receiver, move |event, _, state| {
+                let channel::Event::Msg(event) = event else {
+                    return;
+                };
+                callback(&mut state.window_context, event);
+            })
+            .ok()?;
+        let _ = self.looph.disable(&token);
+        self.tokens.push(token);
+        Some(sender)
+    }
+
+    fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
+        self.window_context
+            .on_event(event, &mut self.state, unit_id);
+    }
+
+    /// Run the program
+    pub fn run(mut self) -> Result<(), ExShellEventError> {
+        let connection = self.state.connection.take().unwrap();
+        let mut event_queue_origin = self.state.event_queue.take().unwrap();
+        let qh = event_queue_origin.handle();
+
+        let wmcompositer = self.state.wl_compositor.take().unwrap();
+
+        let fractional_scale_manager = self.state.fractional_scale_manager.take();
+        let wmbase = self.state.wmbase.take().unwrap();
+        let viewporter = self.state.viewporter.take();
+        let zxdg_decoration_manager = self.state.xdg_decoration_manager.take();
+        fn remove_lock_units<T>(window_state: &mut WindowState<T>) {
+            for removed in window_state.units.extract_if(.., |unit| unit.is_lock()) {
+                if window_state.keyboard_focus.as_ref() == Some(&removed.window.wl_surface) {
+                    window_state.keyboard_focus = None;
+                }
+                window_state.closed_ids.push(removed.id);
+            }
+        }
+
+        let process_window_state = |context: &mut Self| {
+            let mut messages = Vec::new();
+            std::mem::swap(&mut messages, &mut context.state.message);
+            for msg in messages {
+                match msg {
+                    (_, DispatchMessageInner::NewDisplay(output_display)) => {
+                        if let LockLifecycle::Pending { lock, .. }
+                        | LockLifecycle::Locked { lock } = &context.lock
+                        {
+                            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more
+                            // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display is in
+                            // if it is the same with layershell and wmbase, we can send commit
+                            // later, but we cannot
+                            wl_surface.commit();
+                            let session_lock_surface =
+                                lock.get_lock_surface(&wl_surface, &output_display, &qh, ());
+
+                            // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                            // and if you need to reconfigure it, you need to commit the wl_surface again
+                            // so because this is just an example, so we just commit it once
+                            // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            context.state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id::Id::unique(),
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    wmcompositer.clone(),
+                                    Shell::SessionLock(session_lock_surface),
+                                )
+                                .layout(context.state.anchor, context.state.size)
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .wl_output(Some(output_display.clone()))
+                                .build(),
+                            );
+                        }
+
+                        if !context.state.is_allscreens() {
+                            continue;
+                        }
+                        let wl_surface = wmcompositer.create_surface(&qh, ());
+                        let layer_shell = context
+                            .state
+                            .layer_shell
+                            .as_ref()
+                            .expect("We need layershell here");
+                        let layer = layer_shell.get_layer_surface(
+                            &wl_surface,
+                            Some(&output_display),
+                            context.state.layer,
+                            context.state.default_namespace.clone(),
+                            &qh,
+                            (),
+                        );
+                        let wire_anchor = context.state.size.resolve_anchor(context.state.anchor);
+                        layer.set_anchor(wire_anchor);
+                        layer.set_keyboard_interactivity(context.state.keyboard_interactivity);
+                        let (init_w, init_h) = context.state.size.to_set();
+                        layer.set_size(init_w, init_h);
+
+                        if let Some(zone) = context.state.exclusive_zone {
+                            warn_if_exclusive_zone_ignored(zone, wire_anchor);
+                            layer.set_exclusive_zone(zone);
+                        }
+
+                        if let Some(zone) = context.state.exclusive_zone {
+                            layer.set_exclusive_zone(zone);
+                        }
+
+                        if let Some((top, right, bottom, left)) = context.state.margin {
+                            layer.set_margin(top, right, bottom, left);
+                        }
+
+                        if context.state.events_transparent {
+                            let region = wmcompositer.create_region(&qh, ());
+                            wl_surface.set_input_region(Some(&region));
+                            region.destroy();
+                        }
+                        wl_surface.commit();
+
+                        let mut fractional_scale = None;
+                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
+                                &wl_surface,
+                                &qh,
+                                (),
+                            ));
+                        }
+                        let viewport = viewporter
+                            .as_ref()
+                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+
+                        context.state.push_window(
+                            WindowStateUnitBuilder::new(
+                                id::Id::unique(),
+                                qh.clone(),
+                                connection.display(),
+                                wl_surface,
+                                wmcompositer.clone(),
+                                Shell::LayerShell(layer),
+                            )
+                            .layout(context.state.anchor, context.state.size)
+                            .viewport(viewport)
+                            .fractional_scale(fractional_scale)
+                            .wl_output(Some(output_display.clone()))
+                            .build(),
+                        );
+                    }
+                    (_, DispatchMessageInner::Locked) => match context.lock.take() {
+                        LockLifecycle::Pending {
+                            lock: l_lock,
+                            teardown: Some(goal),
+                        } => {
+                            l_lock.unlock_and_destroy();
+                            remove_lock_units(&mut context.state);
+                            match goal {
+                                LockTeardown::Exit => {
+                                    let _ = connection.roundtrip();
+                                    context.signal.stop();
+                                    return true;
+                                }
+                                LockTeardown::Unlock => {
+                                    let _ = connection.flush();
+                                }
+                            }
+                        }
+                        LockLifecycle::Pending {
+                            lock: l_lock,
+                            teardown: None,
+                        } => {
+                            context.lock = LockLifecycle::Locked { lock: l_lock };
+                            context.handle_event(
+                                ExWlShellEvent::RequestMessages(DispatchMessage::Locked),
+                                None,
+                            );
+                        }
+                        other => {
+                            log::warn!(
+                                "Received `locked` without a pending lock request; ignoring"
+                            );
+                            context.lock = other;
+                        }
+                    },
+                    (_, DispatchMessageInner::LockFinished) => match context.lock.take() {
+                        LockLifecycle::Pending {
+                            lock: l_lock,
+                            teardown,
+                        } => {
+                            l_lock.destroy();
+                            let _ = connection.flush();
+                            remove_lock_units(&mut context.state);
+                            context.handle_event(
+                                ExWlShellEvent::RequestMessages(DispatchMessage::LockDenied),
+                                None,
+                            );
+                            if matches!(teardown, Some(LockTeardown::Exit)) {
+                                context.signal.stop();
+                                return true;
+                            }
+                        }
+                        LockLifecycle::Locked { lock: l_lock } => {
+                            l_lock.unlock_and_destroy();
+                            let _ = connection.flush();
+                            remove_lock_units(&mut context.state);
+                            context.handle_event(
+                                ExWlShellEvent::RequestMessages(DispatchMessage::LockFinished),
+                                None,
+                            );
+                        }
+                        LockLifecycle::Unlocked => {
+                            log::warn!("Received `finished` without an active lock; ignoring");
+                        }
+                    },
+                    _ => {
+                        let (index_message, msg) = msg;
+
+                        let msg: DispatchMessage = msg.into();
+                        context.handle_event(ExWlShellEvent::RequestMessages(msg), index_message);
+                    }
+                }
+            }
+
+            context.handle_event(ExWlShellEvent::NormalDispatch, None);
+            loop {
+                let mut return_data = vec![];
+                std::mem::swap(&mut context.state.pending_requests, &mut return_data);
+
+                for data in return_data {
+                    match data {
+                        Request::RequestExit => {
+                            match context.lock.take() {
+                                LockLifecycle::Locked { lock: l_lock } => {
+                                    l_lock.unlock_and_destroy();
+                                    let _ = connection.roundtrip();
+                                    remove_lock_units(&mut context.state);
+                                }
+                                LockLifecycle::Pending { lock: l_lock, .. } => {
+                                    context.lock = LockLifecycle::Pending {
+                                        lock: l_lock,
+                                        teardown: Some(LockTeardown::Exit),
+                                    };
+                                    continue;
+                                }
+                                LockLifecycle::Unlocked => {}
+                            }
+                            context.signal.stop();
+                            return true;
+                        }
+                        Request::RequestLock => {
+                            if !matches!(context.lock, LockLifecycle::Unlocked) {
+                                log::warn!(
+                                    "Session lock already requested or active; ignoring duplicate lock request"
+                                );
+                                continue;
+                            }
+                            let Some(lock_manager) = context.state.lock_manager.as_ref() else {
+                                log::error!("SessionLock is not supported");
+                                context.handle_event(
+                                    ExWlShellEvent::RequestMessages(DispatchMessage::LockDenied),
+                                    None,
+                                );
+                                continue;
+                            };
+                            let l_lock = lock_manager.lock(&qh, ());
+                            let wl_outputs = context.state.outputs.clone();
+                            for wl_output in wl_outputs.iter() {
+                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                                // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display was in
+                                // if it is the same with layershell and wmbase, we can send commit
+                                // later, but we cannot
+                                wl_surface.commit();
+                                let session_lock_surface =
+                                    l_lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
+
+                                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
+                                // and if you need to reconfigure it, you need to commit the wl_surface again
+                                // so because this is just an example, so we just commit it once
+                                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
+                                let mut fractional_scale = None;
+                                if let Some(ref fractional_scale_manager) = fractional_scale_manager
+                                {
+                                    fractional_scale =
+                                        Some(fractional_scale_manager.get_fractional_scale(
+                                            &wl_surface,
+                                            &qh,
+                                            (),
+                                        ));
+                                }
+
+                                let viewport = viewporter
+                                    .as_ref()
+                                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                                context.state.push_window(
+                                    WindowStateUnitBuilder::new(
+                                        id::Id::unique(),
+                                        qh.clone(),
+                                        connection.display(),
+                                        wl_surface,
+                                        wmcompositer.clone(),
+                                        Shell::SessionLock(session_lock_surface),
+                                    )
+                                    .viewport(viewport)
+                                    .fractional_scale(fractional_scale)
+                                    .wl_output(Some(wl_output.clone()))
+                                    .build(),
+                                );
+                            }
+                            context.lock = LockLifecycle::Pending {
+                                lock: l_lock,
+                                teardown: None,
+                            };
+                        }
+
+                        Request::RequestUnLock => match context.lock.take() {
+                            LockLifecycle::Locked { lock: l_lock } => {
+                                l_lock.unlock_and_destroy();
+                                let _ = connection.flush();
+                                remove_lock_units(&mut context.state);
+                            }
+                            LockLifecycle::Pending {
+                                lock: l_lock,
+                                teardown,
+                            } => {
+                                context.lock = LockLifecycle::Pending {
+                                    lock: l_lock,
+                                    teardown: teardown.or(Some(LockTeardown::Unlock)),
+                                };
+                            }
+                            LockLifecycle::Unlocked => {}
+                        },
+                        Request::RequestSetCursor((cursor, pointer)) => {
+                            let Some(serial) = context.state.enter_serial else {
+                                continue;
+                            };
+                            set_cursor(&context.cursor_update_context, cursor, pointer, serial);
+                        }
+                        Request::NewLayerShell((
+                            NewLayerShellSettings {
+                                size,
+                                layer,
+                                anchor,
+                                exclusive_zone,
+                                margin,
+                                keyboard_interactivity,
+                                output_option: output_type,
+                                events_transparent,
+                                namespace,
+                                blur_option,
+                            },
+                            id,
+                            info,
+                        )) => {
+                            let wire_anchor = size.resolve_anchor(anchor);
+                            let output = context.state.resolve_output(output_type);
+
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+
+                            let layer_shell = context
+                                .state
+                                .layer_shell
+                                .as_ref()
+                                .expect("We need layershell here");
+                            let layer = layer_shell.get_layer_surface(
+                                &wl_surface,
+                                output.as_ref(),
+                                layer,
+                                namespace
+                                    .unwrap_or_else(|| context.state.default_namespace.clone()),
+                                &qh,
+                                (),
+                            );
+                            layer.set_anchor(wire_anchor);
+                            layer.set_keyboard_interactivity(keyboard_interactivity);
+                            let (init_w, init_h) = size.to_set();
+                            layer.set_size(init_w, init_h);
+
+                            if let Some(zone) = exclusive_zone {
+                                warn_if_exclusive_zone_ignored(zone, wire_anchor);
+                                layer.set_exclusive_zone(zone);
+                            }
+
+                            if let Some((top, right, bottom, left)) = margin {
+                                layer.set_margin(top, right, bottom, left);
+                            }
+
+                            if events_transparent {
+                                let region = wmcompositer.create_region(&qh, ());
+                                wl_surface.set_input_region(Some(&region));
+                                region.destroy();
+                            }
+
+                            wl_surface.commit();
+
+                            let mut effect = None;
+                            if let Some(effect_manger) = &context.state.background_effect_manager {
+                                effect =
+                                    Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+                            }
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+
+                            context.state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    wmcompositer.clone(),
+                                    Shell::LayerShell(layer),
+                                )
+                                .layout(context.state.anchor, context.state.size)
+                                .viewport(viewport)
+                                .blur_option(blur_option)
+                                .effect_surface(effect)
+                                .fractional_scale(fractional_scale)
+                                .wl_output(output)
+                                .binding(info)
+                                .build(),
+                            );
+                        }
+                        Request::NewPopUp((
+                            NewPopUpSettings {
+                                size,
+                                id,
+                                placement,
+                                anchor,
+                                gravity,
+                                constraint_adjustment,
+                                grab_serial,
+                            },
+                            targetid,
+                            info,
+                        )) => {
+                            let Some(index) =
+                                context.state.units.iter().position(|unit| unit.id == id)
+                            else {
+                                continue;
+                            };
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let positioner = build_positioner(
+                                &wmbase,
+                                &qh,
+                                size,
+                                placement,
+                                anchor,
+                                gravity,
+                                constraint_adjustment,
+                            );
+                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
+
+                            let popup = match &context.state.units[index].shell {
+                                Shell::LayerShell(shell) => {
+                                    let popup =
+                                        wl_xdg_surface.get_popup(None, &positioner, &qh, ());
+                                    shell.get_popup(&popup);
+                                    popup
+                                }
+                                Shell::PopUp((_, parent_xdg_surface)) => wl_xdg_surface.get_popup(
+                                    Some(parent_xdg_surface),
+                                    &positioner,
+                                    &qh,
+                                    (),
+                                ),
+                                Shell::XdgTopLevel((_, parent_xdg_surface, _)) => wl_xdg_surface
+                                    .get_popup(Some(parent_xdg_surface), &positioner, &qh, ()),
+                                _ => {
+                                    log::warn!(
+                                        target: "exwlshellev",
+                                        "cannot create popup: parent {:?} must be a layer surface, an xdg_toplevel or a popup",
+                                        id
+                                    );
+                                    positioner.destroy();
+                                    wl_xdg_surface.destroy();
+                                    wl_surface.destroy();
+                                    continue;
+                                }
+                            };
+                            positioner.destroy();
+
+                            match (context.state.seat_back.as_ref(), grab_serial) {
+                                (Some(seat), Some(serial)) => popup.grab(seat, serial),
+                                (None, Some(_)) => log::warn!(
+                                    target: "exwlshellev",
+                                    "popup {targetid:?} wants a grab but no seat is available; it will not dismiss on click-outside"
+                                ),
+                                (_, None) => {}
+                            }
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            wl_surface.commit();
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            context.state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    targetid,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    wmcompositer.clone(),
+                                    Shell::PopUp((popup, wl_xdg_surface)),
+                                )
+                                .parent(Some(id))
+                                .size(size.to_set())
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .binding(info)
+                                .build(),
+                            );
+                        }
+                        Request::PopUpReposition((
+                            PopUpRepositionSettings {
+                                size,
+                                placement,
+                                anchor,
+                                gravity,
+                                constraint_adjustment,
+                            },
+                            id,
+                        )) => {
+                            let Some(unit) =
+                                context.state.units.iter_mut().find(|unit| unit.id == id)
+                            else {
+                                continue;
+                            };
+                            let Shell::PopUp((popup, _)) = &unit.shell else {
+                                log::warn!(
+                                    target: "exwlshellev",
+                                    "reposition target {id:?} is not a popup; only popups can be repositioned"
+                                );
+                                continue;
+                            };
+                            if popup.version() < 3 {
+                                log::warn!(
+                                    target: "exwlshellev",
+                                    "compositor offers xdg_popup v{}, reposition needs v3; leaving popup {id:?} as it is",
+                                    popup.version()
+                                );
+                                continue;
+                            }
+                            let positioner = build_positioner(
+                                &wmbase,
+                                &qh,
+                                size,
+                                placement,
+                                anchor,
+                                gravity,
+                                constraint_adjustment,
+                            );
+                            let token = unit.pending_reposition.unwrap_or(0).wrapping_add(1);
+                            popup.reposition(&positioner, token);
+                            positioner.destroy();
+                            unit.pending_reposition = Some(token);
+                        }
+                        Request::NewXdgBase((
+                            NewXdgWindowSettings {
+                                title,
+                                size,
+                                client_side_decorations,
+                            },
+                            id,
+                            info,
+                        )) => {
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
+                            let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
+
+                            toplevel.set_title(title.unwrap_or("".to_owned()));
+
+                            let decoration = if let Some(decoration_manager) =
+                                &zxdg_decoration_manager
+                            {
+                                let decoration =
+                                    decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
+                                use zxdg_toplevel_decoration_v1::Mode;
+                                decoration.set_mode(if client_side_decorations {
+                                    Mode::ClientSide
+                                } else {
+                                    Mode::ServerSide
+                                });
+                                Some(decoration)
+                            } else {
+                                None
+                            };
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+                            wl_surface.commit();
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            context.state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    wmcompositer.clone(),
+                                    Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
+                                )
+                                .size(size.unwrap_or(PixelSize::px(300, 300)).to_set())
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .binding(info)
+                                .build(),
+                            );
+                        }
+
+                        Request::NewInputPanel((
+                            NewInputPanelSettings {
+                                size,
+                                keyboard,
+                                output_option: output_type,
+                            },
+                            id,
+                            info,
+                        )) => {
+                            let output = context.state.resolve_output(output_type);
+
+                            let Some(output) = output else {
+                                log::warn!("no WlOutput, skip creating input panel");
+                                continue;
+                            };
+
+                            let wl_surface = wmcompositer.create_surface(&qh, ());
+                            let input_panel = context
+                                .state
+                                .input_panel
+                                .as_ref()
+                                .expect("This request needs input_panel support");
+                            let input_panel_surface =
+                                input_panel.get_input_panel_surface(&wl_surface, &qh, ());
+                            if keyboard {
+                                input_panel_surface.set_toplevel(
+                                    &output,
+                                    ZwpInputPanelPosition::CenterBottom as u32,
+                                );
+                            } else {
+                                input_panel_surface.set_overlay_panel();
+                            }
+                            wl_surface.commit();
+
+                            let mut fractional_scale = None;
+                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                                fractional_scale =
+                                    Some(fractional_scale_manager.get_fractional_scale(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                            }
+
+                            let viewport = viewporter
+                                .as_ref()
+                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
+                            context.state.push_window(
+                                WindowStateUnitBuilder::new(
+                                    id,
+                                    qh.clone(),
+                                    connection.display(),
+                                    wl_surface,
+                                    wmcompositer.clone(),
+                                    Shell::InputPanel(input_panel_surface),
+                                )
+                                .size(size.to_set())
+                                .viewport(viewport)
+                                .fractional_scale(fractional_scale)
+                                .binding(info)
+                                .build(),
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                if context.state.pending_requests.is_empty() {
+                    break;
+                }
+            }
+
+            let requested: Vec<id::Id> = context
+                .state
+                .units
+                .iter()
+                .filter(|unit| unit.request_flag.close)
+                .map(WindowStateUnit::id)
+                .collect();
+            let mut close_roots: Vec<id::Id> = Vec::new();
+            for id in requested {
+                if context.state.can_remove_shell(id) {
+                    close_roots.push(id);
+                } else {
+                    context.state.clear_close_request(id);
+                }
+            }
+            let mut to_be_closed_ids: Vec<id::Id> = Vec::new();
+            for root in close_roots {
+                context
+                    .state
+                    .collect_descendants_then_self(root, &mut to_be_closed_ids);
+            }
+            for id in to_be_closed_ids {
+                context.handle_event(
+                    ExWlShellEvent::RequestMessages(DispatchMessage::Closed),
+                    Some(id),
+                );
+                context.state.remove_shell(id);
+            }
+
+            let closed_ids = context.state.closed_ids.clone();
+            for id in closed_ids {
+                context.handle_event(
+                    ExWlShellEvent::RequestMessages(DispatchMessage::Closed),
+                    Some(id),
+                );
+            }
+            context.state.closed_ids.clear();
+            if context.state.units.is_empty()
+                && !context.state.is_allscreens()
+                && !context.state.is_background()
+            {
+                context.signal.stop();
+                return true;
+            }
+
+            for idx in 0..context.state.units.len() {
+                let unit = &mut context.state.units[idx];
+                let (width, height) = unit.size;
+                if width == 0 || height == 0 {
+                    continue;
+                }
+                if unit.take_present_slot() {
+                    let unit_id = unit.id;
+                    let scale_float = unit.scale_float();
+                    let wl_surface = unit.window.wl_surface.clone();
+                    if unit.buffer.is_none() && !context.state.use_display_handle {
+                        let Ok(mut file) = tempfile::tempfile() else {
+                            log::error!("Cannot create new file from tempfile");
+                            // note: could lead to infinite loop or spam log
+                            // if the error is persistent.
+                            return false;
+                        };
+                        let buffer = context.window_context.request_buffer(
+                            &mut context.state,
+                            unit_id,
+                            &mut file,
+                            &qh,
+                            width,
+                            height,
+                        );
+                        wl_surface.attach(Some(&buffer), 0, 0);
+                        wl_surface.commit();
+                        context.state.units[idx].buffer = Some(buffer);
+                    }
+                    if let Some(effect) = &context.state.units[idx].effect {
+                        match &context.state.units[idx].blur_option {
+                            BlurOption::None => {}
+                            BlurOption::FullRegion => {
+                                let region = wmcompositer.create_region(&qh, ());
+                                region.add(0, 0, width as i32, height as i32);
+                                effect.set_blur_region(Some(&region));
+                                region.destroy();
+                            }
+                            BlurOption::Region(regions) => {
+                                let region = wmcompositer.create_region(&qh, ());
+                                for BlurRegion {
+                                    x,
+                                    y,
+                                    width,
+                                    height,
+                                } in regions
+                                {
+                                    region.add(*x, *y, *width, *height);
+                                }
+                                effect.set_blur_region(Some(&region));
+                                region.destroy();
+                            }
+                        }
+                        context.state.units[idx].window.wl_surface.commit();
+                    }
+                    context.handle_event(
+                        ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
+                            width,
+                            height,
+                            scale_float,
+                        }),
+                        Some(unit_id),
+                    );
+                    context.state.units[idx].reset_present_slot();
+                }
+            }
+
+            false
+        };
+
+        let mut event_loop = self.event_loop.take().unwrap();
+        // Dynamic dispatch timeout: compute the sleep duration from each
+        // unit's RefreshRequest rather than using a fixed interval.
+        // Based on the approach used by winit's Wayland event loop:
+        // https://github.com/rust-windowing/winit/blob/master/winit-wayland/src/event_loop/mod.rs#L242-L312
+        // Use zero-timeout on first dispatch if we don't have any windows
+        // added in order to avoid getting stuck. For windowed startup, use
+        // normal timeout to preserve standard lifecycle.
+        let mut force_first_tick = self.state.units.is_empty();
+        loop {
+            let timeout = if force_first_tick {
+                Some(Duration::ZERO)
+            } else {
+                self.state.min_dispatch_timeout()
+            };
+            event_loop.dispatch(timeout, &mut self)?;
+            force_first_tick = false;
+
+            event_queue_origin.dispatch_pending(&mut self.state)?;
+            if process_window_state(&mut self) {
+                break;
+            }
+            for token in self.state.to_remove_tokens.iter() {
+                self.looph.remove(*token);
+            }
+            self.state.to_remove_tokens.clear();
+            if let Some(VirtualKeyRelease { delay, time, key }) =
+                self.state.to_be_released_key.take()
+            {
+                self.looph
+                    .insert_source(Timer::from_duration(delay), move |_, _, r_window_state| {
+                        let state = &mut r_window_state.state;
+                        let ky = state.get_virtual_keyboard().unwrap();
+
+                        ky.key(time, key, KeyState::Released.into());
+                        TimeoutAction::Drop
+                    })
+                    .ok();
+            }
+
+            if let Some(KeyboardTokenState {
+                key,
+                delay,
+                surface_id,
+                pressed_state,
+                object_id,
+            }) = self.state.repeat_delay.take()
+            {
+                let timer = Timer::from_duration(delay);
+                if let Some(keyboard_state) = self.state.get_keyboard_state_by_id(object_id.clone())
+                {
+                    keyboard_state.repeat_token = self
+                        .looph
+                        .insert_source(timer, move |_, _, r_window_state| {
+                            let state = &mut r_window_state.state;
+                            let keyboard_state = match state
+                                .seats
+                                .values_mut()
+                                .find(|seat| {
+                                    seat.keyboard_state
+                                        .as_ref()
+                                        .is_some_and(|state| state.keyboard.id() == object_id)
+                                })
+                                .map(|storage| storage.keyboard_state.as_mut().unwrap())
+                            {
+                                Some(keyboard_state) => keyboard_state,
+                                None => return TimeoutAction::Drop,
+                            };
+                            let repeat_keycode = match keyboard_state.current_repeat {
+                                Some(repeat_keycode) => repeat_keycode,
+                                None => return TimeoutAction::Drop,
+                            };
+                            // NOTE: not the same key
+                            if repeat_keycode != key {
+                                return TimeoutAction::Drop;
+                            }
+                            if let Some(mut key_context) = keyboard_state.xkb_context.key_context()
+                            {
+                                let event = key_context.process_key_event(
+                                    repeat_keycode,
+                                    pressed_state,
+                                    false,
+                                );
+                                let event = DispatchMessageInner::KeyboardInput {
+                                    event,
+                                    is_synthetic: false,
+                                };
+                                state.message.push((surface_id, event));
+                            }
+                            let repeat_info = keyboard_state.repeat_info;
+
+                            let _ = keyboard_state;
+                            r_window_state.handle_event(ExWlShellEvent::NormalDispatch, None);
+                            match repeat_info {
+                                RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
+                                RepeatInfo::Disable => TimeoutAction::Drop,
+                            }
+                        })
+                        .ok();
+                }
+            }
+
+            // Flush after all event handlers have run so outgoing requests
+            // (e.g. wl_surface.commit from process_window_state) reach the
+            // compositor before the next dispatch() potentially sleeps.
+            let _ = connection.flush();
+
+            // NOTE: we need to start the receiver only after the dispatch is run at least once a
+            // time
+            for token in self.tokens.drain(..) {
+                let _ = self.looph.enable(&token);
+            }
+        }
+        Ok(())
+    }
+}
+
 delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelSurfaceV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelV1);
@@ -2571,8 +3656,78 @@ delegate_noop!(@<T> WindowState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
 
 impl<T: 'static> WindowState<T> {
+    pub fn build<Window>(
+        mut self,
+        mut window: Window,
+    ) -> Result<EventContext<T, Window>, ExShellEventError>
+    where
+        Window: WindowTrait<T> + 'static,
+    {
+        self.build_inner()?;
+        let globals = self.globals.take().unwrap();
+        let event_queue_origin = self.event_queue.as_ref().unwrap();
+        let qh = event_queue_origin.handle();
+
+        let connection = self.connection.clone().unwrap();
+
+        let shm = self.shm.clone().unwrap();
+
+        let wmcompositer = self.wl_compositor.clone().unwrap();
+
+        let mut init_event = None;
+
+        let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.clone();
+
+        let cursor_update_context = CursorUpdateContext {
+            cursor_manager,
+            qh: qh.clone(),
+            connection: connection.clone(),
+            shm: shm.clone(),
+            cursor_surface: wmcompositer.create_surface(&qh, ()),
+        };
+
+        while !matches!(init_event, Some(InitRequest::None)) {
+            match init_event {
+                None => {
+                    init_event = Some(window.on_init(ExWlShellInitEvent::Start, &mut self));
+                }
+                Some(InitRequest::RequestBind) => {
+                    init_event = Some(
+                        window.on_init(ExWlShellInitEvent::BindProvide(&globals, &qh), &mut self),
+                    );
+                }
+                Some(InitRequest::RequestCompositor) => {
+                    init_event = Some(window.on_init(
+                        ExWlShellInitEvent::CompositorProvide(&wmcompositer, &qh),
+                        &mut self,
+                    ));
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        let event_loop: EventLoop<_> =
+            EventLoop::try_new().expect("Failed to initialize the event loop");
+
+        let event_queue = connection.new_event_queue::<EventContext<T, Window>>();
+        WaylandSource::new(connection.clone(), event_queue)
+            .insert(event_loop.handle())
+            .expect("Failed to init wayland source");
+        let signal = event_loop.get_signal();
+        Ok(EventContext {
+            state: self,
+            window_context: window,
+            looph: event_loop.handle(),
+            event_loop: Some(event_loop),
+            lock: LockLifecycle::Unlocked,
+            signal,
+            tokens: vec![],
+            cursor_update_context,
+        })
+    }
+
     /// build a new WindowState
-    pub fn build(mut self) -> Result<Self, ExShellEventError> {
+    fn build_inner(&mut self) -> Result<(), ExShellEventError> {
         let connection = if let Some(with_connection) = self.with_connection.take() {
             with_connection.get_connection()?
         } else {
@@ -2628,7 +3783,7 @@ impl<T: 'static> WindowState<T> {
         let input_panel = globals.bind::<ZwpInputPanelV1, _, _>(&qh, 1..=1, ()).ok();
 
         self.text_input_manager = text_input_manager;
-        event_queue.blocking_dispatch(&mut self)?; // then make a dispatch
+        event_queue.blocking_dispatch(self)?; // then make a dispatch
 
         // OutputState bound its own xdg_outputs before the dispatch above, so output info is
         // populated by now, a second roundtrip is not needed
@@ -2806,1097 +3961,6 @@ impl<T: 'static> WindowState<T> {
         self.input_panel = input_panel;
         self.connection = Some(connection);
 
-        Ok(self)
-    }
-    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a ExWlShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
-    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
-    /// it will return [None].
-    /// Different with running, it receiver a receiver
-    pub fn running_with_proxy<F, Message>(
-        self,
-        message_receiver: Channel<Message>,
-        event_handler: F,
-    ) -> Result<(), ExShellEventError>
-    where
-        Message: std::marker::Send + 'static,
-        F: FnMut(ExWlShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
-            + 'static,
-    {
-        self.running_with_proxy_option(Some(message_receiver), event_handler)
-    }
-    /// main event loop, every time dispatch, it will store the messages, and do callback. it will
-    /// pass a ExWlShellEvent, with self as mut, the last `Option<usize>` describe which unit the event
-    /// happened on, like tell you this time you do a click, what surface it is on. you can use the
-    /// index to get the unit, with [WindowState::get_unit_with_id] if the even is not spical on one surface,
-    /// it will return [None].
-    ///
-    pub fn running<F>(self, event_handler: F) -> Result<(), ExShellEventError>
-    where
-        F: FnMut(ExWlShellEvent<T, ()>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
-            + 'static,
-    {
-        self.running_with_proxy_option(None, event_handler)
-    }
-
-    fn running_with_proxy_option<F, Message>(
-        mut self,
-        mut message_receiver: Option<Channel<Message>>,
-        mut event_handler: F,
-    ) -> Result<(), ExShellEventError>
-    where
-        Message: std::marker::Send + 'static,
-        F: FnMut(ExWlShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>
-            + 'static,
-    {
-        let globals = self.globals.take().unwrap();
-        let mut event_queue_origin = self.event_queue.take().unwrap();
-        let qh = event_queue_origin.handle();
-        let wmcompositer = self.wl_compositor.take().unwrap();
-        let shm = self.shm.take().unwrap();
-        let fractional_scale_manager = self.fractional_scale_manager.take();
-        let cursor_manager: Option<WpCursorShapeManagerV1> = self.cursor_manager.take();
-        let connection = self.connection.take().unwrap();
-        let mut init_event = None;
-        let wmbase = self.wmbase.take().unwrap();
-        let viewporter = self.viewporter.take();
-        let zxdg_decoration_manager = self.xdg_decoration_manager.take();
-
-        let cursor_update_context = CursorUpdateContext {
-            cursor_manager,
-            qh: qh.clone(),
-            connection: connection.clone(),
-            shm: shm.clone(),
-            cursor_surface: wmcompositer.create_surface(&qh, ()),
-        };
-
-        while !matches!(init_event, Some(ReturnData::None)) {
-            match init_event {
-                None => {
-                    init_event = Some(event_handler(ExWlShellEvent::InitRequest, &mut self, None));
-                }
-                Some(ReturnData::RequestBind) => {
-                    init_event = Some(event_handler(
-                        ExWlShellEvent::BindProvide(&globals, &qh),
-                        &mut self,
-                        None,
-                    ));
-                }
-                Some(ReturnData::RequestCompositor) => {
-                    init_event = Some(event_handler(
-                        ExWlShellEvent::CompositorProvide(&wmcompositer, &qh),
-                        &mut self,
-                        None,
-                    ));
-                }
-                _ => panic!("Not provide server here"),
-            }
-        }
-
-        struct EventWrapper<T, F> {
-            raw: WindowState<T>,
-            fun: F,
-            loop_handle: LoopHandle<'static, Self>,
-            lock: LockLifecycle,
-        }
-
-        impl<T, F> Drop for EventWrapper<T, F> {
-            fn drop(&mut self) {
-                if let Some(lock) = self.raw.lock_manager.take() {
-                    lock.destroy();
-                }
-                if let Some(layer_shell) = self.raw.layer_shell.take() {
-                    layer_shell.destroy();
-                }
-            }
-        }
-
-        enum LockTeardown {
-            Unlock,
-            Exit,
-        }
-
-        enum LockLifecycle {
-            Unlocked,
-            Pending {
-                lock: ExtSessionLockV1,
-                teardown: Option<LockTeardown>,
-            },
-            Locked {
-                lock: ExtSessionLockV1,
-            },
-        }
-
-        impl LockLifecycle {
-            fn take(&mut self) -> Self {
-                std::mem::replace(self, LockLifecycle::Unlocked)
-            }
-        }
-
-        fn remove_lock_units<T>(window_state: &mut WindowState<T>) {
-            for removed in window_state.units.extract_if(.., |unit| unit.is_lock()) {
-                if window_state.keyboard_focus.as_ref() == Some(&removed.window.wl_surface) {
-                    window_state.keyboard_focus = None;
-                }
-                window_state.closed_ids.push(removed.id);
-            }
-        }
-
-        let mut event_loop: EventLoop<_> =
-            EventLoop::try_new().expect("Failed to initialize the event loop");
-
-        let event_queue = connection.new_event_queue::<EventWrapper<T, F>>();
-        WaylandSource::new(connection.clone(), event_queue)
-            .insert(event_loop.handle())
-            .expect("Failed to init wayland source");
-        let mut state = EventWrapper {
-            raw: self,
-            fun: event_handler,
-            loop_handle: event_loop.handle(),
-            lock: LockLifecycle::Unlocked,
-        };
-        let signal = event_loop.get_signal();
-
-        let process_window_state = |window_state: &mut WindowState<T>,
-                                    event_handler: &mut F,
-                                    lock: &mut LockLifecycle| {
-            let mut messages = Vec::new();
-            std::mem::swap(&mut messages, &mut window_state.message);
-            for msg in messages.iter() {
-                match msg {
-                    (_, DispatchMessageInner::NewDisplay(output_display)) => {
-                        if let LockLifecycle::Pending { lock, .. }
-                        | LockLifecycle::Locked { lock } = &*lock
-                        {
-                            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more
-                            // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display is in
-                            // if it is the same with layershell and wmbase, we can send commit
-                            // later, but we cannot
-                            wl_surface.commit();
-                            let session_lock_surface =
-                                lock.get_lock_surface(&wl_surface, output_display, &qh, ());
-
-                            // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                            // and if you need to reconfigure it, you need to commit the wl_surface again
-                            // so because this is just an example, so we just commit it once
-                            // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-                            let mut fractional_scale = None;
-                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                                fractional_scale =
-                                    Some(fractional_scale_manager.get_fractional_scale(
-                                        &wl_surface,
-                                        &qh,
-                                        (),
-                                    ));
-                            }
-
-                            let viewport = viewporter
-                                .as_ref()
-                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            window_state.push_window(
-                                WindowStateUnitBuilder::new(
-                                    id::Id::unique(),
-                                    qh.clone(),
-                                    connection.display(),
-                                    wl_surface,
-                                    wmcompositer.clone(),
-                                    Shell::SessionLock(session_lock_surface),
-                                )
-                                .layout(window_state.anchor, window_state.size)
-                                .viewport(viewport)
-                                .fractional_scale(fractional_scale)
-                                .wl_output(Some(output_display.clone()))
-                                .build(),
-                            );
-                        }
-
-                        if !window_state.is_allscreens() {
-                            continue;
-                        }
-                        let wl_surface = wmcompositer.create_surface(&qh, ());
-                        let layer_shell = window_state
-                            .layer_shell
-                            .as_ref()
-                            .expect("We need layershell here");
-                        let layer = layer_shell.get_layer_surface(
-                            &wl_surface,
-                            Some(output_display),
-                            window_state.layer,
-                            window_state.default_namespace.clone(),
-                            &qh,
-                            (),
-                        );
-                        let wire_anchor = window_state.size.resolve_anchor(window_state.anchor);
-                        layer.set_anchor(wire_anchor);
-                        layer.set_keyboard_interactivity(window_state.keyboard_interactivity);
-                        let (init_w, init_h) = window_state.size.to_set();
-                        layer.set_size(init_w, init_h);
-
-                        if let Some(zone) = window_state.exclusive_zone {
-                            warn_if_exclusive_zone_ignored(zone, wire_anchor);
-                            layer.set_exclusive_zone(zone);
-                        }
-
-                        if let Some(zone) = window_state.exclusive_zone {
-                            layer.set_exclusive_zone(zone);
-                        }
-
-                        if let Some((top, right, bottom, left)) = window_state.margin {
-                            layer.set_margin(top, right, bottom, left);
-                        }
-
-                        if window_state.events_transparent {
-                            let region = wmcompositer.create_region(&qh, ());
-                            wl_surface.set_input_region(Some(&region));
-                            region.destroy();
-                        }
-                        wl_surface.commit();
-
-                        let mut fractional_scale = None;
-                        if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                            fractional_scale = Some(fractional_scale_manager.get_fractional_scale(
-                                &wl_surface,
-                                &qh,
-                                (),
-                            ));
-                        }
-                        let viewport = viewporter
-                            .as_ref()
-                            .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-
-                        window_state.push_window(
-                            WindowStateUnitBuilder::new(
-                                id::Id::unique(),
-                                qh.clone(),
-                                connection.display(),
-                                wl_surface,
-                                wmcompositer.clone(),
-                                Shell::LayerShell(layer),
-                            )
-                            .layout(window_state.anchor, window_state.size)
-                            .viewport(viewport)
-                            .fractional_scale(fractional_scale)
-                            .wl_output(Some(output_display.clone()))
-                            .build(),
-                        );
-                    }
-                    (_, DispatchMessageInner::Locked) => match lock.take() {
-                        LockLifecycle::Pending {
-                            lock: l_lock,
-                            teardown: Some(goal),
-                        } => {
-                            l_lock.unlock_and_destroy();
-                            remove_lock_units(window_state);
-                            match goal {
-                                LockTeardown::Exit => {
-                                    let _ = connection.roundtrip();
-                                    signal.stop();
-                                    return true;
-                                }
-                                LockTeardown::Unlock => {
-                                    let _ = connection.flush();
-                                }
-                            }
-                        }
-                        LockLifecycle::Pending {
-                            lock: l_lock,
-                            teardown: None,
-                        } => {
-                            *lock = LockLifecycle::Locked { lock: l_lock };
-                            window_state.handle_event(
-                                &mut *event_handler,
-                                ExWlShellEvent::RequestMessages(&DispatchMessage::Locked),
-                                None,
-                            );
-                        }
-                        other => {
-                            log::warn!(
-                                "Received `locked` without a pending lock request; ignoring"
-                            );
-                            *lock = other;
-                        }
-                    },
-                    (_, DispatchMessageInner::LockFinished) => match lock.take() {
-                        LockLifecycle::Pending {
-                            lock: l_lock,
-                            teardown,
-                        } => {
-                            l_lock.destroy();
-                            let _ = connection.flush();
-                            remove_lock_units(window_state);
-                            window_state.handle_event(
-                                &mut *event_handler,
-                                ExWlShellEvent::RequestMessages(&DispatchMessage::LockDenied),
-                                None,
-                            );
-                            if matches!(teardown, Some(LockTeardown::Exit)) {
-                                signal.stop();
-                                return true;
-                            }
-                        }
-                        LockLifecycle::Locked { lock: l_lock } => {
-                            l_lock.unlock_and_destroy();
-                            let _ = connection.flush();
-                            remove_lock_units(window_state);
-                            window_state.handle_event(
-                                &mut *event_handler,
-                                ExWlShellEvent::RequestMessages(&DispatchMessage::LockFinished),
-                                None,
-                            );
-                        }
-                        LockLifecycle::Unlocked => {
-                            log::warn!("Received `finished` without an active lock; ignoring");
-                        }
-                    },
-                    _ => {
-                        let (index_message, msg) = msg;
-
-                        let msg: DispatchMessage = msg.clone().into();
-                        window_state.handle_event(
-                            &mut *event_handler,
-                            ExWlShellEvent::RequestMessages(&msg),
-                            *index_message,
-                        );
-                    }
-                }
-            }
-
-            window_state.handle_event(&mut *event_handler, ExWlShellEvent::NormalDispatch, None);
-            loop {
-                let mut return_data = vec![];
-                std::mem::swap(&mut window_state.return_data, &mut return_data);
-
-                for data in return_data {
-                    match data {
-                        ReturnData::RequestExit => {
-                            match lock.take() {
-                                LockLifecycle::Locked { lock: l_lock } => {
-                                    l_lock.unlock_and_destroy();
-                                    let _ = connection.roundtrip();
-                                    remove_lock_units(window_state);
-                                }
-                                LockLifecycle::Pending { lock: l_lock, .. } => {
-                                    *lock = LockLifecycle::Pending {
-                                        lock: l_lock,
-                                        teardown: Some(LockTeardown::Exit),
-                                    };
-                                    continue;
-                                }
-                                LockLifecycle::Unlocked => {}
-                            }
-                            signal.stop();
-                            return true;
-                        }
-                        ReturnData::RequestLock => {
-                            if !matches!(lock, LockLifecycle::Unlocked) {
-                                log::warn!(
-                                    "Session lock already requested or active; ignoring duplicate lock request"
-                                );
-                                continue;
-                            }
-                            let Some(lock_manager) = window_state.lock_manager.as_ref() else {
-                                log::error!("SessionLock is not supported");
-                                window_state.handle_event(
-                                    &mut *event_handler,
-                                    ExWlShellEvent::RequestMessages(&DispatchMessage::LockDenied),
-                                    None,
-                                );
-                                continue;
-                            };
-                            let l_lock = lock_manager.lock(&qh, ());
-                            let wl_outputs = window_state.outputs.clone();
-                            for wl_output in wl_outputs.iter() {
-                                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-                                // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display was in
-                                // if it is the same with layershell and wmbase, we can send commit
-                                // later, but we cannot
-                                wl_surface.commit();
-                                let session_lock_surface =
-                                    l_lock.get_lock_surface(&wl_surface, wl_output, &qh, ());
-
-                                // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
-                                // and if you need to reconfigure it, you need to commit the wl_surface again
-                                // so because this is just an example, so we just commit it once
-                                // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-                                let mut fractional_scale = None;
-                                if let Some(ref fractional_scale_manager) = fractional_scale_manager
-                                {
-                                    fractional_scale =
-                                        Some(fractional_scale_manager.get_fractional_scale(
-                                            &wl_surface,
-                                            &qh,
-                                            (),
-                                        ));
-                                }
-
-                                let viewport = viewporter
-                                    .as_ref()
-                                    .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                                window_state.push_window(
-                                    WindowStateUnitBuilder::new(
-                                        id::Id::unique(),
-                                        qh.clone(),
-                                        connection.display(),
-                                        wl_surface,
-                                        wmcompositer.clone(),
-                                        Shell::SessionLock(session_lock_surface),
-                                    )
-                                    .viewport(viewport)
-                                    .fractional_scale(fractional_scale)
-                                    .wl_output(Some(wl_output.clone()))
-                                    .build(),
-                                );
-                            }
-                            *lock = LockLifecycle::Pending {
-                                lock: l_lock,
-                                teardown: None,
-                            };
-                        }
-
-                        ReturnData::RequestUnLock => match lock.take() {
-                            LockLifecycle::Locked { lock: l_lock } => {
-                                l_lock.unlock_and_destroy();
-                                let _ = connection.flush();
-                                remove_lock_units(window_state);
-                            }
-                            LockLifecycle::Pending {
-                                lock: l_lock,
-                                teardown,
-                            } => {
-                                *lock = LockLifecycle::Pending {
-                                    lock: l_lock,
-                                    teardown: teardown.or(Some(LockTeardown::Unlock)),
-                                };
-                            }
-                            LockLifecycle::Unlocked => {}
-                        },
-                        ReturnData::RequestSetCursor((cursor, pointer)) => {
-                            let Some(serial) = window_state.enter_serial else {
-                                continue;
-                            };
-                            set_cursor(&cursor_update_context, cursor, pointer, serial);
-                        }
-                        ReturnData::NewLayerShell((
-                            NewLayerShellSettings {
-                                size,
-                                layer,
-                                anchor,
-                                exclusive_zone,
-                                margin,
-                                keyboard_interactivity,
-                                output_option: output_type,
-                                events_transparent,
-                                namespace,
-                                blur_option,
-                            },
-                            id,
-                            info,
-                        )) => {
-                            let wire_anchor = size.resolve_anchor(anchor);
-                            let output = window_state.resolve_output(output_type);
-
-                            let wl_surface = wmcompositer.create_surface(&qh, ());
-
-                            let layer_shell = window_state
-                                .layer_shell
-                                .as_ref()
-                                .expect("We need layershell here");
-                            let layer = layer_shell.get_layer_surface(
-                                &wl_surface,
-                                output.as_ref(),
-                                layer,
-                                namespace.unwrap_or_else(|| window_state.default_namespace.clone()),
-                                &qh,
-                                (),
-                            );
-                            layer.set_anchor(wire_anchor);
-                            layer.set_keyboard_interactivity(keyboard_interactivity);
-                            let (init_w, init_h) = size.to_set();
-                            layer.set_size(init_w, init_h);
-
-                            if let Some(zone) = exclusive_zone {
-                                warn_if_exclusive_zone_ignored(zone, wire_anchor);
-                                layer.set_exclusive_zone(zone);
-                            }
-
-                            if let Some((top, right, bottom, left)) = margin {
-                                layer.set_margin(top, right, bottom, left);
-                            }
-
-                            if events_transparent {
-                                let region = wmcompositer.create_region(&qh, ());
-                                wl_surface.set_input_region(Some(&region));
-                                region.destroy();
-                            }
-
-                            wl_surface.commit();
-
-                            let mut effect = None;
-                            if let Some(effect_manger) = &window_state.background_effect_manager {
-                                effect =
-                                    Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
-                            }
-                            let mut fractional_scale = None;
-                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                                fractional_scale =
-                                    Some(fractional_scale_manager.get_fractional_scale(
-                                        &wl_surface,
-                                        &qh,
-                                        (),
-                                    ));
-                            }
-                            let viewport = viewporter
-                                .as_ref()
-                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-
-                            window_state.push_window(
-                                WindowStateUnitBuilder::new(
-                                    id,
-                                    qh.clone(),
-                                    connection.display(),
-                                    wl_surface,
-                                    wmcompositer.clone(),
-                                    Shell::LayerShell(layer),
-                                )
-                                .layout(window_state.anchor, window_state.size)
-                                .viewport(viewport)
-                                .blur_option(blur_option)
-                                .effect_surface(effect)
-                                .fractional_scale(fractional_scale)
-                                .wl_output(output)
-                                .binding(info)
-                                .build(),
-                            );
-                        }
-                        ReturnData::NewPopUp((
-                            NewPopUpSettings {
-                                size,
-                                id,
-                                placement,
-                                anchor,
-                                gravity,
-                                constraint_adjustment,
-                                grab_serial,
-                            },
-                            targetid,
-                            info,
-                        )) => {
-                            let Some(index) =
-                                window_state.units.iter().position(|unit| unit.id == id)
-                            else {
-                                continue;
-                            };
-                            let wl_surface = wmcompositer.create_surface(&qh, ());
-                            let positioner = build_positioner(
-                                &wmbase,
-                                &qh,
-                                size,
-                                placement,
-                                anchor,
-                                gravity,
-                                constraint_adjustment,
-                            );
-                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
-
-                            let popup = match &window_state.units[index].shell {
-                                Shell::LayerShell(shell) => {
-                                    let popup =
-                                        wl_xdg_surface.get_popup(None, &positioner, &qh, ());
-                                    shell.get_popup(&popup);
-                                    popup
-                                }
-                                Shell::PopUp((_, parent_xdg_surface)) => wl_xdg_surface.get_popup(
-                                    Some(parent_xdg_surface),
-                                    &positioner,
-                                    &qh,
-                                    (),
-                                ),
-                                Shell::XdgTopLevel((_, parent_xdg_surface, _)) => wl_xdg_surface
-                                    .get_popup(Some(parent_xdg_surface), &positioner, &qh, ()),
-                                _ => {
-                                    log::warn!(
-                                        target: "exwlshellev",
-                                        "cannot create popup: parent {:?} must be a layer surface, an xdg_toplevel or a popup",
-                                        id
-                                    );
-                                    positioner.destroy();
-                                    wl_xdg_surface.destroy();
-                                    wl_surface.destroy();
-                                    continue;
-                                }
-                            };
-                            positioner.destroy();
-
-                            match (window_state.seat_back.as_ref(), grab_serial) {
-                                (Some(seat), Some(serial)) => popup.grab(seat, serial),
-                                (None, Some(_)) => log::warn!(
-                                    target: "exwlshellev",
-                                    "popup {targetid:?} wants a grab but no seat is available; it will not dismiss on click-outside"
-                                ),
-                                (_, None) => {}
-                            }
-
-                            let mut fractional_scale = None;
-                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                                fractional_scale =
-                                    Some(fractional_scale_manager.get_fractional_scale(
-                                        &wl_surface,
-                                        &qh,
-                                        (),
-                                    ));
-                            }
-                            wl_surface.commit();
-
-                            let viewport = viewporter
-                                .as_ref()
-                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            window_state.push_window(
-                                WindowStateUnitBuilder::new(
-                                    targetid,
-                                    qh.clone(),
-                                    connection.display(),
-                                    wl_surface,
-                                    wmcompositer.clone(),
-                                    Shell::PopUp((popup, wl_xdg_surface)),
-                                )
-                                .parent(Some(id))
-                                .size(size.to_set())
-                                .viewport(viewport)
-                                .fractional_scale(fractional_scale)
-                                .binding(info)
-                                .build(),
-                            );
-                        }
-                        ReturnData::PopUpReposition((
-                            PopUpRepositionSettings {
-                                size,
-                                placement,
-                                anchor,
-                                gravity,
-                                constraint_adjustment,
-                            },
-                            id,
-                        )) => {
-                            let Some(unit) =
-                                window_state.units.iter_mut().find(|unit| unit.id == id)
-                            else {
-                                continue;
-                            };
-                            let Shell::PopUp((popup, _)) = &unit.shell else {
-                                log::warn!(
-                                    target: "exwlshellev",
-                                    "reposition target {id:?} is not a popup; only popups can be repositioned"
-                                );
-                                continue;
-                            };
-                            if popup.version() < 3 {
-                                log::warn!(
-                                    target: "exwlshellev",
-                                    "compositor offers xdg_popup v{}, reposition needs v3; leaving popup {id:?} as it is",
-                                    popup.version()
-                                );
-                                continue;
-                            }
-                            let positioner = build_positioner(
-                                &wmbase,
-                                &qh,
-                                size,
-                                placement,
-                                anchor,
-                                gravity,
-                                constraint_adjustment,
-                            );
-                            let token = unit.pending_reposition.unwrap_or(0).wrapping_add(1);
-                            popup.reposition(&positioner, token);
-                            positioner.destroy();
-                            unit.pending_reposition = Some(token);
-                        }
-                        ReturnData::NewXdgBase((
-                            NewXdgWindowSettings {
-                                title,
-                                size,
-                                client_side_decorations,
-                            },
-                            id,
-                            info,
-                        )) => {
-                            let wl_surface = wmcompositer.create_surface(&qh, ());
-                            let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
-                            let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
-
-                            toplevel.set_title(title.unwrap_or("".to_owned()));
-
-                            let decoration = if let Some(decoration_manager) =
-                                &zxdg_decoration_manager
-                            {
-                                let decoration =
-                                    decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
-                                use zxdg_toplevel_decoration_v1::Mode;
-                                decoration.set_mode(if client_side_decorations {
-                                    Mode::ClientSide
-                                } else {
-                                    Mode::ServerSide
-                                });
-                                Some(decoration)
-                            } else {
-                                None
-                            };
-                            let mut fractional_scale = None;
-                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                                fractional_scale =
-                                    Some(fractional_scale_manager.get_fractional_scale(
-                                        &wl_surface,
-                                        &qh,
-                                        (),
-                                    ));
-                            }
-                            wl_surface.commit();
-
-                            let viewport = viewporter
-                                .as_ref()
-                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            window_state.push_window(
-                                WindowStateUnitBuilder::new(
-                                    id,
-                                    qh.clone(),
-                                    connection.display(),
-                                    wl_surface,
-                                    wmcompositer.clone(),
-                                    Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
-                                )
-                                .size(size.unwrap_or(PixelSize::px(300, 300)).to_set())
-                                .viewport(viewport)
-                                .fractional_scale(fractional_scale)
-                                .binding(info)
-                                .build(),
-                            );
-                        }
-
-                        ReturnData::NewInputPanel((
-                            NewInputPanelSettings {
-                                size,
-                                keyboard,
-                                output_option: output_type,
-                            },
-                            id,
-                            info,
-                        )) => {
-                            let output = window_state.resolve_output(output_type);
-
-                            let Some(output) = output else {
-                                log::warn!("no WlOutput, skip creating input panel");
-                                continue;
-                            };
-
-                            let wl_surface = wmcompositer.create_surface(&qh, ());
-                            let input_panel = window_state
-                                .input_panel
-                                .as_ref()
-                                .expect("This request needs input_panel support");
-                            let input_panel_surface =
-                                input_panel.get_input_panel_surface(&wl_surface, &qh, ());
-                            if keyboard {
-                                input_panel_surface.set_toplevel(
-                                    &output,
-                                    ZwpInputPanelPosition::CenterBottom as u32,
-                                );
-                            } else {
-                                input_panel_surface.set_overlay_panel();
-                            }
-                            wl_surface.commit();
-
-                            let mut fractional_scale = None;
-                            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
-                                fractional_scale =
-                                    Some(fractional_scale_manager.get_fractional_scale(
-                                        &wl_surface,
-                                        &qh,
-                                        (),
-                                    ));
-                            }
-
-                            let viewport = viewporter
-                                .as_ref()
-                                .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-                            window_state.push_window(
-                                WindowStateUnitBuilder::new(
-                                    id,
-                                    qh.clone(),
-                                    connection.display(),
-                                    wl_surface,
-                                    wmcompositer.clone(),
-                                    Shell::InputPanel(input_panel_surface),
-                                )
-                                .size(size.to_set())
-                                .viewport(viewport)
-                                .fractional_scale(fractional_scale)
-                                .binding(info)
-                                .build(),
-                            );
-                        }
-                        _ => {}
-                    }
-                }
-                // added guard to match `sessionlockev`.
-                window_state
-                    .return_data
-                    .retain(|data| !matches!(data, ReturnData::None));
-                if window_state.return_data.is_empty() {
-                    break;
-                }
-            }
-
-            let requested: Vec<id::Id> = window_state
-                .units
-                .iter()
-                .filter(|unit| unit.request_flag.close)
-                .map(WindowStateUnit::id)
-                .collect();
-            let mut close_roots: Vec<id::Id> = Vec::new();
-            for id in requested {
-                if window_state.can_remove_shell(id) {
-                    close_roots.push(id);
-                } else {
-                    window_state.clear_close_request(id);
-                }
-            }
-            let mut to_be_closed_ids: Vec<id::Id> = Vec::new();
-            for root in close_roots {
-                window_state.collect_descendants_then_self(root, &mut to_be_closed_ids);
-            }
-            for id in to_be_closed_ids {
-                window_state.handle_event(
-                    &mut *event_handler,
-                    ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
-                    Some(id),
-                );
-                window_state.remove_shell(id);
-            }
-
-            let closed_ids = window_state.closed_ids.clone();
-            for id in closed_ids {
-                window_state.handle_event(
-                    &mut *event_handler,
-                    ExWlShellEvent::RequestMessages(&DispatchMessage::Closed),
-                    Some(id),
-                );
-            }
-            window_state.closed_ids.clear();
-            if window_state.units.is_empty()
-                && !window_state.is_allscreens()
-                && !window_state.is_background()
-            {
-                signal.stop();
-                return true;
-            }
-
-            for idx in 0..window_state.units.len() {
-                let unit = &mut window_state.units[idx];
-                let (width, height) = unit.size;
-                if width == 0 || height == 0 {
-                    continue;
-                }
-                if unit.take_present_slot() {
-                    let unit_id = unit.id;
-                    let scale_float = unit.scale_float();
-                    let wl_surface = unit.window.wl_surface.clone();
-                    if unit.buffer.is_none() && !window_state.use_display_handle {
-                        let Ok(mut file) = tempfile::tempfile() else {
-                            log::error!("Cannot create new file from tempfile");
-                            // note: could lead to infinite loop or spam log
-                            // if the error is persistent.
-                            return false;
-                        };
-                        let ReturnData::WlBuffer(buffer) = event_handler(
-                            ExWlShellEvent::RequestBuffer(&mut file, &shm, &qh, width, height),
-                            window_state,
-                            Some(unit_id),
-                        ) else {
-                            panic!("You cannot return this one");
-                        };
-                        wl_surface.attach(Some(&buffer), 0, 0);
-                        wl_surface.commit();
-                        window_state.units[idx].buffer = Some(buffer);
-                    }
-                    if let Some(effect) = &window_state.units[idx].effect {
-                        match &window_state.units[idx].blur_option {
-                            BlurOption::None => {}
-                            BlurOption::FullRegion => {
-                                let region = wmcompositer.create_region(&qh, ());
-                                region.add(0, 0, width as i32, height as i32);
-                                effect.set_blur_region(Some(&region));
-                                region.destroy();
-                            }
-                            BlurOption::Region(regions) => {
-                                let region = wmcompositer.create_region(&qh, ());
-                                for BlurRegion {
-                                    x,
-                                    y,
-                                    width,
-                                    height,
-                                } in regions
-                                {
-                                    region.add(*x, *y, *width, *height);
-                                }
-                                effect.set_blur_region(Some(&region));
-                                region.destroy();
-                            }
-                        }
-                        window_state.units[idx].window.wl_surface.commit();
-                    }
-                    window_state.handle_event(
-                        &mut *event_handler,
-                        ExWlShellEvent::RequestMessages(&DispatchMessage::RequestRefresh {
-                            width,
-                            height,
-                            scale_float,
-                        }),
-                        Some(unit_id),
-                    );
-                    window_state.units[idx].reset_present_slot();
-                }
-            }
-
-            false
-        };
-
-        // Dynamic dispatch timeout: compute the sleep duration from each
-        // unit's RefreshRequest rather than using a fixed interval.
-        // Based on the approach used by winit's Wayland event loop:
-        // https://github.com/rust-windowing/winit/blob/master/winit-wayland/src/event_loop/mod.rs#L242-L312
-        // Use zero-timeout on first dispatch if we don't have any windows
-        // added in order to avoid getting stuck. For windowed startup, use
-        // normal timeout to preserve standard lifecycle.
-        let mut force_first_tick = state.raw.units.is_empty();
-        loop {
-            let timeout = if force_first_tick {
-                Some(Duration::ZERO)
-            } else {
-                state.raw.min_dispatch_timeout()
-            };
-            event_loop.dispatch(timeout, &mut state)?;
-            force_first_tick = false;
-
-            let r_window_state = &mut state;
-            let window_state = &mut r_window_state.raw;
-            let lock = &mut r_window_state.lock;
-            event_queue_origin.dispatch_pending(window_state)?;
-            let event_handler = &mut r_window_state.fun;
-            if process_window_state(window_state, event_handler, lock) {
-                break;
-            }
-            let looph = &r_window_state.loop_handle;
-            for token in window_state.to_remove_tokens.iter() {
-                looph.remove(*token);
-            }
-            window_state.to_remove_tokens.clear();
-            if let Some(VirtualKeyRelease { delay, time, key }) =
-                window_state.to_be_released_key.take()
-            {
-                looph
-                    .insert_source(Timer::from_duration(delay), move |_, _, r_window_state| {
-                        let state = &mut r_window_state.raw;
-                        let ky = state.get_virtual_keyboard().unwrap();
-
-                        ky.key(time, key, KeyState::Released.into());
-                        TimeoutAction::Drop
-                    })
-                    .ok();
-            }
-
-            if let Some(KeyboardTokenState {
-                key,
-                delay,
-                surface_id,
-                pressed_state,
-                object_id,
-            }) = window_state.repeat_delay.take()
-            {
-                let timer = Timer::from_duration(delay);
-                if let Some(keyboard_state) =
-                    window_state.get_keyboard_state_by_id(object_id.clone())
-                {
-                    keyboard_state.repeat_token = looph
-                        .insert_source(timer, move |_, _, r_window_state| {
-                            let state = &mut r_window_state.raw;
-                            let event_handler = &mut r_window_state.fun;
-                            let keyboard_state = match state
-                                .seats
-                                .values_mut()
-                                .find(|seat| {
-                                    seat.keyboard_state
-                                        .as_ref()
-                                        .is_some_and(|state| state.keyboard.id() == object_id)
-                                })
-                                .map(|storage| storage.keyboard_state.as_mut().unwrap())
-                            {
-                                Some(keyboard_state) => keyboard_state,
-                                None => return TimeoutAction::Drop,
-                            };
-                            let repeat_keycode = match keyboard_state.current_repeat {
-                                Some(repeat_keycode) => repeat_keycode,
-                                None => return TimeoutAction::Drop,
-                            };
-                            // NOTE: not the same key
-                            if repeat_keycode != key {
-                                return TimeoutAction::Drop;
-                            }
-                            if let Some(mut key_context) = keyboard_state.xkb_context.key_context()
-                            {
-                                let event = key_context.process_key_event(
-                                    repeat_keycode,
-                                    pressed_state,
-                                    false,
-                                );
-                                let event = DispatchMessageInner::KeyboardInput {
-                                    event,
-                                    is_synthetic: false,
-                                };
-                                state.message.push((surface_id, event));
-                            }
-                            let repeat_info = keyboard_state.repeat_info;
-
-                            let _ = keyboard_state;
-                            state.handle_event(
-                                &mut *event_handler,
-                                ExWlShellEvent::NormalDispatch,
-                                None,
-                            );
-                            match repeat_info {
-                                RepeatInfo::Repeat { gap, .. } => TimeoutAction::ToDuration(gap),
-                                RepeatInfo::Disable => TimeoutAction::Drop,
-                            }
-                        })
-                        .ok();
-                }
-            }
-
-            // Flush after all event handlers have run so outgoing requests
-            // (e.g. wl_surface.commit from process_window_state) reach the
-            // compositor before the next dispatch() potentially sleeps.
-            let _ = connection.flush();
-
-            // NOTE: we need to start the receiver only after the dispatch is run at least once a
-            // time
-            if let Some(channel) = message_receiver.take() {
-                event_loop
-                    .handle()
-                    .insert_source(channel, |event, _, r_window_state| {
-                        let channel::Event::Msg(event) = event else {
-                            return;
-                        };
-                        let window_state = &mut r_window_state.raw;
-                        let event_handler = &mut r_window_state.fun;
-                        window_state.handle_event(
-                            &mut *event_handler,
-                            ExWlShellEvent::UserEvent(event),
-                            None,
-                        );
-                    })
-                    .expect("We need message state");
-            }
-        }
         Ok(())
     }
 
@@ -3908,21 +3972,6 @@ impl<T: 'static> WindowState<T> {
     pub fn reset_present_slot(&mut self, id: id::Id) {
         self.get_mut_unit_with_id(id)
             .map(WindowStateUnit::reset_present_slot);
-    }
-
-    pub fn handle_event<F, Message>(
-        &mut self,
-        mut event_handler: F,
-        event: ExWlShellEvent<T, Message>,
-        unit_id: Option<id::Id>,
-    ) where
-        Message: std::marker::Send + 'static,
-        F: FnMut(ExWlShellEvent<T, Message>, &mut WindowState<T>, Option<id::Id>) -> ReturnData<T>,
-    {
-        let return_data = event_handler(event, self, unit_id);
-        if !matches!(return_data, ReturnData::None) {
-            self.append_return_data(return_data);
-        }
     }
 }
 

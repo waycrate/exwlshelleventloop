@@ -13,11 +13,9 @@ use wayland_client::{
     QueueHandle, WEnum,
     globals::GlobalList,
     protocol::{
-        wl_buffer::WlBuffer,
         wl_compositor::WlCompositor,
         wl_output::{self, WlOutput},
         wl_pointer::{self, ButtonState, WlPointer},
-        wl_shm::WlShm,
     },
 };
 
@@ -32,12 +30,12 @@ use super::WindowState;
 
 use crate::id::Id;
 
-use std::{fmt::Debug, fs::File};
+use std::fmt::Debug;
 
-/// tell program what event is happened
+/// tell program what event happened during init
 ///
 /// InitRequest will tell the program is inited, you can request to Bind other wayland-protocols
-/// there, with return [ReturnData::RequestBind]
+/// there, with return [InitRequest::RequestBind]
 ///
 /// RequestBuffer request to get the wl-buffer, so you init a buffer_pool here. It return a
 /// GlobalList and a QueueHandle. This will enough for bind a extra wayland-protocol, and also,
@@ -45,34 +43,55 @@ use std::{fmt::Debug, fs::File};
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum ExWlShellEvent<'a, T, Message> {
-    /// the first event when start a new gui, program. you can return [ReturnData::None] or
-    /// [ReturnData::RequestBind], then it will continue to the next request.
-    /// Here only the above two [ReturnData] are acceptable.
-    InitRequest,
-    /// After you return [ReturnData::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
+pub enum ExWlShellInitEvent<'a, T> {
+    /// the first event when start a new gui, program. you can return [InitRequest::None] or
+    /// [InitRequest::RequestBind], then it will continue to the next request.
+    /// Here only the above two [InitRequest] are acceptable.
+    Start,
+    /// After you return [InitRequest::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
     /// event is [LayerShellEvent::BindProvide], you can use the GlobalList and QueueHandle to create
     /// new wayland objects.
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
-    /// After you return [ReturnData::RequestCompositor] in the init stage, next
+    /// After you return [InitRequest::RequestCompositor] in the init stage, next
     /// event is [LayerShellEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
     /// create new wayland objects.
     CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
-    /// create a new buffer after request. if you use display_handle, you do not need to care about
-    /// it.
-    RequestBuffer(
-        &'a mut File,
-        &'a WlShm,
-        &'a QueueHandle<WindowState<T>>,
-        u32,
-        u32,
-    ),
+}
+
+/// the return data
+/// Note: when event is RequestBuffer, you must return WlBuffer
+/// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
+/// can bind virtual-keyboard. you can take startcolorkeyboard as reference, or the simple.rs. Also,
+/// it should can bind with text-input, but I am not fully understand about this, maybe someone
+/// familiar with it can do
+///
+/// When send RequestExit, it will tell the event to finish.
+///
+/// Use `RequestSetCursor` with [`Cursor::Shape`] for standard shapes or [`Cursor::ThemeName`] for
+/// an exact cursor name from the theme.
+///
+/// None means nothing will happened, no request, and no return data
+#[derive(Debug, PartialEq, Eq)]
+pub enum InitRequest {
+    RequestBind,
+    RequestCompositor,
+    None,
+}
+
+/// tell program what event happened after init
+///
+/// RequestBuffer request to get the wl-buffer, so you init a buffer_pool here. It return a
+/// GlobalList and a QueueHandle. This will enough for bind a extra wayland-protocol, and also,
+/// seat can be gotten directly from [WindowState]
+///
+/// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
+/// event.
+#[derive(Debug, Clone)]
+pub enum ExWlShellEvent {
     /// Some thing KeyboardEvent, TouchEvent, MouseEvent and etc.
-    RequestMessages(&'a DispatchMessage),
+    RequestMessages(DispatchMessage),
     /// Nothing happened, you can do some other things after it, like to refresh the ui, and etc.
     NormalDispatch,
-    /// It return the event you passed with message_receiver, and return it back.
-    UserEvent(Message),
 }
 
 /// Define the output for new layershell
@@ -238,13 +257,10 @@ pub enum Cursor {
 ///
 /// None means nothing will happened, no request, and no return data
 #[derive(Debug, PartialEq, Eq)]
-pub enum ReturnData<INFO> {
-    WlBuffer(WlBuffer),
-    RequestBind,
+pub enum Request<INFO> {
     RequestExit,
     RequestLock,
     RequestUnLock,
-    RequestCompositor,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
     RequestSetCursor((Cursor, WlPointer)),
@@ -253,7 +269,6 @@ pub enum ReturnData<INFO> {
     PopUpReposition((PopUpRepositionSettings, id::Id)),
     NewXdgBase((NewXdgWindowSettings, id::Id, Option<INFO>)),
     NewInputPanel((NewInputPanelSettings, id::Id, Option<INFO>)),
-    None,
 }
 
 /// Describes a scroll along one axis
@@ -392,7 +407,7 @@ pub(crate) enum DispatchMessageInner {
 }
 
 /// This tell the DispatchMessage by dispatch
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DispatchMessage {
     /// forward the event of wayland-mouse
     MouseButton {
