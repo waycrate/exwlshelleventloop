@@ -2,7 +2,7 @@ use iced::widget::{button, row, text};
 use iced::{Element, Length, Task as Command};
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::{Anchor, Layer, LayerSize};
-use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_layer_message;
 use iced_wayland_subscriber::OutputId;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellReceiver};
@@ -29,7 +29,7 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
         Bar::view,
     )
     .subscription(Bar::subscription)
-    .settings(Settings {
+    .wl_settings(ExWlSettings {
         layer_settings: LayerShellSettings {
             size: LayerSize::fill_width(30),
             exclusive_zone: 30,

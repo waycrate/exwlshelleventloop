@@ -1,6 +1,5 @@
-use std::{borrow::Cow, fs::File};
+use std::fs::File;
 
-use iced_core::{Font, Pixels};
 use iced_wayland_subscriber::shell;
 
 use crate::reexport::{Anchor, KeyboardInteractivity, Layer, WithConnection};
@@ -15,43 +14,9 @@ pub struct VirtualKeyboardSettings {
     pub keymap_size: u32,
     pub keymap_format: KeymapFormat,
 }
-/// MainSettings for iced_layershell
-/// different from [`crate::Settings`], it does not contain the field of flags
+
 #[derive(Debug)]
-pub struct Settings {
-    /// The identifier of the application.
-    ///
-    /// If provided, this identifier may be used to identify the application or
-    /// communicate with it through the windowing system.
-    pub id: Option<String>,
-
-    /// settings for layer shell
-    pub layer_settings: LayerShellSettings,
-    /// The data needed to initialize an Application
-    ///
-    /// The fonts to load on boot.
-    pub fonts: Vec<Cow<'static, [u8]>>,
-
-    /// The default [`Font`] to be used.
-    ///
-    /// By default, it uses [`Family::SansSerif`](iced::font::Family::SansSerif).
-    pub default_font: Font,
-
-    /// The text size that will be used by default.
-    ///
-    /// The default value is `16.0`.
-    pub default_text_size: Pixels,
-
-    /// If set to true, the renderer will try to perform antialiasing for some
-    /// primitives.
-    ///
-    /// Enabling it can produce a smoother result in some widgets, like the
-    /// `Canvas`, at a performance cost.
-    ///
-    /// By default, it is disabled.
-    ///
-    pub antialiasing: bool,
-
+pub struct ExWlSettings {
     pub virtual_keyboard_support: Option<VirtualKeyboardSettings>,
 
     /// set the used wayland connection, all wayland object will share it, and they can be used by
@@ -63,23 +28,21 @@ pub struct Settings {
     /// The default is a fresh one, which nothing is listening to.
     pub shell_broadcast: shell::ShellSender,
 
+    pub layer_settings: LayerShellSettings,
+
     /// Keep the compositor alive when the last surface closes, instead of
     /// dropping it. Avoids cold-start delay at the cost of idle GPU/RAM.
     /// Defaults to `true`. Useful for daemons that show surfaces rarely.
     pub keep_compositor_alive: bool,
 }
-impl Default for Settings {
+
+impl Default for ExWlSettings {
     fn default() -> Self {
-        Settings {
-            id: None,
-            fonts: Vec::new(),
-            layer_settings: LayerShellSettings::default(),
-            default_font: Font::default(),
-            default_text_size: Pixels(16.0),
-            antialiasing: false,
+        ExWlSettings {
             virtual_keyboard_support: None,
             with_connection: None,
             shell_broadcast: shell::channel().0,
+            layer_settings: LayerShellSettings::default(),
             keep_compositor_alive: true,
         }
     }
@@ -119,15 +82,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_settings_default() {
-        let settings: Settings = Settings::default();
-
-        assert!(settings.id.is_none());
-        assert!(settings.fonts.is_empty());
-        assert_eq!(settings.default_font, Font::default());
-        assert_eq!(settings.default_text_size, Pixels(16.0));
-        assert!(!settings.antialiasing);
-        assert!(settings.virtual_keyboard_support.is_none());
+    fn test_wlsettings_default() {
+        let settings: ExWlSettings = ExWlSettings::default();
 
         // Test default layershellv settings
         assert_eq!(settings.layer_settings.anchor, Anchor::all());

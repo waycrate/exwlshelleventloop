@@ -1,6 +1,6 @@
 use iced::widget::{button, column, row, text, text_input};
 use iced::{Alignment, Color, Element, Event, Length, Task as Command, event};
-use iced_exwlshell::Settings;
+use iced_exwlshell::ExWlSettings;
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::{Anchor, LayerSize};
 use iced_exwlshell::settings::{LayerShellSettings, StartMode};
@@ -22,7 +22,7 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
     application(Counter::default, namespace, update, view)
         .style(style)
         .subscription(subscription)
-        .settings(Settings {
+        .wl_settings(ExWlSettings {
             layer_settings: LayerShellSettings {
                 size: LayerSize::fill_width(400),
                 exclusive_zone: 400,

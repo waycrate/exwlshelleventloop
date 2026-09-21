@@ -13,7 +13,7 @@ use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
     PixelSize, PopupGravity,
 };
-use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_layer_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellReceiver};
 use iced_wayland_subscriber::{OutputId, OutputInfo};
@@ -32,7 +32,7 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
     )
     .title(Counter::title)
     .subscription(Counter::subscription)
-    .settings(Settings {
+    .wl_settings(ExWlSettings {
         layer_settings: LayerShellSettings {
             size: LayerSize::fill_width(400),
             exclusive_zone: 400,

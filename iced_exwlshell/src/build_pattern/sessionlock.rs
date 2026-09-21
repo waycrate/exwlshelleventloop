@@ -18,7 +18,8 @@ mod pattern {
     use crate::settings::LayerShellSettings;
 
     use crate::Result;
-    use crate::settings::Settings;
+    use crate::settings::ExWlSettings;
+    use iced_core::Settings;
 
     use iced_debug as debug;
     use iced_program::Program;
@@ -113,6 +114,7 @@ mod pattern {
     pub struct SingleApplication<A: Program> {
         raw: A,
         settings: Settings,
+        wl_settings: ExWlSettings,
         namespace: String,
     }
 
@@ -198,7 +200,8 @@ mod pattern {
                 _theme: PhantomData,
                 _renderer: PhantomData,
             },
-            settings: Settings {
+            settings: Settings::default(),
+            wl_settings: ExWlSettings {
                 layer_settings: LayerShellSettings {
                     start_mode: exwlshellev::StartMode::Background,
                     ..Default::default()
@@ -208,156 +211,134 @@ mod pattern {
             namespace: "lock".to_string(),
         }
     }
+    struct WithTheme<P, F> {
+        program: P,
+        theme: F,
+    }
 
+    impl<P: Program, F> Program for WithTheme<P, F>
+    where
+        F: Fn(&P::State) -> Option<P::Theme>,
+    {
+        type State = P::State;
+        type Message = P::Message;
+        type Theme = P::Theme;
+        type Renderer = P::Renderer;
+        type Executor = P::Executor;
+
+        fn theme(
+            &self,
+            state: &Self::State,
+            _window: iced_core::window::Id,
+        ) -> Option<Self::Theme> {
+            (self.theme)(state)
+        }
+
+        fn name() -> &'static str {
+            P::name()
+        }
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
+        }
+
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            self.program.update(state, message)
+        }
+
+        fn view<'a>(
+            &self,
+            state: &'a Self::State,
+            window: iced_core::window::Id,
+        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+            self.program.view(state, window)
+        }
+
+        fn subscription(&self, state: &Self::State) -> iced_futures::Subscription<Self::Message> {
+            self.program.subscription(state)
+        }
+
+        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
+            self.program.style(state, theme)
+        }
+
+        fn scale_factor(&self, state: &Self::State, id: iced_core::window::Id) -> f32 {
+            self.program.scale_factor(state, id)
+        }
+        fn settings(&self) -> iced_core::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
+        }
+    }
     pub fn with_theme<P: Program>(
         program: P,
         f: impl Fn(&P::State) -> Option<P::Theme>,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
-        struct WithTheme<P, F> {
-            program: P,
-            theme: F,
-        }
-
-        impl<P: Program, F> Program for WithTheme<P, F>
-        where
-            F: Fn(&P::State) -> Option<P::Theme>,
-        {
-            type State = P::State;
-            type Message = P::Message;
-            type Theme = P::Theme;
-            type Renderer = P::Renderer;
-            type Executor = P::Executor;
-
-            fn theme(
-                &self,
-                state: &Self::State,
-                _window: iced_core::window::Id,
-            ) -> Option<Self::Theme> {
-                (self.theme)(state)
-            }
-
-            fn name() -> &'static str {
-                P::name()
-            }
-            fn boot(&self) -> (Self::State, Task<Self::Message>) {
-                self.program.boot()
-            }
-
-            fn update(
-                &self,
-                state: &mut Self::State,
-                message: Self::Message,
-            ) -> Task<Self::Message> {
-                self.program.update(state, message)
-            }
-
-            fn view<'a>(
-                &self,
-                state: &'a Self::State,
-                window: iced_core::window::Id,
-            ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-                self.program.view(state, window)
-            }
-
-            fn subscription(
-                &self,
-                state: &Self::State,
-            ) -> iced_futures::Subscription<Self::Message> {
-                self.program.subscription(state)
-            }
-
-            fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-                self.program.style(state, theme)
-            }
-
-            fn scale_factor(&self, state: &Self::State, id: iced_core::window::Id) -> f32 {
-                self.program.scale_factor(state, id)
-            }
-            fn settings(&self) -> iced_core::Settings {
-                Default::default()
-            }
-
-            fn window(&self) -> Option<iced_core::window::Settings> {
-                None
-            }
-        }
-
         WithTheme { program, theme: f }
     }
+    struct WithScaleFactor<P, F> {
+        program: P,
+        scale_factor: F,
+    }
 
+    impl<P: Program, F> Program for WithScaleFactor<P, F>
+    where
+        F: Fn(&P::State) -> f32,
+    {
+        type State = P::State;
+        type Message = P::Message;
+        type Theme = P::Theme;
+        type Renderer = P::Renderer;
+        type Executor = P::Executor;
+
+        fn name() -> &'static str {
+            P::name()
+        }
+
+        fn update(&self, state: &mut Self::State, message: Self::Message) -> Task<Self::Message> {
+            self.program.update(state, message)
+        }
+
+        fn view<'a>(
+            &self,
+            state: &'a Self::State,
+            window: iced_core::window::Id,
+        ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
+            self.program.view(state, window)
+        }
+
+        fn subscription(&self, state: &Self::State) -> iced_futures::Subscription<Self::Message> {
+            self.program.subscription(state)
+        }
+
+        fn theme(&self, state: &Self::State, window: iced_core::window::Id) -> Option<Self::Theme> {
+            self.program.theme(state, window)
+        }
+
+        fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
+            self.program.style(state, theme)
+        }
+
+        fn scale_factor(&self, state: &Self::State, _id: iced_core::window::Id) -> f32 {
+            (self.scale_factor)(state)
+        }
+        fn boot(&self) -> (Self::State, Task<Self::Message>) {
+            self.program.boot()
+        }
+        fn settings(&self) -> iced_core::Settings {
+            Default::default()
+        }
+
+        fn window(&self) -> Option<iced_core::window::Settings> {
+            None
+        }
+    }
     pub fn with_scale_factor<P: Program>(
         program: P,
         f: impl Fn(&P::State) -> f32,
     ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
-        struct WithScaleFactor<P, F> {
-            program: P,
-            scale_factor: F,
-        }
-
-        impl<P: Program, F> Program for WithScaleFactor<P, F>
-        where
-            F: Fn(&P::State) -> f32,
-        {
-            type State = P::State;
-            type Message = P::Message;
-            type Theme = P::Theme;
-            type Renderer = P::Renderer;
-            type Executor = P::Executor;
-
-            fn name() -> &'static str {
-                P::name()
-            }
-
-            fn update(
-                &self,
-                state: &mut Self::State,
-                message: Self::Message,
-            ) -> Task<Self::Message> {
-                self.program.update(state, message)
-            }
-
-            fn view<'a>(
-                &self,
-                state: &'a Self::State,
-                window: iced_core::window::Id,
-            ) -> Element<'a, Self::Message, Self::Theme, Self::Renderer> {
-                self.program.view(state, window)
-            }
-
-            fn subscription(
-                &self,
-                state: &Self::State,
-            ) -> iced_futures::Subscription<Self::Message> {
-                self.program.subscription(state)
-            }
-
-            fn theme(
-                &self,
-                state: &Self::State,
-                window: iced_core::window::Id,
-            ) -> Option<Self::Theme> {
-                self.program.theme(state, window)
-            }
-
-            fn style(&self, state: &Self::State, theme: &Self::Theme) -> crate::Appearance {
-                self.program.style(state, theme)
-            }
-
-            fn scale_factor(&self, state: &Self::State, _id: iced_core::window::Id) -> f32 {
-                (self.scale_factor)(state)
-            }
-            fn boot(&self) -> (Self::State, Task<Self::Message>) {
-                self.program.boot()
-            }
-            fn settings(&self) -> iced_core::Settings {
-                Default::default()
-            }
-
-            fn window(&self) -> Option<iced_core::window::Settings> {
-                None
-            }
-        }
-
         WithScaleFactor {
             program,
             scale_factor: f,
@@ -375,6 +356,7 @@ mod pattern {
                 + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
         {
             let settings = self.settings;
+            let wl_settings = self.wl_settings;
 
             #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
             let program = {
@@ -390,23 +372,11 @@ mod pattern {
             #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
             let program = self.raw;
 
-            #[allow(clippy::needless_update)]
-            let renderer_settings = iced_graphics::Settings {
-                default_font: settings.default_font,
-                default_text_size: settings.default_text_size,
-                antialiasing: if settings.antialiasing {
-                    Some(iced_graphics::Antialiasing::MSAAx4)
-                } else {
-                    None
-                },
-                ..iced_graphics::Settings::default()
-            };
-
+            use crate::build_pattern::ProgramWrapper;
             crate::multi_window::run(
-                program,
+                ProgramWrapper { program, settings },
                 &self.namespace,
-                settings,
-                renderer_settings,
+                wl_settings,
                 true,
                 None,
                 Policy::default(),
@@ -415,16 +385,21 @@ mod pattern {
 
         /// Sets the [`Settings`] of the [`SingleApplication`].
         ///
-        /// A session lock always runs in [`StartMode::Background`], it's
         /// forced instead of panic.
         pub fn settings(self, settings: Settings) -> Self {
+            Self { settings, ..self }
+        }
+
+        /// Sets the [`ExWlSettings`] of the [`SingleApplication`]
+        /// A session lock always runs in [`StartMode::Background`], it's
+        pub fn wl_settings(self, wlsettings: ExWlSettings) -> Self {
             Self {
-                settings: Settings {
+                wl_settings: ExWlSettings {
                     layer_settings: LayerShellSettings {
                         start_mode: StartMode::Background,
-                        ..settings.layer_settings
+                        ..self.wl_settings.layer_settings
                     },
-                    ..settings
+                    ..self.wl_settings
                 },
                 ..self
             }
@@ -433,9 +408,9 @@ mod pattern {
         /// Set the wayland connection
         pub fn with_connection(self, connection: impl Into<WithConnection>) -> Self {
             Self {
-                settings: Settings {
+                wl_settings: ExWlSettings {
                     with_connection: Some(connection.into()),
-                    ..self.settings
+                    ..self.wl_settings
                 },
                 ..self
             }
@@ -490,6 +465,7 @@ mod pattern {
         {
             SingleApplication {
                 raw: with_style(self.raw, move |state, theme| f(state, theme)),
+                wl_settings: self.wl_settings,
                 settings: self.settings,
                 namespace: self.namespace,
             }
@@ -502,6 +478,7 @@ mod pattern {
         {
             SingleApplication {
                 raw: with_subscription(self.raw, move |state| debug::hot(|| f(state))),
+                wl_settings: self.wl_settings,
                 settings: self.settings,
                 namespace: self.namespace,
             }
@@ -515,6 +492,7 @@ mod pattern {
         {
             SingleApplication {
                 raw: with_theme(self.raw, move |state| debug::hot(|| f.theme(state))),
+                wl_settings: self.wl_settings,
                 settings: self.settings,
                 namespace: self.namespace,
             }
@@ -528,6 +506,7 @@ mod pattern {
         {
             SingleApplication {
                 raw: with_scale_factor(self.raw, move |state| debug::hot(|| f(state))),
+                wl_settings: self.wl_settings,
                 settings: self.settings,
                 namespace: self.namespace,
             }
@@ -541,6 +520,7 @@ mod pattern {
         {
             SingleApplication {
                 raw: with_executor::<P, E>(self.raw),
+                wl_settings: self.wl_settings,
                 settings: self.settings,
                 namespace: self.namespace,
             }

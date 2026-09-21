@@ -6,7 +6,7 @@ use iced::window;
 use iced::{Center, Element, Fill, Subscription, Task, Theme, event};
 use iced_exwlshell::daemon;
 use iced_exwlshell::reexport::{Anchor, Layer, LayerSize, NewLayerShellSettings, OutputOption};
-use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::settings::{LayerShellSettings, StartMode};
 use iced_exwlshell::to_layer_message;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -23,11 +23,8 @@ fn main() -> iced_exwlshell::Result {
         .theme(Example::theme)
         .subscription(Example::subscription)
         .scale_factor(Example::scale_factor)
-        .settings(Settings {
-            layer_settings: LayerShellSettings {
-                start_mode: StartMode::Background,
-                ..Default::default()
-            },
+        .layer_settings(LayerShellSettings {
+            start_mode: StartMode::Background,
             ..Default::default()
         })
         .run()

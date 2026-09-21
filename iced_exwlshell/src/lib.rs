@@ -65,4 +65,4 @@ pub use build_pattern::daemon;
 pub use build_pattern::layershell;
 pub use build_pattern::sessionlock;
 
-pub use settings::Settings;
+pub use settings::ExWlSettings;

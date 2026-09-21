@@ -12,7 +12,7 @@ use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
     PixelSize, PopupGravity,
 };
-use iced_exwlshell::settings::{LayerShellSettings, Settings, StartMode};
+use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellInfo, ShellReceiver, ShellType};
 use iced_wayland_subscriber::{OutputId, OutputInfo};
@@ -34,7 +34,7 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
     .on_new_shell(|info: ShellInfo| {
         (info.shell == ShellType::SessionLock).then_some(Message::LockAppeared(info.window))
     })
-    .settings(Settings {
+    .wl_settings(ExWlSettings {
         layer_settings: LayerShellSettings {
             size: LayerSize::fill_width(400),
             exclusive_zone: 400,

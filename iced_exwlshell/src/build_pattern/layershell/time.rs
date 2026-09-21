@@ -1,5 +1,5 @@
 use super::{BootFn, NameSpace, SingleApplication, ViewFn};
-use crate::{DefaultStyle, actions::ExwlShellCustomActionWithId};
+use crate::{DefaultStyle, ExWlSettings, actions::ExwlShellCustomActionWithId};
 use iced_core::Element;
 use iced_debug as debug;
 use iced_futures::Subscription;
@@ -120,7 +120,9 @@ where
             _theme: PhantomData,
             _renderer: PhantomData,
         },
-        settings: crate::Settings::default(),
+
+        wl_settings: ExWlSettings::default(),
+        settings: iced_core::Settings::default(),
         namespace: namespace.namespace(),
     }
 }

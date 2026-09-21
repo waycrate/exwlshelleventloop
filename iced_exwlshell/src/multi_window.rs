@@ -1,3 +1,4 @@
+use crate::ExWlSettings;
 use crate::redraw::{Policy, Targets};
 use crate::reexport::{PopupAnchor, PopupConstraintAdjustment};
 use crate::{
@@ -14,7 +15,6 @@ use crate::{
 use crate::{
     event::{IcedWlShellEvent, WindowEvent as ExwlShellWindowEvent},
     proxy::IcedProxy,
-    settings::Settings,
 };
 use exwlshellev::{
     DisplayWrapper, EventContext, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
@@ -81,8 +81,7 @@ fn present_recovery(error: &compositor::SurfaceError) -> PresentRecovery {
 pub fn run<P>(
     program: P,
     namespace: &str,
-    settings: Settings,
-    compositor_settings: iced_graphics::Settings,
+    wl_settings: ExWlSettings,
     lock: bool,
     on_new_shell: Option<crate::NewShellHook<P::Message>>,
     redraw_policy: Policy<P::Message>,
@@ -92,6 +91,16 @@ where
     P::Theme: DefaultStyle,
     P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
 {
+    let settings = program.settings();
+
+    let compositor_settings: iced_graphics::Settings = iced_graphics::Settings {
+        default_font: settings.default_font,
+        default_text_size: settings.default_text_size,
+        antialiasing: settings
+            .antialiasing
+            .then_some(iced_graphics::Antialiasing::MSAAx4),
+        vsync: settings.vsync,
+    };
     struct ContextEv<P>
     where
         P: IcedProgram + 'static,
@@ -109,7 +118,7 @@ where
         virtual_keyboard_support: Option<VirtualKeyboardSettings>,
     }
 
-    let virtual_keyboard_support = settings.virtual_keyboard_support;
+    let virtual_keyboard_support = wl_settings.virtual_keyboard_support;
     let context_ev = ContextEv {
         context_state: ContextState::None,
         waiting_shell_events: VecDeque::new(),
@@ -117,17 +126,17 @@ where
     };
     let mut wl_context: EventContext<iced_core::window::Id, _> =
         exwlshellev::WindowState::new(namespace)
-            .with_start_mode(settings.layer_settings.start_mode)
+            .with_start_mode(wl_settings.layer_settings.start_mode)
             .with_use_display_handle(true)
-            .with_events_transparent(settings.layer_settings.events_transparent)
-            .with_size(settings.layer_settings.size)
-            .with_layer(settings.layer_settings.layer)
-            .with_anchor(settings.layer_settings.anchor)
-            .with_exclusive_zone(settings.layer_settings.exclusive_zone)
-            .with_margin(settings.layer_settings.margin)
-            .with_keyboard_interacivity(settings.layer_settings.keyboard_interactivity)
-            .with_blur_option(settings.layer_settings.blur_option)
-            .with_connection(settings.with_connection)
+            .with_events_transparent(wl_settings.layer_settings.events_transparent)
+            .with_size(wl_settings.layer_settings.size)
+            .with_layer(wl_settings.layer_settings.layer)
+            .with_anchor(wl_settings.layer_settings.anchor)
+            .with_exclusive_zone(wl_settings.layer_settings.exclusive_zone)
+            .with_margin(wl_settings.layer_settings.margin)
+            .with_keyboard_interacivity(wl_settings.layer_settings.keyboard_interactivity)
+            .with_blur_option(wl_settings.layer_settings.blur_option)
+            .with_connection(wl_settings.with_connection)
             .build(context_ev)
             .expect("Cannot create context for exwlshellev");
 
@@ -210,11 +219,11 @@ where
         compositor_settings,
         runtime,
         on_new_shell,
-        settings.shell_broadcast,
+        wl_settings.shell_broadcast,
         settings.fonts,
         system_theme,
         proxy_back,
-        settings.keep_compositor_alive,
+        wl_settings.keep_compositor_alive,
         redraw_policy,
     )
     .lock(lock);

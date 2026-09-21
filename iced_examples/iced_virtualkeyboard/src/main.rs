@@ -7,7 +7,7 @@ use iced_exwlshell::actions::{ExwlShellCustomAction, ExwlShellCustomActionWithId
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::wl_keyboard::KeymapFormat;
 use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
-use iced_exwlshell::settings::{LayerShellSettings, Settings, VirtualKeyboardSettings};
+use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, VirtualKeyboardSettings};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fs::File;
@@ -137,7 +137,7 @@ fn main() -> Result<(), iced_exwlshell::Error> {
         KeyboardView::view,
     )
     .style(KeyboardView::style)
-    .settings(Settings {
+    .wl_settings(ExWlSettings {
         layer_settings: LayerShellSettings {
             size: LayerSize::px(1200, 400),
             exclusive_zone: 400,
