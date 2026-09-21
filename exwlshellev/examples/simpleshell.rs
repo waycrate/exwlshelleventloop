@@ -28,16 +28,15 @@ impl WindowTrait<()> for Window {
             (),
         )
     }
-    fn on_event(
+    fn on_init(
         &mut self,
-        event: ExWlShellEvent<()>,
-        state: &mut WindowState<()>,
-        _id: Option<id::Id>,
-    ) -> ReturnData<()> {
+        event: ExWlShellInitEvent<()>,
+        _state: &mut WindowState<()>,
+    ) -> InitRequest {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
-            ExWlShellEvent::InitRequest => ReturnData::RequestBind,
-            ExWlShellEvent::BindProvide(globals, qh) => {
+            ExWlShellInitEvent::Start => InitRequest::RequestBind,
+            ExWlShellInitEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
                 let virtual_keyboard_manager = globals
                     .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -47,9 +46,9 @@ impl WindowTrait<()> for Window {
                     )
                     .unwrap();
                 println!("{:?}", virtual_keyboard_manager);
-                ReturnData::RequestCompositor
+                InitRequest::RequestCompositor
             }
-            ExWlShellEvent::CompositorProvide(_compositor, _qh) => {
+            ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
                 // NOTE: this is an example to use the CompositorProvide,
                 // but this is quite useless, because you can get the window_unit to set it directly
                 // NOTE: you can set input region to limit area which gets input events
@@ -60,8 +59,17 @@ impl WindowTrait<()> for Window {
                 //     region.add(0, 0, 0, 0);
                 //     x.get_wlsurface().set_input_region(Some(&region));
                 // }
-                ReturnData::None
+                InitRequest::None
             }
+        }
+    }
+    fn on_event(
+        &mut self,
+        event: ExWlShellEvent,
+        state: &mut WindowState<()>,
+        _id: Option<id::Id>,
+    ) -> ReturnData<()> {
+        match event {
             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
                 width,
                 height,

@@ -25,6 +25,7 @@ use exwlshellev::{
         zwp_virtual_keyboard_v1,
     },
 };
+use exwlshellev::{ExWlShellInitEvent, InitRequest};
 #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
 use futures::StreamExt;
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
@@ -111,7 +112,7 @@ where
 
     let virtual_keyboard_support = settings.virtual_keyboard_support;
     let context_ev = ContextEv {
-        context_state: ContextState::UnReady,
+        context_state: ContextState::None,
         waiting_layer_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
@@ -228,18 +229,17 @@ where
         P::Theme: DefaultStyle,
         P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
     {
-        fn on_event(
+        fn on_init(
             &mut self,
-            event: exwlshellev::ExWlShellEvent<iced_core::window::Id>,
+            event: exwlshellev::ExWlShellInitEvent<iced_core::window::Id>,
             state: &mut WindowState<iced_core::window::Id>,
-            layer_shell_id: Option<exwlshellev::id::Id>,
-        ) -> ReturnData<iced_core::window::Id> {
-            let mut def_returndata = ReturnData::None;
+        ) -> exwlshellev::InitRequest {
+            let mut def_returndata = InitRequest::None;
             match event {
-                ExWlShellEvent::InitRequest => {
-                    def_returndata = ReturnData::RequestBind;
+                ExWlShellInitEvent::Start => {
+                    def_returndata = InitRequest::RequestBind;
                 }
-                ExWlShellEvent::BindProvide(globals, qh) => {
+                ExWlShellInitEvent::BindProvide(globals, qh) => {
                     let wl_compositor = globals
                         .bind::<WlCompositor, _, _>(qh, 1..=1, ())
                         .expect("could not bind wl_compositor");
@@ -272,6 +272,19 @@ where
                         state.set_virtual_keyboard(virtual_keyboard_in);
                     }
                 }
+                _ => {}
+            }
+            def_returndata
+        }
+
+        fn on_event(
+            &mut self,
+            event: exwlshellev::ExWlShellEvent,
+            state: &mut WindowState<iced_core::window::Id>,
+            layer_shell_id: Option<exwlshellev::id::Id>,
+        ) -> ReturnData<iced_core::window::Id> {
+            let def_returndata = ReturnData::None;
+            match event {
                 ExWlShellEvent::RequestMessages(message) => {
                     if let (ContextState::Context(context), Some(serial)) =
                         (&mut self.context_state, action_serial(message))
@@ -286,16 +299,12 @@ where
                     self.waiting_layer_shell_events
                         .push_back((layer_shell_id, IcedWlShellEvent::NormalDispatch));
                 }
-                _ => {}
             }
             loop {
                 let mut need_continue = false;
-                if matches!(self.context_state, ContextState::UnReady) {
-                    break;
-                }
                 self.context_state =
                     match std::mem::replace(&mut self.context_state, ContextState::None) {
-                        ContextState::None | ContextState::UnReady => {
+                        ContextState::None => {
                             unreachable!("context state is taken but not returned")
                         }
                         ContextState::Context(context) => {
@@ -328,7 +337,6 @@ where
 }
 
 enum ContextState<Context> {
-    UnReady,
     None,
     Context(Context),
 }

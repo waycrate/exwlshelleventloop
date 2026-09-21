@@ -32,28 +32,27 @@
 //!            (),
 //!        )
 //!    }
-//!     fn on_event(
-//!         &mut self,
-//!         event: ExWlShellEvent<()>,
-//!         state: &mut WindowState<()>,
-//!         _id: Option<id::Id>,
-//!     ) -> ReturnData<()> {
-//!         match event {
-//!             // NOTE: this will send when init, you can request bind extra object from here
-//!             ExWlShellEvent::InitRequest => ReturnData::RequestBind,
-//!             ExWlShellEvent::BindProvide(globals, qh) => {
-//!                 // NOTE: you can get implied wayland object from here
-//!                 let virtual_keyboard_manager = globals
-//!                     .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-//!                         qh,
-//!                         1..=1,
-//!                         (),
-//!                     )
-//!                     .unwrap();
-//!                 println!("{:?}", virtual_keyboard_manager);
-//!                 ReturnData::RequestCompositor
-//!             }
-//!            ExWlShellEvent::CompositorProvide(_compositor, _qh) => {
+//!    fn on_init(
+//!        &mut self,
+//!        event: ExWlShellInitEvent<()>,
+//!        _state: &mut WindowState<()>,
+//!    ) -> InitRequest {
+//!        match event {
+//!            // NOTE: this will send when init, you can request bind extra object from here
+//!            ExWlShellInitEvent::Start => InitRequest::RequestBind,
+//!            ExWlShellInitEvent::BindProvide(globals, qh) => {
+//!                // NOTE: you can get implied wayland object from here
+//!                let virtual_keyboard_manager = globals
+//!                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+//!                        qh,
+//!                        1..=1,
+//!                        (),
+//!                    )
+//!                    .unwrap();
+//!                println!("{:?}", virtual_keyboard_manager);
+//!                InitRequest::RequestCompositor
+//!            }
+//!            ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
 //!                // NOTE: this is an example to use the CompositorProvide,
 //!                // but this is quite useless, because you can get the window_unit to set it directly
 //!                // NOTE: you can set input region to limit area which gets input events
@@ -64,8 +63,17 @@
 //!                //     region.add(0, 0, 0, 0);
 //!                //     x.get_wlsurface().set_input_region(Some(&region));
 //!                // }
-//!                ReturnData::None
+//!                InitRequest::None
 //!            }
+//!        }
+//!    }
+//!     fn on_event(
+//!         &mut self,
+//!         event: ExWlShellEvent<()>,
+//!         state: &mut WindowState<()>,
+//!         _id: Option<id::Id>,
+//!     ) -> ReturnData<()> {
+//!         match event {
 //!             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
 //!                 width,
 //!                 height,
@@ -165,7 +173,10 @@ pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
-pub use events::{AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, Ime, ReturnData};
+pub use events::{
+    AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest,
+    ReturnData,
+};
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
@@ -320,12 +331,12 @@ pub mod reexport {
             Connection, QueueHandle, WEnum,
             globals::GlobalList,
             protocol::{
+                wl_buffer::WlBuffer,
                 wl_compositor::WlCompositor,
                 wl_keyboard::{self, KeyState},
                 wl_pointer::{self, ButtonState},
                 wl_region::WlRegion,
                 wl_seat::WlSeat,
-                wl_buffer::WlBuffer,
             },
         };
     }
@@ -2609,10 +2620,18 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 pub trait WindowTrait<T: 'static> {
     fn on_event(
         &mut self,
-        event: ExWlShellEvent<T>,
+        event: ExWlShellEvent,
         state: &mut WindowState<T>,
         id: Option<id::Id>,
     ) -> ReturnData<T>;
+
+    fn on_init(
+        &mut self,
+        _event: ExWlShellInitEvent<T>,
+        _state: &mut WindowState<T>,
+    ) -> InitRequest {
+        InitRequest::None
+    }
 
     fn request_buffer(
         &mut self,
@@ -2700,7 +2719,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
         Some(sender)
     }
 
-    fn handle_event(&mut self, event: ExWlShellEvent<T>, unit_id: Option<id::Id>) {
+    fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
         let return_data = self
             .window_context
             .on_event(event, &mut self.state, unit_id);
@@ -3685,27 +3704,23 @@ impl<T: 'static> WindowState<T> {
             cursor_surface: wmcompositer.create_surface(&qh, ()),
         };
 
-        while !matches!(init_event, Some(ReturnData::None)) {
+        while !matches!(init_event, Some(InitRequest::None)) {
             match init_event {
                 None => {
-                    init_event =
-                        Some(window.on_event(ExWlShellEvent::InitRequest, &mut self, None));
+                    init_event = Some(window.on_init(ExWlShellInitEvent::Start, &mut self));
                 }
-                Some(ReturnData::RequestBind) => {
-                    init_event = Some(window.on_event(
-                        ExWlShellEvent::BindProvide(&globals, &qh),
+                Some(InitRequest::RequestBind) => {
+                    init_event = Some(
+                        window.on_init(ExWlShellInitEvent::BindProvide(&globals, &qh), &mut self),
+                    );
+                }
+                Some(InitRequest::RequestCompositor) => {
+                    init_event = Some(window.on_init(
+                        ExWlShellInitEvent::CompositorProvide(&wmcompositer, &qh),
                         &mut self,
-                        None,
                     ));
                 }
-                Some(ReturnData::RequestCompositor) => {
-                    init_event = Some(window.on_event(
-                        ExWlShellEvent::CompositorProvide(&wmcompositer, &qh),
-                        &mut self,
-                        None,
-                    ));
-                }
-                _ => panic!("Not provide server here"),
+                _ => unreachable!(),
             }
         }
 
