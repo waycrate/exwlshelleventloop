@@ -14,11 +14,11 @@
 //!    fn request_buffer(
 //!        &mut self,
 //!        state: &mut WindowState<()>,
-//!        _id: id::Id,
 //!        file: &mut std::fs::File,
 //!        qh: &wayland_client::QueueHandle<WindowState<()>>,
 //!        width: u32,
 //!        height: u32,
+//!        _id: id::Id,
 //!    ) -> wayland_client::WlBuffer {
 //!        draw(file, (width, height));
 //!        let pool = state.get_shm().create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
@@ -34,8 +34,8 @@
 //!    }
 //!    fn on_init(
 //!        &mut self,
-//!        event: ExWlShellInitEvent<()>,
 //!        _state: &mut WindowState<()>,
+//!        event: ExWlShellInitEvent<()>,
 //!    ) -> InitRequest {
 //!        match event {
 //!            // NOTE: this will send when init, you can request bind extra object from here
@@ -71,8 +71,8 @@
 //!    fn on_normal_dispatch(&mut self, _state: &mut WindowState<()>) {}
 //!    fn on_event(
 //!        &mut self,
-//!        event: ExWlShellEvent,
 //!        state: &mut WindowState<()>,
+//!        event: ExWlShellEvent,
 //!        _id: Option<id::Id>,
 //!    ) {
 //!        match event {
@@ -2615,24 +2615,31 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 }
 
 pub trait ExWlShellHandler<T: 'static> {
-    fn on_event(&mut self, event: ExWlShellEvent, state: &mut WindowState<T>, id: Option<id::Id>);
+    /// When new wayland events come, it will invoke this callback, and you can address the events
+    /// here
+    fn on_event(&mut self, state: &mut WindowState<T>, event: ExWlShellEvent, id: Option<id::Id>);
+    /// Every round of loop, it will call a normal_dispatch once a time, in this place, you can draw
+    /// the surface, or make new requests
     fn on_normal_dispatch(&mut self, state: &mut WindowState<T>);
+    /// on_init will be called during [WindowState::build], with InitRequest, you can use the
+    /// wayland resources to initialize some thing
     fn on_init(
         &mut self,
-        _event: ExWlShellInitEvent<T>,
         _state: &mut WindowState<T>,
+        _event: ExWlShellInitEvent<T>,
     ) -> InitRequest {
         InitRequest::None
     }
 
+    /// if without display_handle, when a new Window is created, you need to return a buffer for it
     fn request_buffer(
         &mut self,
         _state: &mut WindowState<T>,
-        _id: id::Id,
         _file: &mut std::fs::File,
         _qh: &QueueHandle<WindowState<T>>,
         _width: u32,
         _height: u32,
+        _id: id::Id,
     ) -> WlBuffer {
         unimplemented!("you need to implement one")
     }
@@ -2716,7 +2723,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
 
     fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
         self.window_context
-            .on_event(event, &mut self.state, unit_id);
+            .on_event(&mut self.state, event, unit_id);
     }
     fn call_normal_dispatch(&mut self) {
         self.window_context.on_normal_dispatch(&mut self.state);
@@ -3468,11 +3475,11 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                         };
                         let buffer = context.window_context.request_buffer(
                             &mut context.state,
-                            unit_id,
                             &mut file,
                             &qh,
                             width,
                             height,
+                            unit_id,
                         );
                         wl_surface.attach(Some(&buffer), 0, 0);
                         wl_surface.commit();
@@ -3677,17 +3684,17 @@ impl<T: 'static> WindowState<T> {
         while !matches!(init_event, Some(InitRequest::None)) {
             match init_event {
                 None => {
-                    init_event = Some(window.on_init(ExWlShellInitEvent::Start, &mut self));
+                    init_event = Some(window.on_init(&mut self, ExWlShellInitEvent::Start));
                 }
                 Some(InitRequest::RequestBind) => {
                     init_event = Some(
-                        window.on_init(ExWlShellInitEvent::BindProvide(&globals, &qh), &mut self),
+                        window.on_init(&mut self, ExWlShellInitEvent::BindProvide(&globals, &qh)),
                     );
                 }
                 Some(InitRequest::RequestCompositor) => {
                     init_event = Some(window.on_init(
-                        ExWlShellInitEvent::CompositorProvide(&wmcompositer, &qh),
                         &mut self,
+                        ExWlShellInitEvent::CompositorProvide(&wmcompositer, &qh),
                     ));
                 }
                 _ => unreachable!(),

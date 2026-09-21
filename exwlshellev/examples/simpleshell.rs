@@ -10,11 +10,11 @@ impl ExWlShellHandler<()> for Window {
     fn request_buffer(
         &mut self,
         state: &mut WindowState<()>,
-        _id: id::Id,
         file: &mut std::fs::File,
         qh: &wayland_client::QueueHandle<WindowState<()>>,
         width: u32,
         height: u32,
+        _id: id::Id,
     ) -> wayland_client::WlBuffer {
         draw(file, (width, height));
         let pool = state
@@ -32,8 +32,8 @@ impl ExWlShellHandler<()> for Window {
     }
     fn on_init(
         &mut self,
-        event: ExWlShellInitEvent<()>,
         _state: &mut WindowState<()>,
+        event: ExWlShellInitEvent<()>,
     ) -> InitRequest {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
@@ -68,8 +68,8 @@ impl ExWlShellHandler<()> for Window {
     fn on_normal_dispatch(&mut self, _state: &mut WindowState<()>) {}
     fn on_event(
         &mut self,
-        event: ExWlShellEvent,
         state: &mut WindowState<()>,
+        event: ExWlShellEvent,
         _id: Option<id::Id>,
     ) {
         match event {

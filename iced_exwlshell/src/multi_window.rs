@@ -230,8 +230,8 @@ where
     {
         fn on_init(
             &mut self,
-            event: exwlshellev::ExWlShellInitEvent<iced_core::window::Id>,
             state: &mut WindowState<iced_core::window::Id>,
+            event: exwlshellev::ExWlShellInitEvent<iced_core::window::Id>,
         ) -> exwlshellev::InitRequest {
             let mut def_returndata = InitRequest::None;
             match event {
@@ -285,8 +285,8 @@ where
 
         fn on_event(
             &mut self,
-            event: exwlshellev::ExWlShellEvent,
             state: &mut WindowState<iced_core::window::Id>,
+            event: exwlshellev::ExWlShellEvent,
             layer_shell_id: Option<exwlshellev::id::Id>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
