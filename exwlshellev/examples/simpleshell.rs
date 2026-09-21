@@ -68,7 +68,7 @@ impl WindowTrait<()> for Window {
         event: ExWlShellEvent,
         state: &mut WindowState<()>,
         _id: Option<id::Id>,
-    ) -> ReturnData<()> {
+    ) {
         match event {
             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
                 width,
@@ -76,39 +76,30 @@ impl WindowTrait<()> for Window {
                 ..
             }) => {
                 println!("{width}, {height}");
-                ReturnData::None
             }
-            ExWlShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => {
-                ReturnData::None
-            }
-            ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
-                ReturnData::RequestSetCursor((
+            ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => state
+                .push_request(Request::RequestSetCursor((
                     Cursor::Shape(CursorShape::Crosshair),
                     pointer.clone(),
-                ))
-            }
+                ))),
             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
             }) => {
                 println!("{time}, {surface_x}, {surface_y}");
-                ReturnData::None
             }
             ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
                 // NOTE: sent when surface enters another output, or its output info changes
                 let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
                 println!("{info:?}");
-                ReturnData::None
             }
             ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-                    ReturnData::RequestExit
-                } else {
-                    ReturnData::None
+                    state.push_request(Request::RequestExit);
                 }
             }
-            _ => ReturnData::None,
+            _ => {}
         }
     }
 }

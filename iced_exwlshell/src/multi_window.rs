@@ -18,7 +18,7 @@ use crate::{
 };
 use exwlshellev::{
     DispatchMessage, DisplayWrapper, EventContext, NewPopUpSettings, PopUpRepositionSettings,
-    PopupPlacement, RefreshRequest, ReturnData, WindowState, WindowWrapper,
+    PopupPlacement, RefreshRequest, Request, WindowState, WindowWrapper,
     id::Id as LayerShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -282,8 +282,7 @@ where
             event: exwlshellev::ExWlShellEvent,
             state: &mut WindowState<iced_core::window::Id>,
             layer_shell_id: Option<exwlshellev::id::Id>,
-        ) -> ReturnData<iced_core::window::Id> {
-            let def_returndata = ReturnData::None;
+        ) {
             match event {
                 ExWlShellEvent::RequestMessages(message) => {
                     if let (ContextState::Context(context), Some(serial)) =
@@ -328,7 +327,6 @@ where
                     break;
                 }
             }
-            def_returndata
         }
     }
 
@@ -909,7 +907,7 @@ where
             &mut self.pending_window_controls,
         );
         if should_exit {
-            ev.append_return_data(ReturnData::RequestExit);
+            ev.push_request(Request::RequestExit);
         }
     }
 
@@ -1021,17 +1019,17 @@ where
                 ..
             } => {
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.append_return_data(ReturnData::NewLayerShell((
+                ev.push_request(Request::NewLayerShell((
                     settings,
                     layer_shell_id,
                     Some(iced_id),
                 )));
             }
             ExwlShellCustomAction::Lock => {
-                ev.append_return_data(ReturnData::RequestLock);
+                ev.push_request(Request::RequestLock);
             }
             ExwlShellCustomAction::UnLock => {
-                ev.append_return_data(ReturnData::RequestUnLock);
+                ev.push_request(Request::RequestUnLock);
             }
             ExwlShellCustomAction::NewBaseWindow {
                 settings,
@@ -1039,7 +1037,7 @@ where
                 ..
             } => {
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.append_return_data(ReturnData::NewXdgBase((
+                ev.push_request(Request::NewXdgBase((
                     settings.into(),
                     layer_shell_id,
                     Some(iced_id),
@@ -1080,7 +1078,7 @@ where
                     grab_serial,
                 };
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.append_return_data(ReturnData::NewPopUp((
+                ev.push_request(Request::NewPopUp((
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
@@ -1098,7 +1096,7 @@ where
                 let Some(ex_shell_id) = ex_shell_id else {
                     return;
                 };
-                ev.append_return_data(ReturnData::PopUpReposition((
+                ev.push_request(Request::PopUpReposition((
                     PopUpRepositionSettings {
                         size,
                         placement,
@@ -1139,7 +1137,7 @@ where
                     grab_serial: None,
                 };
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.append_return_data(ReturnData::NewPopUp((
+                ev.push_request(Request::NewPopUp((
                     popup_settings,
                     layer_shell_id,
                     Some(iced_id),
@@ -1150,7 +1148,7 @@ where
                 id: iced_id,
             } => {
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.append_return_data(ReturnData::NewInputPanel((
+                ev.push_request(Request::NewInputPanel((
                     settings,
                     layer_shell_id,
                     Some(iced_id),
@@ -1344,7 +1342,7 @@ where
                     // Only the window that contains the pointer can change cursor
                     if ev.pointer_surface_id() == Some(window.id) {
                         for pointer in ev.get_pointers() {
-                            ev.append_return_data(ReturnData::RequestSetCursor((
+                            ev.push_request(Request::RequestSetCursor((
                                 exwlshellev::Cursor::Shape(conversion::mouse_interaction(
                                     mouse_interaction,
                                 )),

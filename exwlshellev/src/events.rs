@@ -246,7 +246,7 @@ pub enum Cursor {
 ///
 /// None means nothing will happened, no request, and no return data
 #[derive(Debug, PartialEq, Eq)]
-pub enum ReturnData<INFO> {
+pub enum Request<INFO> {
     RequestExit,
     RequestLock,
     RequestUnLock,
@@ -258,7 +258,6 @@ pub enum ReturnData<INFO> {
     PopUpReposition((PopUpRepositionSettings, id::Id)),
     NewXdgBase((NewXdgWindowSettings, id::Id, Option<INFO>)),
     NewInputPanel((NewInputPanelSettings, id::Id, Option<INFO>)),
-    None,
 }
 
 /// Describes a scroll along one axis

@@ -67,54 +67,46 @@
 //!            }
 //!        }
 //!    }
-//!     fn on_event(
-//!         &mut self,
-//!         event: ExWlShellEvent<()>,
-//!         state: &mut WindowState<()>,
-//!         _id: Option<id::Id>,
-//!     ) -> ReturnData<()> {
-//!         match event {
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
-//!                 width,
-//!                 height,
-//!                 ..
-//!             }) => {
-//!                 println!("{width}, {height}");
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => {
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => {
-//!                 ReturnData::RequestSetCursor((
-//!                     Cursor::Shape(CursorShape::Crosshair),
-//!                     pointer.clone(),
-//!                 ))
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
-//!                 time,
-//!                 surface_x,
-//!                 surface_y,
-//!             }) => {
-//!                 println!("{time}, {surface_x}, {surface_y}");
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
-//!                 // NOTE: sent when surface enters another output, or its output info changes
-//!                 let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
-//!                 println!("{info:?}");
-//!                 ReturnData::None
-//!             }
-//!             ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
-//!                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-//!                     ReturnData::RequestExit
-//!                 } else {
-//!                     ReturnData::None
-//!                 }
-//!             }
-//!             _ => ReturnData::None,
-//!         }
-//!     }
+//!
+//!    fn on_event(
+//!        &mut self,
+//!        event: ExWlShellEvent,
+//!        state: &mut WindowState<()>,
+//!        _id: Option<id::Id>,
+//!    ) {
+//!        match event {
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::RequestRefresh {
+//!                width,
+//!                height,
+//!                ..
+//!            }) => {
+//!                println!("{width}, {height}");
+//!            }
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::MouseEnter { pointer, .. }) => state
+//!                .push_request(Request::RequestSetCursor((
+//!                    Cursor::Shape(CursorShape::Crosshair),
+//!                    pointer.clone(),
+//!                ))),
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+//!                time,
+//!                surface_x,
+//!                surface_y,
+//!            }) => {
+//!                println!("{time}, {surface_x}, {surface_y}");
+//!            }
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::OutputChanged(output)) => {
+//!                // NOTE: sent when surface enters another output, or its output info changes
+//!                let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
+//!                println!("{info:?}");
+//!            }
+//!            ExWlShellEvent::RequestMessages(DispatchMessage::KeyboardInput { event, .. }) => {
+//!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+//!                    state.push_request(Request::RequestExit);
+//!                }
+//!            }
+//!            _ => {}
+//!        }
+//!    }
 //! }
 //!
 //! fn main() {
@@ -175,7 +167,7 @@ pub mod id;
 
 pub use events::{
     AxisScroll, Cursor, DispatchMessage, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest,
-    ReturnData,
+    Request,
 };
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
@@ -1209,7 +1201,7 @@ pub struct WindowState<T> {
     last_unit_index: usize,
     last_wloutput: Option<WlOutput>,
 
-    return_data: Vec<ReturnData<T>>,
+    pending_requests: Vec<Request<T>>,
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
     popup_grab_serial: Option<u32>,
@@ -1229,8 +1221,9 @@ pub struct WindowState<T> {
 }
 
 impl<T: 'static> WindowState<T> {
-    pub fn append_return_data(&mut self, data: ReturnData<T>) {
-        self.return_data.push(data);
+    /// add a new pending_request to state
+    pub fn push_request(&mut self, data: Request<T>) {
+        self.pending_requests.push(data);
     }
 
     /// Read the latest button press or touch down serial without consuming it.
@@ -1775,7 +1768,7 @@ impl<T> Default for WindowState<T> {
             last_wloutput: None,
             last_unit_index: 0,
 
-            return_data: Vec::new(),
+            pending_requests: Vec::new(),
             finger_locations: HashMap::new(),
             enter_serial: None,
             popup_grab_serial: None,
@@ -2618,12 +2611,7 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 }
 
 pub trait WindowTrait<T: 'static> {
-    fn on_event(
-        &mut self,
-        event: ExWlShellEvent,
-        state: &mut WindowState<T>,
-        id: Option<id::Id>,
-    ) -> ReturnData<T>;
+    fn on_event(&mut self, event: ExWlShellEvent, state: &mut WindowState<T>, id: Option<id::Id>);
 
     fn on_init(
         &mut self,
@@ -2720,12 +2708,8 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
     }
 
     fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
-        let return_data = self
-            .window_context
+        self.window_context
             .on_event(event, &mut self.state, unit_id);
-        if !matches!(return_data, ReturnData::None) {
-            self.state.append_return_data(return_data);
-        }
     }
 
     /// Run the program
@@ -2949,11 +2933,11 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
             context.handle_event(ExWlShellEvent::NormalDispatch, None);
             loop {
                 let mut return_data = vec![];
-                std::mem::swap(&mut context.state.return_data, &mut return_data);
+                std::mem::swap(&mut context.state.pending_requests, &mut return_data);
 
                 for data in return_data {
                     match data {
-                        ReturnData::RequestExit => {
+                        Request::RequestExit => {
                             match context.lock.take() {
                                 LockLifecycle::Locked { lock: l_lock } => {
                                     l_lock.unlock_and_destroy();
@@ -2972,7 +2956,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             context.signal.stop();
                             return true;
                         }
-                        ReturnData::RequestLock => {
+                        Request::RequestLock => {
                             if !matches!(context.lock, LockLifecycle::Unlocked) {
                                 log::warn!(
                                     "Session lock already requested or active; ignoring duplicate lock request"
@@ -3037,7 +3021,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             };
                         }
 
-                        ReturnData::RequestUnLock => match context.lock.take() {
+                        Request::RequestUnLock => match context.lock.take() {
                             LockLifecycle::Locked { lock: l_lock } => {
                                 l_lock.unlock_and_destroy();
                                 let _ = connection.flush();
@@ -3054,13 +3038,13 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             }
                             LockLifecycle::Unlocked => {}
                         },
-                        ReturnData::RequestSetCursor((cursor, pointer)) => {
+                        Request::RequestSetCursor((cursor, pointer)) => {
                             let Some(serial) = context.state.enter_serial else {
                                 continue;
                             };
                             set_cursor(&context.cursor_update_context, cursor, pointer, serial);
                         }
-                        ReturnData::NewLayerShell((
+                        Request::NewLayerShell((
                             NewLayerShellSettings {
                                 size,
                                 layer,
@@ -3154,7 +3138,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                                 .build(),
                             );
                         }
-                        ReturnData::NewPopUp((
+                        Request::NewPopUp((
                             NewPopUpSettings {
                                 size,
                                 id,
@@ -3253,7 +3237,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                                 .build(),
                             );
                         }
-                        ReturnData::PopUpReposition((
+                        Request::PopUpReposition((
                             PopUpRepositionSettings {
                                 size,
                                 placement,
@@ -3297,7 +3281,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             positioner.destroy();
                             unit.pending_reposition = Some(token);
                         }
-                        ReturnData::NewXdgBase((
+                        Request::NewXdgBase((
                             NewXdgWindowSettings {
                                 title,
                                 size,
@@ -3358,7 +3342,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                             );
                         }
 
-                        ReturnData::NewInputPanel((
+                        Request::NewInputPanel((
                             NewInputPanelSettings {
                                 size,
                                 keyboard,
@@ -3424,12 +3408,7 @@ impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
                         _ => {}
                     }
                 }
-                // added guard to match `sessionlockev`.
-                context
-                    .state
-                    .return_data
-                    .retain(|data| !matches!(data, ReturnData::None));
-                if context.state.return_data.is_empty() {
+                if context.state.pending_requests.is_empty() {
                     break;
                 }
             }
