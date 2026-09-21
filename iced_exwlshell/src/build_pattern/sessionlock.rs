@@ -392,14 +392,14 @@ mod pattern {
 
         /// Sets the [`ExWlSettings`] of the [`SingleApplication`]
         /// A session lock always runs in [`StartMode::Background`], it's
-        pub fn wl_settings(self, wlsettings: ExWlSettings) -> Self {
+        pub fn wl_settings(self, wl_settings: ExWlSettings) -> Self {
             Self {
                 wl_settings: ExWlSettings {
                     layer_settings: LayerShellSettings {
                         start_mode: StartMode::Background,
-                        ..self.wl_settings.layer_settings
+                        ..wl_settings.layer_settings
                     },
-                    ..self.wl_settings
+                    ..wl_settings
                 },
                 ..self
             }
