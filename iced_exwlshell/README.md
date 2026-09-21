@@ -1,8 +1,8 @@
 # Layershell, SessionLock, InputPanel, all bindings for iced
 
-[![Crates.io](https://img.shields.io/crates/v/iced-exwlshelll.svg)](https://crates.io/crates/iced-exwlshelll)
+[![Crates.io](https://img.shields.io/crates/v/iced-exwlshell.svg)](https://crates.io/crates/iced-exwlshell)
 
-iced-exwlshelll provides all extra shell bindings on wayland for iced.
+iced-exwlshell provides all extra shell bindings on wayland for iced.
 
 ## Feature:
 
