@@ -223,7 +223,7 @@ where
     boot_span.finish();
 
     use exwlshellev::ExWlShellEvent;
-    impl<P> exwlshellev::WindowTrait<iced_core::window::Id> for ContextEv<P>
+    impl<P> exwlshellev::ExWlShellHandler<iced_core::window::Id> for ContextEv<P>
     where
         P: IcedProgram + 'static,
         P::Theme: DefaultStyle,

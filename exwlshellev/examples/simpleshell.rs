@@ -6,7 +6,7 @@ use exwlshellev::reexport::*;
 use exwlshellev::*;
 
 struct Window;
-impl WindowTrait<()> for Window {
+impl ExWlShellHandler<()> for Window {
     fn request_buffer(
         &mut self,
         state: &mut WindowState<()>,

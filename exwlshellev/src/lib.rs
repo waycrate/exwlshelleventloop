@@ -10,7 +10,7 @@
 //! use exwlshellev::*;
 //!
 //! struct Window;
-//! impl WindowTrait<()> for Window {
+//! impl ExWlShellHandler<()> for Window {
 //!    fn request_buffer(
 //!        &mut self,
 //!        state: &mut WindowState<()>,
@@ -2616,7 +2616,7 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
     }
 }
 
-pub trait WindowTrait<T: 'static> {
+pub trait ExWlShellHandler<T: 'static> {
     fn on_event(&mut self, event: ExWlShellEvent, state: &mut WindowState<T>, id: Option<id::Id>);
 
     fn on_init(
@@ -2664,7 +2664,7 @@ impl LockLifecycle {
 }
 
 /// storage the context for the events
-pub struct EventContext<T: 'static, W: WindowTrait<T>> {
+pub struct EventContext<T: 'static, W: ExWlShellHandler<T>> {
     state: WindowState<T>,
     window_context: W,
     event_loop: Option<EventLoop<'static, Self>>,
@@ -2675,7 +2675,7 @@ pub struct EventContext<T: 'static, W: WindowTrait<T>> {
     cursor_update_context: CursorUpdateContext<T>,
 }
 
-impl<T: 'static, W: WindowTrait<T>> Drop for EventContext<T, W> {
+impl<T: 'static, W: ExWlShellHandler<T>> Drop for EventContext<T, W> {
     fn drop(&mut self) {
         if let Some(lock) = self.state.lock_manager.take() {
             lock.destroy();
@@ -2686,7 +2686,7 @@ impl<T: 'static, W: WindowTrait<T>> Drop for EventContext<T, W> {
     }
 }
 
-impl<T: 'static, W: WindowTrait<T>> EventContext<T, W> {
+impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
     /// return the context, you can use it to change the state before enter [Self::run]
     pub fn window_context(&mut self) -> &mut W {
         &mut self.window_context
@@ -3666,7 +3666,7 @@ impl<T: 'static> WindowState<T> {
         mut window: Window,
     ) -> Result<EventContext<T, Window>, ExShellEventError>
     where
-        Window: WindowTrait<T> + 'static,
+        Window: ExWlShellHandler<T> + 'static,
     {
         self.build_inner()?;
         let globals = self.globals.take().unwrap();
