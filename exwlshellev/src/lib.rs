@@ -2932,11 +2932,11 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
 
             context.call_normal_dispatch();
             loop {
-                let mut return_data = vec![];
-                std::mem::swap(&mut context.state.pending_requests, &mut return_data);
+                let mut pending_requests = vec![];
+                std::mem::swap(&mut context.state.pending_requests, &mut pending_requests);
 
-                for data in return_data {
-                    match data {
+                for request in pending_requests {
+                    match request {
                         Request::RequestExit => {
                             match context.lock.take() {
                                 LockLifecycle::Locked { lock: l_lock } => {
