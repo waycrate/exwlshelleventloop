@@ -656,8 +656,6 @@ where
 pub fn with_executor<P: Program, E: iced_futures::Executor>(
     program: P,
 ) -> impl Program<State = P::State, Message = P::Message, Theme = P::Theme> {
-    use std::marker::PhantomData;
-
     WithExecutor {
         program,
         executor: PhantomData::<E>,
