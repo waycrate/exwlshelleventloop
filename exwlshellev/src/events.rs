@@ -32,20 +32,32 @@ use crate::id::Id;
 
 use std::fmt::Debug;
 
+/// tell program what event happened during init
+///
+/// InitRequest will tell the program is inited, you can request to Bind other wayland-protocols
+/// there, with return [InitRequest::RequestBind]
+///
+/// RequestBuffer request to get the wl-buffer, so you init a buffer_pool here. It return a
+/// GlobalList and a QueueHandle. This will enough for bind a extra wayland-protocol, and also,
+/// seat can be gotten directly from [WindowState]
+///
+/// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
+/// event.
 pub enum ExWlShellInitEvent<'a, T> {
     /// the first event when start a new gui, program. you can return [InitRequest::None] or
     /// [InitRequest::RequestBind], then it will continue to the next request.
-    /// Here only the above two [ReturnData] are acceptable.
+    /// Here only the above two [InitRequest] are acceptable.
     Start,
-    /// After you return [ReturnData::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
+    /// After you return [InitRequest::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
     /// event is [LayerShellEvent::BindProvide], you can use the GlobalList and QueueHandle to create
     /// new wayland objects.
     BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
-    /// After you return [ReturnData::RequestCompositor] in the init stage, next
+    /// After you return [InitRequest::RequestCompositor] in the init stage, next
     /// event is [LayerShellEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
     /// create new wayland objects.
     CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
 }
+
 /// the return data
 /// Note: when event is RequestBuffer, you must return WlBuffer
 /// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
@@ -65,10 +77,8 @@ pub enum InitRequest {
     RequestCompositor,
     None,
 }
-/// tell program what event is happened
-///
-/// InitRequest will tell the program is inited, you can request to Bind other wayland-protocols
-/// there, with return [ReturnData::RequestBind]
+
+/// tell program what event happened after init
 ///
 /// RequestBuffer request to get the wl-buffer, so you init a buffer_pool here. It return a
 /// GlobalList and a QueueHandle. This will enough for bind a extra wayland-protocol, and also,
