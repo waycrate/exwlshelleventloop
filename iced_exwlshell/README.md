@@ -48,7 +48,7 @@ use iced_runtime::{Action, task};
 
 use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption, PixelSize,
-    PopupGravity,
+    PopupGravity, Position
 };
 use iced_exwlshell::settings::{LayerShellSettings, ExWlSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
@@ -215,7 +215,7 @@ impl Counter {
                             let id = iced::window::Id::unique();
                             self.ids.insert(id, WindowInfo::PopUp);
                             return Command::done(Message::NewPopUp {
-                                settings: IcedNewPopupSettings::new(parent, PixelSize::px(100, 100), (0, 0), PixelSize::px(1, 1))
+                                settings: IcedNewPopupSettings::new(parent, PixelSize::px(100, 100), Position::new(0, 0), PixelSize::px(1, 1))
                                     .gravity(PopupGravity::TopRight),
                                 id,
                             });
