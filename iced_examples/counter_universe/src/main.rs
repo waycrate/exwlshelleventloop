@@ -10,7 +10,7 @@ use iced_runtime::{Action, task};
 use iced_exwlshell::daemon;
 use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
-    PixelSize, PopupGravity,
+    PixelSize, PopupGravity, Position,
 };
 use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
@@ -189,7 +189,7 @@ impl Counter {
                                 settings: IcedNewPopupSettings::new(
                                     parent,
                                     PixelSize::px(100, 100),
-                                    (0, 0),
+                                    Position::new(0, 0),
                                     PixelSize::px(1, 1),
                                 )
                                 .gravity(PopupGravity::TopRight),

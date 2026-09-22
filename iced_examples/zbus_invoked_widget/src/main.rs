@@ -8,7 +8,7 @@ use iced_runtime::window::Action as WindowAction;
 
 use iced_exwlshell::daemon;
 use iced_exwlshell::reexport::{
-    Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
+    Anchor, KeyboardInteractivity, Layer, LayerSize, Margin, NewLayerShellSettings, OutputOption,
 };
 use iced_exwlshell::settings::{LayerShellSettings, StartMode};
 use zbus::{connection, interface};
@@ -124,7 +124,12 @@ impl Counter {
                         exclusive_zone: None,
                         anchor: Anchor::Right | Anchor::Top | Anchor::Left | Anchor::Bottom,
                         layer: Layer::Top,
-                        margin: Some((100, 100, 100, 100)),
+                        margin: Some(Margin {
+                            top: 100,
+                            right: 100,
+                            bottom: 100,
+                            left: 100,
+                        }),
                         keyboard_interactivity: KeyboardInteractivity::OnDemand,
                         output_option: OutputOption::Active,
                         ..Default::default()

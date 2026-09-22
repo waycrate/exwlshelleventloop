@@ -5,7 +5,7 @@ use iced::widget::{container, row};
 use iced::{Color, Element, Task};
 
 use iced_exwlshell::layershell::application;
-use iced_exwlshell::reexport::{Anchor, LayerSize};
+use iced_exwlshell::reexport::{Anchor, LayerSize, Margin};
 use iced_exwlshell::settings::LayerShellSettings;
 use iced_exwlshell::to_layer_message;
 
@@ -14,7 +14,12 @@ fn main() -> iced_exwlshell::Result {
         .layer_settings(LayerShellSettings {
             size: LayerSize::px(600, 50),
             anchor: Anchor::Bottom,
-            margin: (0, 0, 10, 0),
+            margin: Margin {
+                right: 0,
+                left: 0,
+                top: 0,
+                bottom: 10,
+            },
             ..Default::default()
         })
         .style(Panel::style)

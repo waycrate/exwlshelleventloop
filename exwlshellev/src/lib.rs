@@ -149,12 +149,6 @@
 //! ```
 //!
 use calloop::LoopSignal;
-pub use events::NewInputPanelSettings;
-pub use events::NewLayerShellSettings;
-pub use events::NewXdgWindowSettings;
-pub use events::OutputOption;
-pub use events::ToplevelState;
-pub use events::{NewPopUpSettings, PopUpRepositionSettings, PopupPlacement};
 pub use sctk::output::OutputInfo;
 pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
@@ -163,6 +157,8 @@ pub mod dpi;
 mod events;
 mod seat;
 mod size;
+mod utils;
+pub use utils::*;
 
 use events::DispatchMessage;
 use size::warn_if_exclusive_zone_ignored;
@@ -489,7 +485,10 @@ impl<T> WindowStateUnitBuilder<T> {
                 wmcompositor,
                 shell,
                 parent: None,
-                size: (0, 0),
+                size: Size {
+                    width: 0,
+                    height: 0,
+                },
                 anchor: Anchor::empty(),
                 layer_size: LayerSize::FILL,
                 buffer: Default::default(),
@@ -515,7 +514,7 @@ impl<T> WindowStateUnitBuilder<T> {
         self.inner
     }
 
-    fn size(mut self, size: (u32, u32)) -> Self {
+    fn size(mut self, size: Size) -> Self {
         self.inner.size = size;
         self
     }
@@ -593,7 +592,7 @@ pub struct WindowStateUnit<T> {
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: Arc<WindowWrapper>,
     wmcompositor: WlCompositor,
-    size: (u32, u32),
+    size: Size,
     /// Only meaningful for LayerShell
     anchor: Anchor,
     /// Only meaningful for LayerShell
@@ -772,7 +771,7 @@ impl<T: 'static> WindowStateUnit<T> {
                     effect.set_blur_region(None);
                 }
                 BlurOption::FullRegion => {
-                    let (width, height) = self.size;
+                    let Size { width, height } = self.size;
                     let region = self.wmcompositor.create_region(&self.qh, ());
                     region.add(0, 0, width as i32, height as i32);
                     effect.set_blur_region(Some(&region));
@@ -853,7 +852,15 @@ impl<T> WindowStateUnit<T> {
     }
 
     /// you can reset the margin which bind to the surface
-    pub fn set_margin(&self, (top, right, bottom, left): (i32, i32, i32, i32)) {
+    pub fn set_margin(
+        &self,
+        Margin {
+            top,
+            right,
+            bottom,
+            left,
+        }: Margin,
+    ) {
         if let Shell::LayerShell(layer_shell) = &self.shell {
             layer_shell.set_margin(top, right, bottom, left);
             self.window.wl_surface.commit();
@@ -964,7 +971,7 @@ impl<T> WindowStateUnit<T> {
     }
 
     /// get the size of the surface
-    pub fn get_size(&self) -> (u32, u32) {
+    pub fn get_size(&self) -> Size {
         self.size
     }
 
@@ -974,7 +981,7 @@ impl<T> WindowStateUnit<T> {
         self.window.wl_surface.attach(self.buffer.as_ref(), 0, 0);
         self.window
             .wl_surface
-            .damage(0, 0, self.size.0 as i32, self.size.1 as i32);
+            .damage(0, 0, self.size.width as i32, self.size.height as i32);
         self.window.wl_surface.commit();
     }
 
@@ -1193,7 +1200,7 @@ pub struct WindowState<T> {
     layer: Layer,
     size: LayerSize,
     exclusive_zone: Option<i32>,
-    margin: Option<(i32, i32, i32, i32)>,
+    margin: Option<Margin>,
     blur_option: BlurOption,
 
     // settings
@@ -1692,8 +1699,8 @@ impl<T> WindowState<T> {
     }
 
     /// set the layer margin
-    pub fn with_margin(mut self, (top, right, bottom, left): (i32, i32, i32, i32)) -> Self {
-        self.margin = Some((top, right, bottom, left));
+    pub fn with_margin(mut self, margin: Margin) -> Self {
+        self.margin = Some(margin);
         self
     }
 
@@ -2160,7 +2167,7 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
                 let Some(unit_index) = unit_index else {
                     return;
                 };
-                state.units[unit_index].size = (width, height);
+                state.units[unit_index].size = Size { width, height };
                 state.units[unit_index].configured = true;
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
@@ -2215,7 +2222,10 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
                     return;
                 };
                 if width != 0 && height != 0 {
-                    state.units[unit_index].size = (width as u32, height as u32);
+                    state.units[unit_index].size = Size {
+                        width: width as u32,
+                        height: height as u32,
+                    };
                 }
 
                 let toplevel_state = toplevel_state_from_configure(&states);
@@ -2262,7 +2272,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
             else {
                 return;
             };
-            state.units[unit_index].size = (width, height);
+            state.units[unit_index].size = Size { width, height };
             state.units[unit_index].configured = true;
             state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
         }
@@ -2283,7 +2293,10 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
                 else {
                     return;
                 };
-                state.units[unit_index].size = (width as u32, height as u32);
+                state.units[unit_index].size = Size {
+                    width: width as u32,
+                    height: height as u32,
+                };
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             xdg_popup::Event::PopupDone => {
@@ -2883,7 +2896,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             layer.set_exclusive_zone(zone);
                         }
 
-                        if let Some((top, right, bottom, left)) = context.state.margin {
+                        if let Some(Margin {
+                            top,
+                            right,
+                            bottom,
+                            left,
+                        }) = context.state.margin
+                        {
                             layer.set_margin(top, right, bottom, left);
                         }
 
@@ -3143,7 +3162,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                 layer.set_exclusive_zone(zone);
                             }
 
-                            if let Some((top, right, bottom, left)) = margin {
+                            if let Some(Margin {
+                                top,
+                                right,
+                                bottom,
+                                left,
+                            }) = margin
+                            {
                                 layer.set_margin(top, right, bottom, left);
                             }
 
@@ -3284,7 +3309,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                     Shell::PopUp((popup, wl_xdg_surface)),
                                 )
                                 .parent(Some(id))
-                                .size(size.to_set())
+                                .size(size.to_size())
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .binding(info)
@@ -3388,7 +3413,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                     wmcompositer.clone(),
                                     Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
                                 )
-                                .size(size.unwrap_or(PixelSize::px(300, 300)).to_set())
+                                .size(size.unwrap_or(PixelSize::px(300, 300)).to_size())
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .binding(info)
@@ -3452,7 +3477,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                     wmcompositer.clone(),
                                     Shell::InputPanel(input_panel_surface),
                                 )
-                                .size(size.to_set())
+                                .size(size.to_size())
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .binding(info)
@@ -3508,7 +3533,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
 
             for idx in 0..context.state.units.len() {
                 let unit = &mut context.state.units[idx];
-                let (width, height) = unit.size;
+                let Size { width, height } = unit.size;
                 if width == 0 || height == 0 {
                     continue;
                 }
@@ -3864,7 +3889,13 @@ impl<T: 'static> WindowState<T> {
                 layer.set_exclusive_zone(zone);
             }
 
-            if let Some((top, right, bottom, left)) = self.margin {
+            if let Some(Margin {
+                top,
+                right,
+                bottom,
+                left,
+            }) = self.margin
+            {
                 layer.set_margin(top, right, bottom, left);
             }
 
@@ -3935,7 +3966,13 @@ impl<T: 'static> WindowState<T> {
                     layer.set_exclusive_zone(zone);
                 }
 
-                if let Some((top, right, bottom, left)) = self.margin {
+                if let Some(Margin {
+                    top,
+                    right,
+                    bottom,
+                    left,
+                }) = self.margin
+                {
                     layer.set_margin(top, right, bottom, left);
                 }
 
@@ -4023,9 +4060,9 @@ fn build_positioner<T: 'static>(
     let (width, height) = size.to_set_i32();
     positioner.set_size(width, height);
     match placement {
-        PopupPlacement::Position((px, py)) => positioner.set_anchor_rect(px, py, 1, 1),
+        PopupPlacement::Position(Position { x, y }) => positioner.set_anchor_rect(x, y, 1, 1),
         PopupPlacement::Anchored {
-            position: (arx, ary),
+            position: Position { x: arx, y: ary },
             size: rect,
         } => {
             let (arw, arh) = rect.to_set_i32();

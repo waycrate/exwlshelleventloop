@@ -4,7 +4,7 @@ use iced_wayland_subscriber::shell;
 
 use crate::reexport::{Anchor, KeyboardInteractivity, Layer, WithConnection};
 
-pub use exwlshellev::{Extent, LayerSize, StartMode};
+pub use exwlshellev::{Extent, LayerSize, Margin, StartMode};
 
 use exwlshellev::{blur::BlurOption, reexport::wayland_client::wl_keyboard::KeymapFormat};
 
@@ -54,7 +54,7 @@ pub struct LayerShellSettings {
     pub layer: Layer,
     pub exclusive_zone: i32,
     pub size: LayerSize,
-    pub margin: (i32, i32, i32, i32),
+    pub margin: Margin,
     pub keyboard_interactivity: KeyboardInteractivity,
     pub start_mode: StartMode,
     pub blur_option: BlurOption,
@@ -68,7 +68,7 @@ impl Default for LayerShellSettings {
             layer: Layer::Top,
             exclusive_zone: -1,
             size: LayerSize::FILL,
-            margin: (0, 0, 0, 0),
+            margin: Margin::default(),
             keyboard_interactivity: KeyboardInteractivity::OnDemand,
             events_transparent: false,
             start_mode: StartMode::default(),
@@ -90,7 +90,15 @@ mod tests {
         assert_eq!(settings.layer_settings.layer, Layer::Top);
         assert_eq!(settings.layer_settings.exclusive_zone, -1);
         assert_eq!(settings.layer_settings.size, LayerSize::FILL);
-        assert_eq!(settings.layer_settings.margin, (0, 0, 0, 0));
+        assert_eq!(
+            settings.layer_settings.margin,
+            Margin {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0
+            }
+        );
         assert_eq!(
             settings.layer_settings.keyboard_interactivity,
             KeyboardInteractivity::OnDemand
@@ -124,7 +132,12 @@ mod tests {
             layer: Layer::Background,
             exclusive_zone: 0,
             size: LayerSize::px(1920, 1080),
-            margin: (10, 10, 10, 10),
+            margin: Margin {
+                top: 10,
+                right: 10,
+                bottom: 10,
+                left: 10,
+            },
             keyboard_interactivity: KeyboardInteractivity::None,
             start_mode: StartMode::TargetScreen("HDMI-1".to_string()),
             events_transparent: false,
@@ -135,7 +148,15 @@ mod tests {
         assert_eq!(layer_settings.layer, Layer::Background);
         assert_eq!(layer_settings.exclusive_zone, 0);
         assert_eq!(layer_settings.size, LayerSize::px(1920, 1080));
-        assert_eq!(layer_settings.margin, (10, 10, 10, 10));
+        assert_eq!(
+            layer_settings.margin,
+            Margin {
+                top: 10,
+                right: 10,
+                bottom: 10,
+                left: 10
+            }
+        );
         assert_eq!(
             layer_settings.keyboard_interactivity,
             KeyboardInteractivity::None

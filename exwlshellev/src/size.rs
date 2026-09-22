@@ -149,6 +149,11 @@ impl PixelSize {
         (self.width.get(), self.height.get())
     }
 
+    pub const fn to_size(self) -> crate::Size {
+        let (width, height) = self.to_set();
+        crate::Size { width, height }
+    }
+
     /// Same size for signed integer requests, capped at [`i32::MAX`]
     /// so the value can never become negative on the set.
     pub const fn to_set_i32(self) -> (i32, i32) {

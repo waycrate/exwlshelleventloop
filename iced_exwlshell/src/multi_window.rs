@@ -311,7 +311,7 @@ where
             &mut self,
             state: &mut WindowState<iced_core::window::Id>,
             event: exwlshellev::ExWlShellEvent,
-            layer_shell_id: Option<exwlshellev::id::Id>,
+            shell_id: Option<exwlshellev::id::Id>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -321,7 +321,7 @@ where
             }
             let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
             self.waiting_shell_events
-                .push_back((layer_shell_id, IcedWlShellEvent::Window(window_event)));
+                .push_back((shell_id, IcedWlShellEvent::Window(window_event)));
 
             loop {
                 let mut need_continue = false;
@@ -507,7 +507,7 @@ where
         let ex_wlshell_window = ev.get_unit_unchecked(shell_id);
         let unit_id = ex_wlshell_window.id();
         let toplevel_state = ex_wlshell_window.toplevel_state();
-        let (width, height) = ex_wlshell_window.get_size();
+        let exwlshellev::Size { width, height } = ex_wlshell_window.get_size();
         let scale_float = ex_wlshell_window.scale_float();
         // events may not be handled after RequestRefreshWithWrapper in the same
         // interaction, we dispatched them immediately.
@@ -956,8 +956,8 @@ where
                 };
 
                 let window_size = exshell_window.get_size();
-                let width: i32 = window_size.0.try_into().unwrap_or_default();
-                let height: i32 = window_size.1.try_into().unwrap_or_default();
+                let width: i32 = window_size.width as i32;
+                let height: i32 = window_size.height as i32;
 
                 region.subtract(0, 0, width, height);
                 set_region(region);
@@ -1095,7 +1095,7 @@ where
                 let popup_settings = NewPopUpSettings {
                     size: menu_setting.size,
                     id: parent_layer_shell_id,
-                    placement: PopupPlacement::Position((x, y)),
+                    placement: PopupPlacement::Position(exwlshellev::Position { x, y }),
                     anchor: PopupAnchor::TopLeft,
                     gravity: menu_setting.gravity,
                     constraint_adjustment: PopupConstraintAdjustment::FlipX

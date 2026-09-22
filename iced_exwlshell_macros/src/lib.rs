@@ -42,7 +42,7 @@ pub fn to_exwlshell_message(
             /// Action, layer change
             LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
             /// Action, margin change Margin: top, left, bottom, right
-            MarginChange{id: iced_exwlshell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+            MarginChange{id: iced_exwlshell::reexport::IcedId, margin: iced_exwlshell::reexport::Margin},
             BlurOptionChange{id: iced_exwlshell::reexport::IcedId, option: iced_exwlshell::reexport::BlurOption},
             /// Action, ExclusiveZone Change
             ExclusiveZoneChange{id: iced_exwlshell::reexport::IcedId, zone_size: i32},
@@ -245,7 +245,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },
                 LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
                 /// Margin: top, left, bottom, right
-                MarginChange{id: iced_exwlshell::reexport::IcedId, margin: (i32, i32, i32, i32)},
+                MarginChange{id: iced_exwlshell::reexport::IcedId, margin: iced_exwlshell::reexport::Margin},
                 BlurOptionChange{id: iced_exwlshell::reexport::IcedId, option: iced_exwlshell::reexport::BlurOption},
                 ExclusiveZoneChange{id: iced_exwlshell::reexport::IcedId, zone_size: i32},
                 KeyboardInteractivityChange{id: iced_exwlshell::reexport::IcedId, keyboard_interactivity: iced_exwlshell::reexport::KeyboardInteractivity},
@@ -337,8 +337,8 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 LayoutChange { anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize },
                 SetInputRegion(iced_exwlshell::actions::ActionCallback),
                 LayerChange(iced_exwlshell::reexport::Layer),
-                /// Margin: top, left, bottom, right
-                MarginChange((i32, i32, i32, i32)),
+                /// Margin: top, right, bottom, left
+                MarginChange(iced_exwlshell::reexport::Margin),
                 ExclusiveZoneChange(i32),
                 KeyboardInteractivityChange(iced_exwlshell::reexport::KeyboardInteractivity),
                 VirtualKeyboardPressed {

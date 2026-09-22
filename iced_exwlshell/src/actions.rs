@@ -5,8 +5,8 @@ use exwlshellev::reexport::xdg_positioner::{
     Gravity as PopupGravity,
 };
 use exwlshellev::{
-    LayerSize, NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings, PixelSize,
-    PopupPlacement,
+    LayerSize, Margin, NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings,
+    PixelSize, PopupPlacement, Position,
 };
 use iced_core::window::Id as IcedId;
 
@@ -44,7 +44,7 @@ impl IcedNewPopupSettings {
     pub fn new(
         parent: IcedId,
         size: PixelSize,
-        anchor_position: (i32, i32),
+        anchor_position: Position,
         anchor_size: PixelSize,
     ) -> Self {
         Self::build(
@@ -59,7 +59,7 @@ impl IcedNewPopupSettings {
 
     pub fn on_current_surface(
         size: PixelSize,
-        anchor_position: (i32, i32),
+        anchor_position: Position,
         anchor_size: PixelSize,
     ) -> Self {
         Self::build(
@@ -72,11 +72,11 @@ impl IcedNewPopupSettings {
         )
     }
 
-    pub fn at_position(parent: IcedId, size: PixelSize, position: (i32, i32)) -> Self {
+    pub fn at_position(parent: IcedId, size: PixelSize, position: Position) -> Self {
         Self::build(Some(parent), size, PopupPlacement::Position(position))
     }
 
-    pub fn at_position_on_current_surface(size: PixelSize, position: (i32, i32)) -> Self {
+    pub fn at_position_on_current_surface(size: PixelSize, position: Position) -> Self {
         Self::build(None, size, PopupPlacement::Position(position))
     }
 
@@ -152,7 +152,7 @@ pub enum ExwlShellCustomAction {
         size: LayerSize,
     },
     LayerChange(Layer),
-    MarginChange((i32, i32, i32, i32)),
+    MarginChange(Margin),
     ExclusiveZoneChange(i32),
     KeyboardInteractivityChange(exwlshellev::reexport::KeyboardInteractivity),
     VirtualKeyboardPressed {

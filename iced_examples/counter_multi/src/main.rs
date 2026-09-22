@@ -11,7 +11,7 @@ use iced_runtime::{Action, task};
 use iced_exwlshell::daemon;
 use iced_exwlshell::reexport::{
     Anchor, KeyboardInteractivity, Layer, LayerSize, NewLayerShellSettings, OutputOption,
-    PixelSize, PopupGravity,
+    PixelSize, PopupGravity, Position,
 };
 use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_layer_message;
@@ -309,7 +309,7 @@ impl Counter {
                     button("grow & move").on_press(Message::PopUpReposition {
                         settings: IcedNewPopupSettings::at_position_on_current_surface(
                             PixelSize::px(220, 220),
-                            (240, 120),
+                            Position::new(240, 120),
                         ),
                         id,
                     }),
