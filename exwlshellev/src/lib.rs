@@ -19,7 +19,7 @@
 //!        id: id::Id,
 //!    ) -> wayland_client::WlBuffer {
 //!        let ex_wlshell_window = state.get_unit_unchecked(id);
-//!        let (width, height) = ex_wlshell_window.get_size();
+//!        let Size { width, height } = ex_wlshell_window.get_size();
 //!        draw(file, (width, height));
 //!        let pool = state.get_shm().create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
 //!        pool.create_buffer(
@@ -76,7 +76,7 @@
 //!        id: id::Id,
 //!    ) {
 //!        let ex_wlshell_window = state.get_unit_unchecked(id);
-//!        let (width, height) = ex_wlshell_window.get_size();
+//!        let Size { width, height } = ex_wlshell_window.get_size();
 //!
 //!        println!("{width}, {height}");
 //!    }
@@ -120,7 +120,12 @@
 //!         .with_allscreens()
 //!         .with_size(LayerSize::fill_width(400))
 //!         .with_layer(Layer::Top)
-//!         .with_margin((20, 20, 100, 20))
+//!         .with_margin(Margin {
+//!             top: 20,
+//!             right: 20,
+//!             bottom: 100,
+//!             left: 20,
+//!         })
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
 //!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
 //!         .with_exclusive_zone(-1)
