@@ -75,7 +75,7 @@ impl ExWlShellHandler<()> for Window {
         println!("{width}, {height}");
     }
     fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
-        let state = context.state;
+        let state = context.state_ref();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
                 state.push_request(Request::RequestSetCursor {
