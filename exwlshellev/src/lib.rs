@@ -87,11 +87,12 @@
 //!        _id: Option<id::Id>,
 //!    ) {
 //!        match event {
-//!            ExWlShellEvent::MouseEnter { pointer, .. } => state
-//!                .push_request(Request::RequestSetCursor((
-//!                    Cursor::Shape(CursorShape::Crosshair),
-//!                    pointer.clone(),
-//!                ))),
+//!            ExWlShellEvent::MouseEnter { pointer, .. } => {
+//!                state.push_request(Request::RequestSetCursor {
+//!                    cursor: Cursor::Shape(CursorShape::Crosshair),
+//!                    pointer,
+//!                })
+//!            }
 //!            ExWlShellEvent::MouseMotion {
 //!                time,
 //!                surface_x,
@@ -2526,9 +2527,10 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
 
                 // Send preedit.
                 if let Some(preedit) = text_input_data.pending_preedit.take() {
-                    let cursor_range = preedit
-                        .cursor_begin
-                        .map(|b| (b, preedit.cursor_end.unwrap_or(b)));
+                    let cursor_range = preedit.cursor_begin.map(|b| CursorPosition {
+                        start: b,
+                        end: preedit.cursor_end.unwrap_or(b),
+                    });
 
                     state.messages.push((
                         Some(id),
@@ -3116,28 +3118,29 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             }
                             LockLifecycle::Unlocked => {}
                         },
-                        Request::RequestSetCursor((cursor, pointer)) => {
+                        Request::RequestSetCursor { cursor, pointer } => {
                             let Some(serial) = context.state.enter_serial else {
                                 continue;
                             };
                             set_cursor(&context.cursor_update_context, cursor, pointer, serial);
                         }
-                        Request::NewLayerShell((
-                            NewLayerShellSettings {
-                                size,
-                                layer,
-                                anchor,
-                                exclusive_zone,
-                                margin,
-                                keyboard_interactivity,
-                                output_option: output_type,
-                                events_transparent,
-                                namespace,
-                                blur_option,
-                            },
+                        Request::NewLayerShell {
+                            settings:
+                                NewLayerShellSettings {
+                                    size,
+                                    layer,
+                                    anchor,
+                                    exclusive_zone,
+                                    margin,
+                                    keyboard_interactivity,
+                                    output_option: output_type,
+                                    events_transparent,
+                                    namespace,
+                                    blur_option,
+                                },
                             id,
                             info,
-                        )) => {
+                        } => {
                             let wire_anchor = size.resolve_anchor(anchor);
                             let output = context.state.resolve_output(output_type);
 
@@ -3222,19 +3225,20 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                 .build(),
                             );
                         }
-                        Request::NewPopUp((
-                            NewPopUpSettings {
-                                size,
-                                id,
-                                placement,
-                                anchor,
-                                gravity,
-                                constraint_adjustment,
-                                grab_serial,
-                            },
-                            targetid,
+                        Request::NewPopUp {
+                            settings:
+                                NewPopUpSettings {
+                                    size,
+                                    id,
+                                    placement,
+                                    anchor,
+                                    gravity,
+                                    constraint_adjustment,
+                                    grab_serial,
+                                },
+                            id: targetid,
                             info,
-                        )) => {
+                        } => {
                             let Some(index) =
                                 context.state.units.iter().position(|unit| unit.id == id)
                             else {
@@ -3321,16 +3325,17 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                 .build(),
                             );
                         }
-                        Request::PopUpReposition((
-                            PopUpRepositionSettings {
-                                size,
-                                placement,
-                                anchor,
-                                gravity,
-                                constraint_adjustment,
-                            },
+                        Request::PopUpReposition {
+                            settings:
+                                PopUpRepositionSettings {
+                                    size,
+                                    placement,
+                                    anchor,
+                                    gravity,
+                                    constraint_adjustment,
+                                },
                             id,
-                        )) => {
+                        } => {
                             let Some(unit) =
                                 context.state.units.iter_mut().find(|unit| unit.id == id)
                             else {
@@ -3365,15 +3370,16 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             positioner.destroy();
                             unit.pending_reposition = Some(token);
                         }
-                        Request::NewXdgBase((
-                            NewXdgWindowSettings {
-                                title,
-                                size,
-                                client_side_decorations,
-                            },
+                        Request::NewXdgBase {
+                            settings:
+                                NewXdgWindowSettings {
+                                    title,
+                                    size,
+                                    client_side_decorations,
+                                },
                             id,
                             info,
-                        )) => {
+                        } => {
                             let wl_surface = wmcompositer.create_surface(&qh, ());
                             let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
                             let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
@@ -3426,15 +3432,16 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             );
                         }
 
-                        Request::NewInputPanel((
-                            NewInputPanelSettings {
-                                size,
-                                keyboard,
-                                output_option: output_type,
-                            },
+                        Request::NewInputPanel {
+                            settings:
+                                NewInputPanelSettings {
+                                    size,
+                                    keyboard,
+                                    output_option: output_type,
+                                },
                             id,
                             info,
-                        )) => {
+                        } => {
                             let output = context.state.resolve_output(output_type);
 
                             let Some(output) = output else {

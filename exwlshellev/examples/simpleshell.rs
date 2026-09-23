@@ -86,9 +86,12 @@ impl ExWlShellHandler<()> for Window {
         _id: Option<id::Id>,
     ) {
         match event {
-            ExWlShellEvent::MouseEnter { pointer, .. } => state.push_request(
-                Request::RequestSetCursor((Cursor::Shape(CursorShape::Crosshair), pointer.clone())),
-            ),
+            ExWlShellEvent::MouseEnter { pointer, .. } => {
+                state.push_request(Request::RequestSetCursor {
+                    cursor: Cursor::Shape(CursorShape::Crosshair),
+                    pointer,
+                })
+            }
             ExWlShellEvent::MouseMotion {
                 time,
                 surface_x,

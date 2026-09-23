@@ -98,12 +98,34 @@ pub enum Request<INFO> {
     RequestUnLock,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
-    RequestSetCursor((Cursor, WlPointer)),
-    NewLayerShell((NewLayerShellSettings, id::Id, Option<INFO>)),
-    NewPopUp((NewPopUpSettings, id::Id, Option<INFO>)),
-    PopUpReposition((PopUpRepositionSettings, id::Id)),
-    NewXdgBase((NewXdgWindowSettings, id::Id, Option<INFO>)),
-    NewInputPanel((NewInputPanelSettings, id::Id, Option<INFO>)),
+    RequestSetCursor {
+        cursor: Cursor,
+        pointer: WlPointer,
+    },
+    NewLayerShell {
+        settings: NewLayerShellSettings,
+        id: id::Id,
+        info: Option<INFO>,
+    },
+    NewPopUp {
+        settings: NewPopUpSettings,
+        id: id::Id,
+        info: Option<INFO>,
+    },
+    PopUpReposition {
+        settings: PopUpRepositionSettings,
+        id: id::Id,
+    },
+    NewXdgBase {
+        settings: NewXdgWindowSettings,
+        id: id::Id,
+        info: Option<INFO>,
+    },
+    NewInputPanel {
+        settings: NewInputPanelSettings,
+        id: id::Id,
+        info: Option<INFO>,
+    },
 }
 
 /// Describes a scroll along one axis
@@ -139,7 +161,7 @@ pub enum Ime {
     /// this indicates that preedit was cleared.
     ///
     /// The cursor position is byte-wise indexed.
-    Preedit(String, Option<(usize, usize)>),
+    Preedit(String, Option<CursorPosition>),
 
     /// Notifies when text should be inserted into the editor widget.
     ///

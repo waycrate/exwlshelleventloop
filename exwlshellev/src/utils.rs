@@ -41,11 +41,18 @@ pub struct Margin {
     pub left: i32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct Position<T = i32> {
     pub x: T,
     pub y: T,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+pub struct CursorPosition<T = usize> {
+    pub start: T,
+    pub end: T,
+}
+
 
 impl<T> Position<T> {
     pub const fn new(x: T, y: T) -> Self {

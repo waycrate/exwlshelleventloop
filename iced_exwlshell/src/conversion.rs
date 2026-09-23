@@ -2,6 +2,7 @@ mod keymap;
 
 use crate::event::IcedButtonState;
 use crate::event::WindowEvent as ExWlShellEvent;
+use exwlshellev::CursorPosition;
 use exwlshellev::keyboard::KeyLocation;
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::xkb_keyboard::ElementState;
@@ -149,9 +150,10 @@ pub fn window_event(
         ExWlShellEvent::Focused => Some(IcedEvent::Window(iced_core::window::Event::Focused)),
         ExWlShellEvent::Ime(event) => Some(IcedEvent::InputMethod(match event {
             exwlshellev::Ime::Enabled => input_method::Event::Opened,
-            exwlshellev::Ime::Preedit(content, size) => {
-                input_method::Event::Preedit(content, size.map(|(start, end)| start..end))
-            }
+            exwlshellev::Ime::Preedit(content, size) => input_method::Event::Preedit(
+                content,
+                size.map(|CursorPosition { start, end }| start..end),
+            ),
             exwlshellev::Ime::Commit(content) => input_method::Event::Commit(content.clone()),
             exwlshellev::Ime::Disabled => input_method::Event::Closed,
         })),

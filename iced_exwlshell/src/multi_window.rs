@@ -987,11 +987,11 @@ where
                 ..
             } => {
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewLayerShell((
+                ev.push_request(Request::NewLayerShell {
                     settings,
-                    layer_shell_id,
-                    Some(iced_id),
-                )));
+                    id: layer_shell_id,
+                    info: Some(iced_id),
+                });
             }
             ExwlShellCustomAction::Lock => {
                 ev.push_request(Request::RequestLock);
@@ -1005,11 +1005,11 @@ where
                 ..
             } => {
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewXdgBase((
-                    settings.into(),
-                    layer_shell_id,
-                    Some(iced_id),
-                )));
+                ev.push_request(Request::NewXdgBase {
+                    settings: settings.into(),
+                    id: layer_shell_id,
+                    info: Some(iced_id),
+                });
             }
             ExwlShellCustomAction::RemoveWindow => {
                 if let Some(layer_shell_id) = ex_shell_id {
@@ -1046,11 +1046,11 @@ where
                     grab_serial,
                 };
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewPopUp((
-                    popup_settings,
-                    layer_shell_id,
-                    Some(iced_id),
-                )));
+                ev.push_request(Request::NewPopUp {
+                    settings: popup_settings,
+                    id: layer_shell_id,
+                    info: Some(iced_id),
+                });
             }
             ExwlShellCustomAction::PopUpReposition { settings } => {
                 let IcedNewPopupSettings {
@@ -1064,16 +1064,16 @@ where
                 let Some(ex_shell_id) = ex_shell_id else {
                     return;
                 };
-                ev.push_request(Request::PopUpReposition((
-                    PopUpRepositionSettings {
+                ev.push_request(Request::PopUpReposition {
+                    settings: PopUpRepositionSettings {
                         size,
                         placement,
                         anchor,
                         gravity,
                         constraint_adjustment,
                     },
-                    ex_shell_id,
-                )));
+                    id: ex_shell_id,
+                });
             }
             ExwlShellCustomAction::NewMenu {
                 settings: menu_setting,
@@ -1105,22 +1105,22 @@ where
                     grab_serial: None,
                 };
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewPopUp((
-                    popup_settings,
-                    layer_shell_id,
-                    Some(iced_id),
-                )));
+                ev.push_request(Request::NewPopUp {
+                    settings: popup_settings,
+                    id: layer_shell_id,
+                    info: Some(iced_id),
+                });
             }
             ExwlShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
                 let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewInputPanel((
+                ev.push_request(Request::NewInputPanel {
                     settings,
-                    layer_shell_id,
-                    Some(iced_id),
-                )));
+                    id: layer_shell_id,
+                    info: Some(iced_id),
+                });
             }
             ExwlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();
@@ -1322,12 +1322,12 @@ where
                     // Only the window that contains the pointer can change cursor
                     if ev.pointer_surface_id() == Some(window.id) {
                         for pointer in ev.get_pointers() {
-                            ev.push_request(Request::RequestSetCursor((
-                                exwlshellev::Cursor::Shape(conversion::mouse_interaction(
+                            ev.push_request(Request::RequestSetCursor {
+                                cursor: exwlshellev::Cursor::Shape(conversion::mouse_interaction(
                                     mouse_interaction,
                                 )),
                                 pointer,
-                            )));
+                            });
                         }
                     }
                     window.mouse_interaction = mouse_interaction;
