@@ -309,7 +309,6 @@ where
 
         fn on_event(
             &mut self,
-
             ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
             event: exwlshellev::ExWlShellEvent,
         ) {
@@ -381,7 +380,7 @@ where
     clipboard: ExwlShellClipboard,
     wl_input_region: Option<WlRegion>,
     user_interfaces: UserInterfaces<P>,
-    waiting_layer_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
+    waiting_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
     action_serial: Option<u32>,
     pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
     iced_events: Vec<(IcedId, IcedEvent)>,
@@ -427,7 +426,7 @@ where
             clipboard: ExwlShellClipboard::unconnected(),
             wl_input_region: Default::default(),
             user_interfaces: UserInterfaces::new(application),
-            waiting_layer_shell_actions: Default::default(),
+            waiting_shell_actions: Default::default(),
             action_serial: None,
             pending_window_controls: Default::default(),
             iced_events: Default::default(),
@@ -440,7 +439,7 @@ where
 
     pub fn lock(mut self, lock: bool) -> Self {
         if lock {
-            self.waiting_layer_shell_actions
+            self.waiting_shell_actions
                 .push((None, ExwlShellCustomAction::Lock));
         }
         self
@@ -481,7 +480,7 @@ where
         tracing::debug!(
             "Handle layer shell event, layer_shell_id: {:?},  waiting actions: {}, messages: {}",
             shell_id,
-            self.waiting_layer_shell_actions.len(),
+            self.waiting_shell_actions.len(),
             self.messages.len(),
         );
 
@@ -569,7 +568,7 @@ where
                         application,
                         &mut self.runtime,
                         &mut vec![message],
-                        &mut self.waiting_layer_shell_actions,
+                        &mut self.waiting_shell_actions,
                     );
                     for (_, window) in self.window_manager.iter_mut() {
                         window.state.synchronize(application);
@@ -780,7 +779,7 @@ where
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
         self.iced_events.retain(|(id, _)| *id != iced_id);
-        self.waiting_layer_shell_actions
+        self.waiting_shell_actions
             .retain(|(id, _)| *id != Some(iced_id));
         self.pending_window_controls
             .retain(|(id, _)| *id != iced_id);
@@ -867,7 +866,7 @@ where
             action,
             &mut self.messages,
             &mut self.clipboard,
-            &mut self.waiting_layer_shell_actions,
+            &mut self.waiting_shell_actions,
             &mut should_exit,
             &mut self.window_manager,
             &mut self.system_theme,
@@ -918,7 +917,7 @@ where
             .map(|window| window.id);
         if iced_id.is_some() && ex_shell_id.is_none() {
             // still waiting
-            self.waiting_layer_shell_actions.push((iced_id, action));
+            self.waiting_shell_actions.push((iced_id, action));
             return;
         }
         match action {
@@ -1136,7 +1135,7 @@ where
         // at each interaction try to resolve those waiting actions.
         let mut waiting_layer_shell_actions = Vec::new();
         mem::swap(
-            &mut self.waiting_layer_shell_actions,
+            &mut self.waiting_shell_actions,
             &mut waiting_layer_shell_actions,
         );
         for (iced_id, action) in waiting_layer_shell_actions {
@@ -1222,7 +1221,7 @@ where
                 application,
                 &mut self.runtime,
                 &mut self.messages,
-                &mut self.waiting_layer_shell_actions,
+                &mut self.waiting_shell_actions,
             );
 
             for (_, window) in self.window_manager.iter_mut() {
