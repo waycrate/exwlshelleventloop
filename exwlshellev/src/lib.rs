@@ -2646,24 +2646,88 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
     }
 }
 
+/// The context contains the information about the event this time
+pub struct WlEventContext<'a, const KNOWN_WINDOW: bool, T: 'static, Window: ExWlShellHandler<T>> {
+    pub state: &'a mut WindowState<T>,
+    looph: &'a LoopHandle<'static, EventContext<T, Window>>,
+    id: Option<id::Id>,
+}
+
+impl<'a, T: 'static, const KNOWN_WINDOW: bool, Window: ExWlShellHandler<T>>
+    WlEventContext<'a, KNOWN_WINDOW, T, Window>
+{
+    /// This another way to register event, is used for something like a11y, which need to register
+    /// adapter for a specific window
+    pub fn register<Event, F>(
+        &mut self,
+        callback: F,
+    ) -> Result<channel::Sender<Event>, ExShellEventError>
+    where
+        F: Fn(&mut Window, &mut WindowState<T>, Event) + 'static,
+        Event: 'static,
+    {
+        let (sender, receiver) = channel::channel::<Event>();
+        self.looph
+            .insert_source(receiver, move |event, _, context| {
+                let channel::Event::Msg(event) = event else {
+                    return;
+                };
+                callback(&mut context.window_context, &mut context.state, event);
+            })
+            .map_err(|e| ExShellEventError::RegisterFailed(e.to_string()))?;
+        Ok(sender)
+    }
+
+    /// get the reference of state
+    pub fn state_ref(&'a self) -> &'a WindowState<T> {
+        self.state
+    }
+
+    /// get the loop_handle
+    pub fn loop_handle(&'a self) -> &'a LoopHandle<'static, EventContext<T, Window>> {
+        self.looph
+    }
+}
+
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, true, T, Window> {
+    pub fn id(&self) -> id::Id {
+        self.id.unwrap()
+    }
+    pub fn get_unit(&'a self) -> &'a WindowStateUnit<T> {
+        self.state.get_unit_unchecked(self.id())
+    }
+    pub fn get_unit_mut(&'a mut self) -> &'a mut WindowStateUnit<T> {
+        self.state.get_mut_unit_unchecked(self.id())
+    }
+}
+
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, false, T, Window> {
+    pub fn id(&self) -> Option<id::Id> {
+        self.id
+    }
+    pub fn get_unit(&'a self) -> Option<&'a WindowStateUnit<T>> {
+        let id = self.id()?;
+        self.state.get_unit(id)
+    }
+    pub fn get_unit_mut(&'a mut self) -> Option<&'a mut WindowStateUnit<T>> {
+        let id = self.id()?;
+        self.state.get_mut_unit(id)
+    }
+}
+
 pub trait ExWlShellHandler<T: 'static>
 where
     Self: Sized,
 {
     /// When new wayland events come, it will invoke this callback, and you can address the events
     /// here
-    fn on_event(&mut self, state: &mut WindowState<T>, event: ExWlShellEvent, id: Option<id::Id>);
+    fn on_event(&mut self, context: WlEventContext<false, T, Self>, event: ExWlShellEvent);
     /// when a refresh request comes out, it will call this callback
     /// should handle refresh event here
-    fn on_refresh(
-        &mut self,
-        _state: &mut WindowState<T>,
-        _looph: &LoopHandle<'static, EventContext<T, Self>>,
-        _id: id::Id,
-    );
+    fn on_refresh(&mut self, context: WlEventContext<true, T, Self>);
     /// Every round of loop, it will call a normal_dispatch once a time, in this place, you can draw
     /// the surface, or make new requests
-    fn on_normal_dispatch(&mut self, state: &mut WindowState<T>);
+    fn on_normal_dispatch(&mut self, context: WlEventContext<false, T, Self>);
     /// on_init will be called during [WindowState::build], with InitRequest, you can use the
     /// wayland resources to initialize some thing
     fn on_init(
@@ -2677,35 +2741,11 @@ where
     /// if without display_handle, when a new Window is created, you need to return a buffer for it
     fn request_buffer(
         &mut self,
-        _state: &mut WindowState<T>,
+        _context: WlEventContext<true, T, Self>,
+        _qh: &wayland_client::QueueHandle<WindowState<T>>,
         _file: &mut std::fs::File,
-        _qh: &QueueHandle<WindowState<T>>,
-        _id: id::Id,
     ) -> WlBuffer {
         unimplemented!("you need to implement one")
-    }
-
-    /// This another way to register event, is used for something like a11y, which need to register
-    /// adapter for a specific window
-    fn register<Event, F>(
-        &mut self,
-        looph: &LoopHandle<'static, EventContext<T, Self>>,
-        callback: F,
-    ) -> Result<channel::Sender<Event>, ExShellEventError>
-    where
-        F: Fn(&mut Self, &mut WindowState<T>, Event) + 'static,
-        Event: 'static,
-    {
-        let (sender, receiver) = channel::channel::<Event>();
-        looph
-            .insert_source(receiver, move |event, _, context| {
-                let channel::Event::Msg(event) = event else {
-                    return;
-                };
-                callback(&mut context.window_context, &mut context.state, event);
-            })
-            .map_err(|e| ExShellEventError::RegisterFailed(e.to_string()))?;
-        Ok(sender)
     }
 }
 
@@ -2786,17 +2826,30 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
     }
 
     fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
-        self.window_context
-            .on_event(&mut self.state, event, unit_id);
+        self.window_context.on_event(
+            WlEventContext {
+                state: &mut self.state,
+                looph: &self.looph,
+                id: unit_id,
+            },
+            event,
+        );
     }
 
     fn handle_refresh(&mut self, unit_id: id::Id) {
-        self.window_context
-            .on_refresh(&mut self.state, &self.looph, unit_id);
+        self.window_context.on_refresh(WlEventContext {
+            state: &mut self.state,
+            looph: &self.looph,
+            id: Some(unit_id),
+        });
     }
 
     fn call_normal_dispatch(&mut self) {
-        self.window_context.on_normal_dispatch(&mut self.state);
+        self.window_context.on_normal_dispatch(WlEventContext {
+            state: &mut self.state,
+            looph: &self.looph,
+            id: None,
+        });
     }
 
     /// Run the program
@@ -3560,10 +3613,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             return false;
                         };
                         let buffer = context.window_context.request_buffer(
-                            &mut context.state,
-                            &mut file,
+                            WlEventContext {
+                                state: &mut context.state,
+                                looph: &context.looph,
+                                id: Some(unit_id),
+                            },
                             &qh,
-                            unit_id,
+                            &mut file,
                         );
                         wl_surface.attach(Some(&buffer), 0, 0);
                         wl_surface.commit();

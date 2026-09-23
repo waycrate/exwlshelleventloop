@@ -53,7 +53,6 @@ pub struct CursorPosition<T = usize> {
     pub end: T,
 }
 
-
 impl<T> Position<T> {
     pub const fn new(x: T, y: T) -> Self {
         Self { x, y }

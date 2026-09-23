@@ -239,16 +239,13 @@ where
     {
         fn on_refresh(
             &mut self,
-            state: &mut WindowState<iced_core::window::Id>,
-            _looph: &exwlshellev::calloop::LoopHandle<
-                'static,
-                EventContext<iced_core::window::Id, Self>,
-            >,
-            shell_id: exwlshellev::id::Id,
+            ev_context: exwlshellev::WlEventContext<true, iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
             };
+            let shell_id = ev_context.id();
+            let state = ev_context.state;
             context.handle_refresh_event(state, shell_id);
         }
 
@@ -300,18 +297,21 @@ where
             def_returndata
         }
 
-        fn on_normal_dispatch(&mut self, state: &mut WindowState<iced_core::window::Id>) {
+        fn on_normal_dispatch(
+            &mut self,
+            ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
+        ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
             };
-            context.handle_normal_dispatch(state);
+            context.handle_normal_dispatch(ev_context.state);
         }
 
         fn on_event(
             &mut self,
-            state: &mut WindowState<iced_core::window::Id>,
+
+            ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
             event: exwlshellev::ExWlShellEvent,
-            shell_id: Option<exwlshellev::id::Id>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -319,6 +319,8 @@ where
             if let Some(serial) = action_serial(&event) {
                 context.action_serial = Some(serial);
             }
+            let shell_id = ev_context.id();
+            let state = ev_context.state;
             let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
             self.waiting_shell_events
                 .push_back((shell_id, IcedWlShellEvent::Window(window_event)));
