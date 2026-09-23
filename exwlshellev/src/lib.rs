@@ -18,7 +18,7 @@
 //!         file: &mut std::fs::File,
 //!     ) -> wayland_client::WlBuffer {
 //!         let ex_wlshell_window = context.get_unit();
-//! 
+//!
 //!         let state = context.state_ref();
 //!         let Size { width, height } = ex_wlshell_window.get_size();
 //!         draw(file, (width, height));
@@ -73,9 +73,9 @@
 //!     fn on_normal_dispatch(&mut self, _context: WlEventContext<false, (), Self>) {}
 //!     fn on_refresh(&mut self, context: WlEventContext<true, (), Self>) {
 //!         let ex_wlshell_window = context.get_unit();
-//! 
+//!
 //!         let Size { width, height } = ex_wlshell_window.get_size();
-//! 
+//!
 //!         println!("{width}, {height}");
 //!     }
 //!     fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
