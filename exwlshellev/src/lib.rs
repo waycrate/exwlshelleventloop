@@ -2641,7 +2641,7 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 
 /// The context contains the information about the event this time
 pub struct WlEventContext<'a, const KNOWN_WINDOW: bool, T: 'static, Window: ExWlShellHandler<T>> {
-    pub state: &'a mut WindowState<T>,
+    state: &'a mut WindowState<T>,
     looph: &'a LoopHandle<'static, EventContext<T, Window>>,
     id: Option<id::Id>,
 }
@@ -2671,13 +2671,18 @@ impl<'a, T: 'static, const KNOWN_WINDOW: bool, Window: ExWlShellHandler<T>>
         Ok(sender)
     }
 
+    /// get the mut reference of state
+    pub fn state_mut(&mut self) -> &mut WindowState<T> {
+        self.state
+    }
+
     /// get the reference of state
-    pub fn state_ref(&'a self) -> &'a WindowState<T> {
+    pub fn state_ref(&self) -> &WindowState<T> {
         self.state
     }
 
     /// get the loop_handle
-    pub fn loop_handle(&'a self) -> &'a LoopHandle<'static, EventContext<T, Window>> {
+    pub fn loop_handle(&self) -> &LoopHandle<'static, EventContext<T, Window>> {
         self.looph
     }
 }
@@ -2686,10 +2691,10 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, true, T, Wi
     pub fn id(&self) -> id::Id {
         self.id.unwrap()
     }
-    pub fn get_unit(&'a self) -> &'a WindowStateUnit<T> {
+    pub fn get_unit(&self) -> &WindowStateUnit<T> {
         self.state.get_unit_unchecked(self.id())
     }
-    pub fn get_unit_mut(&'a mut self) -> &'a mut WindowStateUnit<T> {
+    pub fn get_unit_mut(&mut self) -> &mut WindowStateUnit<T> {
         self.state.get_mut_unit_unchecked(self.id())
     }
 }
@@ -2698,11 +2703,11 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, false, T, W
     pub fn id(&self) -> Option<id::Id> {
         self.id
     }
-    pub fn get_unit(&'a self) -> Option<&'a WindowStateUnit<T>> {
+    pub fn get_unit(&self) -> Option<&WindowStateUnit<T>> {
         let id = self.id()?;
         self.state.get_unit(id)
     }
-    pub fn get_unit_mut(&'a mut self) -> Option<&'a mut WindowStateUnit<T>> {
+    pub fn get_unit_mut(&mut self) -> Option<&mut WindowStateUnit<T>> {
         let id = self.id()?;
         self.state.get_mut_unit(id)
     }

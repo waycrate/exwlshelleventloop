@@ -239,13 +239,13 @@ where
     {
         fn on_refresh(
             &mut self,
-            ev_context: exwlshellev::WlEventContext<true, iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::WlEventContext<true, iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
             };
             let shell_id = ev_context.id();
-            let state = ev_context.state;
+            let state = ev_context.state_mut();
             context.handle_refresh_event(state, shell_id);
         }
 
@@ -299,17 +299,17 @@ where
 
         fn on_normal_dispatch(
             &mut self,
-            ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
             };
-            context.handle_normal_dispatch(ev_context.state);
+            context.handle_normal_dispatch(ev_context.state_mut());
         }
 
         fn on_event(
             &mut self,
-            ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
             event: exwlshellev::ExWlShellEvent,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
@@ -319,7 +319,7 @@ where
                 context.action_serial = Some(serial);
             }
             let shell_id = ev_context.id();
-            let state = ev_context.state;
+            let state = ev_context.state_mut();
             let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
             self.waiting_shell_events
                 .push_back((shell_id, IcedWlShellEvent::Window(window_event)));
