@@ -9,19 +9,22 @@
 //! use exwlshellev::reexport::*;
 //! use exwlshellev::*;
 //!
-//! struct Window;
-//! impl ExWlShellHandler<()> for Window {
+//!struct Window;
+//!impl ExWlShellHandler<()> for Window {
 //!    fn request_buffer(
 //!        &mut self,
-//!        state: &mut WindowState<()>,
-//!        file: &mut std::fs::File,
+//!        context: WlEventContext<true, (), Self>,
 //!        qh: &wayland_client::QueueHandle<WindowState<()>>,
-//!        id: id::Id,
+//!        file: &mut std::fs::File,
 //!    ) -> wayland_client::WlBuffer {
-//!        let ex_wlshell_window = state.get_unit_unchecked(id);
+//!        let ex_wlshell_window = context.get_unit();
+//!
+//!        let state = context.state_ref();
 //!        let Size { width, height } = ex_wlshell_window.get_size();
 //!        draw(file, (width, height));
-//!        let pool = state.get_shm().create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+//!        let pool = state
+//!            .get_shm()
+//!            .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
 //!        pool.create_buffer(
 //!            0,
 //!            width as i32,
@@ -67,25 +70,16 @@
 //!            }
 //!        }
 //!    }
+//!    fn on_normal_dispatch(&mut self, _context: WlEventContext<false, (), Self>) {}
+//!    fn on_refresh(&mut self, context: WlEventContext<true, (), Self>) {
+//!        let ex_wlshell_window = context.get_unit();
 //!
-//!    fn on_normal_dispatch(&mut self, _state: &mut WindowState<()>) {}
-//!    fn on_refresh(
-//!        &mut self,
-//!        state: &mut WindowState<()>,
-//!        _looph: &calloop::LoopHandle<'static, EventContext<(), Self>>,
-//!        id: id::Id,
-//!    ) {
-//!        let ex_wlshell_window = state.get_unit_unchecked(id);
 //!        let Size { width, height } = ex_wlshell_window.get_size();
 //!
 //!        println!("{width}, {height}");
 //!    }
-//!    fn on_event(
-//!        &mut self,
-//!        state: &mut WindowState<()>,
-//!        event: ExWlShellEvent,
-//!        _id: Option<id::Id>,
-//!    ) {
+//!    fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
+//!        let state = context.state;
 //!        match event {
 //!            ExWlShellEvent::MouseEnter { pointer, .. } => {
 //!                state.push_request(Request::RequestSetCursor {
@@ -113,8 +107,7 @@
 //!            _ => {}
 //!        }
 //!    }
-//! }
-//!
+//!}
 //! fn main() {
 //!     let window = Window;
 //!     let ev: EventContext<(), _> = WindowState::new("Hello")

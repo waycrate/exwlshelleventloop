@@ -8,136 +8,129 @@ you can take `./examples/simplelayer.rs` for example
 use std::fs::File;
 use std::os::fd::AsFd;
 
-use exwlshell::reexport::*;
-use exwlshell::*;
+use exwlshellev::keyboard::{KeyCode, PhysicalKey};
+use exwlshellev::reexport::*;
+use exwlshellev::*;
 
-const Q_KEY: u32 = 16;
-const W_KEY: u32 = 17;
-const E_KEY: u32 = 18;
-const A_KEY: u32 = 30;
-const S_KEY: u32 = 31;
-const D_KEY: u32 = 32;
-const Z_KEY: u32 = 44;
-const X_KEY: u32 = 45;
-const C_KEY: u32 = 46;
-const ESC_KEY: u32 = 1;
+struct Window;
+impl ExWlShellHandler<()> for Window {
+    fn request_buffer(
+        &mut self,
+        context: WlEventContext<true, (), Self>,
+        qh: &wayland_client::QueueHandle<WindowState<()>>,
+        file: &mut std::fs::File,
+    ) -> wayland_client::WlBuffer {
+        let ex_wlshell_window = context.get_unit();
 
-fn main() {
-    let ev: WindowState<()> = WindowState::new("Hello")
-        .with_single(false)
-        .with_size((0, 400))
-        .with_layer(Layer::Top)
-        .with_margin((20, 20, 100, 20))
-        .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
-        .with_exclusive_zone(-1)
-        .build()
-        .unwrap();
-
-    let mut virtual_keyboard_manager = None;
-    ev.running(|event, ev, index| {
+        let state = context.state_ref();
+        let Size { width, height } = ex_wlshell_window.get_size();
+        draw(file, (width, height));
+        let pool = state
+            .get_shm()
+            .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+        pool.create_buffer(
+            0,
+            width as i32,
+            height as i32,
+            (width * 4) as i32,
+            wl_shm::Format::Argb8888,
+            qh,
+            (),
+        )
+    }
+    fn on_init(
+        &mut self,
+        _state: &mut WindowState<()>,
+        event: ExWlShellInitEvent<()>,
+    ) -> InitRequest {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
-            LayerShellEvent::InitRequest => ReturnData::RequestBind,
-            LayerShellEvent::BindProvide(globals, qh) => {
+            ExWlShellInitEvent::Start => InitRequest::RequestBind,
+            ExWlShellInitEvent::BindProvide(globals, qh) => {
                 // NOTE: you can get implied wayland object from here
-                virtual_keyboard_manager = Some(
-                    globals
-                        .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-                            qh,
-                            1..=1,
-                            (),
-                        )
-                        .unwrap(),
-                );
+                let virtual_keyboard_manager = globals
+                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+                        qh,
+                        1..=1,
+                        (),
+                    )
+                    .unwrap();
                 println!("{:?}", virtual_keyboard_manager);
-                ReturnData::None
+                InitRequest::RequestCompositor
             }
-            LayerShellEvent::XdgInfoChanged(_) => {
-                let index = index.unwrap();
-                let unit = ev.get_unit(index);
-                println!("{:?}", unit.get_xdgoutput_info());
-                ReturnData::None
+            ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
+                // NOTE: this is an example to use the CompositorProvide,
+                // but this is quite useless, because you can get the window_unit to set it directly
+                // NOTE: you can set input region to limit area which gets input events
+                // surface outside region becomes transparent for input events
+                // To ignore all input events use region with (0,0) size
+                // for x in state.get_unit_iter() {
+                //     let region = _compositor.create_region(_qh, ());
+                //     region.add(0, 0, 0, 0);
+                //     x.get_wlsurface().set_input_region(Some(&region));
+                // }
+                InitRequest::None
             }
-            LayerShellEvent::RequestBuffer(file, shm, qh, init_w, init_h) => {
-                draw(file, (init_w, init_h));
-                let pool = shm.create_pool(file.as_fd(), (init_w * init_h * 4) as i32, qh, ());
-                ReturnData::WlBuffer(pool.create_buffer(
-                    0,
-                    init_w as i32,
-                    init_h as i32,
-                    (init_w * 4) as i32,
-                    wl_shm::Format::Argb8888,
-                    qh,
-                    (),
-                ))
+        }
+    }
+    fn on_normal_dispatch(&mut self, _context: WlEventContext<false, (), Self>) {}
+    fn on_refresh(&mut self, context: WlEventContext<true, (), Self>) {
+        let ex_wlshell_window = context.get_unit();
+
+        let Size { width, height } = ex_wlshell_window.get_size();
+
+        println!("{width}, {height}");
+    }
+    fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
+        let state = context.state;
+        match event {
+            ExWlShellEvent::MouseEnter { pointer, .. } => {
+                state.push_request(Request::RequestSetCursor {
+                    cursor: Cursor::Shape(CursorShape::Crosshair),
+                    pointer,
+                })
             }
-            LayerShellEvent::RequestMessages(DispatchMessage::RequestRefresh { width, height }) => {
-                println!("{width}, {height}");
-                ReturnData::None
-            }
-            LayerShellEvent::RequestMessages(DispatchMessage::MouseButton { .. }) => ReturnData::None,
-            LayerShellEvent::RequestMessages(DispatchMessage::MouseEnter {
-                pointer, ..
-            }) => ReturnData::RequestSetCursor((
-                Cursor::Shape(CursorShape::Crosshair),
-                pointer.clone(),
-            )),
-            LayerShellEvent::RequestMessages(DispatchMessage::MouseMotion {
+            ExWlShellEvent::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
-            }) => {
+            } => {
                 println!("{time}, {surface_x}, {surface_y}");
-                ReturnData::None
             }
-            LayerShellEvent::RequestMessages(DispatchMessage::KeyBoard { key, .. }) => {
-                match index {
-                    Some(index) => {
-                        let ev_unit = ev.get_unit(index);
-                        match *key {
-                            Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
-                            W_KEY => ev_unit.set_anchor(Anchor::Top),
-                            E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
-                            A_KEY => ev_unit.set_anchor(Anchor::Left),
-                            S_KEY => ev_unit.set_anchor(
-                                Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
-                            ),
-                            D_KEY => ev_unit.set_anchor(Anchor::Right),
-                            Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
-                            X_KEY => ev_unit.set_anchor(Anchor::Bottom),
-                            C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
-                            ESC_KEY => return ReturnData::RequestExist,
-                            _ => {}
-                        }
-                    }
-                    None => {
-                        for ev_unit in ev.get_unit_iter() {
-                            match *key {
-                                Q_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Left),
-                                W_KEY => ev_unit.set_anchor(Anchor::Top),
-                                E_KEY => ev_unit.set_anchor(Anchor::Top | Anchor::Right),
-                                A_KEY => ev_unit.set_anchor(Anchor::Left),
-                                S_KEY => ev_unit.set_anchor(
-                                    Anchor::Left | Anchor::Right | Anchor::Top | Anchor::Bottom,
-                                ),
-                                D_KEY => ev_unit.set_anchor(Anchor::Right),
-                                Z_KEY => ev_unit.set_anchor(Anchor::Left | Anchor::Bottom),
-                                X_KEY => ev_unit.set_anchor(Anchor::Bottom),
-                                C_KEY => ev_unit.set_anchor(Anchor::Bottom | Anchor::Right),
-                                ESC_KEY => return ReturnData::RequestExist,
-                                _ => {}
-                            }
-                        }
-                    }
-                };
-
-                ReturnData::None
+            ExWlShellEvent::OutputChanged(output) => {
+                // NOTE: sent when surface enters another output, or its output info changes
+                let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
+                println!("{info:?}");
             }
-            _ => ReturnData::None,
+            ExWlShellEvent::KeyboardInput { event, .. } => {
+                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+                    state.push_request(Request::RequestExit);
+                }
+            }
+            _ => {}
         }
-    })
-    .unwrap();
+    }
+}
+
+fn main() {
+    let window = Window;
+    let ev: EventContext<(), _> = WindowState::new("Hello")
+        .with_allscreens()
+        .with_size(LayerSize::fill_width(400))
+        .with_layer(Layer::Top)
+        .with_margin(Margin {
+            top: 20,
+            right: 20,
+            bottom: 100,
+            left: 20,
+        })
+        .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
+        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
+        .with_exclusive_zone(-1)
+        .build(window)
+        .unwrap();
+
+    ev.run().unwrap()
 }
 
 fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
