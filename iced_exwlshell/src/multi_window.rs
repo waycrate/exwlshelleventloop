@@ -141,11 +141,11 @@ where
             .expect("Cannot create context for exwlshellev");
 
     let message_sender = wl_context
-        .register(|window, state, action: Action<P::Message>| {
+        .register(|window, mut shell_context, action: Action<P::Message>| {
             let ContextState::Context(context) = &mut window.context_state else {
                 unreachable!("context state is not initialized");
             };
-            context.handle_user_action(state, action);
+            context.handle_user_action(shell_context.state_mut(), action);
         })
         .unwrap();
 
@@ -239,7 +239,7 @@ where
     {
         fn on_refresh(
             &mut self,
-            mut ev_context: exwlshellev::WlEventContext<true, iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::HaveIdWlEventContext<iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -299,7 +299,7 @@ where
 
         fn on_normal_dispatch(
             &mut self,
-            mut ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::NoIdWlEventContext<iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -309,7 +309,7 @@ where
 
         fn on_event(
             &mut self,
-            mut ev_context: exwlshellev::WlEventContext<false, iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::MaybeIdWlEventContext<iced_core::window::Id, Self>,
             event: exwlshellev::ExWlShellEvent,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {

@@ -16,7 +16,7 @@ struct Window;
 impl ExWlShellHandler<()> for Window {
     fn request_buffer(
         &mut self,
-        context: WlEventContext<true, (), Self>,
+        context: HaveIdWlEventContext<(), Self>,
         qh: &wayland_client::QueueHandle<WindowState<()>>,
         file: &mut std::fs::File,
     ) -> wayland_client::WlBuffer {
@@ -73,16 +73,16 @@ impl ExWlShellHandler<()> for Window {
             }
         }
     }
-    fn on_normal_dispatch(&mut self, _context: WlEventContext<false, (), Self>) {}
-    fn on_refresh(&mut self, context: WlEventContext<true, (), Self>) {
+    fn on_normal_dispatch(&mut self, _context: NoIdWlEventContext<(), Self>) {}
+    fn on_refresh(&mut self, context: HaveIdWlEventContext<(), Self>) {
         let ex_wlshell_window = context.get_unit();
 
         let Size { width, height } = ex_wlshell_window.get_size();
 
         println!("{width}, {height}");
     }
-    fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
-        let state = context.state;
+    fn on_event(&mut self, mut context: MaybeIdWlEventContext<(), Self>, event: ExWlShellEvent) {
+        let state = context.state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
                 state.push_request(Request::RequestSetCursor {
