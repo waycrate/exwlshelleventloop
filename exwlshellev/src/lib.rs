@@ -78,8 +78,8 @@
 //!
 //!         println!("{width}, {height}");
 //!     }
-//!     fn on_event(&mut self, context: MaybeIdWlEventContext<(), Self>, event: ExWlShellEvent) {
-//!         let state = context.state;
+//!     fn on_event(&mut self, mut context: MaybeIdWlEventContext<(), Self>, event: ExWlShellEvent) {
+//!         let state = context.state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
 //!                 state.push_request(Request::RequestSetCursor {
