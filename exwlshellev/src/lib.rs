@@ -9,105 +9,105 @@
 //! use exwlshellev::reexport::*;
 //! use exwlshellev::*;
 //!
-//!struct Window;
-//!impl ExWlShellHandler<()> for Window {
-//!    fn request_buffer(
-//!        &mut self,
-//!        context: WlEventContext<true, (), Self>,
-//!        qh: &wayland_client::QueueHandle<WindowState<()>>,
-//!        file: &mut std::fs::File,
-//!    ) -> wayland_client::WlBuffer {
-//!        let ex_wlshell_window = context.get_unit();
-//!
-//!        let state = context.state_ref();
-//!        let Size { width, height } = ex_wlshell_window.get_size();
-//!        draw(file, (width, height));
-//!        let pool = state
-//!            .get_shm()
-//!            .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
-//!        pool.create_buffer(
-//!            0,
-//!            width as i32,
-//!            height as i32,
-//!            (width * 4) as i32,
-//!            wl_shm::Format::Argb8888,
-//!            qh,
-//!            (),
-//!        )
-//!    }
-//!    fn on_init(
-//!        &mut self,
-//!        _state: &mut WindowState<()>,
-//!        event: ExWlShellInitEvent<()>,
-//!    ) -> InitRequest {
-//!        match event {
-//!            // NOTE: this will send when init, you can request bind extra object from here
-//!            ExWlShellInitEvent::Start => InitRequest::RequestBind,
-//!            ExWlShellInitEvent::BindProvide(globals, qh) => {
-//!                // NOTE: you can get implied wayland object from here
-//!                let virtual_keyboard_manager = globals
-//!                    .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-//!                        qh,
-//!                        1..=1,
-//!                        (),
-//!                    )
-//!                    .unwrap();
-//!                println!("{:?}", virtual_keyboard_manager);
-//!                InitRequest::RequestCompositor
-//!            }
-//!            ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
-//!                // NOTE: this is an example to use the CompositorProvide,
-//!                // but this is quite useless, because you can get the window_unit to set it directly
-//!                // NOTE: you can set input region to limit area which gets input events
-//!                // surface outside region becomes transparent for input events
-//!                // To ignore all input events use region with (0,0) size
-//!                // for x in state.get_unit_iter() {
-//!                //     let region = _compositor.create_region(_qh, ());
-//!                //     region.add(0, 0, 0, 0);
-//!                //     x.get_wlsurface().set_input_region(Some(&region));
-//!                // }
-//!                InitRequest::None
-//!            }
-//!        }
-//!    }
-//!    fn on_normal_dispatch(&mut self, _context: WlEventContext<false, (), Self>) {}
-//!    fn on_refresh(&mut self, context: WlEventContext<true, (), Self>) {
-//!        let ex_wlshell_window = context.get_unit();
-//!
-//!        let Size { width, height } = ex_wlshell_window.get_size();
-//!
-//!        println!("{width}, {height}");
-//!    }
-//!    fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
-//!        let state = context.state;
-//!        match event {
-//!            ExWlShellEvent::MouseEnter { pointer, .. } => {
-//!                state.push_request(Request::RequestSetCursor {
-//!                    cursor: Cursor::Shape(CursorShape::Crosshair),
-//!                    pointer,
-//!                })
-//!            }
-//!            ExWlShellEvent::MouseMotion {
-//!                time,
-//!                surface_x,
-//!                surface_y,
-//!            } => {
-//!                println!("{time}, {surface_x}, {surface_y}");
-//!            }
-//!            ExWlShellEvent::OutputChanged(output) => {
-//!                // NOTE: sent when surface enters another output, or its output info changes
-//!                let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
-//!                println!("{info:?}");
-//!            }
-//!            ExWlShellEvent::KeyboardInput { event, .. } => {
-//!                if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-//!                    state.push_request(Request::RequestExit);
-//!                }
-//!            }
-//!            _ => {}
-//!        }
-//!    }
-//!}
+//! struct Window;
+//! impl ExWlShellHandler<()> for Window {
+//!     fn request_buffer(
+//!         &mut self,
+//!         context: WlEventContext<true, (), Self>,
+//!         qh: &wayland_client::QueueHandle<WindowState<()>>,
+//!         file: &mut std::fs::File,
+//!     ) -> wayland_client::WlBuffer {
+//!         let ex_wlshell_window = context.get_unit();
+//! 
+//!         let state = context.state_ref();
+//!         let Size { width, height } = ex_wlshell_window.get_size();
+//!         draw(file, (width, height));
+//!         let pool = state
+//!             .get_shm()
+//!             .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
+//!         pool.create_buffer(
+//!             0,
+//!             width as i32,
+//!             height as i32,
+//!             (width * 4) as i32,
+//!             wl_shm::Format::Argb8888,
+//!             qh,
+//!             (),
+//!         )
+//!     }
+//!     fn on_init(
+//!         &mut self,
+//!         _state: &mut WindowState<()>,
+//!         event: ExWlShellInitEvent<()>,
+//!     ) -> InitRequest {
+//!         match event {
+//!             // NOTE: this will send when init, you can request bind extra object from here
+//!             ExWlShellInitEvent::Start => InitRequest::RequestBind,
+//!             ExWlShellInitEvent::BindProvide(globals, qh) => {
+//!                 // NOTE: you can get implied wayland object from here
+//!                 let virtual_keyboard_manager = globals
+//!                     .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
+//!                         qh,
+//!                         1..=1,
+//!                         (),
+//!                     )
+//!                     .unwrap();
+//!                 println!("{:?}", virtual_keyboard_manager);
+//!                 InitRequest::RequestCompositor
+//!             }
+//!             ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
+//!                 // NOTE: this is an example to use the CompositorProvide,
+//!                 // but this is quite useless, because you can get the window_unit to set it directly
+//!                 // NOTE: you can set input region to limit area which gets input events
+//!                 // surface outside region becomes transparent for input events
+//!                 // To ignore all input events use region with (0,0) size
+//!                 // for x in state.get_unit_iter() {
+//!                 //     let region = _compositor.create_region(_qh, ());
+//!                 //     region.add(0, 0, 0, 0);
+//!                 //     x.get_wlsurface().set_input_region(Some(&region));
+//!                 // }
+//!                 InitRequest::None
+//!             }
+//!         }
+//!     }
+//!     fn on_normal_dispatch(&mut self, _context: WlEventContext<false, (), Self>) {}
+//!     fn on_refresh(&mut self, context: WlEventContext<true, (), Self>) {
+//!         let ex_wlshell_window = context.get_unit();
+//! 
+//!         let Size { width, height } = ex_wlshell_window.get_size();
+//! 
+//!         println!("{width}, {height}");
+//!     }
+//!     fn on_event(&mut self, context: WlEventContext<false, (), Self>, event: ExWlShellEvent) {
+//!         let state = context.state;
+//!         match event {
+//!             ExWlShellEvent::MouseEnter { pointer, .. } => {
+//!                 state.push_request(Request::RequestSetCursor {
+//!                     cursor: Cursor::Shape(CursorShape::Crosshair),
+//!                     pointer,
+//!                 })
+//!             }
+//!             ExWlShellEvent::MouseMotion {
+//!                 time,
+//!                 surface_x,
+//!                 surface_y,
+//!             } => {
+//!                 println!("{time}, {surface_x}, {surface_y}");
+//!             }
+//!             ExWlShellEvent::OutputChanged(output) => {
+//!                 // NOTE: sent when surface enters another output, or its output info changes
+//!                 let info = output.as_ref().and_then(|o| state.get_output_info_of(o));
+//!                 println!("{info:?}");
+//!             }
+//!             ExWlShellEvent::KeyboardInput { event, .. } => {
+//!                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+//!                     state.push_request(Request::RequestExit);
+//!                 }
+//!             }
+//!             _ => {}
+//!         }
+//!     }
+//! }
 //! fn main() {
 //!     let window = Window;
 //!     let ev: EventContext<(), _> = WindowState::new("Hello")
