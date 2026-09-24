@@ -2943,7 +2943,6 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             };
                             set_cursor(&context.cursor_update_context, cursor, pointer, serial);
                         }
-                        _ => {}
                     }
                 }
                 if context.state.pending_requests.is_empty() {

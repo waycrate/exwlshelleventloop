@@ -96,8 +96,6 @@ pub enum Request {
     RequestExit,
     RequestLock,
     RequestUnLock,
-    RedrawAllRequest,
-    RedrawIndexRequest(Id),
     RequestSetCursor { cursor: Cursor, pointer: WlPointer },
 }
 
