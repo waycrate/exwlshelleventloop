@@ -107,7 +107,7 @@ impl ExWlShellHandler<()> for Window {
 
 fn main() {
     let window = Window;
-    let ev: EventContext<(), _> = WindowState::new("Hello")
+    let ev: EventContext<(), _> = ContextBuilder::start("Hello")
         .with_allscreens()
         .with_size(LayerSize::fill_width(400))
         .with_layer(Layer::Top)
@@ -120,7 +120,7 @@ fn main() {
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusive_zone(-1)
-        .build(window)
+        .attach(window)
         .unwrap();
 
     ev.run().unwrap()

@@ -125,7 +125,7 @@ where
         virtual_keyboard_support,
     };
     let mut wl_context: EventContext<iced_core::window::Id, _> =
-        exwlshellev::WindowState::new(namespace)
+        exwlshellev::ContextBuilder::start(namespace)
             .with_start_mode(wl_settings.layer_settings.start_mode)
             .with_use_display_handle(true)
             .with_events_transparent(wl_settings.layer_settings.events_transparent)
@@ -137,7 +137,7 @@ where
             .with_keyboard_interacivity(wl_settings.layer_settings.keyboard_interactivity)
             .with_blur_option(wl_settings.layer_settings.blur_option)
             .with_connection(wl_settings.with_connection)
-            .build(context_ev)
+            .attach(context_ev)
             .expect("Cannot create context for exwlshellev");
 
     let message_sender = wl_context
