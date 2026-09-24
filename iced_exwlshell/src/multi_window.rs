@@ -17,8 +17,8 @@ use crate::{
     proxy::IcedProxy,
 };
 use exwlshellev::{
-    DisplayWrapper, EventContext, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
-    PopupPlacement, RefreshRequest, Request, WindowState, WindowWrapper,
+    DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
+    RefreshRequest, Request, WindowState, WindowWrapper,
     id::Id as ExWlShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -124,21 +124,20 @@ where
         waiting_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
-    let mut wl_context: EventContext<iced_core::window::Id, _> =
-        exwlshellev::ContextBuilder::new(namespace)
-            .with_start_mode(wl_settings.layer_settings.start_mode)
-            .with_use_display_handle(true)
-            .with_events_transparent(wl_settings.layer_settings.events_transparent)
-            .with_size(wl_settings.layer_settings.size)
-            .with_layer(wl_settings.layer_settings.layer)
-            .with_anchor(wl_settings.layer_settings.anchor)
-            .with_exclusive_zone(wl_settings.layer_settings.exclusive_zone)
-            .with_margin(wl_settings.layer_settings.margin)
-            .with_keyboard_interacivity(wl_settings.layer_settings.keyboard_interactivity)
-            .with_blur_option(wl_settings.layer_settings.blur_option)
-            .with_connection(wl_settings.with_connection)
-            .attach(context_ev)
-            .expect("Cannot create context for exwlshellev");
+    let mut wl_context = exwlshellev::ContextBuilder::new(namespace)
+        .with_start_mode(wl_settings.layer_settings.start_mode)
+        .with_use_display_handle(true)
+        .with_events_transparent(wl_settings.layer_settings.events_transparent)
+        .with_size(wl_settings.layer_settings.size)
+        .with_layer(wl_settings.layer_settings.layer)
+        .with_anchor(wl_settings.layer_settings.anchor)
+        .with_exclusive_zone(wl_settings.layer_settings.exclusive_zone)
+        .with_margin(wl_settings.layer_settings.margin)
+        .with_keyboard_interacivity(wl_settings.layer_settings.keyboard_interactivity)
+        .with_blur_option(wl_settings.layer_settings.blur_option)
+        .with_connection(wl_settings.with_connection)
+        .attach(context_ev)
+        .expect("Cannot create context for exwlshellev");
 
     let message_sender = wl_context
         .register(|window, mut shell_context, action: Action<P::Message>| {

@@ -178,8 +178,8 @@ impl ContextBuilder {
     }
 
     /// set a callback to create a wayland connection
-    pub fn with_connection(mut self, connection_or: Option<WithConnection>) -> Self {
-        self.with_connection = connection_or;
+    pub fn with_connection(mut self, connection_or: impl Into<Option<WithConnection>>) -> Self {
+        self.with_connection = connection_or.into();
         self
     }
     pub fn with_blur_option(mut self, blur_option: BlurOption) -> Self {
