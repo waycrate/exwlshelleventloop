@@ -110,7 +110,7 @@
 //! }
 //! fn main() {
 //!     let window = Window;
-//!     let ev: EventContext<(), _> = ContextBuilder::start("Hello")
+//!     let ev: EventContext<(), _> = ContextBuilder::new("Hello")
 //!         .with_allscreens()
 //!         .with_size(LayerSize::fill_width(400))
 //!         .with_layer(Layer::Top)

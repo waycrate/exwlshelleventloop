@@ -49,8 +49,8 @@ impl Default for ContextBuilder {
 }
 
 impl ContextBuilder {
-    /// create a WindowState, you need to pass a namespace in
-    pub fn start(namespace: &str) -> Self {
+    /// create a [ContextBuilder], you need to pass a namespace in
+    pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
         Self {
             default_namespace: namespace.to_owned(),
@@ -189,6 +189,7 @@ impl ContextBuilder {
 }
 
 impl ContextBuilder {
+    /// attach to a [ExWlShellHandler], and create a [EventContext]
     pub fn attach<T: 'static, Window>(
         self,
         mut window: Window,
@@ -205,7 +206,7 @@ impl ContextBuilder {
 
         let shm = state.shm.clone();
 
-        let wmcompositer = state.wl_compositor.clone();
+        let wl_compositer = state.wl_compositor.clone();
 
         let mut init_event = None;
 
@@ -216,7 +217,7 @@ impl ContextBuilder {
             qh: qh.clone(),
             connection: connection.clone(),
             shm: shm.clone(),
-            cursor_surface: wmcompositer.create_surface(&qh, ()),
+            cursor_surface: wl_compositer.create_surface(&qh, ()),
         };
 
         while !matches!(init_event, Some(InitRequest::None)) {
@@ -232,7 +233,7 @@ impl ContextBuilder {
                 Some(InitRequest::RequestCompositor) => {
                     init_event = Some(window.on_init(
                         &mut state,
-                        ExWlShellInitEvent::CompositorProvide(&wmcompositer, &qh),
+                        ExWlShellInitEvent::CompositorProvide(&wl_compositer, &qh),
                     ));
                 }
                 _ => unreachable!(),

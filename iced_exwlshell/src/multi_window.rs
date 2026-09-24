@@ -125,7 +125,7 @@ where
         virtual_keyboard_support,
     };
     let mut wl_context: EventContext<iced_core::window::Id, _> =
-        exwlshellev::ContextBuilder::start(namespace)
+        exwlshellev::ContextBuilder::new(namespace)
             .with_start_mode(wl_settings.layer_settings.start_mode)
             .with_use_display_handle(true)
             .with_events_transparent(wl_settings.layer_settings.events_transparent)
