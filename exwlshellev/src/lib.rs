@@ -470,7 +470,7 @@ impl<T> WindowStateUnitBuilder<T> {
         qh: QueueHandle<WindowState<T>>,
         display: WlDisplay,
         wl_surface: WlSurface,
-        wmcompositor: WlCompositor,
+        wl_compositor: WlCompositor,
         shell: Shell,
     ) -> Self {
         let configured = matches!(shell, Shell::InputPanel(_));
@@ -485,7 +485,7 @@ impl<T> WindowStateUnitBuilder<T> {
                     viewport: None,
                     toplevel: shell.top_level(),
                 }),
-                wmcompositor,
+                wl_compositor,
                 shell,
                 parent: None,
                 size: Size {
@@ -594,7 +594,7 @@ pub struct WindowStateUnit<T> {
     /// Shared because the renderer holds this surface too. Wayland proxies are
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: Arc<WindowWrapper>,
-    wmcompositor: WlCompositor,
+    wl_compositor: WlCompositor,
     size: Size,
     /// Only meaningful for LayerShell
     anchor: Anchor,
@@ -775,13 +775,13 @@ impl<T: 'static> WindowStateUnit<T> {
                 }
                 BlurOption::FullRegion => {
                     let Size { width, height } = self.size;
-                    let region = self.wmcompositor.create_region(&self.qh, ());
+                    let region = self.wl_compositor.create_region(&self.qh, ());
                     region.add(0, 0, width as i32, height as i32);
                     effect.set_blur_region(Some(&region));
                     region.destroy();
                 }
                 BlurOption::Region(regions) => {
-                    let region = self.wmcompositor.create_region(&self.qh, ());
+                    let region = self.wl_compositor.create_region(&self.qh, ());
                     for BlurRegion {
                         x,
                         y,
