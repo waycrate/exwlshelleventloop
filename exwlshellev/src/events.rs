@@ -78,27 +78,6 @@ pub enum Cursor {
     ThemeName(String),
 }
 
-/// the return data
-/// Note: when event is RequestBuffer, you must return WlBuffer
-/// Note: when receive InitRequest, you can request to bind extra wayland-protocols. this time you
-/// can bind virtual-keyboard. you can take startcolorkeyboard as reference, or the simple.rs. Also,
-/// it should can bind with text-input, but I am not fully understand about this, maybe someone
-/// familiar with it can do
-///
-/// When send RequestExit, it will tell the event to finish.
-///
-/// Use `RequestSetCursor` with [`Cursor::Shape`] for standard shapes or [`Cursor::ThemeName`] for
-/// an exact cursor name from the theme.
-///
-/// None means nothing will happened, no request, and no return data
-#[derive(Debug, PartialEq, Eq)]
-pub enum Request {
-    RequestExit,
-    RequestLock,
-    RequestUnLock,
-    RequestSetCursor { cursor: Cursor, pointer: WlPointer },
-}
-
 /// Describes a scroll along one axis
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct AxisScroll {

@@ -18,7 +18,7 @@ use crate::{
 };
 use exwlshellev::{
     DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
-    RefreshRequest, Request, WindowState, WindowWrapper,
+    RefreshRequest, WindowState, WindowWrapper,
     id::Id as ExWlShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -875,7 +875,7 @@ where
             &mut self.pending_window_controls,
         );
         if should_exit {
-            ev.push_request(Request::RequestExit);
+            ev.exit();
         }
     }
 
@@ -988,10 +988,10 @@ where
                 ev.create_layershell(settings, iced_id);
             }
             ExwlShellCustomAction::Lock => {
-                ev.push_request(Request::RequestLock);
+                ev.request_lock();
             }
             ExwlShellCustomAction::UnLock => {
-                ev.push_request(Request::RequestUnLock);
+                ev.request_unlock();
             }
             ExwlShellCustomAction::NewBaseWindow {
                 settings,
@@ -1297,12 +1297,12 @@ where
                     // Only the window that contains the pointer can change cursor
                     if ev.pointer_surface_id() == Some(window.id) {
                         for pointer in ev.get_pointers() {
-                            ev.push_request(Request::RequestSetCursor {
-                                cursor: exwlshellev::Cursor::Shape(conversion::mouse_interaction(
+                            ev.set_cursor(
+                                exwlshellev::Cursor::Shape(conversion::mouse_interaction(
                                     mouse_interaction,
                                 )),
                                 pointer,
-                            });
+                            );
                         }
                     }
                     window.mouse_interaction = mouse_interaction;

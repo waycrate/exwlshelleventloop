@@ -1,7 +1,7 @@
 use crate::{
-    BlurOption, CursorUpdateContext, DispatchMessage, EventLoop, ExShellEventError, ExWlEventLoop,
-    ExWlShellHandler, ExWlShellInitEvent, InitRequest, LayerSize, Margin, Shell, StartMode,
-    WaylandSource, WindowState, WindowStateUnitBuilder, WithConnection, WpCursorShapeManagerV1, id,
+    BlurOption, DispatchMessage, EventLoop, ExShellEventError, ExWlEventLoop, ExWlShellHandler,
+    ExWlShellInitEvent, InitRequest, LayerSize, Margin, Shell, StartMode, WaylandSource,
+    WindowState, WindowStateUnitBuilder, WithConnection, id,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer,
@@ -203,21 +203,9 @@ impl ExWlEventLoopBuilder {
 
         let connection = state.connection.clone();
 
-        let shm = state.shm.clone();
-
         let wl_compositer = state.wl_compositor.clone();
 
         let mut init_event = None;
-
-        let cursor_manager: Option<WpCursorShapeManagerV1> = state.cursor_manager.clone();
-
-        let cursor_update_context = CursorUpdateContext {
-            cursor_manager,
-            qh: qh.clone(),
-            connection: connection.clone(),
-            shm: shm.clone(),
-            cursor_surface: wl_compositer.create_surface(&qh, ()),
-        };
 
         while !matches!(init_event, Some(InitRequest::None)) {
             match init_event {
@@ -254,7 +242,6 @@ impl ExWlEventLoopBuilder {
             event_loop: Some(event_loop),
             signal,
             cached_tokens: vec![],
-            cursor_update_context,
         })
     }
     fn build_state<T: 'static>(mut self) -> Result<WindowState<T>, ExShellEventError> {

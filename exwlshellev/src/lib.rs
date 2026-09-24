@@ -101,7 +101,7 @@
 //!             }
 //!             ExWlShellEvent::KeyboardInput { event, .. } => {
 //!                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-//!                     state.push_request(Request::RequestExit);
+//!                     state.exit();
 //!                 }
 //!             }
 //!             _ => {}
@@ -172,9 +172,7 @@ pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
-pub use events::{
-    AxisScroll, Cursor, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest, Request,
-};
+pub use events::{AxisScroll, Cursor, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest};
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
@@ -1171,7 +1169,7 @@ pub struct WindowState<T> {
     wl_compositor: WlCompositor,
     background_effect_manager: Option<ExtBackgroundEffectManagerV1>,
     shm: WlShm,
-    cursor_manager: Option<WpCursorShapeManagerV1>,
+    cursor_update_context: CursorUpdateContext<T>,
     viewporter: Option<WpViewporter>,
     lock_manager: Option<ExtSessionLockManagerV1>,
 
@@ -1239,11 +1237,6 @@ pub struct WindowState<T> {
 }
 
 impl<T: 'static> WindowState<T> {
-    /// add a new pending_request to state
-    pub fn push_request(&mut self, data: Request) {
-        self.pending_requests.push(data);
-    }
-
     pub fn get_shm(&self) -> &WlShm {
         &self.shm
     }
@@ -1669,6 +1662,13 @@ impl<T: 'static> WindowState<T> {
         let input_panel = globals.bind::<ZwpInputPanelV1, _, _>(&qh, 1..=1, ()).ok();
 
         let text_input_manager = text_input_manager;
+        let cursor_update_context = CursorUpdateContext {
+            cursor_manager,
+            qh: qh.clone(),
+            connection: connection.clone(),
+            shm: shm.clone(),
+            cursor_surface: wl_compositor.create_surface(&qh, ()),
+        };
         Ok((
             Self {
                 outputs: Vec::new(),
@@ -1687,7 +1687,7 @@ impl<T: 'static> WindowState<T> {
                 shm,
                 wmbase,
                 background_effect_manager,
-                cursor_manager,
+                cursor_update_context,
                 lock_manager,
                 layer_shell,
                 input_panel,
@@ -1916,6 +1916,10 @@ impl<T> WindowState<T> {
     pub fn request_close(&mut self, id: id::Id) {
         self.get_mut_unit(id).map(WindowStateUnit::request_close);
     }
+    /// add a new pending_request to state
+    fn push_request(&mut self, data: Request) {
+        self.pending_requests.push(data);
+    }
 
     /// Request compositor to move window `id` with the pointer.
     pub fn request_move(&self, id: id::Id, serial: u32) {
@@ -1951,6 +1955,21 @@ impl<T> WindowState<T> {
         if let Some(unit) = self.get_unit(id) {
             unit.show_window_menu(seat, serial, x, y);
         }
+    }
+
+    /// lock the screen
+    pub fn request_lock(&mut self) {
+        self.push_request(Request::RequestLock);
+    }
+
+    /// Unlock the screen
+    pub fn request_unlock(&mut self) {
+        self.push_request(Request::RequestUnLock);
+    }
+
+    /// clear status and exit the event loop
+    pub fn exit(&mut self) {
+        self.push_request(Request::RequestExit);
     }
 
     /// State from the last `xdg_toplevel::configure` event for window `id`.
@@ -2537,7 +2556,6 @@ pub struct ExWlEventLoop<T: 'static, W: ExWlShellHandler<T>> {
     looph: LoopHandle<'static, Self>,
     signal: LoopSignal,
     cached_tokens: Vec<RegistrationToken>,
-    cursor_update_context: CursorUpdateContext<T>,
 }
 
 impl<T: 'static, W: ExWlShellHandler<T>> Drop for ExWlEventLoop<T, W> {
@@ -2550,7 +2568,12 @@ impl<T: 'static, W: ExWlShellHandler<T>> Drop for ExWlEventLoop<T, W> {
         }
     }
 }
-
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Request {
+    RequestExit,
+    RequestLock,
+    RequestUnLock,
+}
 impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     /// return the context, you can use it to change the state before enter [Self::run]
     pub fn window_context(&mut self) -> &mut W {
@@ -2940,12 +2963,6 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             }
                             LockLifecycle::Unlocked => {}
                         },
-                        Request::RequestSetCursor { cursor, pointer } => {
-                            let Some(serial) = context.state.enter_serial else {
-                                continue;
-                            };
-                            set_cursor(&context.cursor_update_context, cursor, pointer, serial);
-                        }
                     }
                 }
                 if context.state.pending_requests.is_empty() {
@@ -3229,12 +3246,22 @@ fn get_cursor_buffer(
     Some(cursor[0].clone())
 }
 
-struct CursorUpdateContext<T: 'static> {
+#[derive(Debug)]
+struct CursorUpdateContext<T> {
     cursor_manager: Option<WpCursorShapeManagerV1>,
     qh: QueueHandle<WindowState<T>>,
     connection: Connection,
     shm: WlShm,
     cursor_surface: WlSurface,
+}
+
+impl<T: 'static> WindowState<T> {
+    pub fn set_cursor(&self, cursor: Cursor, pointer: WlPointer) {
+        let Some(serial) = self.enter_serial else {
+            return;
+        };
+        set_cursor(&self.cursor_update_context, cursor, pointer, serial);
+    }
 }
 
 fn set_cursor<T: 'static>(

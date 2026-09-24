@@ -78,10 +78,7 @@ impl ExWlShellHandler<()> for Window {
         let state = context.state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
-                state.push_request(Request::RequestSetCursor {
-                    cursor: Cursor::Shape(CursorShape::Crosshair),
-                    pointer,
-                })
+                state.set_cursor(Cursor::Shape(CursorShape::Crosshair), pointer)
             }
             ExWlShellEvent::MouseMotion {
                 time,
@@ -97,7 +94,7 @@ impl ExWlShellHandler<()> for Window {
             }
             ExWlShellEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
-                    state.push_request(Request::RequestExit);
+                    state.exit();
                 }
             }
             _ => {}
