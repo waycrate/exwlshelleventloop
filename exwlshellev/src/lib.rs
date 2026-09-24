@@ -1959,17 +1959,17 @@ impl<T> WindowState<T> {
 
     /// lock the screen
     pub fn request_lock(&mut self) {
-        self.push_request(Request::RequestLock);
+        self.push_request(Request::Lock);
     }
 
     /// Unlock the screen
     pub fn request_unlock(&mut self) {
-        self.push_request(Request::RequestUnLock);
+        self.push_request(Request::UnLock);
     }
 
     /// clear status and exit the event loop
     pub fn exit(&mut self) {
-        self.push_request(Request::RequestExit);
+        self.push_request(Request::Exit);
     }
 
     /// State from the last `xdg_toplevel::configure` event for window `id`.
@@ -2570,9 +2570,9 @@ impl<T: 'static, W: ExWlShellHandler<T>> Drop for ExWlEventLoop<T, W> {
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Request {
-    RequestExit,
-    RequestLock,
-    RequestUnLock,
+    Exit,
+    Lock,
+    UnLock,
 }
 impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     /// return the context, you can use it to change the state before enter [Self::run]
@@ -2862,7 +2862,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
 
                 for request in pending_requests {
                     match request {
-                        Request::RequestExit => {
+                        Request::Exit => {
                             match context.state.lock.take() {
                                 LockLifecycle::Locked { lock: l_lock } => {
                                     l_lock.unlock_and_destroy();
@@ -2881,7 +2881,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             context.signal.stop();
                             return true;
                         }
-                        Request::RequestLock => {
+                        Request::Lock => {
                             if !matches!(context.state.lock, LockLifecycle::Unlocked) {
                                 log::warn!(
                                     "Session lock already requested or active; ignoring duplicate lock request"
@@ -2946,7 +2946,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             };
                         }
 
-                        Request::RequestUnLock => match context.state.lock.take() {
+                        Request::UnLock => match context.state.lock.take() {
                             LockLifecycle::Locked { lock: l_lock } => {
                                 l_lock.unlock_and_destroy();
                                 let _ = connection.flush();
