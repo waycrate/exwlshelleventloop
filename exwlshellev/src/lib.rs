@@ -13,7 +13,7 @@
 //! impl ExWlShellHandler<()> for Window {
 //!     fn request_buffer(
 //!         &mut self,
-//!         context: HaveIdWlEventContext<(), Self>,
+//!         context: HaveIdEventContext<(), Self>,
 //!         qh: &wayland_client::QueueHandle<WindowState<()>>,
 //!         file: &mut std::fs::File,
 //!     ) -> wayland_client::WlBuffer {
@@ -70,15 +70,15 @@
 //!             }
 //!         }
 //!     }
-//!     fn on_normal_dispatch(&mut self, _context: NoIdWlEventContext<(), Self>) {}
-//!     fn on_refresh(&mut self, context: HaveIdWlEventContext<(), Self>) {
+//!     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
+//!     fn on_refresh(&mut self, context: HaveIdEventContext<(), Self>) {
 //!         let ex_wlshell_window = context.get_unit();
 //!
 //!         let Size { width, height } = ex_wlshell_window.get_size();
 //!
 //!         println!("{width}, {height}");
 //!     }
-//!     fn on_event(&mut self, mut context: MaybeIdWlEventContext<(), Self>, event: ExWlShellEvent) {
+//!     fn on_event(&mut self, mut context: MaybeIdEventContext<(), Self>, event: ExWlShellEvent) {
 //!         let state = context.state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
@@ -2387,9 +2387,9 @@ const NO_ID: usize = 0;
 const MAYBE_ID: usize = 1;
 const HAVE_ID: usize = 2;
 
-pub type NoIdWlEventContext<'a, T, Window> = EventContext<'a, NO_ID, T, Window>;
-pub type MaybeIdWlEventContext<'a, T, Window> = EventContext<'a, MAYBE_ID, T, Window>;
-pub type HaveIdWlEventContext<'a, T, Window> = EventContext<'a, HAVE_ID, T, Window>;
+pub type NoIdEventContext<'a, T, Window> = EventContext<'a, NO_ID, T, Window>;
+pub type MaybeIdEventContext<'a, T, Window> = EventContext<'a, MAYBE_ID, T, Window>;
+pub type HaveIdEventContext<'a, T, Window> = EventContext<'a, HAVE_ID, T, Window>;
 /// The context contains the information about the event this time
 pub struct EventContext<'a, const EVENT_TYPE: usize, T: 'static, Window: ExWlShellHandler<T>> {
     state: &'a mut WindowState<T>,

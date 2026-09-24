@@ -9,7 +9,7 @@ struct Window;
 impl ExWlShellHandler<()> for Window {
     fn request_buffer(
         &mut self,
-        context: HaveIdWlEventContext<(), Self>,
+        context: HaveIdEventContext<(), Self>,
         qh: &wayland_client::QueueHandle<WindowState<()>>,
         file: &mut std::fs::File,
     ) -> wayland_client::WlBuffer {
@@ -66,15 +66,15 @@ impl ExWlShellHandler<()> for Window {
             }
         }
     }
-    fn on_normal_dispatch(&mut self, _context: NoIdWlEventContext<(), Self>) {}
-    fn on_refresh(&mut self, context: HaveIdWlEventContext<(), Self>) {
+    fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
+    fn on_refresh(&mut self, context: HaveIdEventContext<(), Self>) {
         let ex_wlshell_window = context.get_unit();
 
         let Size { width, height } = ex_wlshell_window.get_size();
 
         println!("{width}, {height}");
     }
-    fn on_event(&mut self, mut context: MaybeIdWlEventContext<(), Self>, event: ExWlShellEvent) {
+    fn on_event(&mut self, mut context: MaybeIdEventContext<(), Self>, event: ExWlShellEvent) {
         let state = context.state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
