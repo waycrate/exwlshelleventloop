@@ -5,41 +5,28 @@ use crate::{
     WpCursorShapeManagerV1, id,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
-    zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
+    zwlr_layer_shell_v1::Layer,
     zwlr_layer_surface_v1::{Anchor, KeyboardInteractivity},
 };
 
-use wayland_client::{
-    Connection, Proxy,
-    globals::registry_queue_init,
-    protocol::{wl_compositor::WlCompositor, wl_seat::WlSeat, wl_shm::WlShm},
-};
-use wayland_protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
-use wayland_protocols::xdg::shell::client::xdg_wm_base::XdgWmBase;
+use wayland_client::{Connection, globals::registry_queue_init};
 
-use crate::seat::SeatStorage;
 use crate::size::warn_if_exclusive_zone_ignored;
-use sctk::{output::OutputState, registry::RegistryState, seat::SeatState};
-use wayland_protocols::ext::background_effect::v1::client::ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1;
-use wayland_protocols::ext::session_lock::v1::client::ext_session_lock_manager_v1::ExtSessionLockManagerV1;
-use wayland_protocols::wp::fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1;
-use wayland_protocols::wp::input_method::zv1::client::zwp_input_panel_v1::ZwpInputPanelV1;
-use wayland_protocols::wp::text_input::zv3::client::zwp_text_input_manager_v3::ZwpTextInputManagerV3;
-use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
+
 #[derive(Debug)]
 pub struct ContextBuilder {
-    default_namespace: String,
-    start_mode: StartMode,
-    events_transparent: bool,
-    keyboard_interactivity: KeyboardInteractivity,
-    anchor: Anchor,
-    margin: Option<Margin>,
-    size: LayerSize,
-    exclusive_zone: Option<i32>,
-    with_connection: Option<WithConnection>,
-    use_display_handle: bool,
-    layer: Layer,
-    blur_option: BlurOption,
+    pub(crate) default_namespace: String,
+    pub(crate) start_mode: StartMode,
+    pub(crate) events_transparent: bool,
+    pub(crate) keyboard_interactivity: KeyboardInteractivity,
+    pub(crate) anchor: Anchor,
+    pub(crate) margin: Option<Margin>,
+    pub(crate) size: LayerSize,
+    pub(crate) exclusive_zone: Option<i32>,
+    pub(crate) with_connection: Option<WithConnection>,
+    pub(crate) use_display_handle: bool,
+    pub(crate) layer: Layer,
+    pub(crate) blur_option: BlurOption,
 }
 
 impl Default for ContextBuilder {
@@ -216,9 +203,9 @@ impl ContextBuilder {
 
         let connection = state.connection.clone().unwrap();
 
-        let shm = state.shm.clone().unwrap();
+        let shm = state.shm.clone();
 
-        let wmcompositer = state.wl_compositor.clone().unwrap();
+        let wmcompositer = state.wl_compositor.clone();
 
         let mut init_event = None;
 
@@ -277,62 +264,10 @@ impl ContextBuilder {
         } else {
             Connection::connect_to_env()?
         };
-        let mut state: WindowState<T> = Default::default();
 
-        state.default_namespace = self.default_namespace;
-        state.margin = self.margin;
-        state.events_transparent = self.events_transparent;
-        state.start_mode = self.start_mode;
         let (globals, mut event_queue) = registry_queue_init::<WindowState<T>>(&connection)?;
-        state.display = Some(connection.display());
 
-        let qh = event_queue.handle();
-
-        state.registry_state = Some(RegistryState::new(&globals));
-        state.output_state = Some(OutputState::new(&globals, &qh));
-        let seat_state = SeatState::new(&globals, &qh);
-        for seat in seat_state.seats() {
-            state.seats.insert(seat.id(), SeatStorage::new());
-        }
-        state.seat_state = Some(seat_state);
-        let wmcompositer = globals.bind::<WlCompositor, _, _>(&qh, 1..=5, ())?;
-        state.background_effect_manager = globals
-            .bind::<ExtBackgroundEffectManagerV1, _, _>(&qh, 1..=1, ())
-            .ok();
-        let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ())?;
-        state.shm = Some(shm);
-        state.seat_back = Some(globals.bind::<WlSeat, _, _>(&qh, 1..=1, ())?);
-
-        let wmbase = globals.bind::<XdgWmBase, _, _>(&qh, 2..=6, ())?;
-        state.wmbase = Some(wmbase);
-
-        let cursor_manager = globals
-            .bind::<WpCursorShapeManagerV1, _, _>(&qh, 1..=2, ())
-            .ok();
-        let viewporter = globals.bind::<WpViewporter, _, _>(&qh, 1..=1, ()).ok();
-
-        // register this
-
-        let decoration_manager = globals
-            .bind::<ZxdgDecorationManagerV1, _, _>(&qh, 1..=1, ())
-            .ok();
-
-        state.xdg_decoration_manager = decoration_manager;
-
-        let fractional_scale_manager = globals
-            .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
-            .ok();
-        let text_input_manager = globals
-            .bind::<ZwpTextInputManagerV3, _, _>(&qh, 1..=1, ())
-            .ok();
-
-        let lock_manager = globals
-            .bind::<ExtSessionLockManagerV1, _, _>(&qh, 1..=1, ())
-            .ok();
-        let layer_shell = globals.bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ()).ok();
-        let input_panel = globals.bind::<ZwpInputPanelV1, _, _>(&qh, 1..=1, ()).ok();
-
-        state.text_input_manager = text_input_manager;
+        let (mut state, qh) = WindowState::new(&connection, self, globals, &mut event_queue)?;
         event_queue.blocking_dispatch(&mut state)?; // then make a dispatch
 
         // OutputState bound its own xdg_outputs before the dispatch above, so output info is
@@ -344,9 +279,9 @@ impl ContextBuilder {
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
         if state.is_background() {
-            let background_surface = wmcompositer.create_surface(&qh, ());
+            let background_surface = state.wl_compositor.create_surface(&qh, ());
             if state.events_transparent {
-                let region = wmcompositer.create_region(&qh, ());
+                let region = state.wl_compositor.create_region(&qh, ());
                 background_surface.set_input_region(Some(&region));
                 region.destroy();
             }
@@ -358,8 +293,8 @@ impl ContextBuilder {
                 _ => None,
             };
 
-            let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
-            let layer_shell_ref = layer_shell.as_ref().expect("We need layershell here");
+            let wl_surface = state.wl_compositor.create_surface(&qh, ()); // and create a surface. if two or more,
+            let layer_shell_ref = state.layer_shell.as_ref().expect("We need layershell here");
             let layer = layer_shell_ref.get_layer_surface(
                 &wl_surface,
                 binded_output.as_ref(),
@@ -368,13 +303,13 @@ impl ContextBuilder {
                 &qh,
                 (),
             );
-            let wire_anchor = self.size.resolve_anchor(self.anchor);
+            let wire_anchor = state.size.resolve_anchor(state.anchor);
             layer.set_anchor(wire_anchor);
-            layer.set_keyboard_interactivity(self.keyboard_interactivity);
-            let (init_w, init_h) = self.size.to_set();
+            layer.set_keyboard_interactivity(state.keyboard_interactivity);
+            let (init_w, init_h) = state.size.to_set();
             layer.set_size(init_w, init_h);
 
-            if let Some(zone) = self.exclusive_zone {
+            if let Some(zone) = state.exclusive_zone {
                 warn_if_exclusive_zone_ignored(zone, wire_anchor);
                 layer.set_exclusive_zone(zone);
             }
@@ -384,13 +319,13 @@ impl ContextBuilder {
                 right,
                 bottom,
                 left,
-            }) = self.margin
+            }) = state.margin
             {
                 layer.set_margin(top, right, bottom, left);
             }
 
-            if self.events_transparent {
-                let region = wmcompositer.create_region(&qh, ());
+            if state.events_transparent {
+                let region = state.wl_compositor.create_region(&qh, ());
                 wl_surface.set_input_region(Some(&region));
                 region.destroy();
             }
@@ -398,7 +333,7 @@ impl ContextBuilder {
             wl_surface.commit();
 
             let mut fractional_scale = None;
-            if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+            if let Some(ref fractional_scale_manager) = state.fractional_scale_manager {
                 fractional_scale =
                     Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
             }
@@ -406,7 +341,8 @@ impl ContextBuilder {
             if let Some(effect_manger) = &state.background_effect_manager {
                 effect = Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
             }
-            let viewport = viewporter
+            let viewport = state
+                .viewporter
                 .as_ref()
                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
             // so during the init Configure of the shell, a buffer, atleast a buffer is needed.
@@ -419,11 +355,11 @@ impl ContextBuilder {
                     qh.clone(),
                     connection.display(),
                     wl_surface,
-                    wmcompositer.clone(),
+                    state.wl_compositor.clone(),
                     Shell::LayerShell(layer),
                 )
                 .blur_option(state.blur_option.clone())
-                .layout(state.anchor, self.size)
+                .layout(state.anchor, state.size)
                 .effect_surface(effect)
                 .viewport(viewport)
                 .fractional_scale(fractional_scale)
@@ -433,9 +369,9 @@ impl ContextBuilder {
         } else {
             let displays = state.outputs.clone();
 
-            let layer_shell_ref = layer_shell.as_ref().expect("We need layershell here");
             for output_display in displays.iter() {
-                let wl_surface = wmcompositer.create_surface(&qh, ()); // and create a surface. if two or more,
+                let layer_shell_ref = state.layer_shell.as_ref().expect("We need layershell here");
+                let wl_surface = state.wl_compositor.create_surface(&qh, ()); // and create a surface. if two or more,
 
                 let layer = layer_shell_ref.get_layer_surface(
                     &wl_surface,
@@ -445,13 +381,13 @@ impl ContextBuilder {
                     &qh,
                     (),
                 );
-                let wire_anchor = self.size.resolve_anchor(self.anchor);
+                let wire_anchor = state.size.resolve_anchor(state.anchor);
                 layer.set_anchor(wire_anchor);
-                layer.set_keyboard_interactivity(self.keyboard_interactivity);
-                let (init_w, init_h) = self.size.to_set();
+                layer.set_keyboard_interactivity(state.keyboard_interactivity);
+                let (init_w, init_h) = state.size.to_set();
                 layer.set_size(init_w, init_h);
 
-                if let Some(zone) = self.exclusive_zone {
+                if let Some(zone) = state.exclusive_zone {
                     warn_if_exclusive_zone_ignored(zone, wire_anchor);
                     layer.set_exclusive_zone(zone);
                 }
@@ -466,19 +402,20 @@ impl ContextBuilder {
                     layer.set_margin(top, right, bottom, left);
                 }
 
-                if self.events_transparent {
-                    let region = wmcompositer.create_region(&qh, ());
+                if state.events_transparent {
+                    let region = state.wl_compositor.create_region(&qh, ());
                     wl_surface.set_input_region(Some(&region));
                     region.destroy();
                 }
                 wl_surface.commit();
 
                 let mut fractional_scale = None;
-                if let Some(ref fractional_scale_manager) = fractional_scale_manager {
+                if let Some(ref fractional_scale_manager) = state.fractional_scale_manager {
                     fractional_scale =
                         Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
                 }
-                let viewport = viewporter
+                let viewport = state
+                    .viewporter
                     .as_ref()
                     .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
                 let mut effect = None;
@@ -496,10 +433,10 @@ impl ContextBuilder {
                         qh.clone(),
                         connection.display(),
                         wl_surface,
-                        wmcompositer.clone(),
+                        state.wl_compositor.clone(),
                         Shell::LayerShell(layer),
                     )
-                    .layout(state.anchor, self.size)
+                    .layout(state.anchor, state.size)
                     .viewport(viewport)
                     .blur_option(state.blur_option.clone())
                     .effect_surface(effect)
@@ -513,16 +450,7 @@ impl ContextBuilder {
                 .retain(|(_, message)| !matches!(message, DispatchMessage::NewDisplay(_)));
         }
         state.init_finished = true;
-        state.viewporter = viewporter;
         state.event_queue = Some(event_queue);
-        state.globals = Some(globals);
-        state.wl_compositor = Some(wmcompositer);
-        state.fractional_scale_manager = fractional_scale_manager;
-        state.cursor_manager = cursor_manager;
-        state.lock_manager = lock_manager;
-        state.layer_shell = layer_shell;
-        state.input_panel = input_panel;
-        state.connection = Some(connection);
-        todo!()
+        Ok(state)
     }
 }

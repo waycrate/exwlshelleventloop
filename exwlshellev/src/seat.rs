@@ -117,7 +117,7 @@ impl SeatStorage {
 }
 impl<T: 'static> SeatHandler for WindowState<T> {
     fn seat_state(&mut self) -> &mut sctk::seat::SeatState {
-        self.seat_state.as_mut().unwrap()
+        &mut self.seat_state
     }
     fn new_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, seat: wl_seat::WlSeat) {
         self.seats.insert(seat.id(), SeatStorage::new());
