@@ -82,10 +82,10 @@
 //!         let state = context.state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
-//!                 state.push_request(Request::RequestSetCursor {
-//!                     cursor: Cursor::Shape(CursorShape::Crosshair),
+//!                 state.set_cursor(
+//!                     Cursor::Shape(CursorShape::Crosshair),
 //!                     pointer,
-//!                 })
+//!                 )
 //!             }
 //!             ExWlShellEvent::MouseMotion {
 //!                 time,
