@@ -985,14 +985,8 @@ where
             ExwlShellCustomAction::NewLayerShell {
                 settings,
                 id: iced_id,
-                ..
             } => {
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewLayerShell {
-                    settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                ev.create_layershell(settings, iced_id);
             }
             ExwlShellCustomAction::Lock => {
                 ev.push_request(Request::RequestLock);
@@ -1005,16 +999,11 @@ where
                 id: iced_id,
                 ..
             } => {
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewXdgBase {
-                    settings: settings.into(),
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                ev.create_xdg_base_window(settings.into(), iced_id);
             }
             ExwlShellCustomAction::RemoveWindow => {
-                if let Some(layer_shell_id) = ex_shell_id {
-                    ev.request_close(layer_shell_id)
+                if let Some(shell_id) = ex_shell_id {
+                    ev.request_close(shell_id)
                 }
             }
             ExwlShellCustomAction::NewPopUp {
@@ -1046,12 +1035,8 @@ where
                     constraint_adjustment,
                     grab_serial,
                 };
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewPopUp {
-                    settings: popup_settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+
+                ev.create_popup(popup_settings, iced_id);
             }
             ExwlShellCustomAction::PopUpReposition { settings } => {
                 let IcedNewPopupSettings {
@@ -1065,16 +1050,16 @@ where
                 let Some(ex_shell_id) = ex_shell_id else {
                     return;
                 };
-                ev.push_request(Request::PopUpReposition {
-                    settings: PopUpRepositionSettings {
+                ev.popup_reposition(
+                    PopUpRepositionSettings {
                         size,
                         placement,
                         anchor,
                         gravity,
                         constraint_adjustment,
                     },
-                    id: ex_shell_id,
-                });
+                    ex_shell_id,
+                );
             }
             ExwlShellCustomAction::NewMenu {
                 settings: menu_setting,
@@ -1105,23 +1090,13 @@ where
                         | PopupConstraintAdjustment::SlideY,
                     grab_serial: None,
                 };
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewPopUp {
-                    settings: popup_settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                ev.create_popup(popup_settings, Some(iced_id));
             }
             ExwlShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewInputPanel {
-                    settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                ev.create_input_panel(settings, iced_id);
             }
             ExwlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();

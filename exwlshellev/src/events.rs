@@ -11,7 +11,7 @@ use wayland_client::{
 
 use crate::CursorShape;
 
-use crate::{id, xkb_keyboard::KeyEvent};
+use crate::xkb_keyboard::KeyEvent;
 
 use crate::keyboard::ModifiersState;
 
@@ -92,40 +92,13 @@ pub enum Cursor {
 ///
 /// None means nothing will happened, no request, and no return data
 #[derive(Debug, PartialEq, Eq)]
-pub enum Request<INFO> {
+pub enum Request {
     RequestExit,
     RequestLock,
     RequestUnLock,
     RedrawAllRequest,
     RedrawIndexRequest(Id),
-    RequestSetCursor {
-        cursor: Cursor,
-        pointer: WlPointer,
-    },
-    NewLayerShell {
-        settings: NewLayerShellSettings,
-        id: id::Id,
-        info: Option<INFO>,
-    },
-    NewPopUp {
-        settings: NewPopUpSettings,
-        id: id::Id,
-        info: Option<INFO>,
-    },
-    PopUpReposition {
-        settings: PopUpRepositionSettings,
-        id: id::Id,
-    },
-    NewXdgBase {
-        settings: NewXdgWindowSettings,
-        id: id::Id,
-        info: Option<INFO>,
-    },
-    NewInputPanel {
-        settings: NewInputPanelSettings,
-        id: id::Id,
-        info: Option<INFO>,
-    },
+    RequestSetCursor { cursor: Cursor, pointer: WlPointer },
 }
 
 /// Describes a scroll along one axis

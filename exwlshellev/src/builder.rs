@@ -201,7 +201,7 @@ impl ContextBuilder {
         let event_queue_origin = state.event_queue.as_ref().unwrap();
         let qh = event_queue_origin.handle();
 
-        let connection = state.connection.clone().unwrap();
+        let connection = state.connection.clone();
 
         let shm = state.shm.clone();
 
