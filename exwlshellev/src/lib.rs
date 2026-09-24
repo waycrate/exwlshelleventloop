@@ -154,8 +154,12 @@ pub use waycrate_xkbkeycode::xkb_keyboard;
 pub mod blur;
 pub mod dpi;
 mod events;
+mod layershell;
+mod popup;
 mod seat;
+mod sessionlock;
 mod size;
+mod toplevel;
 mod utils;
 pub use utils::*;
 
@@ -202,20 +206,18 @@ use wayland_client::{
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1,
-    ext_session_lock_surface_v1::{self, ExtSessionLockSurfaceV1},
-    ext_session_lock_v1::ExtSessionLockV1,
+    ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ext_session_lock_v1::ExtSessionLockV1,
 };
-use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::KeyboardInteractivity;
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
-    zwlr_layer_surface_v1::{self, Anchor, ZwlrLayerSurfaceV1},
+    zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity, ZwlrLayerSurfaceV1},
 };
 
 use wayland_protocols::xdg::shell::client::{
-    xdg_popup::{self, XdgPopup},
+    xdg_popup::XdgPopup,
     xdg_positioner::{self, XdgPositioner},
     xdg_surface::{self, XdgSurface},
-    xdg_toplevel::{self, XdgToplevel},
+    xdg_toplevel::XdgToplevel,
     xdg_wm_base::{self, XdgWmBase},
 };
 
@@ -2145,177 +2147,6 @@ impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
-        event: <zwlr_layer_surface_v1::ZwlrLayerSurfaceV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
-        match event {
-            zwlr_layer_surface_v1::Event::Configure {
-                serial,
-                width,
-                height,
-            } => {
-                surface.ack_configure(serial);
-
-                let Some(unit_index) = unit_index else {
-                    return;
-                };
-                state.units[unit_index].size = Size { width, height };
-                state.units[unit_index].configured = true;
-                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
-            }
-            zwlr_layer_surface_v1::Event::Closed => {
-                if let Some(i) = unit_index {
-                    state.units[i].request_close();
-                }
-            }
-            _ => log::info!("ignore zwlr_layer_surface_v1 event: {event:?}"),
-        }
-    }
-}
-
-fn toplevel_state_from_configure(states: &[u8]) -> ToplevelState {
-    let mut toplevel_state = ToplevelState::default();
-    for raw in states.as_chunks::<4>().0 {
-        let raw = u32::from_ne_bytes([raw[0], raw[1], raw[2], raw[3]]);
-        let Ok(state) = xdg_toplevel::State::try_from(raw) else {
-            continue;
-        };
-        match state {
-            xdg_toplevel::State::Maximized => toplevel_state.maximized = true,
-            xdg_toplevel::State::Fullscreen => toplevel_state.fullscreen = true,
-            xdg_toplevel::State::Activated => toplevel_state.activated = true,
-            xdg_toplevel::State::TiledLeft
-            | xdg_toplevel::State::TiledRight
-            | xdg_toplevel::State::TiledTop
-            | xdg_toplevel::State::TiledBottom => toplevel_state.tiled = true,
-            _ => {}
-        }
-    }
-    toplevel_state
-}
-
-impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        surface: &xdg_toplevel::XdgToplevel,
-        event: <xdg_toplevel::XdgToplevel as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
-    ) {
-        let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
-        match event {
-            xdg_toplevel::Event::Configure {
-                width,
-                height,
-                states,
-            } => {
-                let Some(unit_index) = unit_index else {
-                    return;
-                };
-                if width != 0 && height != 0 {
-                    state.units[unit_index].size = Size {
-                        width: width as u32,
-                        height: height as u32,
-                    };
-                }
-
-                let toplevel_state = toplevel_state_from_configure(&states);
-                if state.units[unit_index].toplevel_state != toplevel_state {
-                    state.units[unit_index].toplevel_state = toplevel_state;
-                    let id = state.units[unit_index].id;
-                    state.messages.push((
-                        Some(id),
-                        DispatchMessage::ToplevelStateChanged(toplevel_state),
-                    ));
-                }
-
-                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
-            }
-            xdg_toplevel::Event::Close => {
-                let Some(unit_index) = unit_index else {
-                    return;
-                };
-                state.units[unit_index].request_flag.close = true;
-            }
-            _ => {}
-        }
-    }
-}
-
-impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        surface: &ext_session_lock_surface_v1::ExtSessionLockSurfaceV1,
-        event: <ext_session_lock_surface_v1::ExtSessionLockSurfaceV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
-    ) {
-        if let ext_session_lock_surface_v1::Event::Configure {
-            serial,
-            width,
-            height,
-        } = event
-        {
-            surface.ack_configure(serial);
-
-            let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
-            else {
-                return;
-            };
-            state.units[unit_index].size = Size { width, height };
-            state.units[unit_index].configured = true;
-            state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
-        }
-    }
-}
-impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        surface: &xdg_popup::XdgPopup,
-        event: <xdg_popup::XdgPopup as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
-    ) {
-        match event {
-            xdg_popup::Event::Configure { width, height, .. } => {
-                let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
-                else {
-                    return;
-                };
-                state.units[unit_index].size = Size {
-                    width: width as u32,
-                    height: height as u32,
-                };
-                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
-            }
-            xdg_popup::Event::PopupDone => {
-                if let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
-                {
-                    state.units[unit_index].request_close();
-                }
-            }
-            xdg_popup::Event::Repositioned { token } => {
-                if let Some(unit) = state.units.iter_mut().find(|unit| unit.shell == *surface)
-                    && unit.pending_reposition == Some(token)
-                {
-                    unit.pending_reposition = None;
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
 impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -2345,6 +2176,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
         }
     }
 }
+
 impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
     fn event(
         state: &mut Self,
@@ -2574,28 +2406,6 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
     }
 }
 
-impl<T> Dispatch<ExtSessionLockV1, ()> for WindowState<T> {
-    fn event(
-        state: &mut Self,
-        _proxy: &ExtSessionLockV1,
-        event: <ExtSessionLockV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &Connection,
-        _qhandle: &QueueHandle<Self>,
-    ) {
-        use wayland_protocols::ext::session_lock::v1::client::ext_session_lock_v1::Event;
-        match event {
-            Event::Locked => {
-                state.messages.push((None, DispatchMessage::Locked));
-            }
-            Event::Finished => {
-                state.messages.push((None, DispatchMessage::LockFinished));
-            }
-            _ => unreachable!(),
-        }
-    }
-}
-
 delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
 delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
 // it is not used
@@ -2603,7 +2413,6 @@ delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buff
 delegate_noop!(@<T> WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
 delegate_noop!(@<T> WindowState<T>: ignore WlBuffer); // buffer show the picture
 delegate_noop!(@<T> WindowState<T>: ignore WlRegion); // region is used to modify input region
-delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
 // ext-session-shell
 
 delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeManagerV1);
@@ -2617,7 +2426,6 @@ delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
 delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
-delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockManagerV1); // buffer show the picture
 
 sctk::delegate_registry!(@<T: 'static> WindowState<T>);
 sctk::delegate_dispatch2!(@<T: 'static> WindowState<T>);
