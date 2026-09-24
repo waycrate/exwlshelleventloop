@@ -107,7 +107,7 @@ impl ExWlShellHandler<()> for Window {
 
 fn main() {
     let window = Window;
-    let ev: EventContext<(), _> = ContextBuilder::new("Hello")
+    let ev = ExWlEventLoopBuilder::new("Hello")
         .with_allscreens()
         .with_size(LayerSize::fill_width(400))
         .with_layer(Layer::Top)

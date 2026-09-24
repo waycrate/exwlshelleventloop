@@ -110,7 +110,7 @@
 //! }
 //! fn main() {
 //!     let window = Window;
-//!     let ev: EventContext<(), _> = ContextBuilder::new("Hello")
+//!     let ev = ExWlEventLoopBuilder::new("Hello")
 //!         .with_allscreens()
 //!         .with_size(LayerSize::fill_width(400))
 //!         .with_layer(Layer::Top)
@@ -153,7 +153,7 @@ pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 pub mod blur;
 mod builder;
-pub use builder::ContextBuilder;
+pub use builder::ExWlEventLoopBuilder;
 pub mod dpi;
 mod events;
 mod input_panel;
@@ -1234,6 +1234,8 @@ pub struct WindowState<T> {
 
     ime_purpose: ImePurpose,
     ime_allowed: bool,
+
+    lock: LockLifecycle,
 }
 
 impl<T: 'static> WindowState<T> {
@@ -1602,7 +1604,7 @@ impl rwh_06::HasDisplayHandle for DisplayWrapper {
 impl<T: 'static> WindowState<T> {
     fn new(
         connection: &Connection,
-        ContextBuilder {
+        ExWlEventLoopBuilder {
             default_namespace,
             start_mode,
             events_transparent,
@@ -1615,7 +1617,7 @@ impl<T: 'static> WindowState<T> {
             layer,
             blur_option,
             ..
-        }: ContextBuilder,
+        }: ExWlEventLoopBuilder,
         globals: GlobalList,
         event_queue: &mut EventQueue<Self>,
     ) -> Result<(Self, QueueHandle<Self>), ExShellEventError> {
@@ -1735,6 +1737,8 @@ impl<T: 'static> WindowState<T> {
                 ime_allowed: false,
 
                 xdg_decoration_manager,
+
+                lock: LockLifecycle::Unlocked,
             },
             qh,
         ))
@@ -2383,18 +2387,18 @@ const NO_ID: usize = 0;
 const MAYBE_ID: usize = 1;
 const HAVE_ID: usize = 2;
 
-pub type NoIdWlEventContext<'a, T, Window> = WlEventContext<'a, NO_ID, T, Window>;
-pub type MaybeIdWlEventContext<'a, T, Window> = WlEventContext<'a, MAYBE_ID, T, Window>;
-pub type HaveIdWlEventContext<'a, T, Window> = WlEventContext<'a, HAVE_ID, T, Window>;
+pub type NoIdWlEventContext<'a, T, Window> = EventContext<'a, NO_ID, T, Window>;
+pub type MaybeIdWlEventContext<'a, T, Window> = EventContext<'a, MAYBE_ID, T, Window>;
+pub type HaveIdWlEventContext<'a, T, Window> = EventContext<'a, HAVE_ID, T, Window>;
 /// The context contains the information about the event this time
-pub struct WlEventContext<'a, const EVENT_TYPE: usize, T: 'static, Window: ExWlShellHandler<T>> {
+pub struct EventContext<'a, const EVENT_TYPE: usize, T: 'static, Window: ExWlShellHandler<T>> {
     state: &'a mut WindowState<T>,
-    looph: &'a LoopHandle<'static, EventContext<T, Window>>,
+    looph: &'a LoopHandle<'static, ExWlEventLoop<T, Window>>,
     id: Option<id::Id>,
 }
 
 impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
-    WlEventContext<'a, EVENT_TYPE, T, Window>
+    EventContext<'a, EVENT_TYPE, T, Window>
 {
     /// This another way to register event, is used for something like a11y, which need to register
     /// adapter for a specific window
@@ -2403,7 +2407,7 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
         callback: F,
     ) -> Result<channel::Sender<Event>, ExShellEventError>
     where
-        F: Fn(&mut Window, WlEventContext<NO_ID, T, Window>, Event) + 'static,
+        F: Fn(&mut Window, EventContext<NO_ID, T, Window>, Event) + 'static,
         Event: 'static,
     {
         let (sender, receiver) = channel::channel::<Event>();
@@ -2414,7 +2418,7 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
                 };
                 callback(
                     &mut context.window_context,
-                    WlEventContext {
+                    EventContext {
                         state: &mut context.state,
                         looph: &context.looph,
                         id: None,
@@ -2437,12 +2441,12 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
     }
 
     /// get the loop_handle
-    pub fn loop_handle(&self) -> &LoopHandle<'static, EventContext<T, Window>> {
+    pub fn loop_handle(&self) -> &LoopHandle<'static, ExWlEventLoop<T, Window>> {
         self.looph
     }
 }
 
-impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, HAVE_ID, T, Window> {
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, HAVE_ID, T, Window> {
     pub fn id(&self) -> id::Id {
         self.id.unwrap()
     }
@@ -2454,7 +2458,7 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, HAVE_ID, T,
     }
 }
 
-impl<'a, T: 'static, Window: ExWlShellHandler<T>> WlEventContext<'a, MAYBE_ID, T, Window> {
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, MAYBE_ID, T, Window> {
     pub fn id(&self) -> Option<id::Id> {
         self.id
     }
@@ -2474,13 +2478,13 @@ where
 {
     /// When new wayland events come, it will invoke this callback, and you can address the events
     /// here
-    fn on_event(&mut self, context: WlEventContext<MAYBE_ID, T, Self>, event: ExWlShellEvent);
+    fn on_event(&mut self, context: EventContext<MAYBE_ID, T, Self>, event: ExWlShellEvent);
     /// when a refresh request comes out, it will call this callback
     /// should handle refresh event here
-    fn on_refresh(&mut self, context: WlEventContext<HAVE_ID, T, Self>);
+    fn on_refresh(&mut self, context: EventContext<HAVE_ID, T, Self>);
     /// Every round of loop, it will call a normal_dispatch once a time, in this place, you can draw
     /// the surface, or make new requests
-    fn on_normal_dispatch(&mut self, context: WlEventContext<NO_ID, T, Self>);
+    fn on_normal_dispatch(&mut self, context: EventContext<NO_ID, T, Self>);
     /// on_init will be called during [WindowState::build], with InitRequest, you can use the
     /// wayland resources to initialize some thing
     fn on_init(
@@ -2494,7 +2498,7 @@ where
     /// if without display_handle, when a new Window is created, you need to return a buffer for it
     fn request_buffer(
         &mut self,
-        _context: WlEventContext<HAVE_ID, T, Self>,
+        _context: EventContext<HAVE_ID, T, Self>,
         _qh: &wayland_client::QueueHandle<WindowState<T>>,
         _file: &mut std::fs::File,
     ) -> WlBuffer {
@@ -2526,18 +2530,17 @@ impl LockLifecycle {
 }
 
 /// storage the context for the events
-pub struct EventContext<T: 'static, W: ExWlShellHandler<T>> {
+pub struct ExWlEventLoop<T: 'static, W: ExWlShellHandler<T>> {
     state: WindowState<T>,
     window_context: W,
     event_loop: Option<EventLoop<'static, Self>>,
     looph: LoopHandle<'static, Self>,
-    lock: LockLifecycle,
     signal: LoopSignal,
     cached_tokens: Vec<RegistrationToken>,
     cursor_update_context: CursorUpdateContext<T>,
 }
 
-impl<T: 'static, W: ExWlShellHandler<T>> Drop for EventContext<T, W> {
+impl<T: 'static, W: ExWlShellHandler<T>> Drop for ExWlEventLoop<T, W> {
     fn drop(&mut self) {
         if let Some(lock) = self.state.lock_manager.take() {
             lock.destroy();
@@ -2548,7 +2551,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> Drop for EventContext<T, W> {
     }
 }
 
-impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
+impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     /// return the context, you can use it to change the state before enter [Self::run]
     pub fn window_context(&mut self) -> &mut W {
         &mut self.window_context
@@ -2560,7 +2563,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
         callback: F,
     ) -> Result<channel::Sender<Event>, ExShellEventError>
     where
-        F: Fn(&mut W, WlEventContext<NO_ID, T, W>, Event) + 'static,
+        F: Fn(&mut W, EventContext<NO_ID, T, W>, Event) + 'static,
         Event: 'static,
     {
         let (sender, receiver) = channel::channel::<Event>();
@@ -2572,7 +2575,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                 };
                 callback(
                     &mut context.window_context,
-                    WlEventContext {
+                    EventContext {
                         state: &mut context.state,
                         looph: &context.looph,
                         id: None,
@@ -2588,7 +2591,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
 
     fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
         self.window_context.on_event(
-            WlEventContext {
+            EventContext {
                 state: &mut self.state,
                 looph: &self.looph,
                 id: unit_id,
@@ -2598,7 +2601,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
     }
 
     fn handle_refresh(&mut self, unit_id: id::Id) {
-        self.window_context.on_refresh(WlEventContext {
+        self.window_context.on_refresh(EventContext {
             state: &mut self.state,
             looph: &self.looph,
             id: Some(unit_id),
@@ -2606,7 +2609,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
     }
 
     fn call_normal_dispatch(&mut self) {
-        self.window_context.on_normal_dispatch(WlEventContext {
+        self.window_context.on_normal_dispatch(EventContext {
             state: &mut self.state,
             looph: &self.looph,
             id: None,
@@ -2635,7 +2638,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                 match msg {
                     (_, DispatchMessage::NewDisplay(output_display)) => {
                         if let LockLifecycle::Pending { lock, .. }
-                        | LockLifecycle::Locked { lock } = &context.lock
+                        | LockLifecycle::Locked { lock } = &context.state.lock
                         {
                             let wl_surface = context.state.wl_compositor.create_surface(&qh, ()); // and create a surface. if two or more
                             // NOTE: it maybe a bug here, if we do not commit first, it won't enter the configure place, when a new display is in
@@ -2764,7 +2767,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             .build(),
                         );
                     }
-                    (_, DispatchMessage::Locked) => match context.lock.take() {
+                    (_, DispatchMessage::Locked) => match context.state.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown: Some(goal),
@@ -2786,17 +2789,17 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             lock: l_lock,
                             teardown: None,
                         } => {
-                            context.lock = LockLifecycle::Locked { lock: l_lock };
+                            context.state.lock = LockLifecycle::Locked { lock: l_lock };
                             context.handle_event(ExWlShellEvent::Locked, None);
                         }
                         other => {
                             log::warn!(
                                 "Received `locked` without a pending lock request; ignoring"
                             );
-                            context.lock = other;
+                            context.state.lock = other;
                         }
                     },
-                    (_, DispatchMessage::LockFinished) => match context.lock.take() {
+                    (_, DispatchMessage::LockFinished) => match context.state.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown,
@@ -2837,14 +2840,14 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                 for request in pending_requests {
                     match request {
                         Request::RequestExit => {
-                            match context.lock.take() {
+                            match context.state.lock.take() {
                                 LockLifecycle::Locked { lock: l_lock } => {
                                     l_lock.unlock_and_destroy();
                                     let _ = connection.roundtrip();
                                     remove_lock_units(&mut context.state);
                                 }
                                 LockLifecycle::Pending { lock: l_lock, .. } => {
-                                    context.lock = LockLifecycle::Pending {
+                                    context.state.lock = LockLifecycle::Pending {
                                         lock: l_lock,
                                         teardown: Some(LockTeardown::Exit),
                                     };
@@ -2856,7 +2859,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             return true;
                         }
                         Request::RequestLock => {
-                            if !matches!(context.lock, LockLifecycle::Unlocked) {
+                            if !matches!(context.state.lock, LockLifecycle::Unlocked) {
                                 log::warn!(
                                     "Session lock already requested or active; ignoring duplicate lock request"
                                 );
@@ -2914,13 +2917,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                     .build(),
                                 );
                             }
-                            context.lock = LockLifecycle::Pending {
+                            context.state.lock = LockLifecycle::Pending {
                                 lock: l_lock,
                                 teardown: None,
                             };
                         }
 
-                        Request::RequestUnLock => match context.lock.take() {
+                        Request::RequestUnLock => match context.state.lock.take() {
                             LockLifecycle::Locked { lock: l_lock } => {
                                 l_lock.unlock_and_destroy();
                                 let _ = connection.flush();
@@ -2930,7 +2933,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                                 lock: l_lock,
                                 teardown,
                             } => {
-                                context.lock = LockLifecycle::Pending {
+                                context.state.lock = LockLifecycle::Pending {
                                     lock: l_lock,
                                     teardown: teardown.or(Some(LockTeardown::Unlock)),
                                 };
@@ -3006,7 +3009,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> EventContext<T, W> {
                             return false;
                         };
                         let buffer = context.window_context.request_buffer(
-                            WlEventContext {
+                            EventContext {
                                 state: &mut context.state,
                                 looph: &context.looph,
                                 id: Some(unit_id),

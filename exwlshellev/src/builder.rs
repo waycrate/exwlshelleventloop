@@ -1,8 +1,7 @@
 use crate::{
-    BlurOption, CursorUpdateContext, DispatchMessage, EventContext, EventLoop, ExShellEventError,
-    ExWlShellHandler, ExWlShellInitEvent, InitRequest, LayerSize, LockLifecycle, Margin, Shell,
-    StartMode, WaylandSource, WindowState, WindowStateUnitBuilder, WithConnection,
-    WpCursorShapeManagerV1, id,
+    BlurOption, CursorUpdateContext, DispatchMessage, EventLoop, ExShellEventError, ExWlEventLoop,
+    ExWlShellHandler, ExWlShellInitEvent, InitRequest, LayerSize, Margin, Shell, StartMode,
+    WaylandSource, WindowState, WindowStateUnitBuilder, WithConnection, WpCursorShapeManagerV1, id,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer,
@@ -14,7 +13,7 @@ use wayland_client::{Connection, globals::registry_queue_init};
 use crate::size::warn_if_exclusive_zone_ignored;
 
 #[derive(Debug)]
-pub struct ContextBuilder {
+pub struct ExWlEventLoopBuilder {
     pub(crate) default_namespace: String,
     pub(crate) start_mode: StartMode,
     pub(crate) events_transparent: bool,
@@ -29,7 +28,7 @@ pub struct ContextBuilder {
     pub(crate) blur_option: BlurOption,
 }
 
-impl Default for ContextBuilder {
+impl Default for ExWlEventLoopBuilder {
     fn default() -> Self {
         Self {
             default_namespace: "osd".to_owned(),
@@ -48,7 +47,7 @@ impl Default for ContextBuilder {
     }
 }
 
-impl ContextBuilder {
+impl ExWlEventLoopBuilder {
     /// create a [ContextBuilder], you need to pass a namespace in
     pub fn new(namespace: &str) -> Self {
         assert_ne!(namespace, "");
@@ -188,12 +187,12 @@ impl ContextBuilder {
     }
 }
 
-impl ContextBuilder {
-    /// attach to a [ExWlShellHandler], and create a [EventContext]
+impl ExWlEventLoopBuilder {
+    /// attach to a [ExWlShellHandler], and create a [ExWlEventLoop]
     pub fn attach<T: 'static, Window>(
         self,
         mut window: Window,
-    ) -> Result<EventContext<T, Window>, ExShellEventError>
+    ) -> Result<ExWlEventLoop<T, Window>, ExShellEventError>
     where
         Window: ExWlShellHandler<T> + 'static,
     {
@@ -243,17 +242,16 @@ impl ContextBuilder {
         let event_loop: EventLoop<_> =
             EventLoop::try_new().expect("Failed to initialize the event loop");
 
-        let event_queue = connection.new_event_queue::<EventContext<T, Window>>();
+        let event_queue = connection.new_event_queue::<ExWlEventLoop<T, Window>>();
         WaylandSource::new(connection.clone(), event_queue)
             .insert(event_loop.handle())
             .expect("Failed to init wayland source");
         let signal = event_loop.get_signal();
-        Ok(EventContext {
+        Ok(ExWlEventLoop {
             state,
             window_context: window,
             looph: event_loop.handle(),
             event_loop: Some(event_loop),
-            lock: LockLifecycle::Unlocked,
             signal,
             cached_tokens: vec![],
             cursor_update_context,
