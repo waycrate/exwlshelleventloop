@@ -1624,6 +1624,10 @@ impl<T: 'static> WindowState<T> {
         let registry_state = RegistryState::new(&globals);
         let output_state = OutputState::new(&globals, &qh);
         let seat_state = SeatState::new(&globals, &qh);
+
+        // FIXME: seems we should not use ObjectId as key?
+        // by https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#mutable_key_type
+        #[allow(clippy::mutable_key_type)]
         let mut seats = HashMap::new();
         for seat in seat_state.seats() {
             seats.insert(seat.id(), SeatStorage::new());

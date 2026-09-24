@@ -77,7 +77,7 @@ impl<T: 'static> WindowState<T> {
         let qh = self.queue_handle.clone();
         let wmbase = &self.wmbase;
         let positioner = build_positioner(
-            &wmbase,
+            wmbase,
             &qh,
             size,
             placement,
@@ -110,7 +110,7 @@ impl<T: 'static> WindowState<T> {
         let wl_surface = self.wl_compositor.create_surface(&qh, ());
         let wmbase = &self.wmbase;
         let positioner = build_positioner(
-            &wmbase,
+            wmbase,
             &qh,
             size,
             placement,
