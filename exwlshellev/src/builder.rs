@@ -1,5 +1,5 @@
 use crate::{
-    BlurOption, DispatchMessage, EventLoop, ExWlShellEventError, ExWlEventLoop, ExWlShellHandler,
+    BlurOption, DispatchMessage, EventLoop, ExWlEventLoop, ExWlShellEventError, ExWlShellHandler,
     ExWlShellInitEvent, InitRequest, LayerSize, Margin, Shell, StartMode, WaylandSource,
     WindowState, WindowStateUnitBuilder, WithConnection, id,
 };
