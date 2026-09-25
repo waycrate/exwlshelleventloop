@@ -34,7 +34,7 @@ impl Default for ExWlEventLoopBuilder {
             default_namespace: "osd".to_owned(),
             start_mode: StartMode::Active,
             events_transparent: false,
-            keyboard_interactivity: KeyboardInteractivity::None,
+            keyboard_interactivity: KeyboardInteractivity::OnDemand,
             anchor: Anchor::all(),
             margin: None,
             size: LayerSize::FILL,
