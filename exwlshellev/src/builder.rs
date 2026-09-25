@@ -1,5 +1,5 @@
 use crate::{
-    BlurOption, DispatchMessage, EventLoop, ExShellEventError, ExWlEventLoop, ExWlShellHandler,
+    BlurOption, DispatchMessage, EventLoop, ExWlShellEventError, ExWlEventLoop, ExWlShellHandler,
     ExWlShellInitEvent, InitRequest, LayerSize, Margin, Shell, StartMode, WaylandSource,
     WindowState, WindowStateUnitBuilder, WithConnection, id,
 };
@@ -192,7 +192,7 @@ impl ExWlEventLoopBuilder {
     pub fn attach<T: 'static, Window>(
         self,
         mut window: Window,
-    ) -> Result<ExWlEventLoop<T, Window>, ExShellEventError>
+    ) -> Result<ExWlEventLoop<T, Window>, ExWlShellEventError>
     where
         Window: ExWlShellHandler<T> + 'static,
     {
@@ -244,7 +244,7 @@ impl ExWlEventLoopBuilder {
             cached_tokens: vec![],
         })
     }
-    fn build_state<T: 'static>(mut self) -> Result<WindowState<T>, ExShellEventError> {
+    fn build_state<T: 'static>(mut self) -> Result<WindowState<T>, ExWlShellEventError> {
         let connection = if let Some(with_connection) = self.with_connection.take() {
             with_connection.get_connection()?
         } else {

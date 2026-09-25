@@ -102,8 +102,14 @@ impl<T: 'static> WindowState<T> {
             grab_serial,
         }: NewPopUpSettings,
         binding: impl Into<Option<T>>,
-    ) -> Option<crate::id::Id> {
-        let index = self.units.iter().position(|unit| unit.id == parent_id)?;
+    ) -> Result<crate::id::Id, crate::ExWlShellEventError> {
+        let index = self
+            .units
+            .iter()
+            .position(|unit| unit.id == parent_id)
+            .ok_or(crate::ExWlShellEventError::CreateSurfaceFailed(
+                "Cannot find the target surface".to_owned(),
+            ))?;
 
         let qh = self.queue_handle.clone();
         let id = crate::id::Id::unique();
@@ -141,7 +147,9 @@ impl<T: 'static> WindowState<T> {
                 positioner.destroy();
                 wl_xdg_surface.destroy();
                 wl_surface.destroy();
-                return None;
+                return Err(crate::ExWlShellEventError::CreateSurfaceFailed(format!(
+                    "cannot create popup, parent {id:?} must be a layer surface, an xdg_toplevel or a popup"
+                )));
             }
         };
         positioner.destroy();
@@ -182,6 +190,6 @@ impl<T: 'static> WindowState<T> {
             .binding(binding.into())
             .build(),
         );
-        Some(id)
+        Ok(id)
     }
 }

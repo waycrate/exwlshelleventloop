@@ -277,8 +277,23 @@ use std::time::Instant;
 use crate::blur::{BlurOption, BlurRegion};
 use crate::seat::SeatStorage;
 
+#[derive(Debug, Clone, Copy)]
+pub enum ProtocolType {
+    LayerShell,
+    InputPanel,
+}
+
+impl std::fmt::Display for ProtocolType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LayerShell => f.write_str("LayerShell"),
+            Self::InputPanel => f.write_str("InputPanel"),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
-pub enum ExShellEventError {
+pub enum ExWlShellEventError {
     #[error("connect error")]
     ConnectError(#[from] ConnectError),
     #[error("Global Error")]
@@ -293,6 +308,10 @@ pub enum ExShellEventError {
     EventLoopError(#[from] CallLoopError),
     #[error("Source insert Error {0}")]
     RegisterFailed(String),
+    #[error("protocol is unsupported: {0}")]
+    Unsupported(ProtocolType),
+    #[error("layer failed to be created: {0}")]
+    CreateSurfaceFailed(String),
 }
 
 pub mod reexport {
@@ -1613,7 +1632,7 @@ impl<T: 'static> WindowState<T> {
         }: ExWlEventLoopBuilder,
         globals: GlobalList,
         event_queue: &mut EventQueue<Self>,
-    ) -> Result<(Self, QueueHandle<Self>), ExShellEventError> {
+    ) -> Result<(Self, QueueHandle<Self>), ExWlShellEventError> {
         let qh: QueueHandle<Self> = event_queue.handle();
         let display = connection.display();
         let registry_state = RegistryState::new(&globals);
@@ -2424,7 +2443,7 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
     pub fn register<Event, F>(
         &mut self,
         callback: F,
-    ) -> Result<channel::Sender<Event>, ExShellEventError>
+    ) -> Result<channel::Sender<Event>, ExWlShellEventError>
     where
         F: Fn(&mut Window, EventContext<NO_ID, T, Window>, Event) + 'static,
         Event: 'static,
@@ -2445,7 +2464,7 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
                     event,
                 );
             })
-            .map_err(|e| ExShellEventError::RegisterFailed(e.to_string()))?;
+            .map_err(|e| ExWlShellEventError::RegisterFailed(e.to_string()))?;
         Ok(sender)
     }
 
@@ -2584,7 +2603,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     pub fn register<Event, F>(
         &mut self,
         callback: F,
-    ) -> Result<channel::Sender<Event>, ExShellEventError>
+    ) -> Result<channel::Sender<Event>, ExWlShellEventError>
     where
         F: Fn(&mut W, EventContext<NO_ID, T, W>, Event) + 'static,
         Event: 'static,
@@ -2606,7 +2625,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                     event,
                 );
             })
-            .map_err(|e| ExShellEventError::RegisterFailed(e.to_string()))?;
+            .map_err(|e| ExWlShellEventError::RegisterFailed(e.to_string()))?;
         let _ = self.looph.disable(&token);
         self.cached_tokens.push(token);
         Ok(sender)
@@ -2640,7 +2659,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     }
 
     /// Run the program
-    pub fn run(mut self) -> Result<(), ExShellEventError> {
+    pub fn run(mut self) -> Result<(), ExWlShellEventError> {
         let connection = self.state.connection.clone();
         let mut event_queue_origin = self.state.event_queue.take().unwrap();
         let qh = self.state.queue_handle.clone();

@@ -17,19 +17,24 @@ impl<T: 'static> WindowState<T> {
             output_option: output_type,
         }: NewInputPanelSettings,
         info: impl Into<Option<T>>,
-    ) -> Option<crate::id::Id> {
+    ) -> Result<crate::id::Id, crate::ExWlShellEventError> {
         let info = info.into();
-        let output = self.resolve_output(output_type);
+        let output = self.resolve_output(output_type).ok_or(
+            crate::ExWlShellEventError::CreateSurfaceFailed(
+                "input_panel: Cannot find an output for input_panel".to_owned(),
+            ),
+        )?;
 
-        let Some(output) = output else {
-            log::warn!("no WlOutput, skip creating input panel");
-            return None;
-        };
-
+        let input_panel =
+            self.input_panel
+                .as_ref()
+                .ok_or(crate::ExWlShellEventError::Unsupported(
+                    crate::ProtocolType::InputPanel,
+                ))?;
         let id = crate::id::Id::unique();
         let qh = self.queue_handle.clone();
         let wl_surface = self.wl_compositor.create_surface(&qh, ());
-        let input_panel = self.input_panel.as_ref()?;
+
         let input_panel_surface = input_panel.get_input_panel_surface(&wl_surface, &qh, ());
         if keyboard {
             input_panel_surface.set_toplevel(&output, ZwpInputPanelPosition::CenterBottom as u32);
@@ -63,6 +68,6 @@ impl<T: 'static> WindowState<T> {
             .binding(info)
             .build(),
         );
-        Some(id)
+        Ok(id)
     }
 }

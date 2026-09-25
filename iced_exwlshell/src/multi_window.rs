@@ -985,7 +985,7 @@ where
                 settings,
                 id: iced_id,
             } => {
-                ev.create_layershell(settings, iced_id);
+                let _ = ev.create_layershell(settings, iced_id);
             }
             ExwlShellCustomAction::Lock => {
                 ev.request_lock();
@@ -1035,7 +1035,7 @@ where
                     grab_serial,
                 };
 
-                ev.create_popup(popup_settings, iced_id);
+                let _ = ev.create_popup(popup_settings, iced_id);
             }
             ExwlShellCustomAction::PopUpReposition { settings } => {
                 let IcedNewPopupSettings {
@@ -1089,13 +1089,13 @@ where
                         | PopupConstraintAdjustment::SlideY,
                     grab_serial: None,
                 };
-                ev.create_popup(popup_settings, Some(iced_id));
+                let _ = ev.create_popup(popup_settings, Some(iced_id));
             }
             ExwlShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
-                ev.create_input_panel(settings, iced_id);
+                let _ = ev.create_input_panel(settings, iced_id);
             }
             ExwlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();

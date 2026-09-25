@@ -62,14 +62,19 @@ impl<T: 'static> WindowState<T> {
             blur_option,
         }: NewLayerShellSettings,
         binding: impl Into<Option<T>>,
-    ) -> Option<crate::id::Id> {
+    ) -> Result<crate::id::Id, crate::ExWlShellEventError> {
+        let output = self.resolve_output(output_type);
+        let layer_shell =
+            self.layer_shell
+                .as_ref()
+                .ok_or(crate::ExWlShellEventError::Unsupported(
+                    crate::ProtocolType::LayerShell,
+                ))?;
+
         let qh = self.queue_handle.clone();
         let wire_anchor = size.resolve_anchor(anchor);
-        let output = self.resolve_output(output_type);
 
         let wl_surface = self.wl_compositor.create_surface(&qh, ());
-
-        let layer_shell = self.layer_shell.as_ref()?;
 
         let id = crate::id::Id::unique();
         let layer = layer_shell.get_layer_surface(
@@ -140,6 +145,6 @@ impl<T: 'static> WindowState<T> {
             .binding(binding.into())
             .build(),
         );
-        Some(id)
+        Ok(id)
     }
 }
