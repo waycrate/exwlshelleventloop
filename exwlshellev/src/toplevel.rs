@@ -86,6 +86,7 @@ impl<T: 'static> WindowState<T> {
             title,
             size,
             client_side_decorations,
+            app_id,
         }: NewXdgWindowSettings,
         info: impl Into<Option<T>>,
     ) -> Option<crate::id::Id> {
@@ -96,6 +97,11 @@ impl<T: 'static> WindowState<T> {
         let toplevel = wl_xdg_surface.get_toplevel(&qh, ());
 
         toplevel.set_title(title.unwrap_or("".to_owned()));
+
+        // before first commit so window rules can match it as init class.
+        if let Some(app_id) = app_id {
+            toplevel.set_app_id(app_id);
+        }
 
         let decoration = if let Some(decoration_manager) = &self.xdg_decoration_manager {
             let decoration = decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());

@@ -141,6 +141,8 @@ pub struct NewXdgWindowSettings {
     pub size: Option<PixelSize>,
     /// Request client-side decorations instead of the default server-side mode.
     pub client_side_decorations: bool,
+    /// The xdg `app_id`
+    pub app_id: Option<String>,
 }
 
 /// Window state reported by `xdg_toplevel::configure`.

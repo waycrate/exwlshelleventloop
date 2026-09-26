@@ -996,7 +996,6 @@ where
             ExwlShellCustomAction::NewBaseWindow {
                 settings,
                 id: iced_id,
-                ..
             } => {
                 ev.create_xdg_base_window(settings.into(), iced_id);
             }
