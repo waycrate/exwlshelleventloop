@@ -7,7 +7,7 @@ use crate::{
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
-    user_interface::UserInterfaces,
+    user_interface::{Input, UserInterfaces},
 };
 use crate::{
     actions::ExwlShellCustomAction, clipboard::ExwlShellClipboard, conversion, error::Error,
@@ -15,6 +15,7 @@ use crate::{
 use crate::{
     event::{IcedWlShellEvent, WindowEvent as ExwlShellWindowEvent},
     proxy::IcedProxy,
+    scroll,
 };
 use exwlshellev::{
     DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
@@ -223,6 +224,7 @@ where
         system_theme,
         proxy_back,
         wl_settings.keep_compositor_alive,
+        wl_settings.scroll_frames,
         redraw_policy,
     )
     .lock(lock);
@@ -382,11 +384,13 @@ where
     waiting_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
     action_serial: Option<u32>,
     pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
-    iced_events: Vec<(IcedId, IcedEvent)>,
+    iced_events: Vec<(IcedId, Input)>,
+    scroll_owners: HashMap<IcedId, scroll::Owner>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
     time: Instant,
     keep_compositor_alive: bool,
+    scroll_frames: bool,
     redraw_policy: Policy<P::Message>,
 }
 
@@ -409,6 +413,7 @@ where
         system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
         keep_compositor_alive: bool,
+        scroll_frames: bool,
         redraw_policy: Policy<P::Message>,
     ) -> Self {
         Self {
@@ -419,6 +424,7 @@ where
             system_theme,
             fonts,
             keep_compositor_alive,
+            scroll_frames,
             compositor: Default::default(),
             window_manager: WindowManager::new(),
             cached_layer_dimensions: HashMap::new(),
@@ -429,6 +435,7 @@ where
             action_serial: None,
             pending_window_controls: Default::default(),
             iced_events: Default::default(),
+            scroll_owners: HashMap::new(),
             messages: Default::default(),
             proxy,
             time: Instant::now(),
@@ -778,6 +785,7 @@ where
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
         self.iced_events.retain(|(id, _)| *id != iced_id);
+        self.scroll_owners.remove(&iced_id);
         self.waiting_shell_actions
             .retain(|(id, _)| *id != Some(iced_id));
         self.pending_window_controls
@@ -848,12 +856,26 @@ where
         window
             .state
             .update(&event, self.user_interfaces.application());
-        if let Some(event) = conversion::window_event(
+        if let ExwlShellWindowEvent::Scroll {
+            deltas,
+            frame,
+            stop,
+        } = event
+        {
+            let exposed_frame = self.scroll_frames.then_some(frame);
+            self.iced_events.extend(
+                conversion::scroll_events(deltas, window.state.application_scale_factor())
+                    .map(|event| (iced_id, Input::Event(event, exposed_frame))),
+            );
+            if let Some(stop) = stop.filter(|_| self.scroll_frames) {
+                self.iced_events.push((iced_id, Input::ScrollStop(stop)));
+            }
+        } else if let Some(event) = conversion::window_event(
             event,
             window.state.application_scale_factor(),
             window.state.modifiers(),
         ) {
-            self.iced_events.push((iced_id, event));
+            self.iced_events.push((iced_id, Input::Event(event, None)));
         }
     }
 
@@ -1122,32 +1144,46 @@ where
         let mut rebuilds = Vec::new();
         for (iced_id, window) in self.window_manager.iter_mut() {
             let interact_span = iced_debug::interact(iced_id);
-            let mut window_events = vec![];
+            let mut inputs = vec![];
 
-            self.iced_events.retain(|(window_id, event)| {
+            self.iced_events.retain(|(window_id, input)| {
                 if *window_id == iced_id {
-                    window_events.push(event.clone());
+                    inputs.push(input.clone());
                     false
                 } else {
                     true
                 }
             });
 
-            if window_events.is_empty() && self.messages.is_empty() {
+            if inputs.is_empty() && self.messages.is_empty() {
                 continue;
             }
 
-            let (ui_state, statuses) = self
+            let mut scroll_owner = self.scroll_owners.remove(&iced_id);
+
+            let (ui_state, statuses, stop_delivered) = self
                 .user_interfaces
                 .ui_mut(&iced_id)
                 .expect("Get user interface")
-                .update(
-                    &window_events,
+                .update_with_scroll(
+                    &inputs,
+                    &mut scroll_owner,
                     window.state.cursor(),
                     &mut window.renderer,
                     &mut self.clipboard,
                     &mut self.messages,
                 );
+            if let Some(owner) = scroll_owner {
+                self.scroll_owners.insert(iced_id, owner);
+            }
+            // The receiver reads the stop while handling the next event.
+            if stop_delivered {
+                ev.request_refresh(window.id, RefreshRequest::NextFrame);
+            }
+            let window_events = inputs.into_iter().filter_map(|input| match input {
+                Input::Event(event, _) => Some(event),
+                Input::ScrollStop(_) => None,
+            });
 
             #[cfg(feature = "unconditional-rendering")]
             let unconditional_rendering = true;
@@ -1157,7 +1193,7 @@ where
                 rebuilds.push((iced_id, window));
             }
 
-            for (event, status) in window_events.drain(..).zip(statuses) {
+            for (event, status) in window_events.zip(statuses) {
                 self.runtime
                     .broadcast(iced_futures::subscription::Event::Interaction {
                         window: iced_id,

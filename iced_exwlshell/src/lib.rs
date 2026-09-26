@@ -8,6 +8,7 @@ mod error;
 mod event;
 mod multi_window;
 mod proxy;
+mod scroll;
 pub mod redraw;
 mod user_interface;
 
