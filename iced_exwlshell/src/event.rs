@@ -4,6 +4,8 @@ use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 use exwlshellev::{ExWlShellEvent, WindowState};
 use iced_core::mouse;
 
+use crate::scroll;
+
 use iced_core::keyboard::Modifiers as IcedModifiers;
 
 use iced_wayland_subscriber::OutputInfo;
@@ -67,15 +69,11 @@ pub enum WindowEvent {
     Unfocus,
     Focused,
     ModifiersChanged(ModifiersState),
-    Axis {
-        x: f32,
-        y: f32,
+    Scroll {
+        deltas: [Option<mouse::ScrollDelta>; 2],
+        frame: scroll::Frame,
+        stop: Option<scroll::Stop>,
     },
-    PixelDelta {
-        x: f32,
-        y: f32,
-    },
-    ScrollStop,
     TouchDown {
         id: i32,
         x: f64,
@@ -167,23 +165,13 @@ impl WindowEvent {
             ExWlShellEvent::Axis {
                 horizontal,
                 vertical,
-                scale,
-                ..
-            } => {
-                if horizontal.stop && vertical.stop {
-                    WindowEvent::ScrollStop
-                } else if vertical.discrete != 0 || horizontal.discrete != 0 {
-                    WindowEvent::Axis {
-                        x: (-horizontal.discrete as f64 * scale) as f32,
-                        y: (-vertical.discrete as f64 * scale) as f32,
-                    }
-                } else {
-                    WindowEvent::PixelDelta {
-                        x: (-horizontal.absolute * scale) as f32,
-                        y: (-vertical.absolute * scale) as f32,
-                    }
-                }
-            }
+                time,
+                source,
+            } => WindowEvent::Scroll {
+                deltas: scroll::deltas(&horizontal, &vertical),
+                frame: scroll::Frame::new(time, source, &horizontal, &vertical),
+                stop: scroll::Stop::new(time, &horizontal, &vertical),
+            },
             ExWlShellEvent::Ime(ime) => WindowEvent::Ime(ime.clone()),
             ExWlShellEvent::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
             ExWlShellEvent::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),

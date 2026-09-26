@@ -78,22 +78,124 @@ pub enum Cursor {
     ThemeName(String),
 }
 
-/// Describes a scroll along one axis
+/// Describes the scroll along one axis within one `wl_pointer.frame`.
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct AxisScroll {
-    /// The scroll measured in pixels.
+    /// The scroll distance in surface-local (logical) coordinates.
     pub absolute: f64,
+
+    /// High-resolution wheel scroll, where each multiple of 120 is one logical step.
+    ///
+    /// Sent by compositors implementing `wl_pointer` version 8 or later. Zero for touchpads and
+    /// other continuous sources.
+    pub value120: i32,
 
     /// The scroll measured in steps.
     ///
-    /// Note: this might always be zero if the scrolling is due to a touchpad or other continuous
-    /// source.
+    /// Only sent by compositors implementing `wl_pointer` versions 5 to 7; newer ones send
+    /// [`AxisScroll::value120`] instead. Zero for touchpads and other continuous sources.
     pub discrete: i32,
+
+    /// Whether the scroll direction is inverted (natural scrolling)
+    /// `None` if compositor did not report direction
+    pub relative_direction: Option<wl_pointer::AxisRelativeDirection>,
 
     /// The scroll was stopped.
     ///
-    /// Generally this is encountered when hardware indicates the end of some continuous scrolling.
+    /// Always sent for [`wl_pointer::AxisSource::Finger`] when the fingers are lifted off the
+    /// device. For wheel, wheel-tilt and continuous sources it may or may not be sent, depending
+    /// on the hardware and compositor, so do not rely on it for those.
     pub stop: bool,
+}
+
+impl AxisScroll {
+    /// Returns true if nothing happened on this axis.
+    pub fn is_none(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// One logical scroll event: every axis event received between two `wl_pointer.frame` events.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub(crate) struct AxisFrame {
+    pub time: Option<u32>,
+    pub horizontal: AxisScroll,
+    pub vertical: AxisScroll,
+    pub source: Option<wl_pointer::AxisSource>,
+}
+
+impl AxisFrame {
+    /// Whether `event` is one of the axis events that make up a logical scroll event.
+    pub fn is_axis_event(event: &wl_pointer::Event) -> bool {
+        use wl_pointer::Event;
+        matches!(
+            event,
+            Event::Axis { .. }
+                | Event::AxisSource { .. }
+                | Event::AxisStop { .. }
+                | Event::AxisValue120 { .. }
+                | Event::AxisDiscrete { .. }
+                | Event::AxisRelativeDirection { .. }
+        )
+    }
+
+    /// Folds an axis event into the frame. Other events are ignored.
+    pub fn accumulate(&mut self, event: &wl_pointer::Event) {
+        use wl_pointer::Event;
+        let axis = match event {
+            Event::Axis { axis, .. }
+            | Event::AxisStop { axis, .. }
+            | Event::AxisValue120 { axis, .. }
+            | Event::AxisDiscrete { axis, .. }
+            | Event::AxisRelativeDirection { axis, .. } => axis,
+            Event::AxisSource { axis_source } => {
+                match axis_source {
+                    WEnum::Value(source) => self.source = Some(*source),
+                    WEnum::Unknown(unknown) => {
+                        log::warn!(target: "exwlshellev", "unknown pointer axis source: {unknown:x}");
+                    }
+                }
+                return;
+            }
+            _ => return,
+        };
+        let scroll = match axis {
+            WEnum::Value(wl_pointer::Axis::VerticalScroll) => &mut self.vertical,
+            WEnum::Value(wl_pointer::Axis::HorizontalScroll) => &mut self.horizontal,
+            _ => {
+                log::warn!(target: "exwlshellev", "invalid pointer axis: {axis:?}");
+                return;
+            }
+        };
+        match event {
+            Event::Axis { time, value, .. } => {
+                scroll.absolute += value;
+                self.time.get_or_insert(*time);
+            }
+            Event::AxisStop { time, .. } => {
+                scroll.stop = true;
+                self.time.get_or_insert(*time);
+            }
+            Event::AxisValue120 { value120, .. } => scroll.value120 += value120,
+            Event::AxisDiscrete { discrete, .. } => scroll.discrete += discrete,
+            Event::AxisRelativeDirection { direction, .. } => match direction {
+                WEnum::Value(direction) => scroll.relative_direction = Some(*direction),
+                WEnum::Unknown(unknown) => {
+                    log::warn!(target: "exwlshellev", "unknown pointer axis direction: {unknown:x}");
+                }
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn into_message(self) -> DispatchMessage {
+        DispatchMessage::Axis {
+            time: self.time,
+            horizontal: self.horizontal,
+            vertical: self.vertical,
+            source: self.source,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -153,8 +255,7 @@ pub(crate) enum DispatchMessage {
         surface_y: f64,
     },
     Axis {
-        time: u32,
-        scale: f64,
+        time: Option<u32>,
         horizontal: AxisScroll,
         vertical: AxisScroll,
         source: Option<wl_pointer::AxisSource>,
@@ -238,10 +339,10 @@ pub enum ExWlShellEvent {
         surface_x: f64,
         surface_y: f64,
     },
-    /// About the scroll
+    /// One logical scroll event: every axis event the compositor sent within one
+    /// `wl_pointer.frame` (or a single event on `wl_pointer` older than version 5).
     Axis {
-        time: u32,
-        scale: f64,
+        time: Option<u32>,
         horizontal: AxisScroll,
         vertical: AxisScroll,
         source: Option<wl_pointer::AxisSource>,
@@ -389,13 +490,11 @@ impl From<DispatchMessage> for ExWlShellEvent {
             DispatchMessage::TouchCancel { id, x, y } => ExWlShellEvent::TouchCancel { id, x, y },
             DispatchMessage::Axis {
                 time,
-                scale,
                 horizontal,
                 vertical,
                 source,
             } => ExWlShellEvent::Axis {
                 time,
-                scale,
                 horizontal,
                 vertical,
                 source,

@@ -5,7 +5,9 @@ use iced_runtime::{
     UserInterface as IcedUserInterface,
     user_interface::{Cache, State},
 };
-use std::{collections::HashMap, mem};
+use std::{collections::HashMap, mem, slice};
+
+use crate::scroll;
 
 pub(crate) trait UserInterfaceReclaim<Message, Theme, Renderer> {
     fn reclaim(&mut self, ui: IcedUserInterface<'static, Message, Theme, Renderer>);
@@ -68,6 +70,112 @@ where
         let res = ui.update(events, cursor, renderer, clipboard, messages);
         self.ui = Some(ui);
         res
+    }
+
+    /// Like [`Self::update`], but takes [`Input`]s: [`scroll::current`] returns the frame of the
+    /// event being handled, and stops go to the [`scroll::StopReceiver`] that claimed the latest
+    /// scroll event, whose owner `scroll_owner` tracks.
+    pub fn update_with_scroll(
+        &mut self,
+        inputs: &[Input],
+        scroll_owner: &mut Option<scroll::Owner>,
+        cursor: Cursor,
+        renderer: &mut Renderer,
+        clipboard: &mut dyn Clipboard,
+        messages: &mut Vec<Message>,
+    ) -> (State, Vec<Status>, bool) {
+        let mut ui = self.take();
+        let mut result: Option<(State, Vec<Status>)> = None;
+        let mut stop_delivered = false;
+        let mut plain = Vec::new();
+        let mut update = |ui: &mut IcedUserInterface<'a, _, _, _>,
+                          renderer: &mut Renderer,
+                          events: &[Event],
+                          frame: Option<scroll::Frame>,
+                          result: &mut Option<(State, Vec<Status>)>| {
+            let ((state, statuses), claim) = scroll::with_current(frame, || {
+                ui.update(events, cursor, renderer, clipboard, messages)
+            });
+            *result = Some(match result.take() {
+                None => (state, statuses),
+                Some((earlier, mut all_statuses)) => {
+                    all_statuses.extend(statuses);
+                    (merge_states(earlier, state), all_statuses)
+                }
+            });
+            claim
+        };
+        for input in inputs {
+            match input {
+                Input::Event(event, None) => plain.push(event.clone()),
+                Input::Event(event, Some(frame)) => {
+                    if !plain.is_empty() {
+                        update(&mut ui, renderer, &mem::take(&mut plain), None, &mut result);
+                    }
+                    *scroll_owner = update(
+                        &mut ui,
+                        renderer,
+                        slice::from_ref(event),
+                        Some(*frame),
+                        &mut result,
+                    );
+                }
+                Input::ScrollStop(stop) => {
+                    if !plain.is_empty() {
+                        update(&mut ui, renderer, &mem::take(&mut plain), None, &mut result);
+                    }
+                    if let Some(owner) = *scroll_owner {
+                        let mut operation = scroll::DeliverStop::new(owner, *stop);
+                        ui.operate(renderer, &mut operation);
+                        stop_delivered |= operation.delivered();
+                    }
+                }
+            }
+        }
+        if !plain.is_empty() || result.is_none() {
+            update(&mut ui, renderer, &plain, None, &mut result);
+        }
+        self.ui = Some(ui);
+        let (state, statuses) = result.expect("update ran at least once");
+        (state, statuses, stop_delivered)
+    }
+}
+
+/// An input queued for a window's user interface.
+#[derive(Debug, Clone)]
+pub(crate) enum Input {
+    /// An event, with its scroll frame if it is a scroll.
+    Event(Event, Option<scroll::Frame>),
+    /// The end of a scroll gesture.
+    ScrollStop(scroll::Stop),
+}
+
+/// Merges the states of two consecutive updates the way iced merges them within one batch.
+fn merge_states(earlier: State, later: State) -> State {
+    match (earlier, later) {
+        (State::Outdated, _) | (_, State::Outdated) => State::Outdated,
+        (
+            State::Updated {
+                redraw_request: earlier_redraw,
+                input_method: mut merged_input_method,
+                has_layout_changed: earlier_layout_changed,
+                ..
+            },
+            State::Updated {
+                mouse_interaction,
+                redraw_request,
+                input_method,
+                has_layout_changed,
+            },
+        ) => {
+            merged_input_method.merge(&input_method);
+            State::Updated {
+                mouse_interaction,
+                redraw_request: earlier_redraw.min(redraw_request),
+                input_method: merged_input_method,
+                has_layout_changed: earlier_layout_changed || has_layout_changed,
+            }
+        }
     }
 }
 

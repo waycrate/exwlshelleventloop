@@ -34,6 +34,10 @@ pub struct ExWlSettings {
     /// dropping it. Avoids cold-start delay at the cost of idle GPU/RAM.
     /// Defaults to `true`. Useful for daemons that show surfaces rarely.
     pub keep_compositor_alive: bool,
+
+    /// Report scroll stops and per-scroll details to widgets; see [`crate::scroll`].
+    /// Defaults to `false`.
+    pub scroll_frames: bool,
 }
 
 impl Default for ExWlSettings {
@@ -44,6 +48,7 @@ impl Default for ExWlSettings {
             shell_broadcast: shell::channel().0,
             layer_settings: LayerShellSettings::default(),
             keep_compositor_alive: true,
+            scroll_frames: false
         }
     }
 }
