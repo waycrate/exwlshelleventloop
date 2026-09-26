@@ -17,8 +17,8 @@ use crate::{
     proxy::IcedProxy,
 };
 use exwlshellev::{
-    DisplayWrapper, EventContext, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings,
-    PopupPlacement, RefreshRequest, Request, WindowState, WindowWrapper,
+    DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
+    RefreshRequest, WindowState, WindowWrapper,
     id::Id as ExWlShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -124,21 +124,20 @@ where
         waiting_shell_events: VecDeque::new(),
         virtual_keyboard_support,
     };
-    let mut wl_context: EventContext<iced_core::window::Id, _> =
-        exwlshellev::WindowState::new(namespace)
-            .with_start_mode(wl_settings.layer_settings.start_mode)
-            .with_use_display_handle(true)
-            .with_events_transparent(wl_settings.layer_settings.events_transparent)
-            .with_size(wl_settings.layer_settings.size)
-            .with_layer(wl_settings.layer_settings.layer)
-            .with_anchor(wl_settings.layer_settings.anchor)
-            .with_exclusive_zone(wl_settings.layer_settings.exclusive_zone)
-            .with_margin(wl_settings.layer_settings.margin)
-            .with_keyboard_interacivity(wl_settings.layer_settings.keyboard_interactivity)
-            .with_blur_option(wl_settings.layer_settings.blur_option)
-            .with_connection(wl_settings.with_connection)
-            .build(context_ev)
-            .expect("Cannot create context for exwlshellev");
+    let mut wl_context = exwlshellev::ExWlEventLoopBuilder::new(namespace)
+        .with_start_mode(wl_settings.layer_settings.start_mode)
+        .with_use_display_handle(true)
+        .with_events_transparent(wl_settings.layer_settings.events_transparent)
+        .with_size(wl_settings.layer_settings.size)
+        .with_layer(wl_settings.layer_settings.layer)
+        .with_anchor(wl_settings.layer_settings.anchor)
+        .with_exclusive_zone(wl_settings.layer_settings.exclusive_zone)
+        .with_margin(wl_settings.layer_settings.margin)
+        .with_keyboard_interacivity(wl_settings.layer_settings.keyboard_interactivity)
+        .with_blur_option(wl_settings.layer_settings.blur_option)
+        .with_connection(wl_settings.with_connection)
+        .attach(context_ev)
+        .expect("Cannot create context for exwlshellev");
 
     let message_sender = wl_context
         .register(|window, mut shell_context, action: Action<P::Message>| {
@@ -239,7 +238,7 @@ where
     {
         fn on_refresh(
             &mut self,
-            mut ev_context: exwlshellev::HaveIdWlEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::HaveIdEventContext<iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -299,7 +298,7 @@ where
 
         fn on_normal_dispatch(
             &mut self,
-            mut ev_context: exwlshellev::NoIdWlEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::NoIdEventContext<iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -309,7 +308,7 @@ where
 
         fn on_event(
             &mut self,
-            mut ev_context: exwlshellev::MaybeIdWlEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::MaybeIdEventContext<iced_core::window::Id, Self>,
             event: exwlshellev::ExWlShellEvent,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
@@ -876,7 +875,7 @@ where
             &mut self.pending_window_controls,
         );
         if should_exit {
-            ev.push_request(Request::RequestExit);
+            ev.exit();
         }
     }
 
@@ -985,36 +984,25 @@ where
             ExwlShellCustomAction::NewLayerShell {
                 settings,
                 id: iced_id,
-                ..
             } => {
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewLayerShell {
-                    settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                let _ = ev.create_layershell(settings, iced_id);
             }
             ExwlShellCustomAction::Lock => {
-                ev.push_request(Request::RequestLock);
+                ev.request_lock();
             }
             ExwlShellCustomAction::UnLock => {
-                ev.push_request(Request::RequestUnLock);
+                ev.request_unlock();
             }
             ExwlShellCustomAction::NewBaseWindow {
                 settings,
                 id: iced_id,
                 ..
             } => {
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewXdgBase {
-                    settings: settings.into(),
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                ev.create_xdg_base_window(settings.into(), iced_id);
             }
             ExwlShellCustomAction::RemoveWindow => {
-                if let Some(layer_shell_id) = ex_shell_id {
-                    ev.request_close(layer_shell_id)
+                if let Some(shell_id) = ex_shell_id {
+                    ev.request_close(shell_id)
                 }
             }
             ExwlShellCustomAction::NewPopUp {
@@ -1046,12 +1034,8 @@ where
                     constraint_adjustment,
                     grab_serial,
                 };
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewPopUp {
-                    settings: popup_settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+
+                let _ = ev.create_popup(popup_settings, iced_id);
             }
             ExwlShellCustomAction::PopUpReposition { settings } => {
                 let IcedNewPopupSettings {
@@ -1065,16 +1049,16 @@ where
                 let Some(ex_shell_id) = ex_shell_id else {
                     return;
                 };
-                ev.push_request(Request::PopUpReposition {
-                    settings: PopUpRepositionSettings {
+                ev.popup_reposition(
+                    PopUpRepositionSettings {
                         size,
                         placement,
                         anchor,
                         gravity,
                         constraint_adjustment,
                     },
-                    id: ex_shell_id,
-                });
+                    ex_shell_id,
+                );
             }
             ExwlShellCustomAction::NewMenu {
                 settings: menu_setting,
@@ -1105,23 +1089,13 @@ where
                         | PopupConstraintAdjustment::SlideY,
                     grab_serial: None,
                 };
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewPopUp {
-                    settings: popup_settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                let _ = ev.create_popup(popup_settings, Some(iced_id));
             }
             ExwlShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
-                let layer_shell_id = exwlshellev::id::Id::unique();
-                ev.push_request(Request::NewInputPanel {
-                    settings,
-                    id: layer_shell_id,
-                    info: Some(iced_id),
-                });
+                let _ = ev.create_input_panel(settings, iced_id);
             }
             ExwlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();
@@ -1323,12 +1297,12 @@ where
                     // Only the window that contains the pointer can change cursor
                     if ev.pointer_surface_id() == Some(window.id) {
                         for pointer in ev.get_pointers() {
-                            ev.push_request(Request::RequestSetCursor {
-                                cursor: exwlshellev::Cursor::Shape(conversion::mouse_interaction(
+                            ev.set_cursor(
+                                exwlshellev::Cursor::Shape(conversion::mouse_interaction(
                                     mouse_interaction,
                                 )),
                                 pointer,
-                            });
+                            );
                         }
                     }
                     window.mouse_interaction = mouse_interaction;

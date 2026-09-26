@@ -1,4 +1,4 @@
-use exwlshellev::ExShellEventError;
+use exwlshellev::ExWlShellEventError;
 use iced_futures::futures;
 
 /// An error that occurred while running an application.
@@ -17,7 +17,7 @@ pub enum Error {
     GraphicsCreationFailed(iced_graphics::Error),
 
     #[error("Error during dispatch")]
-    WaylandDispatchFailed(#[from] ExShellEventError),
+    WaylandDispatchFailed(#[from] ExWlShellEventError),
 
     #[error("invalid settings: {0}")]
     InvalidSettings(&'static str),
