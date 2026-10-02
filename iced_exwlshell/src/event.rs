@@ -4,7 +4,7 @@ use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 use exwlshellev::{ExWlShellEvent, WindowState};
 use iced_core::mouse;
 
-use crate::scroll;
+use crate::gesture;
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
 
@@ -71,9 +71,10 @@ pub enum WindowEvent {
     ModifiersChanged(ModifiersState),
     Scroll {
         deltas: [Option<mouse::ScrollDelta>; 2],
-        frame: scroll::Frame,
-        stop: Option<scroll::Stop>,
+        frame: gesture::Frame,
+        stop: Option<gesture::Stop>,
     },
+    PointerGesture(exwlshellev::PointerGesture),
     TouchDown {
         id: i32,
         x: f64,
@@ -168,10 +169,11 @@ impl WindowEvent {
                 time,
                 source,
             } => WindowEvent::Scroll {
-                deltas: scroll::deltas(&horizontal, &vertical),
-                frame: scroll::Frame::new(time, source, &horizontal, &vertical),
-                stop: scroll::Stop::new(time, &horizontal, &vertical),
+                deltas: gesture::deltas(&horizontal, &vertical),
+                frame: gesture::Frame::new(time, source, &horizontal, &vertical),
+                stop: gesture::Stop::new(time, &horizontal, &vertical),
             },
+            ExWlShellEvent::PointerGesture(gesture) => WindowEvent::PointerGesture(gesture),
             ExWlShellEvent::Ime(ime) => WindowEvent::Ime(ime.clone()),
             ExWlShellEvent::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
             ExWlShellEvent::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),

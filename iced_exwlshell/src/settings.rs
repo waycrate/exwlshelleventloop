@@ -35,9 +35,9 @@ pub struct ExWlSettings {
     /// Defaults to `true`. Useful for daemons that show surfaces rarely.
     pub keep_compositor_alive: bool,
 
-    /// Report scroll stops and per-scroll details to widgets; see [`crate::scroll`].
+    /// Report touchpad gestures and scroll details to widgets; see [`crate::gesture`].
     /// Defaults to `false`.
-    pub scroll_frames: bool,
+    pub gestures: bool,
 }
 
 impl Default for ExWlSettings {
@@ -48,7 +48,7 @@ impl Default for ExWlSettings {
             shell_broadcast: shell::channel().0,
             layer_settings: LayerShellSettings::default(),
             keep_compositor_alive: true,
-            scroll_frames: false
+            gestures: false,
         }
     }
 }

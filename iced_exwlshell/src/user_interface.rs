@@ -1,5 +1,5 @@
 use iced_core::{Clipboard, renderer::Style, widget::Operation};
-use iced_core::{Event, Size, event::Status, mouse::Cursor, window::Id};
+use iced_core::{Event, Point, Size, event::Status, mouse::Cursor, window::Id};
 use iced_program::{Instance, Program};
 use iced_runtime::{
     UserInterface as IcedUserInterface,
@@ -7,7 +7,7 @@ use iced_runtime::{
 };
 use std::{collections::HashMap, mem, slice};
 
-use crate::scroll;
+use crate::gesture;
 
 pub(crate) trait UserInterfaceReclaim<Message, Theme, Renderer> {
     fn reclaim(&mut self, ui: IcedUserInterface<'static, Message, Theme, Renderer>);
@@ -72,13 +72,15 @@ where
         res
     }
 
-    /// Like [`Self::update`], but takes [`Input`]s: [`scroll::current`] returns the frame of the
-    /// event being handled, and stops go to the [`scroll::StopReceiver`] that claimed the latest
-    /// scroll event, whose owner `scroll_owner` tracks.
-    pub fn update_with_scroll(
+    /// Like [`Self::update`], but takes [`Input`]s. While handling a scroll,
+    /// [`gesture::current`] returns its frame. Gestures go to the [`gesture::GestureReceiver`]
+    /// tracked by `owners`.
+    ///
+    /// Returns the statuses of the events in order, and whether a gesture was received.
+    pub fn update_with_gestures(
         &mut self,
         inputs: &[Input],
-        scroll_owner: &mut Option<scroll::Owner>,
+        owners: &mut gesture::Owners,
         cursor: Cursor,
         renderer: &mut Renderer,
         clipboard: &mut dyn Clipboard,
@@ -86,14 +88,14 @@ where
     ) -> (State, Vec<Status>, bool) {
         let mut ui = self.take();
         let mut result: Option<(State, Vec<Status>)> = None;
-        let mut stop_delivered = false;
+        let mut gesture_delivered = false;
         let mut plain = Vec::new();
         let mut update = |ui: &mut IcedUserInterface<'a, _, _, _>,
                           renderer: &mut Renderer,
                           events: &[Event],
-                          frame: Option<scroll::Frame>,
+                          frame: Option<gesture::Frame>,
                           result: &mut Option<(State, Vec<Status>)>| {
-            let ((state, statuses), claim) = scroll::with_current(frame, || {
+            let ((state, statuses), claim) = gesture::with_current(frame, || {
                 ui.update(events, cursor, renderer, clipboard, messages)
             });
             *result = Some(match result.take() {
@@ -112,7 +114,7 @@ where
                     if !plain.is_empty() {
                         update(&mut ui, renderer, &mem::take(&mut plain), None, &mut result);
                     }
-                    *scroll_owner = update(
+                    owners.scroll = update(
                         &mut ui,
                         renderer,
                         slice::from_ref(event),
@@ -120,15 +122,13 @@ where
                         &mut result,
                     );
                 }
-                Input::ScrollStop(stop) => {
+                Input::Gesture(gesture, position) => {
                     if !plain.is_empty() {
                         update(&mut ui, renderer, &mem::take(&mut plain), None, &mut result);
                     }
-                    if let Some(owner) = *scroll_owner {
-                        let mut operation = scroll::DeliverStop::new(owner, *stop);
-                        ui.operate(renderer, &mut operation);
-                        stop_delivered |= operation.delivered();
-                    }
+                    gesture_delivered |= owners.deliver(*gesture, *position, |operation| {
+                        ui.operate(renderer, operation);
+                    });
                 }
             }
         }
@@ -137,7 +137,7 @@ where
         }
         self.ui = Some(ui);
         let (state, statuses) = result.expect("update ran at least once");
-        (state, statuses, stop_delivered)
+        (state, statuses, gesture_delivered)
     }
 }
 
@@ -145,9 +145,9 @@ where
 #[derive(Debug, Clone)]
 pub(crate) enum Input {
     /// An event, with its scroll frame if it is a scroll.
-    Event(Event, Option<scroll::Frame>),
-    /// The end of a scroll gesture.
-    ScrollStop(scroll::Stop),
+    Event(Event, Option<gesture::Frame>),
+    /// A touchpad gesture, with the cursor position when it arrived.
+    Gesture(gesture::Gesture, Option<Point>),
 }
 
 /// Merges the states of two consecutive updates the way iced merges them within one batch.

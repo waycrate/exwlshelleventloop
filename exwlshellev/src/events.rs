@@ -198,6 +198,36 @@ impl AxisFrame {
     }
 }
 
+/// A touchpad gesture reported by `zwp_pointer_gestures_v1`.
+///
+/// Times are compositor timestamps in milliseconds, and distances are in surface-local
+/// (logical) coordinates. Each gesture begins before it sends updates or ends.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PointerGesture {
+    /// Fingers were put down and held without moving, e.g. to stop kinetic scrolling.
+    HoldBegin { time: u32, fingers: u32 },
+    /// Fingers started moving together.
+    SwipeBegin { time: u32, fingers: u32 },
+    /// The fingers moved by (`dx`, `dy`) since the previous event.
+    SwipeUpdate { time: u32, dx: f64, dy: f64 },
+    /// The fingers were lifted, or the compositor `cancelled` the swipe.
+    SwipeEnd { time: u32, cancelled: bool },
+    /// Fingers started moving towards or away from each other, or rotating.
+    PinchBegin { time: u32, fingers: u32 },
+    /// The center of the fingers moved by (`dx`, `dy`) since the previous event. `scale` is
+    /// the distance between the fingers relative to the start of the gesture. `rotation` is the
+    /// clockwise angle in degrees since the previous event.
+    PinchUpdate {
+        time: u32,
+        dx: f64,
+        dy: f64,
+        scale: f64,
+        rotation: f64,
+    },
+    /// The fingers were lifted, or the compositor `cancelled` the pinch.
+    PinchEnd { time: u32, cancelled: bool },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Ime {
     /// Notifies when the IME was enabled.
@@ -285,6 +315,7 @@ pub(crate) enum DispatchMessage {
         x: f64,
         y: f64,
     },
+    PointerGesture(PointerGesture),
 
     ModifiersChanged(ModifiersState),
     Focused(Id),
@@ -376,6 +407,8 @@ pub enum ExWlShellEvent {
         x: f64,
         y: f64,
     },
+    /// A touchpad gesture on the surface.
+    PointerGesture(PointerGesture),
     Focused(Id),
     Unfocus,
     /// Keyboard ModifiersChanged.
@@ -499,6 +532,7 @@ impl From<DispatchMessage> for ExWlShellEvent {
                 vertical,
                 source,
             },
+            DispatchMessage::PointerGesture(gesture) => ExWlShellEvent::PointerGesture(gesture),
             DispatchMessage::Focused(id) => ExWlShellEvent::Focused(id),
             DispatchMessage::Unfocus => ExWlShellEvent::Unfocus,
             DispatchMessage::ModifiersChanged(modifier) => {

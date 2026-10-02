@@ -1,6 +1,6 @@
 use super::WindowState;
 use crate::events::AxisFrame;
-use crate::{DispatchMessage, KeyboardTokenState, RepeatInfo, TextInputData, id};
+use crate::{DispatchMessage, KeyboardTokenState, PointerGesture, RepeatInfo, TextInputData, id};
 use sctk::seat::{Capability as SeatCapability, SeatHandler};
 use waycrate_xkbkeycode::xkb_keyboard;
 use wayland_backend::client::ObjectId;
@@ -10,8 +10,15 @@ use wayland_client::{
         wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_pointer::{self, WlPointer},
         wl_seat::{self, WlSeat},
+        wl_surface::WlSurface,
         wl_touch::{self, WlTouch},
     },
+};
+use wayland_protocols::wp::pointer_gestures::zv1::client::{
+    zwp_pointer_gesture_hold_v1::{self, ZwpPointerGestureHoldV1},
+    zwp_pointer_gesture_pinch_v1::{self, ZwpPointerGesturePinchV1},
+    zwp_pointer_gesture_swipe_v1::{self, ZwpPointerGestureSwipeV1},
+    zwp_pointer_gestures_v1::ZwpPointerGesturesV1,
 };
 use wayland_protocols::wp::text_input::zv3::client::zwp_text_input_v3::ZwpTextInputV3;
 
@@ -126,6 +133,7 @@ impl PointerFrame {
 pub(crate) struct SeatStorage {
     pub touch: Option<WlTouch>,
     pub pointer: Option<WlPointer>,
+    pub gestures: Option<PointerGestures>,
     pub keyboard_state: Option<xkb_keyboard::KeyboardState>,
     pub text_input: Option<ZwpTextInputV3>,
 }
@@ -136,6 +144,9 @@ impl Drop for SeatStorage {
             && touch.version() >= 3
         {
             touch.release();
+        }
+        if let Some(gestures) = self.gestures.take() {
+            gestures.destroy();
         }
         if let Some(pointer) = self.pointer.take()
             && pointer.version() >= 3
@@ -197,7 +208,12 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                     Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
             }
             SeatCapability::Pointer if seat_state.pointer.is_none() => {
-                seat_state.pointer = Some(seat.get_pointer(queue_handle, ()));
+                let pointer = seat.get_pointer(queue_handle, ());
+                seat_state.gestures = self
+                    .pointer_gestures
+                    .as_ref()
+                    .map(|manager| PointerGestures::new(manager, &pointer, queue_handle));
+                seat_state.pointer = Some(pointer);
             }
             _ => (),
         }
@@ -226,6 +242,9 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                 }
             }
             SeatCapability::Pointer => {
+                if let Some(gestures) = seat_state.gestures.take() {
+                    gestures.destroy();
+                }
                 if let Some(pointer) = seat_state.pointer.take() {
                     self.flush_pointer_frame(&pointer);
                     if pointer.version() >= 3 {
@@ -650,6 +669,196 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
         // Before version 5 there is no `frame` event, so each event is a frame of its .
         if pointer.version() < 5 {
             state.flush_pointer_frame(pointer);
+        }
+    }
+}
+
+/// The gesture objects of a pointer.
+#[derive(Debug)]
+pub(crate) struct PointerGestures {
+    swipe: ZwpPointerGestureSwipeV1,
+    pinch: ZwpPointerGesturePinchV1,
+    /// Needs version 3.
+    hold: Option<ZwpPointerGestureHoldV1>,
+}
+
+impl PointerGestures {
+    fn new<T: 'static>(
+        manager: &ZwpPointerGesturesV1,
+        pointer: &WlPointer,
+        qh: &QueueHandle<WindowState<T>>,
+    ) -> Self {
+        Self {
+            swipe: manager.get_swipe_gesture(pointer, qh, pointer.clone()),
+            pinch: manager.get_pinch_gesture(pointer, qh, pointer.clone()),
+            hold: (manager.version() >= 3)
+                .then(|| manager.get_hold_gesture(pointer, qh, pointer.clone())),
+        }
+    }
+
+    fn destroy(self) {
+        self.swipe.destroy();
+        self.pinch.destroy();
+        if let Some(hold) = self.hold {
+            hold.destroy();
+        }
+    }
+}
+
+impl<T> WindowState<T> {
+    /// Emits `event` for `pointer`'s gesture object `gesture`. Only the begin event includes
+    /// a surface, later events go to that same surface.
+    fn push_pointer_gesture(
+        &mut self,
+        pointer: &WlPointer,
+        gesture: ObjectId,
+        begin: Option<&WlSurface>,
+        end: bool,
+        event: Option<PointerGesture>,
+    ) {
+        // Flush any pending pointer frame before delivering the separate gesture event.
+        self.flush_pointer_frame(pointer);
+        let surface_id = match begin {
+            Some(surface) => {
+                let surface_id = self.get_id_from_surface(surface);
+                self.gesture_surfaces.insert(gesture.clone(), surface_id);
+                surface_id
+            }
+            None => self.gesture_surfaces.get(&gesture).copied().flatten(),
+        };
+        if end {
+            self.gesture_surfaces.remove(&gesture);
+        }
+        if let Some(event) = event {
+            self.messages
+                .push((surface_id, DispatchMessage::PointerGesture(event)));
+        }
+    }
+}
+
+/// The `WlPointer` is the pointer the gesture was created for.
+impl<T> Dispatch<ZwpPointerGestureSwipeV1, WlPointer> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwpPointerGestureSwipeV1,
+        event: <ZwpPointerGestureSwipeV1 as Proxy>::Event,
+        pointer: &WlPointer,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_pointer_gesture_swipe_v1::Event;
+        let (begin, end, gesture) = match event {
+            Event::Begin {
+                time,
+                surface,
+                fingers,
+                ..
+            } => (
+                Some(surface),
+                false,
+                PointerGesture::SwipeBegin { time, fingers },
+            ),
+            Event::Update { time, dx, dy } => {
+                (None, false, PointerGesture::SwipeUpdate { time, dx, dy })
+            }
+            Event::End {
+                time, cancelled, ..
+            } => (
+                None,
+                true,
+                PointerGesture::SwipeEnd {
+                    time,
+                    cancelled: cancelled != 0,
+                },
+            ),
+            _ => return,
+        };
+        state.push_pointer_gesture(pointer, proxy.id(), begin.as_ref(), end, Some(gesture));
+    }
+}
+
+/// The `WlPointer` is the pointer the gesture was created for.
+impl<T> Dispatch<ZwpPointerGesturePinchV1, WlPointer> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwpPointerGesturePinchV1,
+        event: <ZwpPointerGesturePinchV1 as Proxy>::Event,
+        pointer: &WlPointer,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_pointer_gesture_pinch_v1::Event;
+        let (begin, end, gesture) = match event {
+            Event::Begin {
+                time,
+                surface,
+                fingers,
+                ..
+            } => (
+                Some(surface),
+                false,
+                PointerGesture::PinchBegin { time, fingers },
+            ),
+            Event::Update {
+                time,
+                dx,
+                dy,
+                scale,
+                rotation,
+            } => (
+                None,
+                false,
+                PointerGesture::PinchUpdate {
+                    time,
+                    dx,
+                    dy,
+                    scale,
+                    rotation,
+                },
+            ),
+            Event::End {
+                time, cancelled, ..
+            } => (
+                None,
+                true,
+                PointerGesture::PinchEnd {
+                    time,
+                    cancelled: cancelled != 0,
+                },
+            ),
+            _ => return,
+        };
+        state.push_pointer_gesture(pointer, proxy.id(), begin.as_ref(), end, Some(gesture));
+    }
+}
+
+/// The `WlPointer` is the pointer the gesture was created for.
+impl<T> Dispatch<ZwpPointerGestureHoldV1, WlPointer> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwpPointerGestureHoldV1,
+        event: <ZwpPointerGestureHoldV1 as Proxy>::Event,
+        pointer: &WlPointer,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_pointer_gesture_hold_v1::Event;
+        match event {
+            Event::Begin {
+                time,
+                surface,
+                fingers,
+                ..
+            } => state.push_pointer_gesture(
+                pointer,
+                proxy.id(),
+                Some(&surface),
+                false,
+                Some(PointerGesture::HoldBegin { time, fingers }),
+            ),
+            // Only the begin of a hold is reported.
+            Event::End { .. } => state.push_pointer_gesture(pointer, proxy.id(), None, true, None),
+            _ => {}
         }
     }
 }

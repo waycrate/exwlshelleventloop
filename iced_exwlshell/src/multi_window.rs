@@ -14,8 +14,8 @@ use crate::{
 };
 use crate::{
     event::{IcedWlShellEvent, WindowEvent as ExwlShellWindowEvent},
+    gesture,
     proxy::IcedProxy,
-    scroll,
 };
 use exwlshellev::{
     DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
@@ -224,7 +224,7 @@ where
         system_theme,
         proxy_back,
         wl_settings.keep_compositor_alive,
-        wl_settings.scroll_frames,
+        wl_settings.gestures,
         redraw_policy,
     )
     .lock(lock);
@@ -385,12 +385,12 @@ where
     action_serial: Option<u32>,
     pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
     iced_events: Vec<(IcedId, Input)>,
-    scroll_owners: HashMap<IcedId, scroll::Owner>,
+    gesture_owners: HashMap<IcedId, gesture::Owners>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
     time: Instant,
     keep_compositor_alive: bool,
-    scroll_frames: bool,
+    gestures: bool,
     redraw_policy: Policy<P::Message>,
 }
 
@@ -413,7 +413,7 @@ where
         system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
         keep_compositor_alive: bool,
-        scroll_frames: bool,
+        gestures: bool,
         redraw_policy: Policy<P::Message>,
     ) -> Self {
         Self {
@@ -424,7 +424,7 @@ where
             system_theme,
             fonts,
             keep_compositor_alive,
-            scroll_frames,
+            gestures,
             compositor: Default::default(),
             window_manager: WindowManager::new(),
             cached_layer_dimensions: HashMap::new(),
@@ -435,7 +435,7 @@ where
             action_serial: None,
             pending_window_controls: Default::default(),
             iced_events: Default::default(),
-            scroll_owners: HashMap::new(),
+            gesture_owners: HashMap::new(),
             messages: Default::default(),
             proxy,
             time: Instant::now(),
@@ -785,7 +785,7 @@ where
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
         self.iced_events.retain(|(id, _)| *id != iced_id);
-        self.scroll_owners.remove(&iced_id);
+        self.gesture_owners.remove(&iced_id);
         self.waiting_shell_actions
             .retain(|(id, _)| *id != Some(iced_id));
         self.pending_window_controls
@@ -862,13 +862,27 @@ where
             stop,
         } = event
         {
-            let exposed_frame = self.scroll_frames.then_some(frame);
+            let exposed_frame = self.gestures.then_some(frame);
             self.iced_events.extend(
                 conversion::scroll_events(deltas, window.state.application_scale_factor())
                     .map(|event| (iced_id, Input::Event(event, exposed_frame))),
             );
-            if let Some(stop) = stop.filter(|_| self.scroll_frames) {
-                self.iced_events.push((iced_id, Input::ScrollStop(stop)));
+            if let Some(stop) = stop.filter(|_| self.gestures) {
+                let gesture = gesture::Gesture::Stop(stop);
+                let position = window.state.cursor().position();
+                self.iced_events
+                    .push((iced_id, Input::Gesture(gesture, position)));
+            }
+        } else if let ExwlShellWindowEvent::PointerGesture(gesture) = event {
+            if self.gestures {
+                let gesture = gesture::Gesture::from_pointer(
+                    gesture,
+                    window.state.application_scale_factor(),
+                );
+                // Later events in this batch may move the cursor before we deliver the gesture.
+                let position = window.state.cursor().position();
+                self.iced_events
+                    .push((iced_id, Input::Gesture(gesture, position)));
             }
         } else if let Some(event) = conversion::window_event(
             event,
@@ -1159,30 +1173,27 @@ where
                 continue;
             }
 
-            let mut scroll_owner = self.scroll_owners.remove(&iced_id);
+            let owners = self.gesture_owners.entry(iced_id).or_default();
 
-            let (ui_state, statuses, stop_delivered) = self
+            let (ui_state, statuses, gesture_delivered) = self
                 .user_interfaces
                 .ui_mut(&iced_id)
                 .expect("Get user interface")
-                .update_with_scroll(
+                .update_with_gestures(
                     &inputs,
-                    &mut scroll_owner,
+                    owners,
                     window.state.cursor(),
                     &mut window.renderer,
                     &mut self.clipboard,
                     &mut self.messages,
                 );
-            if let Some(owner) = scroll_owner {
-                self.scroll_owners.insert(iced_id, owner);
-            }
-            // The receiver reads the stop while handling the next event.
-            if stop_delivered {
+            // The receiver reads the gesture while handling the next event.
+            if gesture_delivered {
                 ev.request_refresh(window.id, RefreshRequest::NextFrame);
             }
             let window_events = inputs.into_iter().filter_map(|input| match input {
                 Input::Event(event, _) => Some(event),
-                Input::ScrollStop(_) => None,
+                Input::Gesture(..) => None,
             });
 
             #[cfg(feature = "unconditional-rendering")]

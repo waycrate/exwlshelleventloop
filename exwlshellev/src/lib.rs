@@ -172,7 +172,9 @@ pub use size::{Extent, LayerSize, PixelSize};
 
 pub mod id;
 
-pub use events::{AxisScroll, Cursor, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest};
+pub use events::{
+    AxisScroll, Cursor, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest, PointerGesture,
+};
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
 use waycrate_xkbkeycode::xkb_keyboard::ElementState;
@@ -226,6 +228,7 @@ use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
     wp_fractional_scale_v1::{self, WpFractionalScaleV1},
 };
+use wayland_protocols::wp::pointer_gestures::zv1::client::zwp_pointer_gestures_v1::ZwpPointerGesturesV1;
 
 use wayland_protocols::wp::input_method::zv1::client::{
     zwp_input_panel_surface_v1::ZwpInputPanelSurfaceV1, zwp_input_panel_v1::ZwpInputPanelV1,
@@ -1236,6 +1239,7 @@ pub struct WindowState<T> {
 
     pending_requests: Vec<Request>,
     pending_pointer_frames: HashMap<ObjectId, seat::PointerFrame>,
+    gesture_surfaces: HashMap<ObjectId, Option<id::Id>>,
 
     finger_locations: HashMap<i32, (f64, f64)>,
     enter_serial: Option<u32>,
@@ -1246,6 +1250,7 @@ pub struct WindowState<T> {
     events_transparent: bool,
 
     text_input_manager: Option<ZwpTextInputManagerV3>,
+    pointer_gestures: Option<ZwpPointerGesturesV1>,
     text_input: Option<ZwpTextInputV3>,
     text_inputs: Vec<ZwpTextInputV3>,
 
@@ -1681,6 +1686,9 @@ impl<T: 'static> WindowState<T> {
             .ok();
         let layer_shell = globals.bind::<ZwlrLayerShellV1, _, _>(&qh, 3..=4, ()).ok();
         let input_panel = globals.bind::<ZwpInputPanelV1, _, _>(&qh, 1..=1, ()).ok();
+        let pointer_gestures = globals
+            .bind::<ZwpPointerGesturesV1, _, _>(&qh, 1..=3, ())
+            .ok();
 
         let text_input_manager = text_input_manager;
         let cursor_update_context = CursorUpdateContext {
@@ -1746,6 +1754,7 @@ impl<T: 'static> WindowState<T> {
 
                 pending_requests: Vec::new(),
                 pending_pointer_frames: HashMap::new(),
+                gesture_surfaces: HashMap::new(),
 
                 finger_locations: HashMap::new(),
                 enter_serial: None,
@@ -1754,6 +1763,7 @@ impl<T: 'static> WindowState<T> {
                 init_finished: false,
 
                 text_input_manager,
+                pointer_gestures,
                 text_input: None,
                 text_inputs: Vec::new(),
                 ime_purpose: ImePurpose::Normal,
@@ -3213,6 +3223,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
 }
 
 delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
+delegate_noop!(@<T> WindowState<T>: ignore ZwpPointerGesturesV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
 
