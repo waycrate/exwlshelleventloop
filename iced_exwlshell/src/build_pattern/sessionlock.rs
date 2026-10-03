@@ -1,4 +1,3 @@
-use super::attach;
 use super::daemon::{UpdateFn, with_executor, with_style, with_subscription};
 pub use pattern::application;
 mod pattern {
