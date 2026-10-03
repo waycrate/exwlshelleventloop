@@ -1,4 +1,6 @@
 use super::WindowState;
+use crate::events::AxisFrame;
+use crate::{DispatchMessage, KeyboardTokenState, PointerGesture, RepeatInfo, TextInputData, id};
 use sctk::seat::{Capability as SeatCapability, SeatHandler};
 use waycrate_xkbkeycode::xkb_keyboard;
 use wayland_backend::client::ObjectId;
@@ -8,11 +10,16 @@ use wayland_client::{
         wl_keyboard::{self, KeyState, KeymapFormat, WlKeyboard},
         wl_pointer::{self, WlPointer},
         wl_seat::{self, WlSeat},
+        wl_surface::WlSurface,
         wl_touch::{self, WlTouch},
     },
 };
-
-use crate::{AxisScroll, DispatchMessage, KeyboardTokenState, RepeatInfo, TextInputData};
+use wayland_protocols::wp::pointer_gestures::zv1::client::{
+    zwp_pointer_gesture_hold_v1::{self, ZwpPointerGestureHoldV1},
+    zwp_pointer_gesture_pinch_v1::{self, ZwpPointerGesturePinchV1},
+    zwp_pointer_gesture_swipe_v1::{self, ZwpPointerGestureSwipeV1},
+    zwp_pointer_gestures_v1::ZwpPointerGesturesV1,
+};
 use wayland_protocols::wp::text_input::zv3::client::zwp_text_input_v3::ZwpTextInputV3;
 
 use std::time::Duration;
@@ -70,6 +77,17 @@ impl<T> WindowState<T> {
     pub fn get_pointers_iter(&self) -> impl Iterator<Item = &WlPointer> {
         self.seats.values().flat_map(|seat| &seat.pointer)
     }
+
+    fn pointer_frame(&mut self, pointer: &WlPointer) -> &mut PointerFrame {
+        self.pending_pointer_frames.entry(pointer.id()).or_default()
+    }
+    /// Emits the events for `pointer` since its last `wl_pointer.frame`, in received order
+    fn flush_pointer_frame(&mut self, pointer: &WlPointer) {
+        if let Some(frame) = self.pending_pointer_frames.remove(&pointer.id()) {
+            self.messages.extend(frame.into_messages());
+        }
+    }
+
     pub fn get_touchers(&self) -> Vec<WlTouch> {
         self.seats
             .values()
@@ -82,11 +100,40 @@ impl<T> WindowState<T> {
         self.seats.values().flat_map(|seat| &seat.touch)
     }
 }
+/// The events of one pointer since its last `wl_pointer.frame`, which belong together.
+#[derive(Debug, Default)]
+pub(crate) struct PointerFrame {
+    messages: Vec<(Option<id::Id>, DispatchMessage)>,
+    axis: Option<(usize, Option<id::Id>, AxisFrame)>,
+}
+
+impl PointerFrame {
+    fn push(&mut self, surface_id: Option<id::Id>, message: DispatchMessage) {
+        self.messages.push((surface_id, message));
+    }
+
+    fn accumulate_axis(&mut self, surface_id: Option<id::Id>, event: &wl_pointer::Event) {
+        let index = self.messages.len();
+        let (_, _, axis) = self
+            .axis
+            .get_or_insert_with(|| (index, surface_id, AxisFrame::default()));
+        axis.accumulate(event);
+    }
+
+    fn into_messages(mut self) -> Vec<(Option<id::Id>, DispatchMessage)> {
+        if let Some((index, surface_id, axis)) = self.axis {
+            self.messages
+                .insert(index, (surface_id, axis.into_message()));
+        }
+        self.messages
+    }
+}
 
 #[derive(Debug, Default)]
 pub(crate) struct SeatStorage {
     pub touch: Option<WlTouch>,
     pub pointer: Option<WlPointer>,
+    pub gestures: Option<PointerGestures>,
     pub keyboard_state: Option<xkb_keyboard::KeyboardState>,
     pub text_input: Option<ZwpTextInputV3>,
 }
@@ -97,6 +144,9 @@ impl Drop for SeatStorage {
             && touch.version() >= 3
         {
             touch.release();
+        }
+        if let Some(gestures) = self.gestures.take() {
+            gestures.destroy();
         }
         if let Some(pointer) = self.pointer.take()
             && pointer.version() >= 3
@@ -158,7 +208,12 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                     Some(KeyboardState::new(seat.get_keyboard(queue_handle, ())));
             }
             SeatCapability::Pointer if seat_state.pointer.is_none() => {
-                seat_state.pointer = Some(seat.get_pointer(queue_handle, ()));
+                let pointer = seat.get_pointer(queue_handle, ());
+                seat_state.gestures = self
+                    .pointer_gestures
+                    .as_ref()
+                    .map(|manager| PointerGestures::new(manager, &pointer, queue_handle));
+                seat_state.pointer = Some(pointer);
             }
             _ => (),
         }
@@ -187,10 +242,14 @@ impl<T: 'static> SeatHandler for WindowState<T> {
                 }
             }
             SeatCapability::Pointer => {
-                if let Some(pointer) = seat_state.pointer.take()
-                    && pointer.version() >= 3
-                {
-                    pointer.release();
+                if let Some(gestures) = seat_state.gestures.take() {
+                    gestures.destroy();
+                }
+                if let Some(pointer) = seat_state.pointer.take() {
+                    self.flush_pointer_frame(&pointer);
+                    if pointer.version() >= 3 {
+                        pointer.release();
+                    }
                 }
             }
             SeatCapability::Keyboard => {
@@ -523,137 +582,16 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
             .get(&None)
             .map(|(surface, id)| (Some(surface), *id))
             .unwrap_or_else(|| (None, None));
-        let scale = surface_id
-            .and_then(|id| state.get_unit(id))
-            .map(|unit| unit.scale_float())
-            .unwrap_or(1.0);
+
+        // Events up to the next `frame` belong together, so they are held and emitted in order
+        // once it arrives.
         match event {
-            wl_pointer::Event::Axis { time, axis, value } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => {
-                            vertical.absolute = value;
-                        }
-                        wl_pointer::Axis::HorizontalScroll => {
-                            horizontal.absolute = value;
-                        }
-                        _ => unreachable!(),
-                    };
-
-                    state.messages.push((
-                        surface_id,
-                        DispatchMessage::Axis {
-                            time,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ))
-                }
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "exwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
-            wl_pointer::Event::AxisStop { time, axis } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => vertical.stop = true,
-                        wl_pointer::Axis::HorizontalScroll => horizontal.stop = true,
-
-                        _ => unreachable!(),
-                    }
-
-                    state.messages.push((
-                        surface_id,
-                        DispatchMessage::Axis {
-                            time,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ));
-                }
-
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "exwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
-            wl_pointer::Event::AxisSource { axis_source } => match axis_source {
-                WEnum::Value(source) => state.messages.push((
-                    surface_id,
-                    DispatchMessage::Axis {
-                        horizontal: AxisScroll::default(),
-                        vertical: AxisScroll::default(),
-                        scale,
-                        source: Some(source),
-                        time: 0,
-                    },
-                )),
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "exwlshellev", "unknown pointer axis source: {unknown:x}");
-                }
-            },
-            wl_pointer::Event::AxisValue120 { axis, value120 } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => vertical.discrete = value120 / 120,
-                        wl_pointer::Axis::HorizontalScroll => horizontal.discrete = value120 / 120,
-                        _ => unreachable!(),
-                    };
-
-                    state.messages.push((
-                        surface_id,
-                        DispatchMessage::Axis {
-                            time: 0,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ));
-                }
-
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "wxwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
-            // AxisDiscrete is deprecated since wl_pointer::Event::AxisValue120 is added, but some compositors may still use it.
-            wl_pointer::Event::AxisDiscrete { axis, discrete } => match axis {
-                WEnum::Value(axis) => {
-                    let (mut horizontal, mut vertical) = <(AxisScroll, AxisScroll)>::default();
-                    match axis {
-                        wl_pointer::Axis::VerticalScroll => {
-                            vertical.discrete = discrete;
-                        }
-
-                        wl_pointer::Axis::HorizontalScroll => {
-                            horizontal.discrete = discrete;
-                        }
-
-                        _ => unreachable!(),
-                    };
-
-                    state.messages.push((
-                        surface_id,
-                        DispatchMessage::Axis {
-                            time: 0,
-                            scale,
-                            horizontal,
-                            vertical,
-                            source: None,
-                        },
-                    ));
-                }
-
-                WEnum::Unknown(unknown) => {
-                    log::warn!(target: "exwlshellev", "{}: invalid pointer axis: {:x}", pointer.id(), unknown);
-                }
-            },
+            wl_pointer::Event::Frame => state.flush_pointer_frame(pointer),
+            event if AxisFrame::is_axis_event(&event) => {
+                state
+                    .pointer_frame(pointer)
+                    .accumulate_axis(surface_id, &event);
+            }
             wl_pointer::Event::Button {
                 state: btnstate,
                 serial,
@@ -666,7 +604,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 if let Some(mouse_surface) = mouse_surface.cloned() {
                     state.update_active_output(&mouse_surface);
                 }
-                state.messages.push((
+                state.pointer_frame(pointer).push(
                     surface_id,
                     DispatchMessage::MouseButton {
                         state: btnstate,
@@ -674,7 +612,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         button,
                         time,
                     },
-                ));
+                );
             }
             wl_pointer::Event::Leave { .. } => {
                 let surface_id = state
@@ -686,8 +624,8 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     })
                     .and_then(|(_, id)| id);
                 state
-                    .messages
-                    .push((surface_id, DispatchMessage::MouseLeave));
+                    .pointer_frame(pointer)
+                    .push(surface_id, DispatchMessage::MouseLeave);
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -700,7 +638,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                     .active_surfaces
                     .insert(None, (surface.clone(), surface_id));
                 state.enter_serial = Some(serial);
-                state.messages.push((
+                state.pointer_frame(pointer).push(
                     surface_id,
                     DispatchMessage::MouseEnter {
                         pointer: pointer.clone(),
@@ -708,25 +646,219 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                         surface_x,
                         surface_y,
                     },
-                ));
+                );
             }
             wl_pointer::Event::Motion {
                 time,
                 surface_x,
                 surface_y,
             } => {
-                state.messages.push((
+                state.pointer_frame(pointer).push(
                     surface_id,
                     DispatchMessage::MouseMotion {
                         time,
                         surface_x,
                         surface_y,
                     },
-                ));
+                );
             }
             _ => {
                 // TODO: not now
             }
+        }
+        // Before version 5 there is no `frame` event, so each event is a frame of its .
+        if pointer.version() < 5 {
+            state.flush_pointer_frame(pointer);
+        }
+    }
+}
+
+/// The gesture objects of a pointer.
+#[derive(Debug)]
+pub(crate) struct PointerGestures {
+    swipe: ZwpPointerGestureSwipeV1,
+    pinch: ZwpPointerGesturePinchV1,
+    /// Needs version 3.
+    hold: Option<ZwpPointerGestureHoldV1>,
+}
+
+impl PointerGestures {
+    fn new<T: 'static>(
+        manager: &ZwpPointerGesturesV1,
+        pointer: &WlPointer,
+        qh: &QueueHandle<WindowState<T>>,
+    ) -> Self {
+        Self {
+            swipe: manager.get_swipe_gesture(pointer, qh, pointer.clone()),
+            pinch: manager.get_pinch_gesture(pointer, qh, pointer.clone()),
+            hold: (manager.version() >= 3)
+                .then(|| manager.get_hold_gesture(pointer, qh, pointer.clone())),
+        }
+    }
+
+    fn destroy(self) {
+        self.swipe.destroy();
+        self.pinch.destroy();
+        if let Some(hold) = self.hold {
+            hold.destroy();
+        }
+    }
+}
+
+impl<T> WindowState<T> {
+    /// Emits `event` for `pointer`'s gesture object `gesture`. Only the begin event includes
+    /// a surface, later events go to that same surface.
+    fn push_pointer_gesture(
+        &mut self,
+        pointer: &WlPointer,
+        gesture: ObjectId,
+        begin: Option<&WlSurface>,
+        end: bool,
+        event: Option<PointerGesture>,
+    ) {
+        // Flush any pending pointer frame before delivering the separate gesture event.
+        self.flush_pointer_frame(pointer);
+        let surface_id = match begin {
+            Some(surface) => {
+                let surface_id = self.get_id_from_surface(surface);
+                self.gesture_surfaces.insert(gesture.clone(), surface_id);
+                surface_id
+            }
+            None => self.gesture_surfaces.get(&gesture).copied().flatten(),
+        };
+        if end {
+            self.gesture_surfaces.remove(&gesture);
+        }
+        if let Some(event) = event {
+            self.messages
+                .push((surface_id, DispatchMessage::PointerGesture(event)));
+        }
+    }
+}
+
+/// The `WlPointer` is the pointer the gesture was created for.
+impl<T> Dispatch<ZwpPointerGestureSwipeV1, WlPointer> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwpPointerGestureSwipeV1,
+        event: <ZwpPointerGestureSwipeV1 as Proxy>::Event,
+        pointer: &WlPointer,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_pointer_gesture_swipe_v1::Event;
+        let (begin, end, gesture) = match event {
+            Event::Begin {
+                time,
+                surface,
+                fingers,
+                ..
+            } => (
+                Some(surface),
+                false,
+                PointerGesture::SwipeBegin { time, fingers },
+            ),
+            Event::Update { time, dx, dy } => {
+                (None, false, PointerGesture::SwipeUpdate { time, dx, dy })
+            }
+            Event::End {
+                time, cancelled, ..
+            } => (
+                None,
+                true,
+                PointerGesture::SwipeEnd {
+                    time,
+                    cancelled: cancelled != 0,
+                },
+            ),
+            _ => return,
+        };
+        state.push_pointer_gesture(pointer, proxy.id(), begin.as_ref(), end, Some(gesture));
+    }
+}
+
+/// The `WlPointer` is the pointer the gesture was created for.
+impl<T> Dispatch<ZwpPointerGesturePinchV1, WlPointer> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwpPointerGesturePinchV1,
+        event: <ZwpPointerGesturePinchV1 as Proxy>::Event,
+        pointer: &WlPointer,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_pointer_gesture_pinch_v1::Event;
+        let (begin, end, gesture) = match event {
+            Event::Begin {
+                time,
+                surface,
+                fingers,
+                ..
+            } => (
+                Some(surface),
+                false,
+                PointerGesture::PinchBegin { time, fingers },
+            ),
+            Event::Update {
+                time,
+                dx,
+                dy,
+                scale,
+                rotation,
+            } => (
+                None,
+                false,
+                PointerGesture::PinchUpdate {
+                    time,
+                    dx,
+                    dy,
+                    scale,
+                    rotation,
+                },
+            ),
+            Event::End {
+                time, cancelled, ..
+            } => (
+                None,
+                true,
+                PointerGesture::PinchEnd {
+                    time,
+                    cancelled: cancelled != 0,
+                },
+            ),
+            _ => return,
+        };
+        state.push_pointer_gesture(pointer, proxy.id(), begin.as_ref(), end, Some(gesture));
+    }
+}
+
+/// The `WlPointer` is the pointer the gesture was created for.
+impl<T> Dispatch<ZwpPointerGestureHoldV1, WlPointer> for WindowState<T> {
+    fn event(
+        state: &mut Self,
+        proxy: &ZwpPointerGestureHoldV1,
+        event: <ZwpPointerGestureHoldV1 as Proxy>::Event,
+        pointer: &WlPointer,
+        _conn: &Connection,
+        _qhandle: &QueueHandle<Self>,
+    ) {
+        use zwp_pointer_gesture_hold_v1::Event;
+        match event {
+            Event::Begin {
+                time,
+                surface,
+                fingers,
+                ..
+            } => state.push_pointer_gesture(
+                pointer,
+                proxy.id(),
+                Some(&surface),
+                false,
+                Some(PointerGesture::HoldBegin { time, fingers }),
+            ),
+            // Only the begin of a hold is reported.
+            Event::End { .. } => state.push_pointer_gesture(pointer, proxy.id(), None, true, None),
+            _ => {}
         }
     }
 }

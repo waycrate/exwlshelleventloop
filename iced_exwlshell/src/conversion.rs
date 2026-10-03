@@ -47,15 +47,7 @@ pub fn window_event(
             IcedButtonState::Pressed(btn) => mouse::Event::ButtonPressed(btn),
             IcedButtonState::Released(btn) => mouse::Event::ButtonReleased(btn),
         })),
-        ExWlShellEvent::Axis { x, y } => Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
-            delta: mouse::ScrollDelta::Lines { x, y },
-        })),
 
-        ExWlShellEvent::PixelDelta { x, y } => {
-            Some(IcedEvent::Mouse(mouse::Event::WheelScrolled {
-                delta: mouse::ScrollDelta::Pixels { x, y },
-            }))
-        }
         ExWlShellEvent::KeyBoardInput { event, .. } => Some(IcedEvent::Keyboard({
             let key = event.key_without_modifiers.clone();
             let text = event
@@ -159,6 +151,24 @@ pub fn window_event(
         })),
         _ => None,
     }
+}
+
+/// Converts the deltas of a scroll frame to iced events: lines first, then pixels.
+pub fn scroll_events(
+    deltas: [Option<mouse::ScrollDelta>; 2],
+    application_scale_factor: f64,
+) -> impl Iterator<Item = IcedEvent> {
+    deltas
+        .into_iter()
+        .flatten()
+        .map(move |delta| match delta {
+            mouse::ScrollDelta::Pixels { x, y } => mouse::ScrollDelta::Pixels {
+                x: (f64::from(x) / application_scale_factor) as f32,
+                y: (f64::from(y) / application_scale_factor) as f32,
+            },
+            lines @ mouse::ScrollDelta::Lines { .. } => lines,
+        })
+        .map(|delta| IcedEvent::Mouse(mouse::Event::WheelScrolled { delta }))
 }
 
 pub fn ime_purpose(purpose: input_method::Purpose) -> exwlshellev::ImePurpose {

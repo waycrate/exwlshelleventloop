@@ -6,6 +6,7 @@ mod clipboard;
 mod conversion;
 mod error;
 mod event;
+pub mod gesture;
 mod multi_window;
 mod proxy;
 pub mod redraw;

@@ -7,13 +7,14 @@ use crate::{
     ime_preedit::ImeState,
     multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
-    user_interface::UserInterfaces,
+    user_interface::{Input, UserInterfaces},
 };
 use crate::{
     actions::ExwlShellCustomAction, clipboard::ExwlShellClipboard, conversion, error::Error,
 };
 use crate::{
     event::{IcedWlShellEvent, WindowEvent as ExwlShellWindowEvent},
+    gesture,
     proxy::IcedProxy,
 };
 use exwlshellev::{
@@ -223,6 +224,7 @@ where
         system_theme,
         proxy_back,
         wl_settings.keep_compositor_alive,
+        wl_settings.gestures,
         redraw_policy,
     )
     .lock(lock);
@@ -382,11 +384,13 @@ where
     waiting_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
     action_serial: Option<u32>,
     pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
-    iced_events: Vec<(IcedId, IcedEvent)>,
+    iced_events: Vec<(IcedId, Input)>,
+    gesture_owners: HashMap<IcedId, gesture::Owners>,
     messages: Vec<P::Message>,
     proxy: IcedProxy<Action<P::Message>>,
     time: Instant,
     keep_compositor_alive: bool,
+    gestures: bool,
     redraw_policy: Policy<P::Message>,
 }
 
@@ -409,6 +413,7 @@ where
         system_theme: iced_core::theme::Mode,
         proxy: IcedProxy<Action<P::Message>>,
         keep_compositor_alive: bool,
+        gestures: bool,
         redraw_policy: Policy<P::Message>,
     ) -> Self {
         Self {
@@ -419,6 +424,7 @@ where
             system_theme,
             fonts,
             keep_compositor_alive,
+            gestures,
             compositor: Default::default(),
             window_manager: WindowManager::new(),
             cached_layer_dimensions: HashMap::new(),
@@ -429,6 +435,7 @@ where
             action_serial: None,
             pending_window_controls: Default::default(),
             iced_events: Default::default(),
+            gesture_owners: HashMap::new(),
             messages: Default::default(),
             proxy,
             time: Instant::now(),
@@ -778,6 +785,7 @@ where
         self.window_manager.remove(iced_id);
         self.user_interfaces.remove(&iced_id);
         self.iced_events.retain(|(id, _)| *id != iced_id);
+        self.gesture_owners.remove(&iced_id);
         self.waiting_shell_actions
             .retain(|(id, _)| *id != Some(iced_id));
         self.pending_window_controls
@@ -848,12 +856,40 @@ where
         window
             .state
             .update(&event, self.user_interfaces.application());
-        if let Some(event) = conversion::window_event(
+        if let ExwlShellWindowEvent::Scroll {
+            deltas,
+            frame,
+            stop,
+        } = event
+        {
+            let exposed_frame = self.gestures.then_some(frame);
+            self.iced_events.extend(
+                conversion::scroll_events(deltas, window.state.application_scale_factor())
+                    .map(|event| (iced_id, Input::Event(event, exposed_frame))),
+            );
+            if let Some(stop) = stop.filter(|_| self.gestures) {
+                let gesture = gesture::Gesture::Stop(stop);
+                let position = window.state.cursor().position();
+                self.iced_events
+                    .push((iced_id, Input::Gesture(gesture, position)));
+            }
+        } else if let ExwlShellWindowEvent::PointerGesture(gesture) = event {
+            if self.gestures {
+                let gesture = gesture::Gesture::from_pointer(
+                    gesture,
+                    window.state.application_scale_factor(),
+                );
+                // Later events in this batch may move the cursor before we deliver the gesture.
+                let position = window.state.cursor().position();
+                self.iced_events
+                    .push((iced_id, Input::Gesture(gesture, position)));
+            }
+        } else if let Some(event) = conversion::window_event(
             event,
             window.state.application_scale_factor(),
             window.state.modifiers(),
         ) {
-            self.iced_events.push((iced_id, event));
+            self.iced_events.push((iced_id, Input::Event(event, None)));
         }
     }
 
@@ -1122,32 +1158,43 @@ where
         let mut rebuilds = Vec::new();
         for (iced_id, window) in self.window_manager.iter_mut() {
             let interact_span = iced_debug::interact(iced_id);
-            let mut window_events = vec![];
+            let mut inputs = vec![];
 
-            self.iced_events.retain(|(window_id, event)| {
+            self.iced_events.retain(|(window_id, input)| {
                 if *window_id == iced_id {
-                    window_events.push(event.clone());
+                    inputs.push(input.clone());
                     false
                 } else {
                     true
                 }
             });
 
-            if window_events.is_empty() && self.messages.is_empty() {
+            if inputs.is_empty() && self.messages.is_empty() {
                 continue;
             }
 
-            let (ui_state, statuses) = self
+            let owners = self.gesture_owners.entry(iced_id).or_default();
+
+            let (ui_state, statuses, gesture_delivered) = self
                 .user_interfaces
                 .ui_mut(&iced_id)
                 .expect("Get user interface")
-                .update(
-                    &window_events,
+                .update_with_gestures(
+                    &inputs,
+                    owners,
                     window.state.cursor(),
                     &mut window.renderer,
                     &mut self.clipboard,
                     &mut self.messages,
                 );
+            // The receiver reads the gesture while handling the next event.
+            if gesture_delivered {
+                ev.request_refresh(window.id, RefreshRequest::NextFrame);
+            }
+            let window_events = inputs.into_iter().filter_map(|input| match input {
+                Input::Event(event, _) => Some(event),
+                Input::Gesture(..) => None,
+            });
 
             #[cfg(feature = "unconditional-rendering")]
             let unconditional_rendering = true;
@@ -1157,7 +1204,7 @@ where
                 rebuilds.push((iced_id, window));
             }
 
-            for (event, status) in window_events.drain(..).zip(statuses) {
+            for (event, status) in window_events.zip(statuses) {
                 self.runtime
                     .broadcast(iced_futures::subscription::Event::Interaction {
                         window: iced_id,

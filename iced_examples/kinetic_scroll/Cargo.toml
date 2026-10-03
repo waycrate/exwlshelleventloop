@@ -1,0 +1,15 @@
+[package]
+name = "kinetic_scroll"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+keywords.workspace = true
+readme.workspace = true
+publish = false
+
+[dependencies]
+iced = { workspace = true, features = ["advanced"] }
+iced_exwlshell.workspace = true
