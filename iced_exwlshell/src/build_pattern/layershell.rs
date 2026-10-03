@@ -389,6 +389,7 @@ mod pattern {
                 false,
                 None,
                 Policy::default(),
+                crate::dirty::DirtyWindows::default(),
             )
         }
 

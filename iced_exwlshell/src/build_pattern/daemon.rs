@@ -151,6 +151,8 @@ where
 use iced_program::Program;
 use iced_wayland_subscriber::shell::ShellInfo;
 
+type DirtyWindowsFn<State> = Box<dyn Fn(&mut State) -> Option<Vec<iced_core::window::Id>>>;
+
 pub struct Daemon<A: Program> {
     raw: A,
     wl_settings: ExWlSettings,
@@ -158,6 +160,7 @@ pub struct Daemon<A: Program> {
     namespace: String,
     on_new_shell: Option<crate::NewShellHook<A::Message>>,
     redraw_policy: Policy<A::Message>,
+    dirty_windows: Option<DirtyWindowsFn<A::State>>,
 }
 
 pub fn daemon<State, Message, Theme, Renderer>(
@@ -247,6 +250,7 @@ where
         namespace: namespace.namespace(),
         on_new_shell: None,
         redraw_policy: Policy::default(),
+        dirty_windows: None,
     }
 }
 
@@ -676,6 +680,14 @@ impl<P: Program> Daemon<P> {
         let wl_settings = self.wl_settings;
         let on_new_shell = self.on_new_shell;
         let redraw_policy = self.redraw_policy;
+        let dirty_windows = self.dirty_windows;
+
+        let dirty = crate::dirty::DirtyWindows::default();
+        let dirty_fn: DirtyWindowsFn<P::State> =
+            dirty_windows.unwrap_or_else(|| Box::new(|_| None));
+        // Wrap the program before the debug layer so the callback always sees
+        // the application state, not the devtools event wrapper.
+        let raw = crate::dirty::WithDirtyWindows::new(self.raw, dirty_fn, dirty.clone());
 
         #[cfg(all(feature = "debug", not(target_arch = "wasm32")))]
         let (program, on_new_shell, redraw_policy) = {
@@ -690,19 +702,17 @@ impl<P: Program> Daemon<P> {
                     as Box<dyn Fn(ShellInfo) -> Option<_>>
             });
             (
-                super::attach(self.raw),
+                super::attach(raw),
                 hook,
-                redraw_policy.for_wrapped_messages(
-                    |event: &iced_exdevtools::Event<P>| match event {
-                        iced_exdevtools::Event::Program(message) => Some(message),
-                        _ => None,
-                    },
-                ),
+                redraw_policy.for_wrapped_messages(|event| match event {
+                    iced_exdevtools::Event::Program(message) => Some(message),
+                    _ => None,
+                }),
             )
         };
 
         #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
-        let (program, redraw_policy) = (self.raw, redraw_policy);
+        let (program, redraw_policy) = (raw, redraw_policy);
 
         crate::multi_window::run(
             ProgramWrapper { program, settings },
@@ -711,6 +721,7 @@ impl<P: Program> Daemon<P> {
             false,
             on_new_shell,
             redraw_policy,
+            dirty,
         )
     }
 
@@ -803,6 +814,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
             on_new_shell: self.on_new_shell,
             redraw_policy: self.redraw_policy,
+            dirty_windows: self.dirty_windows,
         }
     }
     /// Sets the subscription logic of the [`Daemon`].
@@ -817,6 +829,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
             on_new_shell: self.on_new_shell,
             redraw_policy: self.redraw_policy,
+            dirty_windows: self.dirty_windows,
         }
     }
 
@@ -832,6 +845,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
             on_new_shell: self.on_new_shell,
             redraw_policy: self.redraw_policy,
+            dirty_windows: self.dirty_windows,
         }
     }
 
@@ -856,6 +870,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
             on_new_shell: self.on_new_shell,
             redraw_policy: self.redraw_policy,
+            dirty_windows: self.dirty_windows,
         }
     }
 
@@ -871,6 +886,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
             on_new_shell: self.on_new_shell,
             redraw_policy: self.redraw_policy,
+            dirty_windows: self.dirty_windows,
         }
     }
     /// Sets the executor of the [`Daemon`].
@@ -887,6 +903,7 @@ impl<P: Program> Daemon<P> {
             namespace: self.namespace,
             on_new_shell: self.on_new_shell,
             redraw_policy: self.redraw_policy,
+            dirty_windows: self.dirty_windows,
         }
     }
 
@@ -896,5 +913,21 @@ impl<P: Program> Daemon<P> {
     pub fn redraw_scope(mut self, scope: impl Fn(&P::Message) -> Scope + 'static) -> Self {
         self.redraw_policy = Policy::new(scope);
         self
+    }
+
+    /// Only rebuild and redraw the windows reported as dirty after each update.
+    ///
+    /// The callback runs after `update` with the new state. Return `Some(ids)`
+    /// for a partial rebuild, or `None` to rebuild everything. Without this
+    /// method the runtime rebuilds all windows and redraws them according to
+    /// [`Self::redraw_scope`].
+    pub fn dirty_windows(
+        self,
+        f: impl Fn(&mut P::State) -> Option<Vec<iced_core::window::Id>> + 'static,
+    ) -> Self {
+        Self {
+            dirty_windows: Some(Box::new(f)),
+            ..self
+        }
     }
 }

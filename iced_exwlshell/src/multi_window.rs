@@ -1,4 +1,5 @@
 use crate::ExWlSettings;
+use crate::dirty::DirtyWindows;
 use crate::redraw::{Policy, Targets};
 use crate::reexport::{PopupAnchor, PopupConstraintAdjustment};
 use crate::{
@@ -46,7 +47,7 @@ use iced_wayland_subscriber::shell;
 use std::time::Instant;
 use std::{
     borrow::Cow,
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     mem,
     os::fd::AsFd,
     sync::Arc,
@@ -86,6 +87,7 @@ pub fn run<P>(
     lock: bool,
     on_new_shell: Option<crate::NewShellHook<P::Message>>,
     redraw_policy: Policy<P::Message>,
+    dirty_windows: DirtyWindows,
 ) -> Result<(), Error>
 where
     P: IcedProgram + 'static,
@@ -226,6 +228,7 @@ where
         wl_settings.keep_compositor_alive,
         wl_settings.gestures,
         redraw_policy,
+        dirty_windows,
     )
     .lock(lock);
 
@@ -392,6 +395,7 @@ where
     keep_compositor_alive: bool,
     gestures: bool,
     redraw_policy: Policy<P::Message>,
+    dirty_windows: DirtyWindows,
 }
 
 impl<P, E, C> Context<P, E, C>
@@ -415,6 +419,7 @@ where
         keep_compositor_alive: bool,
         gestures: bool,
         redraw_policy: Policy<P::Message>,
+        dirty_windows: DirtyWindows,
     ) -> Self {
         Self {
             on_new_shell,
@@ -440,6 +445,7 @@ where
             proxy,
             time: Instant::now(),
             redraw_policy,
+            dirty_windows,
         }
     }
 
@@ -569,21 +575,21 @@ where
                 }
                 if let Some(message) = self.on_new_shell.as_ref().and_then(|f| f(info)) {
                     ev.request_refresh_all(RefreshRequest::NextFrame);
-                    let (caches, application) = self.user_interfaces.extract_all();
                     update(
-                        application,
+                        self.user_interfaces.application_mut(),
                         &mut self.runtime,
                         &mut vec![message],
                         &mut self.waiting_shell_actions,
                     );
                     for (_, window) in self.window_manager.iter_mut() {
-                        window.state.synchronize(application);
+                        window.state.synchronize(self.user_interfaces.application());
                     }
                     iced_debug::theme_changed(|| {
                         self.window_manager
                             .first()
                             .and_then(|window| theme::Base::palette(window.state.theme()))
                     });
+                    let caches = self.user_interfaces.extract_all();
                     for (iced_id, cache) in caches {
                         let Some(window) = self.window_manager.get_mut(iced_id) else {
                             continue;
@@ -1157,7 +1163,6 @@ where
 
         let mut rebuilds = Vec::new();
         for (iced_id, window) in self.window_manager.iter_mut() {
-            let interact_span = iced_debug::interact(iced_id);
             let mut inputs = vec![];
 
             self.iced_events.retain(|(window_id, input)| {
@@ -1169,10 +1174,11 @@ where
                 }
             });
 
-            if inputs.is_empty() && self.messages.is_empty() {
+            if inputs.is_empty() {
                 continue;
             }
 
+            let interact_span = iced_debug::interact(iced_id);
             let owners = self.gesture_owners.entry(iced_id).or_default();
 
             let (ui_state, statuses, gesture_delivered) = self
@@ -1201,7 +1207,7 @@ where
             #[cfg(not(feature = "unconditional-rendering"))]
             let unconditional_rendering = false;
             if Self::handle_ui_state(ev, window, ui_state, unconditional_rendering, false) {
-                rebuilds.push((iced_id, window));
+                rebuilds.push(iced_id);
             }
 
             for (event, status) in window_events.zip(statuses) {
@@ -1216,56 +1222,89 @@ where
         }
 
         if !self.messages.is_empty() {
-            match self.redraw_policy.targets(&self.messages) {
-                Targets::All => {
-                    ev.request_refresh_all(RefreshRequest::NextFrame);
-                }
-                Targets::None => {}
-                Targets::Window(id) => {
-                    if let Some(window) = self.window_manager.get(id) {
-                        ev.request_refresh(window.id, RefreshRequest::NextFrame);
-                    }
-                }
-                Targets::Windows(windows) => {
-                    windows.into_iter().for_each(|id| {
-                        if let Some(window) = self.window_manager.get(id) {
-                            ev.request_refresh(window.id, RefreshRequest::NextFrame);
-                        }
-                    });
-                }
-            }
-            let (caches, application) = self.user_interfaces.extract_all();
+            // The policy has to be evaluated before `update` drains the
+            // messages. It is only consulted when no dirty-window callback is
+            // installed: the dirty list is exact, the policy is a hint.
+            let targets = self.redraw_policy.targets(&self.messages);
 
-            // Update application
+            // Update the application first: it decides which windows changed.
             update(
-                application,
+                self.user_interfaces.application_mut(),
                 &mut self.runtime,
                 &mut self.messages,
                 &mut self.waiting_shell_actions,
             );
 
-            for (_, window) in self.window_manager.iter_mut() {
-                window.state.synchronize(application);
-            }
-            iced_debug::theme_changed(|| {
-                self.window_manager
-                    .first()
-                    .and_then(|window| theme::Base::palette(window.state.theme()))
-            });
+            match self.dirty_windows.take() {
+                None => {
+                    match targets {
+                        Targets::All => {
+                            ev.request_refresh_all(RefreshRequest::NextFrame);
+                        }
+                        Targets::None => {}
+                        Targets::Window(id) => {
+                            if let Some(window) = self.window_manager.get(id) {
+                                ev.request_refresh(window.id, RefreshRequest::NextFrame);
+                            }
+                        }
+                        Targets::Windows(windows) => {
+                            windows.into_iter().for_each(|id| {
+                                if let Some(window) = self.window_manager.get(id) {
+                                    ev.request_refresh(window.id, RefreshRequest::NextFrame);
+                                }
+                            });
+                        }
+                    }
 
-            for (iced_id, cache) in caches {
+                    for (_, window) in self.window_manager.iter_mut() {
+                        window.state.synchronize(self.user_interfaces.application());
+                    }
+                    iced_debug::theme_changed(|| {
+                        self.window_manager
+                            .first()
+                            .and_then(|window| theme::Base::palette(window.state.theme()))
+                    });
+
+                    let caches = self.user_interfaces.extract_all();
+                    for (iced_id, cache) in caches {
+                        let Some(window) = self.window_manager.get_mut(iced_id) else {
+                            continue;
+                        };
+                        self.user_interfaces.build(
+                            iced_id,
+                            cache,
+                            &mut window.renderer,
+                            window.state.viewport().logical_size(),
+                        );
+                    }
+                }
+                Some(dirty) => {
+                    let mut to_rebuild: HashSet<IcedId> = dirty.into_iter().collect();
+                    for iced_id in rebuilds {
+                        to_rebuild.insert(iced_id);
+                    }
+
+                    for &iced_id in &to_rebuild {
+                        let Some(window) = self.window_manager.get_mut(iced_id) else {
+                            continue;
+                        };
+                        window.state.synchronize(self.user_interfaces.application());
+                        let cache = self.user_interfaces.remove(&iced_id).unwrap_or_default();
+                        self.user_interfaces.build(
+                            iced_id,
+                            cache,
+                            &mut window.renderer,
+                            window.state.viewport().logical_size(),
+                        );
+                        ev.request_refresh(window.id, RefreshRequest::NextFrame);
+                    }
+                }
+            }
+        } else {
+            for iced_id in rebuilds {
                 let Some(window) = self.window_manager.get_mut(iced_id) else {
                     continue;
                 };
-                self.user_interfaces.build(
-                    iced_id,
-                    cache,
-                    &mut window.renderer,
-                    window.state.viewport().logical_size(),
-                );
-            }
-        } else {
-            for (iced_id, window) in rebuilds {
                 if let Some(cache) = self.user_interfaces.remove(&iced_id) {
                     self.user_interfaces.build(
                         iced_id,

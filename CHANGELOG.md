@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Feat: `Daemon::dirty_windows`, an opt-in policy that rebuilds and redraws only the windows an update actually changed. The callback is evaluated after the update with the new state; without it the behavior is unchanged.
+
 ### Changed (breaking)
 
 - Induce Size, Position, Margin structures, instead of using the tuple of i32 or u32, make the meaning clear

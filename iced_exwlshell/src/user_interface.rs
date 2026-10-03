@@ -217,18 +217,19 @@ where
         &self.application
     }
 
+    pub fn application_mut(&mut self) -> &mut Instance<P> {
+        &mut self.application
+    }
+
     pub fn remove(&mut self, id: &Id) -> Option<Cache> {
         self.uis.remove(id).map(IcedUserInterface::into_cache)
     }
 
-    pub fn extract_all(&mut self) -> (HashMap<Id, Cache>, &mut Instance<P>) {
-        // SAFETY remove all references before return mut reference of application
-        let caches = self
-            .uis
+    pub fn extract_all(&mut self) -> HashMap<Id, Cache> {
+        self.uis
             .drain()
             .map(|(id, ui)| (id, ui.into_cache()))
-            .collect();
-        (caches, &mut self.application)
+            .collect()
     }
 
     #[allow(clippy::type_complexity)]

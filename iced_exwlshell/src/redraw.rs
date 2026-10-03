@@ -1,3 +1,11 @@
+//! Per-message redraw targeting.
+//!
+//! [`Scope`] is evaluated before the application update and only decides which
+//! windows are rendered. To also skip rebuilding (`view` + layout) the windows
+//! an update did not touch, install a callback with `Daemon::dirty_windows`:
+//! it runs after the update with the new state and takes precedence over this
+//! policy.
+
 use iced_core::window::Id;
 use std::fmt::Debug;
 

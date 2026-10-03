@@ -4,6 +4,7 @@ pub mod actions;
 pub mod build_pattern;
 mod clipboard;
 mod conversion;
+mod dirty;
 mod error;
 mod event;
 pub mod gesture;
