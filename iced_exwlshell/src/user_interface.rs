@@ -217,6 +217,11 @@ where
         &self.application
     }
 
+    /// get the mut application
+    pub fn application_mut(&mut self) -> &mut Instance<P> {
+        &mut self.application
+    }
+
     pub fn remove(&mut self, id: &Id) -> Option<Cache> {
         self.uis.remove(id).map(IcedUserInterface::into_cache)
     }
