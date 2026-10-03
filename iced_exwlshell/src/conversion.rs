@@ -179,11 +179,15 @@ pub fn ime_purpose(purpose: input_method::Purpose) -> exwlshellev::ImePurpose {
     }
 }
 
-pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> exwlshellev::CursorShape {
+pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> exwlshellev::Cursor {
+    use exwlshellev::Cursor;
     use exwlshellev::CursorShape as Shape;
     use mouse::Interaction;
-    match interaction {
-        Interaction::None | Interaction::Idle | Interaction::Hidden => Shape::Default,
+    if interaction == Interaction::Hidden {
+        return Cursor::Hidden;
+    }
+    let shape = match interaction {
+        Interaction::Idle | Interaction::None => Shape::Default,
         Interaction::ContextMenu => Shape::ContextMenu,
         Interaction::Help => Shape::Help,
         Interaction::Pointer => Shape::Pointer,
@@ -208,7 +212,9 @@ pub(crate) fn mouse_interaction(interaction: mouse::Interaction) -> exwlshellev:
         Interaction::AllScroll => Shape::AllScroll,
         Interaction::ZoomIn => Shape::ZoomIn,
         Interaction::ZoomOut => Shape::ZoomOut,
-    }
+        Interaction::Hidden => unreachable!(),
+    };
+    Cursor::Shape(shape)
 }
 
 fn is_private_use(c: char) -> bool {

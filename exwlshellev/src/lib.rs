@@ -3364,6 +3364,20 @@ fn set_cursor<T: 'static>(
             }
             Cow::Borrowed(name)
         }
+        Cursor::Hidden => {
+            let Some(cursor_buffer) =
+                get_cursor_buffer("default", &context.connection, &context.shm)
+            else {
+                log::error!("Cannot find cursor default");
+                return;
+            };
+            let cursor_surface = &context.cursor_surface;
+            cursor_surface.attach(Some(&cursor_buffer), 0, 0);
+            cursor_surface.damage(0, 0, i32::MAX, i32::MAX);
+            cursor_surface.commit();
+
+            return;
+        }
         Cursor::ThemeName(name) => Cow::Owned(name),
     };
     let Some(cursor_buffer) = get_cursor_buffer(&theme_name, &context.connection, &context.shm)

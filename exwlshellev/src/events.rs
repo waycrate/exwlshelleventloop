@@ -74,6 +74,8 @@ pub enum InitRequest {
 pub enum Cursor {
     /// Use the [cursor-shape](https://wayland.app/protocols/cursor-shape-v1#wp_cursor_shape_device_v1:enum:shape) protocol, with the matching theme cursor as a fallback.
     Shape(CursorShape),
+    /// Hide
+    Hidden,
     /// Load a cursor by its exact Xcursor name, even when the cursor-shape protocol is available.
     ThemeName(String),
 }

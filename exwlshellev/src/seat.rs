@@ -108,8 +108,8 @@ pub(crate) struct PointerFrame {
 }
 
 impl PointerFrame {
-    fn push(&mut self, surface_id: Option<id::Id>, message: DispatchMessage) {
-        self.messages.push((surface_id, message));
+    fn push(&mut self, surface_id: id::Id, message: DispatchMessage) {
+        self.messages.push((Some(surface_id), message));
     }
 
     fn accumulate_axis(&mut self, surface_id: Option<id::Id>, event: &wl_pointer::Event) {
@@ -604,25 +604,29 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 if let Some(mouse_surface) = mouse_surface.cloned() {
                     state.update_active_output(&mouse_surface);
                 }
-                state.pointer_frame(pointer).push(
-                    surface_id,
-                    DispatchMessage::MouseButton {
-                        state: btnstate,
-                        serial,
-                        button,
-                        time,
-                    },
-                );
+                if let Some(surface_id) = surface_id {
+                    state.pointer_frame(pointer).push(
+                        surface_id,
+                        DispatchMessage::MouseButton {
+                            state: btnstate,
+                            serial,
+                            button,
+                            time,
+                        },
+                    );
+                }
             }
-            wl_pointer::Event::Leave { .. } => {
-                let surface_id = state
-                    .active_surfaces
-                    .remove(&None)
-                    .or_else(|| {
-                        log::warn!("mouse hasn't entered.");
-                        None
-                    })
-                    .and_then(|(_, id)| id);
+            wl_pointer::Event::Leave { surface, .. } => {
+                let Some((fsurface, Some(surface_id))) = state.active_surfaces.get(&None).cloned()
+                else {
+                    return;
+                };
+
+                if fsurface != surface {
+                    return;
+                }
+                state.active_surfaces.remove(&None);
+
                 state
                     .pointer_frame(pointer)
                     .push(surface_id, DispatchMessage::MouseLeave);
@@ -633,10 +637,13 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_x,
                 surface_y,
             } => {
-                let surface_id = state.get_id_from_surface(&surface);
+                let Some(surface_id) = state.get_id_from_surface(&surface) else {
+                    return;
+                };
+
                 state
                     .active_surfaces
-                    .insert(None, (surface.clone(), surface_id));
+                    .insert(None, (surface.clone(), Some(surface_id)));
                 state.enter_serial = Some(serial);
                 state.pointer_frame(pointer).push(
                     surface_id,
@@ -653,6 +660,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
                 surface_x,
                 surface_y,
             } => {
+                let Some(surface_id) = surface_id else {
+                    return;
+                };
                 state.pointer_frame(pointer).push(
                     surface_id,
                     DispatchMessage::MouseMotion {
