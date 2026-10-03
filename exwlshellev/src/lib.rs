@@ -3365,16 +3365,7 @@ fn set_cursor<T: 'static>(
             Cow::Borrowed(name)
         }
         Cursor::Hidden => {
-            let Some(cursor_buffer) =
-                get_cursor_buffer("default", &context.connection, &context.shm)
-            else {
-                log::error!("Cannot find cursor default");
-                return;
-            };
-            let cursor_surface = &context.cursor_surface;
-            cursor_surface.attach(Some(&cursor_buffer), 0, 0);
-            cursor_surface.damage(0, 0, i32::MAX, i32::MAX);
-            cursor_surface.commit();
+            pointer.set_cursor(serial, None, 0, 0);
 
             return;
         }
