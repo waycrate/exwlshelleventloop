@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (breaking)
 
+- Induce the Cursor::Hidden, allow user to hide the cursor
+- Make scroll support better, and support zwp_pointer_gestures_v1 by @id3v1669
+- Fix sometimes pointer cannot change
+- Make the logic of redraw_policy better, make the view function be called less
 - Induce Size, Position, Margin structures, instead of using the tuple of i32 or u32, make the meaning clear
 - Redesign the Settings of iced_exwlshell, split it to `iced::Settings` and `ExWlSettings`.
 - Redesign the exwlshellev, induce the `ExWlShellHandler` to address different events, instead of a simple callback function. Add the register function to bind custom events, this will help implement the a11y. Redesign the `event` part of exwlshellev. Nothing has changed in iced_exwlshell
