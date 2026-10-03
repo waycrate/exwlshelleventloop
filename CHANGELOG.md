@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.21.0-rc1] - 2026-10-03
 
 ### Changed (breaking)
 
@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redesign the exwlshellev, induce the `ExWlShellHandler` to address different events, instead of a simple callback function. Add the register function to bind custom events, this will help implement the a11y. Redesign the `event` part of exwlshellev. Nothing has changed in iced_exwlshell
 - Replace `RequestSetCursorShape` with `RequestSetCursor`, using `Cursor::Shape` or `Cursor::ThemeName`. Remove `ShapeName` and string-based shape parsing
 - Remove the pointer-enter fallback from `take_popup_grab_serial`
+
+[0.21.0-rc1]: https://github.com/waycrate/exwlshelleventloop/compare/v0.21.0-rc1...v0.20.1
 
 ### Changed
 
