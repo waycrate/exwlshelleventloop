@@ -54,12 +54,11 @@ use iced_exwlshell::settings::{LayerShellSettings, ExWlSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
 use iced_exwlshell::daemon;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellInfo, ShellReceiver, ShellType};
-use iced_wayland_subscriber::OutputInfo;
+use iced_wayland_subscriber::ExWlOutputInfo;
 use wayland_client::Connection;
 
 pub fn main() -> Result<(), iced_exwlshell::Error> {
     tracing_subscriber::fmt().init();
-    let connection = Connection::connect_to_env().unwrap();
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
     daemon(
         move || Counter::new("hello", shell_events.clone()),
@@ -80,7 +79,6 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
             start_mode: StartMode::AllScreens,
             ..Default::default()
         },
-        with_connection: Some(connection.into()),
         shell_broadcast,
         ..Default::default()
     })
@@ -114,7 +112,7 @@ enum WindowDirection {
 
 #[derive(Debug, Clone)]
 enum WayEvent {
-    OutputInsert(OutputInfo),
+    OutputInsert(ExWlOutputInfo),
 }
 
 #[to_exwlshell_message]
