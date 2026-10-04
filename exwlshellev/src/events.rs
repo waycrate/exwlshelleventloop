@@ -438,6 +438,16 @@ pub enum ExWlShellEvent {
     Ime(Ime),
     /// surface entered output, or left the one it was on
     OutputChanged(Option<WlOutput>),
+
+    /// close a window
+    Closed,
+    /// The compositor changed the state of an xdg toplevel window.
+    ToplevelStateChanged(ToplevelState),
+}
+
+/// This is the event without a target, it should be received by all targets
+#[derive(Debug, Clone)]
+pub enum ExWlShellBroadcast {
     /// monitor was connected
     OutputAdded(OutputInfo),
     /// monitor mode, scale, name or position changed
@@ -447,20 +457,30 @@ pub enum ExWlShellEvent {
     Locked,
     LockDenied,
     LockFinished,
-    Closed,
-    /// The compositor changed the state of an xdg toplevel window.
-    ToplevelStateChanged(ToplevelState),
 }
 
+impl From<DispatchMessage> for ExWlShellBroadcast {
+    fn from(value: DispatchMessage) -> Self {
+        match value {
+            DispatchMessage::NewDisplay(_) => {
+                unreachable!("NewDisplay is handled before conversion")
+            }
+            DispatchMessage::Locked => Self::Locked,
+            DispatchMessage::LockFinished => Self::LockFinished,
+            DispatchMessage::OutputAdded(info) => Self::OutputAdded(info),
+            DispatchMessage::OutputUpdated(info) => Self::OutputUpdated(info),
+            DispatchMessage::OutputRemoved(info) => Self::OutputRemoved(info),
+            _ => unreachable!("should be handled in ExWlShellEvent"),
+        }
+    }
+}
 impl From<DispatchMessage> for ExWlShellEvent {
     fn from(val: DispatchMessage) -> Self {
         match val {
             DispatchMessage::NewDisplay(_) => {
                 unreachable!("NewDisplay is handled before conversion")
             }
-            DispatchMessage::OutputAdded(info) => ExWlShellEvent::OutputAdded(info),
-            DispatchMessage::OutputUpdated(info) => ExWlShellEvent::OutputUpdated(info),
-            DispatchMessage::OutputRemoved(info) => ExWlShellEvent::OutputRemoved(info),
+
             DispatchMessage::MouseButton {
                 state,
                 serial,
@@ -556,11 +576,11 @@ impl From<DispatchMessage> for ExWlShellEvent {
             },
             DispatchMessage::Ime(ime) => ExWlShellEvent::Ime(ime),
             DispatchMessage::OutputChanged(output) => ExWlShellEvent::OutputChanged(output),
-            DispatchMessage::Locked => ExWlShellEvent::Locked,
-            DispatchMessage::LockFinished => ExWlShellEvent::LockFinished,
+
             DispatchMessage::ToplevelStateChanged(state) => {
                 ExWlShellEvent::ToplevelStateChanged(state)
             }
+            _ => unreachable!("should be broadcast event"),
         }
     }
 }

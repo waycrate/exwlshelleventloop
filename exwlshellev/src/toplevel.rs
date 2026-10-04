@@ -60,10 +60,9 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
                 if state.units[unit_index].toplevel_state != toplevel_state {
                     state.units[unit_index].toplevel_state = toplevel_state;
                     let id = state.units[unit_index].id;
-                    state.messages.push((
-                        Some(id),
-                        DispatchMessage::ToplevelStateChanged(toplevel_state),
-                    ));
+                    state
+                        .messages
+                        .push((id, DispatchMessage::ToplevelStateChanged(toplevel_state)));
                 }
 
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);

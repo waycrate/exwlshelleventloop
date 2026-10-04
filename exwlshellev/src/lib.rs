@@ -78,7 +78,12 @@
 //!
 //!         println!("{width}, {height}");
 //!     }
-//!     fn on_event(&mut self, mut context: MaybeIdEventContext<(), Self>, event: ExWlShellEvent) {
+//!     fn on_broadcast(&mut self, _context: NoIdEventContext<(), Self>, event: ExWlShellBroadcast) {
+//!         if let ExWlShellBroadcast::OutputAdded(info) = event {
+//!             println!("{info:?}");
+//!         }
+//!     }
+//!     fn on_window_event(&mut self, mut context: HaveIdEventContext<(), Self>, event: ExWlShellEvent) {
 //!         let state = context.state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
@@ -173,7 +178,8 @@ pub use size::{Extent, LayerSize, PixelSize};
 pub mod id;
 
 pub use events::{
-    AxisScroll, Cursor, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest, PointerGesture,
+    AxisScroll, Cursor, ExWlShellBroadcast, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest,
+    PointerGesture,
 };
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
@@ -1128,7 +1134,7 @@ pub enum ImePurpose {
 struct KeyboardTokenState {
     delay: Duration,
     key: u32,
-    surface_id: Option<id::Id>,
+    surface_id: id::Id,
     pressed_state: ElementState,
     object_id: ObjectId,
 }
@@ -1183,7 +1189,8 @@ pub struct WindowState<T> {
     keyboard_focus: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
     units: Vec<WindowStateUnit<T>>,
-    messages: Vec<(Option<id::Id>, DispatchMessage)>,
+    messages: Vec<(id::Id, DispatchMessage)>,
+    broadcast_messages: Vec<DispatchMessage>,
 
     connection: Connection,
     event_queue: Option<EventQueue<WindowState<T>>>,
@@ -1705,6 +1712,7 @@ impl<T: 'static> WindowState<T> {
                 active_surfaces: HashMap::new(),
                 units: Vec::new(),
                 messages: Vec::new(),
+                broadcast_messages: Vec::new(),
 
                 background_surface: None,
                 display,
@@ -2035,11 +2043,11 @@ impl<T: 'static> OutputHandler for WindowState<T> {
     ) {
         self.outputs.push(output.clone());
         if let Some(info) = self.get_output_info_of(&output) {
-            self.messages
-                .push((None, DispatchMessage::OutputAdded(info)));
+            self.broadcast_messages
+                .push(DispatchMessage::OutputAdded(info));
         }
-        self.messages
-            .push((None, DispatchMessage::NewDisplay(output)));
+        self.broadcast_messages
+            .push(DispatchMessage::NewDisplay(output));
     }
     fn update_output(
         &mut self,
@@ -2048,8 +2056,8 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         output: wl_output::WlOutput,
     ) {
         if let Some(info) = self.get_output_info_of(&output) {
-            self.messages
-                .push((None, DispatchMessage::OutputUpdated(info)));
+            self.broadcast_messages
+                .push(DispatchMessage::OutputUpdated(info));
         }
         let affected: Vec<id::Id> = self
             .units
@@ -2058,10 +2066,8 @@ impl<T: 'static> OutputHandler for WindowState<T> {
             .map(|unit| unit.id)
             .collect();
         for id in affected {
-            self.messages.push((
-                Some(id),
-                DispatchMessage::OutputChanged(Some(output.clone())),
-            ));
+            self.messages
+                .push((id, DispatchMessage::OutputChanged(Some(output.clone()))));
         }
     }
     fn output_destroyed(
@@ -2071,8 +2077,8 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         output: wl_output::WlOutput,
     ) {
         if let Some(info) = self.get_output_info_of(&output) {
-            self.messages
-                .push((None, DispatchMessage::OutputRemoved(info)));
+            self.broadcast_messages
+                .push(DispatchMessage::OutputRemoved(info));
         }
         if self
             .last_wloutput
@@ -2103,7 +2109,7 @@ impl<T: 'static> OutputHandler for WindowState<T> {
                 let id = unit.id;
                 let output = unit.wl_outputs.first().cloned();
                 self.messages
-                    .push((Some(id), DispatchMessage::OutputChanged(output)));
+                    .push((id, DispatchMessage::OutputChanged(output)));
             }
         }
         for deleled in removed_states {
@@ -2155,7 +2161,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
             unit.scale = scale;
             unit.request_refresh(RefreshRequest::NextFrame);
             state.messages.push((
-                Some(unit.id),
+                unit.id,
                 DispatchMessage::PreferredScale {
                     scale_u32: scale,
                     scale_float: scale as f64 / 120.,
@@ -2210,7 +2216,7 @@ impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
             let output = unit.get_wloutput().cloned();
             state
                 .messages
-                .push((Some(id), DispatchMessage::OutputChanged(output)));
+                .push((id, DispatchMessage::OutputChanged(output)));
         }
     }
 }
@@ -2291,7 +2297,7 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                     text_input.commit();
                     state
                         .messages
-                        .push((Some(id), DispatchMessage::Ime(events::Ime::Enabled)));
+                        .push((id, DispatchMessage::Ime(events::Ime::Enabled)));
                 }
                 state.text_input_entered(text_input);
             }
@@ -2306,7 +2312,7 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                 state.text_input_left(text_input);
                 state
                     .messages
-                    .push((Some(id), DispatchMessage::Ime(events::Ime::Disabled)));
+                    .push((id, DispatchMessage::Ime(events::Ime::Disabled)));
             }
             Event::CommitString { text } => {
                 text_input_data.pending_preedit = None;
@@ -2325,17 +2331,16 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                 if text_input_data.pending_commit.is_some()
                     || text_input_data.pending_preedit.is_none()
                 {
-                    state.messages.push((
-                        Some(id),
-                        DispatchMessage::Ime(Ime::Preedit(String::new(), None)),
-                    ));
+                    state
+                        .messages
+                        .push((id, DispatchMessage::Ime(Ime::Preedit(String::new(), None))));
                 }
 
                 // Send `Commit`.
                 if let Some(text) = text_input_data.pending_commit.take() {
                     state
                         .messages
-                        .push((Some(id), DispatchMessage::Ime(Ime::Commit(text))));
+                        .push((id, DispatchMessage::Ime(Ime::Commit(text))));
                 }
 
                 // Send preedit.
@@ -2346,7 +2351,7 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
                     });
 
                     state.messages.push((
-                        Some(id),
+                        id,
                         DispatchMessage::Ime(Ime::Preedit(preedit.text, cursor_range)),
                     ));
                 }
@@ -2436,11 +2441,9 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 }
 
 const NO_ID: usize = 0;
-const MAYBE_ID: usize = 1;
-const HAVE_ID: usize = 2;
+const HAVE_ID: usize = 1;
 
 pub type NoIdEventContext<'a, T, Window> = EventContext<'a, NO_ID, T, Window>;
-pub type MaybeIdEventContext<'a, T, Window> = EventContext<'a, MAYBE_ID, T, Window>;
 pub type HaveIdEventContext<'a, T, Window> = EventContext<'a, HAVE_ID, T, Window>;
 /// The context contains the information about the event this time
 pub struct EventContext<'a, const EVENT_TYPE: usize, T: 'static, Window: ExWlShellHandler<T>> {
@@ -2510,27 +2513,17 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, HAVE_ID, T, W
     }
 }
 
-impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, MAYBE_ID, T, Window> {
-    pub fn id(&self) -> Option<id::Id> {
-        self.id
-    }
-    pub fn get_unit(&self) -> Option<&WindowStateUnit<T>> {
-        let id = self.id()?;
-        self.state.get_unit(id)
-    }
-    pub fn get_unit_mut(&mut self) -> Option<&mut WindowStateUnit<T>> {
-        let id = self.id()?;
-        self.state.get_mut_unit(id)
-    }
-}
-
 pub trait ExWlShellHandler<T: 'static>
 where
     Self: Sized,
 {
     /// When new wayland events come, it will invoke this callback, and you can address the events
     /// here
-    fn on_event(&mut self, context: EventContext<MAYBE_ID, T, Self>, event: ExWlShellEvent);
+    fn on_window_event(&mut self, context: EventContext<HAVE_ID, T, Self>, event: ExWlShellEvent);
+    /// If it is event without target, it will come to this callback
+    /// For example, a window display is destroyed, or a new window display is inserted, or the lock
+    /// events
+    fn on_broadcast(&mut self, context: EventContext<NO_ID, T, Self>, event: ExWlShellBroadcast);
     /// when a refresh request comes out, it will call this callback
     /// should handle refresh event here
     fn on_refresh(&mut self, context: EventContext<HAVE_ID, T, Self>);
@@ -2645,12 +2638,22 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         Ok(sender)
     }
 
-    fn handle_event(&mut self, event: ExWlShellEvent, unit_id: Option<id::Id>) {
-        self.window_context.on_event(
+    fn handle_window_event(&mut self, event: ExWlShellEvent, unit_id: id::Id) {
+        self.window_context.on_window_event(
             EventContext {
                 state: &mut self.state,
                 looph: &self.looph,
-                id: unit_id,
+                id: Some(unit_id),
+            },
+            event,
+        );
+    }
+    fn handle_broadcast(&mut self, event: ExWlShellBroadcast) {
+        self.window_context.on_broadcast(
+            EventContext {
+                state: &mut self.state,
+                looph: &self.looph,
+                id: None,
             },
             event,
         );
@@ -2690,9 +2693,15 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         let process_window_state = |context: &mut Self| {
             let mut messages = Vec::new();
             std::mem::swap(&mut messages, &mut context.state.messages);
-            for msg in messages {
+            let mut broadcast_messages = Vec::new();
+
+            std::mem::swap(
+                &mut broadcast_messages,
+                &mut context.state.broadcast_messages,
+            );
+            for msg in broadcast_messages {
                 match msg {
-                    (_, DispatchMessage::NewDisplay(output_display)) => {
+                    DispatchMessage::NewDisplay(output_display) => {
                         if let LockLifecycle::Pending { lock, .. }
                         | LockLifecycle::Locked { lock } = &context.state.lock
                         {
@@ -2823,7 +2832,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             .build(),
                         );
                     }
-                    (_, DispatchMessage::Locked) => match context.state.lock.take() {
+                    DispatchMessage::Locked => match context.state.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown: Some(goal),
@@ -2846,7 +2855,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             teardown: None,
                         } => {
                             context.state.lock = LockLifecycle::Locked { lock: l_lock };
-                            context.handle_event(ExWlShellEvent::Locked, None);
+                            context.handle_broadcast(ExWlShellBroadcast::Locked);
                         }
                         other => {
                             log::warn!(
@@ -2855,7 +2864,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             context.state.lock = other;
                         }
                     },
-                    (_, DispatchMessage::LockFinished) => match context.state.lock.take() {
+                    DispatchMessage::LockFinished => match context.state.lock.take() {
                         LockLifecycle::Pending {
                             lock: l_lock,
                             teardown,
@@ -2863,7 +2872,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             l_lock.destroy();
                             let _ = connection.flush();
                             remove_lock_units(&mut context.state);
-                            context.handle_event(ExWlShellEvent::LockDenied, None);
+                            context.handle_broadcast(ExWlShellBroadcast::LockDenied);
                             if matches!(teardown, Some(LockTeardown::Exit)) {
                                 context.signal.stop();
                                 return true;
@@ -2873,19 +2882,19 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             l_lock.unlock_and_destroy();
                             let _ = connection.flush();
                             remove_lock_units(&mut context.state);
-                            context.handle_event(ExWlShellEvent::LockFinished, None);
+                            context.handle_broadcast(ExWlShellBroadcast::LockFinished);
                         }
                         LockLifecycle::Unlocked => {
                             log::warn!("Received `finished` without an active lock; ignoring");
                         }
                     },
                     _ => {
-                        let (index_message, msg) = msg;
-
-                        let msg: ExWlShellEvent = msg.into();
-                        context.handle_event(msg, index_message);
+                        context.handle_broadcast(msg.into());
                     }
                 }
+            }
+            for (id, msg) in messages {
+                context.handle_window_event(msg.into(), id);
             }
 
             context.call_normal_dispatch();
@@ -2923,7 +2932,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                             }
                             let Some(lock_manager) = context.state.lock_manager.as_ref() else {
                                 log::error!("SessionLock is not supported");
-                                context.handle_event(ExWlShellEvent::LockDenied, None);
+                                context.handle_broadcast(ExWlShellBroadcast::LockDenied);
                                 continue;
                             };
                             let l_lock = lock_manager.lock(&qh, ());
@@ -3025,13 +3034,13 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                     .collect_descendants_then_self(root, &mut to_be_closed_ids);
             }
             for id in to_be_closed_ids {
-                context.handle_event(ExWlShellEvent::Closed, Some(id));
+                context.handle_window_event(ExWlShellEvent::Closed, id);
                 context.state.remove_shell(id);
             }
 
             let closed_ids = context.state.closed_ids.clone();
             for id in closed_ids {
-                context.handle_event(ExWlShellEvent::Closed, Some(id));
+                context.handle_window_event(ExWlShellEvent::Closed, id);
             }
             context.state.closed_ids.clear();
             if context.state.units.is_empty()

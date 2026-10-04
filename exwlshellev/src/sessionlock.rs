@@ -47,10 +47,10 @@ impl<T> Dispatch<ExtSessionLockV1, ()> for WindowState<T> {
         use wayland_protocols::ext::session_lock::v1::client::ext_session_lock_v1::Event;
         match event {
             Event::Locked => {
-                state.messages.push((None, DispatchMessage::Locked));
+                state.broadcast_messages.push(DispatchMessage::Locked);
             }
             Event::Finished => {
-                state.messages.push((None, DispatchMessage::LockFinished));
+                state.broadcast_messages.push(DispatchMessage::LockFinished);
             }
             _ => unreachable!(),
         }

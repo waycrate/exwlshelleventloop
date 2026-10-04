@@ -74,7 +74,16 @@ impl ExWlShellHandler<()> for Window {
 
         println!("{width}, {height}");
     }
-    fn on_event(&mut self, mut context: MaybeIdEventContext<(), Self>, event: ExWlShellEvent) {
+    fn on_broadcast(&mut self, _context: NoIdEventContext<(), Self>, event: ExWlShellBroadcast) {
+        if let ExWlShellBroadcast::OutputAdded(info) = event {
+            println!("{info:?}");
+        }
+    }
+    fn on_window_event(
+        &mut self,
+        mut context: HaveIdEventContext<(), Self>,
+        event: ExWlShellEvent,
+    ) {
         let state = context.state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {

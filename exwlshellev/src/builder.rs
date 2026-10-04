@@ -432,8 +432,8 @@ impl ExWlEventLoopBuilder {
                 );
             }
             state
-                .messages
-                .retain(|(_, message)| !matches!(message, DispatchMessage::NewDisplay(_)));
+                .broadcast_messages
+                .retain(|message| !matches!(message, DispatchMessage::NewDisplay(_)));
         }
         state.init_finished = true;
         state.event_queue = Some(event_queue);
