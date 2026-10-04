@@ -600,12 +600,12 @@ where
                 if let Some(output) = ev
                     .get_unit(unit_id)
                     .and_then(|unit| unit.get_wloutput().cloned())
-                    && let Some(inner) = ev.get_output_info_of(&output)
+                    && let Some(info) = ev.get_output_info_of(&output)
                 {
                     self.shell_broadcast
                         .send(shell::ShellEvent::WindowOutputChanged {
                             window: iced_id,
-                            output: Some(inner),
+                            output: Some(shell::ExWlOutputInfo { output, info }),
                         });
                 }
                 if let Some(message) = self.on_new_shell.as_ref().and_then(|f| f(info)) {

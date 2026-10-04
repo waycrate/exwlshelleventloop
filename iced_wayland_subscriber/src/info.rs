@@ -2,6 +2,7 @@
 //!
 //! [`OutputInfo`] is sctk's, re-exported
 
+pub use exwlshellev::ExWlOutputInfo;
 pub use sctk::output::OutputInfo;
 
 /// Identity of an output, the `wl_registry` global name
@@ -14,6 +15,11 @@ impl From<&OutputInfo> for OutputId {
     }
 }
 
+impl From<&ExWlOutputInfo> for OutputId {
+    fn from(info: &ExWlOutputInfo) -> Self {
+        Self(info.id)
+    }
+}
 /// Dimensions of the current mode, in pixels
 pub fn pixel_size(info: &OutputInfo) -> Option<(i32, i32)> {
     info.modes

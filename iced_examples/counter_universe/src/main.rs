@@ -15,7 +15,7 @@ use iced_exwlshell::reexport::{
 use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellInfo, ShellReceiver, ShellType};
-use iced_wayland_subscriber::{OutputId, OutputInfo};
+use iced_wayland_subscriber::{ExWlOutputInfo, OutputId};
 
 pub fn main() -> Result<(), iced_exwlshell::Error> {
     tracing_subscriber::fmt().init();
@@ -76,7 +76,7 @@ enum WindowDirection {
 // `OutputInfo` wraps sctk's, which is large.
 #[allow(clippy::large_enum_variant)]
 enum WayEvent {
-    OutputInsert(OutputInfo),
+    OutputInsert(ExWlOutputInfo),
     OutputRemoved(OutputId),
 }
 

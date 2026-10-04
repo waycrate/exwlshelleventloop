@@ -178,8 +178,8 @@ pub use size::{Extent, LayerSize, PixelSize};
 pub mod id;
 
 pub use events::{
-    AxisScroll, Cursor, ExWlShellBroadcast, ExWlShellEvent, ExWlShellInitEvent, Ime, InitRequest,
-    PointerGesture,
+    AxisScroll, Cursor, ExWlOutputInfo, ExWlShellBroadcast, ExWlShellEvent, ExWlShellInitEvent,
+    Ime, InitRequest, PointerGesture,
 };
 pub use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape as CursorShape;
 
@@ -2042,7 +2042,12 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         self.outputs.push(output.clone());
         if let Some(info) = self.get_output_info_of(&output) {
             self.messages
-                .push(QueuedMessage::Broadcast(DispatchMessage::OutputAdded(info)));
+                .push(QueuedMessage::Broadcast(DispatchMessage::OutputAdded(
+                    ExWlOutputInfo {
+                        output: output.clone(),
+                        info,
+                    },
+                )));
         }
         self.messages
             .push(QueuedMessage::Broadcast(DispatchMessage::NewDisplay(
@@ -2058,7 +2063,10 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         if let Some(info) = self.get_output_info_of(&output) {
             self.messages
                 .push(QueuedMessage::Broadcast(DispatchMessage::OutputUpdated(
-                    info,
+                    ExWlOutputInfo {
+                        output: output.clone(),
+                        info,
+                    },
                 )));
         }
         let affected: Vec<id::Id> = self
@@ -2083,7 +2091,10 @@ impl<T: 'static> OutputHandler for WindowState<T> {
         if let Some(info) = self.get_output_info_of(&output) {
             self.messages
                 .push(QueuedMessage::Broadcast(DispatchMessage::OutputRemoved(
-                    info,
+                    ExWlOutputInfo {
+                        output: output.clone(),
+                        info,
+                    },
                 )));
         }
         if self

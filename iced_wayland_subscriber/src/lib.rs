@@ -7,7 +7,7 @@ pub mod shell;
 #[cfg(feature = "workspace")]
 pub mod workspace;
 
-pub use info::{OutputId, OutputInfo, pixel_size};
+pub use info::{ExWlOutputInfo, OutputId, OutputInfo, pixel_size};
 pub use worker::Error;
 
 use std::hash::Hash;

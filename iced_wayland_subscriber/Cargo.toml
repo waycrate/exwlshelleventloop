@@ -17,6 +17,7 @@ iced_core.workspace = true
 iced_futures.workspace = true
 wayland-client.workspace = true
 rustix.workspace = true
+exwlshellev.workspace = true
 
 wayland-protocols = { workspace = true, optional = true }
 thiserror.workspace = true

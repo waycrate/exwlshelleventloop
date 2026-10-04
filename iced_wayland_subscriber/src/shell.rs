@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use iced_core::window::Id;
 use iced_futures::Subscription;
 
-pub use crate::info::OutputInfo;
+pub use crate::info::ExWlOutputInfo;
 
 /// What kind of surface a window is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,14 +35,14 @@ pub enum ShellEvent {
     /// Window changed output.
     WindowOutputChanged {
         window: Id,
-        output: Option<OutputInfo>,
+        output: Option<ExWlOutputInfo>,
     },
     /// monitor was connected.
-    OutputAdded(OutputInfo),
+    OutputAdded(ExWlOutputInfo),
     /// monitor mode, scale, name or position changed.
-    OutputUpdated(OutputInfo),
+    OutputUpdated(ExWlOutputInfo),
     /// monitor was disconnected.
-    OutputRemoved(OutputInfo),
+    OutputRemoved(ExWlOutputInfo),
     /// The monitor is locked
     Locked,
     /// The compositor denied lock request
@@ -55,12 +55,12 @@ pub enum ShellEvent {
 struct Registry {
     subscribers: Vec<mpsc::UnboundedSender<ShellEvent>>,
     /// last known output per window, replayed to new subscribers
-    outputs: BTreeMap<Id, Option<OutputInfo>>,
+    outputs: BTreeMap<Id, Option<ExWlOutputInfo>>,
     /// shells still alive, replayed to new subscribers
     shells: BTreeMap<Id, ShellType>,
     /// monitors still connected, keyed by `wl_registry` global name and
     /// replayed to new subscribers
-    monitors: BTreeMap<u32, OutputInfo>,
+    monitors: BTreeMap<u32, ExWlOutputInfo>,
 }
 
 /// Create the two ends of a shell broadcast.

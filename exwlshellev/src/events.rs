@@ -22,6 +22,7 @@ use crate::id::Id;
 use crate::utils::*;
 
 use std::fmt::Debug;
+use std::ops::Deref;
 
 /// tell program what event happened during init
 ///
@@ -270,9 +271,9 @@ pub enum QueuedMessage {
 #[derive(Debug, Clone)]
 pub(crate) enum DispatchMessage {
     NewDisplay(WlOutput),
-    OutputAdded(OutputInfo),
-    OutputUpdated(OutputInfo),
-    OutputRemoved(OutputInfo),
+    OutputAdded(ExWlOutputInfo),
+    OutputUpdated(ExWlOutputInfo),
+    OutputRemoved(ExWlOutputInfo),
     MouseButton {
         state: WEnum<ButtonState>,
         serial: u32,
@@ -450,15 +451,35 @@ pub enum ExWlShellEvent {
     ToplevelStateChanged(ToplevelState),
 }
 
+/// A wrapper of [OutputInfo], also provide a [WlOutput]
+#[derive(Debug, Clone)]
+pub struct ExWlOutputInfo {
+    pub output: WlOutput,
+    pub info: OutputInfo,
+}
+
+impl Deref for ExWlOutputInfo {
+    type Target = OutputInfo;
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
+impl ExWlOutputInfo {
+    pub fn wl_output(&self) -> WlOutput {
+        self.output.clone()
+    }
+}
+
 /// This is the event without a target, it should be received by all targets
 #[derive(Debug, Clone)]
 pub enum ExWlShellBroadcast {
     /// monitor was connected
-    OutputAdded(OutputInfo),
+    OutputAdded(ExWlOutputInfo),
     /// monitor mode, scale, name or position changed
-    OutputUpdated(OutputInfo),
+    OutputUpdated(ExWlOutputInfo),
     /// monitor was disconnected
-    OutputRemoved(OutputInfo),
+    OutputRemoved(ExWlOutputInfo),
     Locked,
     LockDenied,
     LockFinished,

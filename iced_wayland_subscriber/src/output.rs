@@ -11,14 +11,14 @@ use wayland_client::{
 };
 
 use crate::Error;
-use crate::info::OutputInfo;
+use crate::info::ExWlOutputInfo;
 use crate::worker::{self, Worker};
 
 #[derive(Debug)]
 pub enum OutputEvent {
-    Insert(OutputInfo),
-    Changed(OutputInfo),
-    Removed(OutputInfo),
+    Insert(ExWlOutputInfo),
+    Changed(ExWlOutputInfo),
+    Removed(ExWlOutputInfo),
     Stop(Error),
 }
 
@@ -30,9 +30,9 @@ pub(crate) struct Outputs {
 }
 
 impl Outputs {
-    fn push(&mut self, make: fn(OutputInfo) -> OutputEvent, output: WlOutput) {
-        if let Some(inner) = self.output_state.info(&output) {
-            self.events.push(make(inner));
+    fn push(&mut self, make: fn(ExWlOutputInfo) -> OutputEvent, output: WlOutput) {
+        if let Some(info) = self.output_state.info(&output) {
+            self.events.push(make(ExWlOutputInfo { output, info }));
         }
     }
 }
@@ -64,7 +64,11 @@ impl Worker for Outputs {
     fn reset_events(&mut self) -> Vec<OutputEvent> {
         self.output_state
             .outputs()
-            .filter_map(|output| self.output_state.info(&output).map(OutputEvent::Removed))
+            .filter_map(|output| {
+                self.output_state
+                    .info(&output)
+                    .map(|info| OutputEvent::Removed(ExWlOutputInfo { output, info }))
+            })
             .collect()
     }
 

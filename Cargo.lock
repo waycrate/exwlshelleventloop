@@ -2027,6 +2027,7 @@ dependencies = [
 name = "iced_wayland_subscriber"
 version = "0.21.0-rc1"
 dependencies = [
+ "exwlshellev",
  "futures",
  "iced_core",
  "iced_futures",

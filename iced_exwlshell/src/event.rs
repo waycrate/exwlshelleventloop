@@ -8,7 +8,7 @@ use crate::gesture;
 
 use iced_core::keyboard::Modifiers as IcedModifiers;
 
-use iced_wayland_subscriber::OutputInfo;
+use iced_wayland_subscriber::ExWlOutputInfo;
 
 fn from_u32_to_icedmouse(code: u32) -> mouse::Button {
     match code {
@@ -98,10 +98,10 @@ pub enum WindowEvent {
     Ime(exwlshellev::Ime),
     Closed,
     ThemeChanged(iced_core::theme::Mode),
-    OutputChanged(Option<OutputInfo>),
-    OutputAdded(OutputInfo),
-    OutputUpdated(OutputInfo),
-    OutputRemoved(OutputInfo),
+    OutputChanged(Option<ExWlOutputInfo>),
+    OutputAdded(ExWlOutputInfo),
+    OutputUpdated(ExWlOutputInfo),
+    OutputRemoved(ExWlOutputInfo),
     Locked,
     LockDenied,
     LockFinished,
@@ -175,11 +175,14 @@ impl WindowEvent {
             },
             ExWlShellEvent::PointerGesture(gesture) => WindowEvent::PointerGesture(gesture),
             ExWlShellEvent::Ime(ime) => WindowEvent::Ime(ime.clone()),
-            ExWlShellEvent::OutputChanged(wl_output) => WindowEvent::OutputChanged(
-                wl_output
-                    .as_ref()
-                    .and_then(|output| ev.get_output_info_of(output)),
-            ),
+            ExWlShellEvent::OutputChanged(wl_output) => {
+                WindowEvent::OutputChanged(wl_output.as_ref().and_then(|output| {
+                    ev.get_output_info_of(output).map(|info| ExWlOutputInfo {
+                        output: output.clone(),
+                        info,
+                    })
+                }))
+            }
             ExWlShellEvent::ToplevelStateChanged(state) => WindowEvent::ToplevelStateChanged(state),
         }
     }
