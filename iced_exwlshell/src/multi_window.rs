@@ -26,7 +26,7 @@ use exwlshellev::{
         zwp_virtual_keyboard_v1,
     },
 };
-use exwlshellev::{ExWlShellInitEvent, InitRequest};
+use exwlshellev::{ExWlShellBroadcast, ExWlShellInitEvent, InitRequest};
 #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
 use futures::StreamExt;
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
@@ -115,7 +115,8 @@ where
                 <P::Renderer as iced_graphics::compositor::Default>::Compositor,
             >,
         >,
-        waiting_shell_events: VecDeque<(Option<exwlshellev::id::Id>, IcedWlShellEvent)>,
+        waiting_shell_events: VecDeque<(exwlshellev::id::Id, IcedWlShellEvent)>,
+        waiting_broadcast_events: VecDeque<IcedWlShellEvent>,
         virtual_keyboard_support: Option<VirtualKeyboardSettings>,
     }
 
@@ -123,6 +124,7 @@ where
     let context_ev = ContextEv {
         context_state: ContextState::None,
         waiting_shell_events: VecDeque::new(),
+        waiting_broadcast_events: VecDeque::new(),
         virtual_keyboard_support,
     };
     let mut wl_context = exwlshellev::ExWlEventLoopBuilder::new(namespace)
@@ -264,10 +266,10 @@ where
                     let wl_compositor = globals
                         .bind::<WlCompositor, _, _>(qh, 1..=1, ())
                         .expect("could not bind wl_compositor");
-                    self.waiting_shell_events.push_back((
-                        None,
-                        IcedWlShellEvent::UpdateInputRegion(wl_compositor.create_region(qh, ())),
-                    ));
+                    self.waiting_broadcast_events
+                        .push_back(IcedWlShellEvent::UpdateInputRegion(
+                            wl_compositor.create_region(qh, ()),
+                        ));
 
                     if let Some(virtual_keyboard_setting) = self.virtual_keyboard_support.as_ref() {
                         let virtual_keyboard_manager = globals
@@ -308,9 +310,9 @@ where
             context.handle_normal_dispatch(ev_context.state_mut());
         }
 
-        fn on_event(
+        fn on_window_event(
             &mut self,
-            mut ev_context: exwlshellev::MaybeIdEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::HaveIdEventContext<iced_core::window::Id, Self>,
             event: exwlshellev::ExWlShellEvent,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
@@ -331,6 +333,29 @@ where
                 if let Some((shell_id, shell_event)) = self.waiting_shell_events.pop_front() {
                     need_continue = true;
                     context.handle_event(state, shell_id, shell_event);
+                }
+                if !need_continue {
+                    break;
+                }
+            }
+        }
+        fn on_broadcast(
+            &mut self,
+            _context: exwlshellev::NoIdEventContext<iced_core::window::Id, Self>,
+            event: ExWlShellBroadcast,
+        ) {
+            let ContextState::Context(context) = &mut self.context_state else {
+                unreachable!("context state is not initialized");
+            };
+            let window_event = ExwlShellWindowEvent::from_dispatch_broadcast(event);
+            self.waiting_broadcast_events
+                .push_back(IcedWlShellEvent::Window(window_event));
+            loop {
+                let mut need_continue = false;
+
+                if let Some(shell_event) = self.waiting_broadcast_events.pop_front() {
+                    need_continue = true;
+                    context.handle_broadcast(shell_event);
                 }
                 if !need_continue {
                     break;
@@ -480,7 +505,7 @@ where
     fn handle_event(
         &mut self,
         ev: &mut WindowState<IcedId>,
-        shell_id: Option<ExWlShellId>,
+        shell_id: ExWlShellId,
         shell_event: IcedWlShellEvent,
     ) {
         tracing::debug!(
@@ -491,14 +516,13 @@ where
         );
 
         match shell_event {
-            IcedWlShellEvent::UpdateInputRegion(region) => self.wl_input_region = Some(region),
-
             IcedWlShellEvent::Window(ExwlShellWindowEvent::Closed) => {
                 self.handle_closed_event(ev, shell_id)
             }
             IcedWlShellEvent::Window(window_event) => {
                 self.handle_window_event(shell_id, window_event)
             }
+            _ => unreachable!(),
         }
     }
 
@@ -772,13 +796,13 @@ where
         }
     }
 
-    fn handle_closed_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: Option<ExWlShellId>) {
-        let Some(iced_id) = shell_id.and_then(|lid| {
-            self.window_manager
-                .get_alias(lid)
-                .map(|(iced_id, _)| iced_id)
-                .or_else(|| ev.get_unit(lid)?.get_binding().copied())
-        }) else {
+    fn handle_closed_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: ExWlShellId) {
+        let Some(iced_id) = self
+            .window_manager
+            .get_alias(shell_id)
+            .map(|(iced_id, _)| iced_id)
+            .or_else(|| ev.get_unit(shell_id)?.get_binding().copied())
+        else {
             return;
         };
         self.cached_layer_dimensions.remove(&iced_id);
@@ -804,43 +828,39 @@ where
         }
     }
 
-    fn handle_window_event(&mut self, shell_id: Option<ExWlShellId>, event: ExwlShellWindowEvent) {
-        match &event {
-            ExwlShellWindowEvent::OutputAdded(info) => {
-                self.shell_broadcast
-                    .send(shell::ShellEvent::OutputAdded(info.clone()));
-                return;
+    fn handle_broadcast(&mut self, shell_event: IcedWlShellEvent) {
+        match shell_event {
+            IcedWlShellEvent::Window(event) => match event {
+                ExwlShellWindowEvent::OutputAdded(info) => {
+                    self.shell_broadcast
+                        .send(shell::ShellEvent::OutputAdded(info));
+                }
+                ExwlShellWindowEvent::OutputUpdated(info) => {
+                    self.shell_broadcast
+                        .send(shell::ShellEvent::OutputUpdated(info));
+                }
+                ExwlShellWindowEvent::OutputRemoved(info) => {
+                    self.shell_broadcast
+                        .send(shell::ShellEvent::OutputRemoved(info.clone()));
+                }
+                ExwlShellWindowEvent::Locked => {
+                    self.shell_broadcast.send(shell::ShellEvent::Locked);
+                }
+                ExwlShellWindowEvent::LockDenied => {
+                    self.shell_broadcast.send(shell::ShellEvent::LockDenied);
+                }
+                ExwlShellWindowEvent::LockFinished => {
+                    self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
+                }
+                _ => {}
+            },
+            IcedWlShellEvent::UpdateInputRegion(region) => {
+                self.wl_input_region = Some(region);
             }
-            ExwlShellWindowEvent::OutputUpdated(info) => {
-                self.shell_broadcast
-                    .send(shell::ShellEvent::OutputUpdated(info.clone()));
-                return;
-            }
-            ExwlShellWindowEvent::OutputRemoved(info) => {
-                self.shell_broadcast
-                    .send(shell::ShellEvent::OutputRemoved(info.clone()));
-                return;
-            }
-            ExwlShellWindowEvent::Locked => {
-                self.shell_broadcast.send(shell::ShellEvent::Locked);
-                return;
-            }
-            ExwlShellWindowEvent::LockDenied => {
-                self.shell_broadcast.send(shell::ShellEvent::LockDenied);
-                return;
-            }
-            ExwlShellWindowEvent::LockFinished => {
-                self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
-                return;
-            }
-            _ => {}
         }
-
-        let (iced_id, window) = if let Some(shell_id) = shell_id
-            && let Some((iced_id, window)) = self.window_manager.get_mut_alias(shell_id)
-        {
-            (iced_id, window)
-        } else {
+    }
+    fn handle_window_event(&mut self, shell_id: ExWlShellId, event: ExwlShellWindowEvent) {
+        let Some((iced_id, window)) = self.window_manager.get_mut_alias(shell_id) else {
             return;
         };
 

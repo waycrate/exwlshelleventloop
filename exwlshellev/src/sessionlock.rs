@@ -1,4 +1,4 @@
-use super::{DispatchMessage, RefreshRequest, Size, WindowState};
+use super::{DispatchMessage, QueuedMessage, RefreshRequest, Size, WindowState};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, delegate_noop};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1, ext_session_lock_surface_v1,
@@ -47,10 +47,14 @@ impl<T> Dispatch<ExtSessionLockV1, ()> for WindowState<T> {
         use wayland_protocols::ext::session_lock::v1::client::ext_session_lock_v1::Event;
         match event {
             Event::Locked => {
-                state.messages.push((None, DispatchMessage::Locked));
+                state
+                    .messages
+                    .push(QueuedMessage::Broadcast(DispatchMessage::Locked));
             }
             Event::Finished => {
-                state.messages.push((None, DispatchMessage::LockFinished));
+                state
+                    .messages
+                    .push(QueuedMessage::Broadcast(DispatchMessage::LockFinished));
             }
             _ => unreachable!(),
         }

@@ -1,7 +1,7 @@
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, WlRegion};
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
-use exwlshellev::{ExWlShellEvent, WindowState};
+use exwlshellev::{ExWlShellBroadcast, ExWlShellEvent, WindowState};
 use iced_core::mouse;
 
 use crate::gesture;
@@ -175,18 +175,22 @@ impl WindowEvent {
             },
             ExWlShellEvent::PointerGesture(gesture) => WindowEvent::PointerGesture(gesture),
             ExWlShellEvent::Ime(ime) => WindowEvent::Ime(ime.clone()),
-            ExWlShellEvent::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
-            ExWlShellEvent::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),
-            ExWlShellEvent::OutputRemoved(info) => WindowEvent::OutputRemoved(info.clone()),
             ExWlShellEvent::OutputChanged(wl_output) => WindowEvent::OutputChanged(
                 wl_output
                     .as_ref()
                     .and_then(|output| ev.get_output_info_of(output)),
             ),
-            ExWlShellEvent::Locked => WindowEvent::Locked,
-            ExWlShellEvent::LockDenied => WindowEvent::LockDenied,
-            ExWlShellEvent::LockFinished => WindowEvent::LockFinished,
             ExWlShellEvent::ToplevelStateChanged(state) => WindowEvent::ToplevelStateChanged(state),
+        }
+    }
+    pub(crate) fn from_dispatch_broadcast(value: ExWlShellBroadcast) -> Self {
+        match value {
+            ExWlShellBroadcast::OutputAdded(info) => WindowEvent::OutputAdded(info.clone()),
+            ExWlShellBroadcast::OutputUpdated(info) => WindowEvent::OutputUpdated(info.clone()),
+            ExWlShellBroadcast::OutputRemoved(info) => WindowEvent::OutputRemoved(info.clone()),
+            ExWlShellBroadcast::Locked => WindowEvent::Locked,
+            ExWlShellBroadcast::LockDenied => WindowEvent::LockDenied,
+            ExWlShellBroadcast::LockFinished => WindowEvent::LockFinished,
         }
     }
 }
