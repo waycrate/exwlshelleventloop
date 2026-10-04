@@ -1,5 +1,6 @@
 use iced::widget::{button, row, text};
 use iced::{Element, Length, Task as Command};
+use iced_exwlshell::get_wlconnection;
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::{Anchor, Layer, LayerSize};
 use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
@@ -10,20 +11,17 @@ use iced_wayland_subscriber::workspace::{
     GroupCapabilities, State, Workspace, WorkspaceCapabilities, WorkspaceEvent, WorkspaceGroup,
     WorkspaceId, WorkspaceSnapshot,
 };
-use wayland_client::Connection;
 
 /// Example to show even dead(unswitchable) slots
 const SLOTS: std::ops::RangeInclusive<u32> = 1..=10;
 
 pub fn main() -> Result<(), iced_exwlshell::Error> {
     tracing_subscriber::fmt().init();
-    let connection = Connection::connect_to_env().unwrap();
-    let subscriber_connection = connection.clone();
     // The runtime gets the sending end, bar keeps the receiving one.
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
 
     application(
-        move || Bar::new(subscriber_connection.clone(), shell_events.clone()),
+        move || Bar::new(shell_events.clone()),
         Bar::namespace,
         Bar::update,
         Bar::view,
@@ -38,7 +36,6 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
             start_mode: StartMode::Active,
             ..Default::default()
         },
-        with_connection: Some(connection.into()),
         shell_broadcast,
         ..Default::default()
     })
@@ -46,7 +43,6 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
 }
 
 struct Bar {
-    connection: Connection,
     shell_events: ShellReceiver,
     workspaces: Option<std::sync::Arc<WorkspaceSnapshot>>,
     output: Option<OutputId>,
@@ -73,9 +69,8 @@ enum Message {
 }
 
 impl Bar {
-    fn new(connection: Connection, shell_events: ShellReceiver) -> Self {
+    fn new(shell_events: ShellReceiver) -> Self {
         Self {
-            connection,
             shell_events,
             workspaces: None,
             output: None,
@@ -89,14 +84,14 @@ impl Bar {
 
     fn subscription(&self) -> iced::Subscription<Message> {
         iced::Subscription::batch([
-            iced_wayland_subscriber::workspace::listen(self.connection.clone()).map(|event| {
-                match event {
+            iced_wayland_subscriber::workspace::listen(get_wlconnection()).map(
+                |event| match event {
                     WorkspaceEvent::Updated(snapshot) => Message::WorkspacesUpdated(snapshot),
                     WorkspaceEvent::Unsupported => Message::Unsupported,
                     WorkspaceEvent::Finished => Message::Finished,
                     WorkspaceEvent::Stop(error) => Message::Stopped(error.to_string()),
-                }
-            }),
+                },
+            ),
             // Tells us which monitor the bar landed on.
             self.shell_events.listen().filter_map(|event| match event {
                 ShellEvent::WindowOutputChanged { output, .. } => {

@@ -16,12 +16,9 @@ use iced_exwlshell::settings::{ExWlSettings, LayerShellSettings, StartMode};
 use iced_exwlshell::to_exwlshell_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellInfo, ShellReceiver, ShellType};
 use iced_wayland_subscriber::{OutputId, OutputInfo};
-use wayland_client::Connection;
 
 pub fn main() -> Result<(), iced_exwlshell::Error> {
     tracing_subscriber::fmt().init();
-    let connection = Connection::connect_to_env().unwrap();
-    let connection2 = connection.clone();
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
     daemon(
         move || Counter::new("hello", shell_events.clone()),
@@ -42,7 +39,6 @@ pub fn main() -> Result<(), iced_exwlshell::Error> {
             start_mode: StartMode::AllScreens,
             ..Default::default()
         },
-        with_connection: Some(connection2.into()),
         shell_broadcast,
         ..Default::default()
     })

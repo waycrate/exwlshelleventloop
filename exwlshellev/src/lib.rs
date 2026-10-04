@@ -2688,6 +2688,11 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         });
     }
 
+    /// return the wayland connection
+    pub fn wl_connection(&self) -> Connection {
+        self.state.connection.clone()
+    }
+
     /// Run the program
     pub fn run(mut self) -> Result<(), ExWlShellEventError> {
         let connection = self.state.connection.clone();

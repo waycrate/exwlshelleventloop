@@ -43,6 +43,7 @@ use iced_program::Program as IcedProgram;
 use iced_runtime::Action;
 use iced_runtime::user_interface;
 use iced_wayland_subscriber::shell;
+use std::sync::OnceLock;
 use std::time::Instant;
 use std::{
     borrow::Cow,
@@ -53,9 +54,23 @@ use std::{
     time::Duration,
 };
 use window_manager::Window;
-
 mod state;
 mod window_manager;
+use crate::reexport::WlConnection;
+static WL_CONNECTION: OnceLock<WlConnection> = OnceLock::new();
+
+fn set_wlconnection(connection: WlConnection) {
+    WL_CONNECTION.set(connection).expect("it should be safe");
+}
+
+/// Get the wl_connection of the iced_exwlshell
+/// Only should be used after enter the eventloop
+pub fn get_wlconnection() -> WlConnection {
+    WL_CONNECTION
+        .get()
+        .cloned()
+        .expect("This api should be used during eventloop of iced_exwlshell")
+}
 
 type MultiRuntime<E, Message> = Runtime<E, IcedProxy<Action<Message>>, Action<Message>>;
 
@@ -141,6 +156,8 @@ where
         .with_connection(wl_settings.with_connection)
         .attach(context_ev)
         .expect("Cannot create context for exwlshellev");
+
+    set_wlconnection(wl_context.wl_connection());
 
     let message_sender = wl_context
         .register(|window, mut shell_context, action: Action<P::Message>| {

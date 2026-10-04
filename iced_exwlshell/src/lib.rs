@@ -27,7 +27,9 @@ pub mod reexport {
     pub use exwlshellev::reexport::Anchor;
     pub use exwlshellev::reexport::KeyboardInteractivity;
     pub use exwlshellev::reexport::Layer;
-    pub use exwlshellev::reexport::wayland_client::{WlRegion, wl_keyboard};
+    pub use exwlshellev::reexport::wayland_client::{
+        Connection as WlConnection, WlRegion, wl_keyboard,
+    };
     pub use exwlshellev::reexport::xdg_positioner::{
         Anchor as PopupAnchor, ConstraintAdjustment as PopupConstraintAdjustment,
         Gravity as PopupGravity,
@@ -69,3 +71,5 @@ pub use build_pattern::layershell;
 pub use build_pattern::sessionlock;
 
 pub use settings::ExWlSettings;
+
+pub use multi_window::get_wlconnection;
