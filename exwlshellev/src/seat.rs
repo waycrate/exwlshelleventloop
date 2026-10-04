@@ -1,6 +1,9 @@
 use super::WindowState;
 use crate::events::AxisFrame;
-use crate::{DispatchMessage, KeyboardTokenState, PointerGesture, RepeatInfo, TextInputData, id};
+use crate::{
+    DispatchMessage, KeyboardTokenState, PointerGesture, QueuedMessage, RepeatInfo, TextInputData,
+    id,
+};
 use sctk::seat::{Capability as SeatCapability, SeatHandler};
 use waycrate_xkbkeycode::xkb_keyboard;
 use wayland_backend::client::ObjectId;
@@ -120,12 +123,15 @@ impl PointerFrame {
         axis.accumulate(event);
     }
 
-    fn into_messages(mut self) -> Vec<(id::Id, DispatchMessage)> {
+    fn into_messages(mut self) -> Vec<QueuedMessage> {
         if let Some((index, surface_id, axis)) = self.axis {
             self.messages
                 .insert(index, (surface_id, axis.into_message()));
         }
         self.messages
+            .into_iter()
+            .map(|(id, message)| QueuedMessage::Targeted(id, message))
+            .collect()
     }
 }
 
@@ -304,7 +310,9 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                     let surface_id = state.get_id_from_surface(&surface);
                     state.keyboard_focus = Some(surface);
                     if let Some(id) = surface_id {
-                        state.messages.push((id, DispatchMessage::Focused(id)));
+                        state
+                            .messages
+                            .push(QueuedMessage::Targeted(id, DispatchMessage::Focused(id)));
                     }
                 }
                 let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
@@ -319,11 +327,14 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 state.keyboard_focus = None;
                 let surface_id = state.get_id_from_surface(&surface);
                 if let Some(surface_id) = surface_id {
-                    state.messages.push((
+                    state.messages.push(QueuedMessage::Targeted(
                         surface_id,
                         DispatchMessage::ModifiersChanged(ModifiersState::empty()),
                     ));
-                    state.messages.push((surface_id, DispatchMessage::Unfocus));
+                    state.messages.push(QueuedMessage::Targeted(
+                        surface_id,
+                        DispatchMessage::Unfocus,
+                    ));
                 }
                 let Some(keyboard_state) = state.get_keyboard_state_mut(wl_keyboard) else {
                     return;
@@ -369,7 +380,9 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                         event,
                         is_synthetic: false,
                     };
-                    state.messages.push((surface_id, event));
+                    state
+                        .messages
+                        .push(QueuedMessage::Targeted(surface_id, event));
                 }
 
                 match pressed_state {
@@ -440,7 +453,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
                 xkb_state.update_modifiers(mods_depressed, mods_latched, mods_locked, 0, 0, group);
                 let modifiers = xkb_state.modifiers();
 
-                state.messages.push((
+                state.messages.push(QueuedMessage::Targeted(
                     keyboard_focus_id,
                     DispatchMessage::ModifiersChanged(modifiers.into()),
                 ))
@@ -505,7 +518,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     .active_surfaces
                     .insert(Some(id), (surface.clone(), Some(surface_id)));
                 state.update_active_output(&surface);
-                state.messages.push((
+                state.messages.push(QueuedMessage::Targeted(
                     surface_id,
                     DispatchMessage::TouchDown {
                         serial,
@@ -523,9 +536,10 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                         && let Some(surface_id) = v.1
                     {
                         let (x, y) = state.finger_locations.remove(&id).unwrap_or_default();
-                        state
-                            .messages
-                            .push((surface_id, DispatchMessage::TouchCancel { id, x, y }));
+                        state.messages.push(QueuedMessage::Targeted(
+                            surface_id,
+                            DispatchMessage::TouchCancel { id, x, y },
+                        ));
                     } else {
                         // keep the surface of mouse.
                         mouse_surface = Some(v);
@@ -545,7 +559,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     return;
                 };
                 let (x, y) = state.finger_locations.remove(&id).unwrap_or_default();
-                state.messages.push((
+                state.messages.push(QueuedMessage::Targeted(
                     surface_id,
                     DispatchMessage::TouchUp {
                         serial,
@@ -567,9 +581,10 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
                     return;
                 };
                 state.finger_locations.insert(id, (x, y));
-                state
-                    .messages
-                    .push((surface_id, DispatchMessage::TouchMotion { time, id, x, y }));
+                state.messages.push(QueuedMessage::Targeted(
+                    surface_id,
+                    DispatchMessage::TouchMotion { time, id, x, y },
+                ));
             }
             _ => {}
         }
@@ -754,8 +769,10 @@ impl<T> WindowState<T> {
         if let Some(event) = event
             && let Some(surface_id) = surface_id
         {
-            self.messages
-                .push((surface_id, DispatchMessage::PointerGesture(event)));
+            self.messages.push(QueuedMessage::Targeted(
+                surface_id,
+                DispatchMessage::PointerGesture(event),
+            ));
         }
     }
 }

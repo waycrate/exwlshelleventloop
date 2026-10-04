@@ -1,3 +1,5 @@
+use crate::CursorShape;
+use crate::id;
 use sctk::output::OutputInfo;
 use wayland_client::{
     QueueHandle, WEnum,
@@ -8,8 +10,6 @@ use wayland_client::{
         wl_pointer::{self, ButtonState, WlPointer},
     },
 };
-
-use crate::CursorShape;
 
 use crate::xkb_keyboard::KeyEvent;
 
@@ -261,7 +261,12 @@ pub enum Ime {
     Disabled,
 }
 
-#[allow(unused)]
+#[derive(Debug, Clone)]
+pub enum QueuedMessage {
+    Targeted(id::Id, DispatchMessage),
+    Broadcast(DispatchMessage),
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum DispatchMessage {
     NewDisplay(WlOutput),

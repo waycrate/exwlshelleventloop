@@ -1,8 +1,8 @@
 use crate::NewXdgWindowSettings;
 
 use super::{
-    DispatchMessage, PixelSize, RefreshRequest, Shell, Size, ToplevelState, WindowState,
-    WindowStateUnitBuilder,
+    DispatchMessage, PixelSize, QueuedMessage, RefreshRequest, Shell, Size, ToplevelState,
+    WindowState, WindowStateUnitBuilder,
 };
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
@@ -60,9 +60,10 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
                 if state.units[unit_index].toplevel_state != toplevel_state {
                     state.units[unit_index].toplevel_state = toplevel_state;
                     let id = state.units[unit_index].id;
-                    state
-                        .messages
-                        .push((id, DispatchMessage::ToplevelStateChanged(toplevel_state)));
+                    state.messages.push(QueuedMessage::Targeted(
+                        id,
+                        DispatchMessage::ToplevelStateChanged(toplevel_state),
+                    ));
                 }
 
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);

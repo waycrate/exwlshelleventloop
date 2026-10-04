@@ -1,7 +1,7 @@
 use crate::{
     BlurOption, DispatchMessage, EventLoop, ExWlEventLoop, ExWlShellEventError, ExWlShellHandler,
-    ExWlShellInitEvent, InitRequest, LayerSize, Margin, Shell, StartMode, WaylandSource,
-    WindowState, WindowStateUnitBuilder, WithConnection, id,
+    ExWlShellInitEvent, InitRequest, LayerSize, Margin, QueuedMessage, Shell, StartMode,
+    WaylandSource, WindowState, WindowStateUnitBuilder, WithConnection, id,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer,
@@ -431,9 +431,12 @@ impl ExWlEventLoopBuilder {
                     .build(),
                 );
             }
-            state
-                .broadcast_messages
-                .retain(|message| !matches!(message, DispatchMessage::NewDisplay(_)));
+            state.messages.retain(|message| {
+                !matches!(
+                    message,
+                    QueuedMessage::Broadcast(DispatchMessage::NewDisplay(_))
+                )
+            });
         }
         state.init_finished = true;
         state.event_queue = Some(event_queue);
