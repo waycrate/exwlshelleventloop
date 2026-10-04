@@ -835,14 +835,15 @@ where
             }
             _ => {}
         }
-        let id_and_window = if let Some(shell_id) = shell_id {
-            self.window_manager.get_mut_alias(shell_id)
+
+        let (iced_id, window) = if let Some(shell_id) = shell_id
+            && let Some((iced_id, window)) = self.window_manager.get_mut_alias(shell_id)
+        {
+            (iced_id, window)
         } else {
-            self.window_manager.iter_mut().next()
-        };
-        let Some((iced_id, window)) = id_and_window else {
             return;
         };
+
         if let ExwlShellWindowEvent::OutputChanged(output) = &event {
             self.shell_broadcast
                 .send(shell::ShellEvent::WindowOutputChanged {
