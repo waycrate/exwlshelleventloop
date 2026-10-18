@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (breaking)
 
+- Induce RefreshState in Refresh callback, users will know it scale_factor or resize happened
 - Induce the Cursor::Hidden, allow user to hide the cursor
 - Make scroll support better, and support zwp_pointer_gestures_v1 by @id3v1669
 - Fix sometimes pointer cannot change

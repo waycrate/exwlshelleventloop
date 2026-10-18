@@ -20,10 +20,16 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
                 else {
                     return;
                 };
-                state.units[unit_index].size = Size {
+                let next_size = Size {
                     width: width as u32,
                     height: height as u32,
                 };
+                if !state.units[unit_index].size.is_empty()
+                    && state.units[unit_index].size != next_size
+                {
+                    state.units[unit_index].mark_resized();
+                }
+                state.units[unit_index].size = next_size;
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             xdg_popup::Event::PopupDone => {

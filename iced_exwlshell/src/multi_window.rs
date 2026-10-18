@@ -259,7 +259,7 @@ where
     {
         fn on_refresh(
             &mut self,
-            mut ev_context: exwlshellev::HaveIdEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::RefreshEventContext<iced_core::window::Id, Self>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");

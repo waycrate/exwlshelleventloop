@@ -32,7 +32,13 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
                 let Some(unit_index) = unit_index else {
                     return;
                 };
-                state.units[unit_index].size = Size { width, height };
+                let next_size = Size { width, height };
+                if !state.units[unit_index].size.is_empty()
+                    && state.units[unit_index].size != next_size
+                {
+                    state.units[unit_index].mark_resized();
+                }
+                state.units[unit_index].size = next_size;
                 state.units[unit_index].configured = true;
                 state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
             }

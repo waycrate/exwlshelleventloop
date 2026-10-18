@@ -67,7 +67,7 @@ impl ExWlShellHandler<()> for Window {
         }
     }
     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
-    fn on_refresh(&mut self, context: HaveIdEventContext<(), Self>) {
+    fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
         let ex_wlshell_window = context.get_unit();
 
         let Size { width, height } = ex_wlshell_window.get_size();

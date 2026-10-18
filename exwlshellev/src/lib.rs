@@ -71,7 +71,7 @@
 //!         }
 //!     }
 //!     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
-//!     fn on_refresh(&mut self, context: HaveIdEventContext<(), Self>) {
+//!     fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
 //!         let ex_wlshell_window = context.get_unit();
 //!
 //!         let Size { width, height } = ex_wlshell_window.get_size();
@@ -611,6 +611,11 @@ struct WindowStateUnitRequestFlag {
     close: bool,
     /// The flag of if this window has been requested to be refreshed.
     refresh: RefreshRequest,
+
+    /// record if this refresh has a resize event
+    resized: bool,
+    /// record if this refresh has a scale factor changed event
+    scale_factor_changed: bool,
 }
 
 #[derive(Debug)]
@@ -826,6 +831,12 @@ impl<T: 'static> WindowStateUnit<T> {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RefreshState {
+    resized: bool,
+    scale_factor_changed: bool,
+}
+
 impl<T> WindowStateUnit<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
@@ -1026,7 +1037,15 @@ impl<T> WindowStateUnit<T> {
         self.request_flag.close = true;
     }
 
-    pub fn request_refresh(&mut self, request: RefreshRequest) {
+    pub(crate) fn mark_resized(&mut self) {
+        self.request_flag.resized = true;
+    }
+
+    pub(crate) fn mark_scale_factor_changed(&mut self) {
+        self.request_flag.scale_factor_changed = true;
+    }
+
+    pub(crate) fn request_refresh(&mut self, request: RefreshRequest) {
         // refresh request in nearest future has the highest priority.
         match self.request_flag.refresh {
             RefreshRequest::NextFrame => {}
@@ -1080,16 +1099,22 @@ impl<T> WindowStateUnit<T> {
         }
     }
 
-    pub fn take_present_slot(&mut self) -> bool {
+    pub fn take_present_slot(&mut self) -> Option<RefreshState> {
         if !self.configured || !self.should_refresh() {
-            return false;
+            return None;
         }
         if self.present_available_state != PresentAvailableState::Available {
-            return false;
+            return None;
         }
+        let state = RefreshState {
+            resized: self.request_flag.resized,
+            scale_factor_changed: self.request_flag.scale_factor_changed,
+        };
+        self.request_flag.resized = false;
+        self.request_flag.scale_factor_changed = false;
         self.request_flag.refresh = RefreshRequest::Wait;
         self.present_available_state = PresentAvailableState::Taken;
-        true
+        Some(state)
     }
 
     pub fn reset_present_slot(&mut self) -> bool {
@@ -2178,6 +2203,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
                 return;
             };
             unit.scale = scale;
+            unit.mark_scale_factor_changed();
             unit.request_refresh(RefreshRequest::NextFrame);
             state.messages.push(QueuedMessage::Targeted(
                 unit.id,
@@ -2466,14 +2492,17 @@ impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
 
 const NO_ID: usize = 0;
 const HAVE_ID: usize = 1;
+const REFRESH: usize = 2;
 
 pub type NoIdEventContext<'a, T, Window> = EventContext<'a, NO_ID, T, Window>;
 pub type HaveIdEventContext<'a, T, Window> = EventContext<'a, HAVE_ID, T, Window>;
+pub type RefreshEventContext<'a, T, Window> = EventContext<'a, REFRESH, T, Window>;
 /// The context contains the information about the event this time
 pub struct EventContext<'a, const EVENT_TYPE: usize, T: 'static, Window: ExWlShellHandler<T>> {
     state: &'a mut WindowState<T>,
     looph: &'a LoopHandle<'static, ExWlEventLoop<T, Window>>,
     id: Option<id::Id>,
+    refresh_state: Option<RefreshState>,
 }
 
 impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
@@ -2501,6 +2530,7 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
                         state: &mut context.state,
                         looph: &context.looph,
                         id: None,
+                        refresh_state: None,
                     },
                     event,
                 );
@@ -2537,6 +2567,28 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, HAVE_ID, T, W
     }
 }
 
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, REFRESH, T, Window> {
+    pub fn id(&self) -> id::Id {
+        self.id.unwrap()
+    }
+    pub fn get_unit(&self) -> &WindowStateUnit<T> {
+        self.state.get_unit_unchecked(self.id())
+    }
+    pub fn get_unit_mut(&mut self) -> &mut WindowStateUnit<T> {
+        self.state.get_mut_unit_unchecked(self.id())
+    }
+    pub fn resized(&self) -> bool {
+        self.refresh_state
+            .expect("it should always contain this state")
+            .resized
+    }
+    pub fn scale_factor_changed(&self) -> bool {
+        self.refresh_state
+            .expect("it should always contain this state")
+            .scale_factor_changed
+    }
+}
+
 pub trait ExWlShellHandler<T: 'static>
 where
     Self: Sized,
@@ -2550,7 +2602,7 @@ where
     fn on_broadcast(&mut self, context: EventContext<NO_ID, T, Self>, event: ExWlShellBroadcast);
     /// when a refresh request comes out, it will call this callback
     /// should handle refresh event here
-    fn on_refresh(&mut self, context: EventContext<HAVE_ID, T, Self>);
+    fn on_refresh(&mut self, context: EventContext<REFRESH, T, Self>);
     /// Every round of loop, it will call a normal_dispatch once a time, in this place, you can draw
     /// the surface, or make new requests
     fn on_normal_dispatch(&mut self, context: EventContext<NO_ID, T, Self>);
@@ -2652,6 +2704,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                         state: &mut context.state,
                         looph: &context.looph,
                         id: None,
+                        refresh_state: None,
                     },
                     event,
                 );
@@ -2668,6 +2721,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 state: &mut self.state,
                 looph: &self.looph,
                 id: Some(unit_id),
+                refresh_state: None,
             },
             event,
         );
@@ -2678,16 +2732,18 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 state: &mut self.state,
                 looph: &self.looph,
                 id: None,
+                refresh_state: None,
             },
             event,
         );
     }
 
-    fn handle_refresh(&mut self, unit_id: id::Id) {
+    fn handle_refresh(&mut self, unit_id: id::Id, state: RefreshState) {
         self.window_context.on_refresh(EventContext {
             state: &mut self.state,
             looph: &self.looph,
             id: Some(unit_id),
+            refresh_state: Some(state),
         });
     }
 
@@ -2696,6 +2752,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
             state: &mut self.state,
             looph: &self.looph,
             id: None,
+            refresh_state: None,
         });
     }
 
@@ -3085,7 +3142,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 if width == 0 || height == 0 {
                     continue;
                 }
-                if unit.take_present_slot() {
+                if let Some(state) = unit.take_present_slot() {
                     let unit_id = unit.id;
                     let wl_surface = unit.window.wl_surface.clone();
                     if unit.buffer.is_none() && !context.state.use_display_handle {
@@ -3100,6 +3157,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 state: &mut context.state,
                                 looph: &context.looph,
                                 id: Some(unit_id),
+                                refresh_state: None,
                             },
                             &qh,
                             &mut file,
@@ -3134,7 +3192,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                         }
                         context.state.units[idx].window.wl_surface.commit();
                     }
-                    context.handle_refresh(unit_id);
+                    context.handle_refresh(unit_id, state);
                     context.state.units[idx].reset_present_slot();
                 }
             }

@@ -28,7 +28,12 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
             else {
                 return;
             };
-            state.units[unit_index].size = Size { width, height };
+            let next_size = Size { width, height };
+            if !state.units[unit_index].size.is_empty() && state.units[unit_index].size != next_size
+            {
+                state.units[unit_index].mark_resized();
+            }
+            state.units[unit_index].size = next_size;
             state.units[unit_index].configured = true;
             state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
         }
