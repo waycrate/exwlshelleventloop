@@ -1,7 +1,7 @@
 use crate::NewXdgWindowSettings;
 
 use super::{
-    DispatchMessage, PixelSize, QueuedMessage, RefreshRequest, Shell, Size, ToplevelState,
+    DispatchMessage, PixelSize, QueuedMessage, RefreshRequest, Shell, dpi::PhysicalSize, ToplevelState,
     WindowState, WindowStateUnitBuilder,
 };
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
@@ -50,7 +50,7 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
                     return;
                 };
                 if width != 0 && height != 0 {
-                    state.units[unit_index].size = Size {
+                    state.units[unit_index].size = PhysicalSize {
                         width: width as u32,
                         height: height as u32,
                     };
@@ -137,7 +137,7 @@ impl<T: 'static> WindowState<T> {
                 self.wl_compositor.clone(),
                 Shell::XdgTopLevel((toplevel, wl_xdg_surface, decoration)),
             )
-            .size(size.unwrap_or(PixelSize::px(300, 300)).to_size())
+            .size(size.unwrap_or(PixelSize::px(300, 300)).to_physical_size())
             .viewport(viewport)
             .fractional_scale(fractional_scale)
             .binding(info.into())

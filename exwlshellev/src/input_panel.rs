@@ -62,7 +62,7 @@ impl<T: 'static> WindowState<T> {
                 self.wl_compositor.clone(),
                 Shell::InputPanel(input_panel_surface),
             )
-            .size(size.to_size())
+            .size(size.to_physical_size())
             .viewport(viewport)
             .fractional_scale(fractional_scale)
             .binding(info)

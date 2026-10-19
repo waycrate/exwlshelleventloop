@@ -1,4 +1,4 @@
-use super::{DispatchMessage, QueuedMessage, RefreshRequest, Size, WindowState};
+use super::{DispatchMessage, QueuedMessage, RefreshRequest, dpi::PhysicalSize, WindowState};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, delegate_noop};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1, ext_session_lock_surface_v1,
@@ -28,7 +28,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
             else {
                 return;
             };
-            let next_size = Size { width, height };
+            let next_size = PhysicalSize { width, height };
             if !state.units[unit_index].size.is_empty() && state.units[unit_index].size != next_size
             {
                 state.units[unit_index].mark_resized();

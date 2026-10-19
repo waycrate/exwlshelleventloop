@@ -59,25 +59,6 @@ impl<T> Position<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Size<T = u32> {
-    pub width: T,
-    pub height: T,
-}
-
-macro_rules! impl_size_int {
-    { $T:ident } => {
-        impl Size<$T> {
-            pub fn is_empty(&self) -> bool {
-                self.width == 0 && self.height == 0
-            }
-        }
-    };
-}
-
-impl_size_int!(u32);
-impl_size_int!(i32);
-
 /// layershell settings to create a new layershell surface
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewLayerShellSettings {

@@ -1,4 +1,5 @@
 pub trait Pixel: Copy + Into<f64> {
+    const ZERO: Self;
     fn from_f64(f: f64) -> Self;
     fn cast<P: Pixel>(self) -> P {
         P::from_f64(self.into())
@@ -6,41 +7,49 @@ pub trait Pixel: Copy + Into<f64> {
 }
 
 impl Pixel for u8 {
+    const ZERO: Self = 0;
     fn from_f64(f: f64) -> Self {
         f.round() as u8
     }
 }
 impl Pixel for u16 {
+    const ZERO: Self = 0;
     fn from_f64(f: f64) -> Self {
         f.round() as u16
     }
 }
 impl Pixel for u32 {
+    const ZERO: Self = 0;
     fn from_f64(f: f64) -> Self {
         f.round() as u32
     }
 }
 impl Pixel for i8 {
+    const ZERO: Self = 0;
     fn from_f64(f: f64) -> Self {
         f.round() as i8
     }
 }
 impl Pixel for i16 {
+    const ZERO: Self = 0;
     fn from_f64(f: f64) -> Self {
         f.round() as i16
     }
 }
 impl Pixel for i32 {
+    const ZERO: Self = 0;
     fn from_f64(f: f64) -> Self {
         f.round() as i32
     }
 }
 impl Pixel for f32 {
+    const ZERO: Self = 0.;
     fn from_f64(f: f64) -> Self {
         f as f32
     }
 }
 impl Pixel for f64 {
+    const ZERO: Self = 0.;
     fn from_f64(f: f64) -> Self {
         f
     }
@@ -63,6 +72,18 @@ impl<P> LogicalSize<P> {
     #[inline]
     pub const fn new(width: P, height: P) -> Self {
         LogicalSize { width, height }
+    }
+}
+
+impl<P: Pixel + PartialEq> PhysicalSize<P> {
+    /// 0, 0
+    pub fn is_empty(&self) -> bool {
+        self.width == P::ZERO && self.height == P::ZERO
+    }
+
+    /// width or height is zero
+    pub fn contains_zero(&self) -> bool {
+        self.width == P::ZERO || self.height == P::ZERO
     }
 }
 

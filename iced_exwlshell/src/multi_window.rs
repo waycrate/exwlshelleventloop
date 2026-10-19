@@ -563,7 +563,7 @@ where
         let ex_wlshell_window = ev.get_unit_unchecked(shell_id);
         let unit_id = ex_wlshell_window.id();
         let toplevel_state = ex_wlshell_window.toplevel_state();
-        let exwlshellev::Size { width, height } = ex_wlshell_window.get_size();
+        let exwlshellev::dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
         let scale_float = ex_wlshell_window.scale_float();
         // events may not be handled after RequestRefreshWithWrapper in the same
         // interaction, we dispatched them immediately.

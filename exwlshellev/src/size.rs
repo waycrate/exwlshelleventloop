@@ -149,9 +149,9 @@ impl PixelSize {
         (self.width.get(), self.height.get())
     }
 
-    pub const fn to_size(self) -> crate::Size {
+    pub const fn to_physical_size(self) -> crate::dpi::PhysicalSize<u32> {
         let (width, height) = self.to_set();
-        crate::Size { width, height }
+        crate::PhysicalSize { width, height }
     }
 
     /// Same size for signed integer requests, capped at [`i32::MAX`]

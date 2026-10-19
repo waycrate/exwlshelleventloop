@@ -1,5 +1,5 @@
 use super::{
-    Margin, RefreshRequest, Shell, Size, WindowState, WindowStateUnitBuilder,
+    Margin, RefreshRequest, Shell, WindowState, WindowStateUnitBuilder, dpi::PhysicalSize,
     warn_if_exclusive_zone_ignored,
 };
 use crate::NewLayerShellSettings;
@@ -32,7 +32,7 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
                 let Some(unit_index) = unit_index else {
                     return;
                 };
-                let next_size = Size { width, height };
+                let next_size = PhysicalSize { width, height };
                 if !state.units[unit_index].size.is_empty()
                     && state.units[unit_index].size != next_size
                 {

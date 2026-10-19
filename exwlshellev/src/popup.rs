@@ -1,6 +1,6 @@
 use crate::{NewPopUpSettings, PopUpRepositionSettings};
 
-use super::{RefreshRequest, Shell, Size, WindowState, WindowStateUnitBuilder, build_positioner};
+use super::{RefreshRequest, Shell, dpi::PhysicalSize, WindowState, WindowStateUnitBuilder, build_positioner};
 use wayland_protocols::xdg::shell::client::xdg_popup;
 
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
@@ -20,7 +20,7 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
                 else {
                     return;
                 };
-                let next_size = Size {
+                let next_size = PhysicalSize {
                     width: width as u32,
                     height: height as u32,
                 };
@@ -190,7 +190,7 @@ impl<T: 'static> WindowState<T> {
                 Shell::PopUp((popup, wl_xdg_surface)),
             )
             .parent(Some(parent_id))
-            .size(size.to_size())
+            .size(size.to_physical_size())
             .viewport(viewport)
             .fractional_scale(fractional_scale)
             .binding(binding.into())

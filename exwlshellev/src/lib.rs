@@ -20,7 +20,7 @@
 //!         let ex_wlshell_window = context.get_unit();
 //!
 //!         let state = context.state_ref();
-//!         let Size { width, height } = ex_wlshell_window.get_size();
+//!         let dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
 //!         draw(file, (width, height));
 //!         let pool = state
 //!             .get_shm()
@@ -74,7 +74,7 @@
 //!     fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
 //!         let ex_wlshell_window = context.get_unit();
 //!
-//!         let Size { width, height } = ex_wlshell_window.get_size();
+//!         let dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
 //!
 //!         println!("{width}, {height}");
 //!     }
@@ -284,6 +284,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::blur::{BlurOption, BlurRegion};
+use crate::dpi::PhysicalSize;
 use crate::seat::SeatStorage;
 
 #[derive(Debug, Clone, Copy)]
@@ -514,7 +515,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 wl_compositor,
                 shell,
                 parent: None,
-                size: Size {
+                size: PhysicalSize {
                     width: 0,
                     height: 0,
                 },
@@ -543,7 +544,7 @@ impl<T> WindowStateUnitBuilder<T> {
         self.inner
     }
 
-    fn size(mut self, size: Size) -> Self {
+    fn size(mut self, size: PhysicalSize<u32>) -> Self {
         self.inner.size = size;
         self
     }
@@ -626,7 +627,7 @@ pub struct WindowStateUnit<T> {
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: Arc<WindowWrapper>,
     wl_compositor: WlCompositor,
-    size: Size,
+    size: dpi::PhysicalSize<u32>,
     /// Only meaningful for LayerShell
     anchor: Anchor,
     /// Only meaningful for LayerShell
@@ -805,7 +806,7 @@ impl<T: 'static> WindowStateUnit<T> {
                     effect.set_blur_region(None);
                 }
                 BlurOption::FullRegion => {
-                    let Size { width, height } = self.size;
+                    let PhysicalSize { width, height } = self.size;
                     let region = self.wl_compositor.create_region(&self.qh, ());
                     region.add(0, 0, width as i32, height as i32);
                     effect.set_blur_region(Some(&region));
@@ -1011,7 +1012,7 @@ impl<T> WindowStateUnit<T> {
     }
 
     /// get the size of the surface
-    pub fn get_size(&self) -> Size {
+    pub fn get_size(&self) -> PhysicalSize<u32> {
         self.size
     }
 
@@ -3145,10 +3146,10 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
 
             for idx in 0..context.state.units.len() {
                 let unit = &mut context.state.units[idx];
-                let Size { width, height } = unit.size;
-                if width == 0 || height == 0 {
+                if unit.size.contains_zero() {
                     continue;
                 }
+                let PhysicalSize { width, height } = unit.size;
                 if let Some(state) = unit.take_present_slot() {
                     let unit_id = unit.id;
                     let wl_surface = unit.window.wl_surface.clone();
