@@ -2571,17 +2571,24 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, REFRESH, T, W
     pub fn id(&self) -> id::Id {
         self.id.unwrap()
     }
+
     pub fn get_unit(&self) -> &WindowStateUnit<T> {
         self.state.get_unit_unchecked(self.id())
     }
+
     pub fn get_unit_mut(&mut self) -> &mut WindowStateUnit<T> {
         self.state.get_mut_unit_unchecked(self.id())
     }
+
+    /// resized happened in this refresh event, so you need to update the buffer
     pub fn resized(&self) -> bool {
         self.refresh_state
             .expect("it should always contain this state")
             .resized
     }
+
+    /// if scale_factor changed in this refresh event, it will be true
+    /// You need to update the buffer
     pub fn scale_factor_changed(&self) -> bool {
         self.refresh_state
             .expect("it should always contain this state")

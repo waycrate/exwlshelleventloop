@@ -108,6 +108,9 @@ where
         &self.viewport
     }
 
+    /// it return the window_size of the window
+    /// maybe will be used later oneday
+    #[allow(unused)]
     pub fn window_size(&self) -> Size<u32> {
         self.window_size
     }

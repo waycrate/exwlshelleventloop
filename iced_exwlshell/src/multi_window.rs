@@ -265,8 +265,10 @@ where
                 unreachable!("context state is not initialized");
             };
             let shell_id = ev_context.id();
+
+            let update_view_port = ev_context.resized() || ev_context.scale_factor_changed();
             let state = ev_context.state_mut();
-            context.handle_refresh_event(state, shell_id);
+            context.handle_refresh_event(state, shell_id, update_view_port);
         }
 
         fn on_init(
@@ -543,7 +545,13 @@ where
         }
     }
 
-    fn handle_refresh_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: ExWlShellId) {
+    fn handle_refresh_event(
+        &mut self,
+        ev: &mut WindowState<IcedId>,
+        shell_id: ExWlShellId,
+        // if scale_factor_changed or resized, then update the viewport
+        update_view_port: bool,
+    ) {
         if self.compositor.is_none() {
             // NOTE: when invoke on_refresh, the unit will always exist
             let shell_window = ev.get_unit_unchecked(shell_id);
@@ -562,12 +570,7 @@ where
         let mut events = Vec::new();
         let (iced_id, window) =
             if let Some((iced_id, window)) = self.window_manager.get_mut_alias(unit_id) {
-                let window_size = window.state.window_size();
-
-                if window_size.width != width
-                    || window_size.height != height
-                    || window.state.wayland_scale_factor() != scale_float
-                {
+                if update_view_port {
                     let layout_span = iced_debug::layout(iced_id);
                     window.state.update_view_port(width, height, scale_float);
                     if let Some(ui) = self.user_interfaces.ui_mut(&iced_id) {
