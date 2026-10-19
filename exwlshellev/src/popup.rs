@@ -1,6 +1,8 @@
 use crate::{NewPopUpSettings, PopUpRepositionSettings};
 
-use super::{RefreshRequest, Shell, dpi::PhysicalSize, WindowState, WindowStateUnitBuilder, build_positioner};
+use super::{
+    RefreshRequest, Shell, WindowState, WindowStateUnitBuilder, build_positioner, dpi::PhysicalSize,
+};
 use wayland_protocols::xdg::shell::client::xdg_popup;
 
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};

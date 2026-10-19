@@ -1,4 +1,4 @@
-use super::{DispatchMessage, QueuedMessage, RefreshRequest, dpi::PhysicalSize, WindowState};
+use super::{DispatchMessage, QueuedMessage, RefreshRequest, WindowState, dpi::PhysicalSize};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, delegate_noop};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1, ext_session_lock_surface_v1,

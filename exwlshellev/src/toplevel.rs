@@ -1,8 +1,8 @@
 use crate::NewXdgWindowSettings;
 
 use super::{
-    DispatchMessage, PixelSize, QueuedMessage, RefreshRequest, Shell, dpi::PhysicalSize, ToplevelState,
-    WindowState, WindowStateUnitBuilder,
+    DispatchMessage, PixelSize, QueuedMessage, RefreshRequest, Shell, ToplevelState, WindowState,
+    WindowStateUnitBuilder, dpi::PhysicalSize,
 };
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
