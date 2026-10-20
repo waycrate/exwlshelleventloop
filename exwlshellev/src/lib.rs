@@ -1,80 +1,69 @@
 //! # Handle the layer_shell and session_lock in a winit way
 //!
+//!
 //! Min example is under
 //! ```rust, no_run
-//! use std::fs::File;
-//! use std::os::fd::AsFd;
+//! use std::collections::HashMap;
+//! use std::num::NonZeroU32;
 //!
 //! use exwlshellev::keyboard::{KeyCode, PhysicalKey};
 //! use exwlshellev::reexport::*;
 //! use exwlshellev::*;
 //!
-//! struct Window;
-//! impl ExWlShellHandler<()> for Window {
-//!     fn request_buffer(
-//!         &mut self,
-//!         context: HaveIdEventContext<(), Self>,
-//!         qh: &wayland_client::QueueHandle<WindowState<()>>,
-//!         file: &mut std::fs::File,
-//!     ) -> wayland_client::WlBuffer {
-//!         let ex_wlshell_window = context.get_unit();
+//! struct Window {
+//!     context: softbuffer::Context<DisplayWrapper>,
+//!     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapperArc>>,
+//! }
 //!
-//!         let state = context.state_ref();
-//!         let dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
-//!         draw(file, (width, height));
-//!         let pool = state
-//!             .get_shm()
-//!             .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
-//!         pool.create_buffer(
-//!             0,
-//!             width as i32,
-//!             height as i32,
-//!             (width * 4) as i32,
-//!             wl_shm::Format::Argb8888,
-//!             qh,
-//!             (),
-//!         )
-//!     }
+//! impl ExWlShellHandler for Window {
 //!     fn on_init(
 //!         &mut self,
 //!         _state: &mut WindowState<()>,
-//!         event: ExWlShellInitEvent<()>,
+//!         _event: ExWlShellInitEvent<()>,
 //!     ) -> InitRequest {
-//!         match event {
-//!             // NOTE: this will send when init, you can request bind extra object from here
-//!             ExWlShellInitEvent::Start => InitRequest::RequestBind,
-//!             ExWlShellInitEvent::BindProvide(globals, qh) => {
-//!                 // NOTE: you can get implied wayland object from here
-//!                 let virtual_keyboard_manager = globals
-//!                     .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
-//!                         qh,
-//!                         1..=1,
-//!                         (),
-//!                     )
-//!                     .unwrap();
-//!                 println!("{:?}", virtual_keyboard_manager);
-//!                 InitRequest::RequestCompositor
-//!             }
-//!             ExWlShellInitEvent::CompositorProvide(_compositor, _qh) => {
-//!                 // NOTE: this is an example to use the CompositorProvide,
-//!                 // but this is quite useless, because you can get the window_unit to set it directly
-//!                 // NOTE: you can set input region to limit area which gets input events
-//!                 // surface outside region becomes transparent for input events
-//!                 // To ignore all input events use region with (0,0) size
-//!                 // for x in state.get_unit_iter() {
-//!                 //     let region = _compositor.create_region(_qh, ());
-//!                 //     region.add(0, 0, 0, 0);
-//!                 //     x.get_wlsurface().set_input_region(Some(&region));
-//!                 // }
-//!                 InitRequest::None
-//!             }
-//!         }
+//!         InitRequest::None
 //!     }
 //!     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
 //!     fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
+//!         let id = context.id();
+//!
+//!         let mut resized = context.resized();
 //!         let ex_wlshell_window = context.get_unit();
 //!
-//!         let dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
+//!         let dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
+//!         if !self.buffers.contains_key(&id) {
+//!             self.buffers.insert(
+//!                 id,
+//!                 softbuffer::Surface::new(&self.context, ex_wlshell_window.gen_wrapper()).unwrap(),
+//!             );
+//!             resized = true;
+//!         }
+//!         let surface = self.buffers.get_mut(&id).unwrap();
+//!         if resized {
+//!             surface
+//!                 .resize(
+//!                     NonZeroU32::new(width).unwrap(),
+//!                     NonZeroU32::new(height).unwrap(),
+//!                 )
+//!                 .unwrap();
+//!         }
+//!         let mut buffer = surface.buffer_mut().unwrap();
+//!
+//!         use std::cmp::min;
+//!         let buf_x = buffer.width().get();
+//!         let buf_y = buffer.height().get();
+//!         for index in 0..(buffer.width().get() * buffer.height().get()) {
+//!             let y = index / buffer.width().get();
+//!             let x = index % buffer.width().get();
+//!             let a = 0xFF;
+//!             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+//!             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+//!             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+//!
+//!             let color = (a << 24) + (r << 16) + (g << 8) + b;
+//!             buffer[index as usize] = color;
+//!         }
+//!         buffer.present().unwrap();
 //!
 //!         println!("{width}, {height}");
 //!     }
@@ -83,14 +72,16 @@
 //!             println!("{info:?}");
 //!         }
 //!     }
-//!     fn on_window_event(&mut self, mut context: HaveIdEventContext<(), Self>, event: ExWlShellEvent) {
+//!     fn on_window_event(
+//!         &mut self,
+//!         mut context: HaveIdEventContext<(), Self>,
+//!         event: ExWlShellEvent,
+//!     ) {
+//!         let id = context.id();
 //!         let state = context.state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
-//!                 state.set_cursor(
-//!                     Cursor::Shape(CursorShape::Crosshair),
-//!                     pointer,
-//!                 )
+//!                 state.set_cursor(Cursor::Shape(CursorShape::Crosshair), pointer)
 //!             }
 //!             ExWlShellEvent::MouseMotion {
 //!                 time,
@@ -109,13 +100,16 @@
 //!                     state.exit();
 //!                 }
 //!             }
+//!             ExWlShellEvent::Closed => {
+//!                 self.buffers.remove(&id);
+//!             }
 //!             _ => {}
 //!         }
 //!     }
 //! }
+//!
 //! fn main() {
-//!     let window = Window;
-//!     let ev = ExWlEventLoopBuilder::new("Hello")
+//!     let prebuilder = ExWlEventLoopBuilder::new("Hello")
 //!         .with_allscreens()
 //!         .with_size(LayerSize::fill_width(400))
 //!         .with_layer(Layer::Top)
@@ -128,29 +122,18 @@
 //!         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
 //!         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
 //!         .with_exclusive_zone(-1)
-//!         .attach(window)
+//!         .prebuild()
 //!         .unwrap();
+//!     let display = prebuilder.display_wrapper();
+//!     let context = softbuffer::Context::new(display).unwrap();
+//!     let window = Window {
+//!         context,
+//!         buffers: HashMap::new(),
+//!     };
+//!     let ev = prebuilder.attach(window).unwrap();
 //!
 //!     ev.run().unwrap()
 //! }
-//!
-//! fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
-//!     use std::{cmp::min, io::Write};
-//!     let mut buf = std::io::BufWriter::new(tmp);
-//!     for y in 0..buf_y {
-//!         for x in 0..buf_x {
-//!             let a = 0xFF;
-//!             let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-//!             let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-//!             let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-//!
-//!             let color = (a << 24) + (r << 16) + (g << 8) + b;
-//!             buf.write_all(&color.to_ne_bytes()).unwrap();
-//!         }
-//!     }
-//!     buf.flush().unwrap();
-//! }
-//! ```
 //!
 use calloop::LoopSignal;
 pub use sctk::output::OutputInfo;
@@ -158,7 +141,7 @@ pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 pub mod blur;
 mod builder;
-pub use builder::ExWlEventLoopBuilder;
+pub use builder::{ExWlEventLoopBuilder, ExWlEventLoopPreBuilder};
 pub mod dpi;
 mod events;
 mod input_panel;
@@ -284,6 +267,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::blur::{BlurOption, BlurRegion};
+use crate::dpi::LogicalSize;
 use crate::dpi::PhysicalSize;
 use crate::seat::SeatStorage;
 
@@ -515,13 +499,12 @@ impl<T> WindowStateUnitBuilder<T> {
                 wl_compositor,
                 shell,
                 parent: None,
-                size: PhysicalSize {
+                physical_size: PhysicalSize {
                     width: 0,
                     height: 0,
                 },
                 anchor: Anchor::empty(),
                 layer_size: LayerSize::FILL,
-                buffer: Default::default(),
                 fractional_scale: Default::default(),
                 wl_outputs: Default::default(),
                 pending_leave: None,
@@ -545,7 +528,7 @@ impl<T> WindowStateUnitBuilder<T> {
     }
 
     fn size(mut self, size: PhysicalSize<u32>) -> Self {
-        self.inner.size = size;
+        self.inner.physical_size = size;
         self
     }
 
@@ -627,12 +610,11 @@ pub struct WindowStateUnit<T> {
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: Arc<WindowWrapper>,
     wl_compositor: WlCompositor,
-    size: dpi::PhysicalSize<u32>,
+    physical_size: dpi::PhysicalSize<u32>,
     /// Only meaningful for LayerShell
     anchor: Anchor,
     /// Only meaningful for LayerShell
     layer_size: LayerSize,
-    buffer: Option<WlBuffer>,
     shell: Shell,
     parent: Option<id::Id>,
     fractional_scale: Option<WpFractionalScaleV1>,
@@ -671,9 +653,7 @@ impl<T> Drop for WindowStateUnit<T> {
             let _ = backend.destroy_object(&callback.id());
         }
         self.shell.destroy();
-        if let Some(buffer) = &self.buffer {
-            buffer.destroy();
-        }
+
         if let Some(scale) = &self.fractional_scale {
             scale.destroy();
         }
@@ -789,8 +769,11 @@ impl<T> rwh_06::HasWindowHandle for WindowState<T> {
 // if is only one window, use it will be easy
 impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
-        let raw = self.main_window().raw_display_handle_rwh_06()?;
-
+        let raw = rwh_06::WaylandDisplayHandle::new({
+            let ptr = self.display.id().as_ptr();
+            std::ptr::NonNull::new(ptr as *mut _).expect("wl_proxy should never be null")
+        })
+        .into();
         // SAFETY: The window handle will never be deallocated while the window is alive,
         // and the main thread safety requirements are upheld internally by each platform.
         Ok(unsafe { rwh_06::DisplayHandle::borrow_raw(raw) })
@@ -806,7 +789,7 @@ impl<T: 'static> WindowStateUnit<T> {
                     effect.set_blur_region(None);
                 }
                 BlurOption::FullRegion => {
-                    let PhysicalSize { width, height } = self.size;
+                    let PhysicalSize { width, height } = self.physical_size;
                     let region = self.wl_compositor.create_region(&self.qh, ());
                     region.add(0, 0, width as i32, height as i32);
                     effect.set_blur_region(Some(&region));
@@ -1011,19 +994,14 @@ impl<T> WindowStateUnit<T> {
         self.binding.as_ref()
     }
 
-    /// get the size of the surface
-    pub fn get_size(&self) -> PhysicalSize<u32> {
-        self.size
+    /// get the [PhysicalSize] of the surface
+    pub fn physical_size(&self) -> PhysicalSize<u32> {
+        self.physical_size
     }
 
-    /// this function will refresh whole surface. it will reattach the buffer, and damage whole,
-    /// and final commit
-    pub fn refresh(&self) {
-        self.window.wl_surface.attach(self.buffer.as_ref(), 0, 0);
-        self.window
-            .wl_surface
-            .damage(0, 0, self.size.width as i32, self.size.height as i32);
-        self.window.wl_surface.commit();
+    /// get the [LogicalSize] of the surface
+    pub fn logical_size(&self) -> LogicalSize<u32> {
+        self.physical_size.to_logical(self.scale_float())
     }
 
     pub fn scale_u32(&self) -> u32 {
@@ -1259,7 +1237,6 @@ pub struct WindowState<T> {
     blur_option: BlurOption,
 
     // settings
-    use_display_handle: bool,
     repeat_delay: Option<KeyboardTokenState>,
     to_remove_tokens: Vec<RegistrationToken>,
     closed_ids: Vec<id::Id>,
@@ -1414,6 +1391,13 @@ impl<T> WindowState<T> {
     }
 }
 
+/// It is the Arc wrapper for [WindowWrapper]
+/// provide the display_handle and window_handle
+pub type WindowWrapperArc = Arc<WindowWrapper>;
+
+/// it is a wrapper for WindowStateUnit, provide important viewport, toplevel and etc
+/// provide display_handle and window_handle
+/// Can only access with Arc
 #[derive(Debug)]
 pub struct WindowWrapper {
     pub id: id::Id,
@@ -1473,11 +1457,6 @@ impl WindowWrapper {
 }
 
 impl<T> WindowState<T> {
-    /// gen the wrapper to the main window
-    /// used to get display and etc
-    pub fn gen_mainwindow_wrapper(&self) -> Arc<WindowWrapper> {
-        self.main_window().gen_wrapper()
-    }
     pub fn with_blur_option(mut self, blur_option: BlurOption) -> Self {
         self.blur_option = blur_option;
         self
@@ -1624,6 +1603,7 @@ impl rwh_06::HasDisplayHandle for WindowWrapper {
     }
 }
 
+/// DisplayWrapper, provide DisplayHandle
 #[derive(Debug, Clone)]
 pub struct DisplayWrapper {
     display: WlDisplay,
@@ -1664,7 +1644,6 @@ impl<T: 'static> WindowState<T> {
             margin,
             size,
             exclusive_zone,
-            use_display_handle,
             layer,
             blur_option,
             ..
@@ -1772,7 +1751,6 @@ impl<T: 'static> WindowState<T> {
                 exclusive_zone,
                 margin,
                 blur_option,
-                use_display_handle,
                 events_transparent,
                 start_mode,
 
@@ -2597,7 +2575,7 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, REFRESH, T, W
     }
 }
 
-pub trait ExWlShellHandler<T: 'static>
+pub trait ExWlShellHandler<T: 'static = ()>
 where
     Self: Sized,
 {
@@ -3146,34 +3124,12 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
 
             for idx in 0..context.state.units.len() {
                 let unit = &mut context.state.units[idx];
-                if unit.size.contains_zero() {
+                if unit.physical_size.contains_zero() {
                     continue;
                 }
-                let PhysicalSize { width, height } = unit.size;
+                let PhysicalSize { width, height } = unit.physical_size;
                 if let Some(state) = unit.take_present_slot() {
                     let unit_id = unit.id;
-                    let wl_surface = unit.window.wl_surface.clone();
-                    if unit.buffer.is_none() && !context.state.use_display_handle {
-                        let Ok(mut file) = tempfile::tempfile() else {
-                            log::error!("Cannot create new file from tempfile");
-                            // note: could lead to infinite loop or spam log
-                            // if the error is persistent.
-                            return false;
-                        };
-                        let buffer = context.window_context.request_buffer(
-                            EventContext {
-                                state: &mut context.state,
-                                looph: &context.looph,
-                                id: Some(unit_id),
-                                refresh_state: None,
-                            },
-                            &qh,
-                            &mut file,
-                        );
-                        wl_surface.attach(Some(&buffer), 0, 0);
-                        wl_surface.commit();
-                        context.state.units[idx].buffer = Some(buffer);
-                    }
                     if let Some(effect) = &context.state.units[idx].effect {
                         match &context.state.units[idx].blur_option {
                             BlurOption::None => {}

@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     BlurOption, DispatchMessage, EventLoop, ExWlEventLoop, ExWlShellEventError, ExWlShellHandler,
     ExWlShellInitEvent, InitRequest, LayerSize, Margin, QueuedMessage, Shell, StartMode,
@@ -23,7 +25,6 @@ pub struct ExWlEventLoopBuilder {
     pub(crate) size: LayerSize,
     pub(crate) exclusive_zone: Option<i32>,
     pub(crate) with_connection: Option<WithConnection>,
-    pub(crate) use_display_handle: bool,
     pub(crate) layer: Layer,
     pub(crate) blur_option: BlurOption,
 }
@@ -40,7 +41,6 @@ impl Default for ExWlEventLoopBuilder {
             size: LayerSize::FILL,
             exclusive_zone: None,
             with_connection: None,
-            use_display_handle: false,
             layer: Layer::Top,
             blur_option: BlurOption::None,
         }
@@ -170,12 +170,6 @@ impl ExWlEventLoopBuilder {
         self
     }
 
-    /// set exwlshellev to use display_handle
-    pub fn with_use_display_handle(mut self, use_display_handle: bool) -> Self {
-        self.use_display_handle = use_display_handle;
-        self
-    }
-
     /// set a callback to create a wayland connection
     pub fn with_connection(mut self, connection_or: impl Into<Option<WithConnection>>) -> Self {
         self.with_connection = connection_or.into();
@@ -187,16 +181,31 @@ impl ExWlEventLoopBuilder {
     }
 }
 
-impl ExWlEventLoopBuilder {
+/// ExWlEventLoopPreBuilder is the state before the attach, it is the wrapper for the [WindowState]
+/// Will provide useful information like [crate::DisplayWrapper], and etc, can use it to create
+/// state for softbuffer, and etc
+#[derive(Debug)]
+pub struct ExWlEventLoopPreBuilder<T: 'static> {
+    state: Option<WindowState<T>>,
+}
+
+impl<T: 'static> Deref for ExWlEventLoopPreBuilder<T> {
+    type Target = WindowState<T>;
+    fn deref(&self) -> &Self::Target {
+        self.state.as_ref().expect("state always is some")
+    }
+}
+
+impl<T: 'static> ExWlEventLoopPreBuilder<T> {
     /// attach to a [ExWlShellHandler], and create a [ExWlEventLoop]
-    pub fn attach<T: 'static, Window>(
+    pub fn attach<Window>(
         self,
         mut window: Window,
     ) -> Result<ExWlEventLoop<T, Window>, ExWlShellEventError>
     where
         Window: ExWlShellHandler<T> + 'static,
     {
-        let mut state: WindowState<T> = self.build_state()?;
+        let mut state = self.state.expect("state always is some");
         let globals = state.globals.take().unwrap();
         let event_queue_origin = state.event_queue.as_ref().unwrap();
         let qh = event_queue_origin.handle();
@@ -243,6 +252,24 @@ impl ExWlEventLoopBuilder {
             signal,
             cached_tokens: vec![],
         })
+    }
+}
+
+impl ExWlEventLoopBuilder {
+    /// create a [ExWlEventLoopPreBuilder], to provide some useful information
+    pub fn prebuild<T: 'static>(self) -> Result<ExWlEventLoopPreBuilder<T>, ExWlShellEventError> {
+        let state: WindowState<T> = self.build_state()?;
+        Ok(ExWlEventLoopPreBuilder { state: Some(state) })
+    }
+    /// attach to a [ExWlShellHandler], and create a [ExWlEventLoop]
+    pub fn attach<T: 'static, Window>(
+        self,
+        window: Window,
+    ) -> Result<ExWlEventLoop<T, Window>, ExWlShellEventError>
+    where
+        Window: ExWlShellHandler<T> + 'static,
+    {
+        self.prebuild()?.attach(window)
     }
     fn build_state<T: 'static>(mut self) -> Result<WindowState<T>, ExWlShellEventError> {
         let connection = if let Some(with_connection) = self.with_connection.take() {

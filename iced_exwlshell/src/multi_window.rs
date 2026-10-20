@@ -144,7 +144,6 @@ where
     };
     let mut wl_context = exwlshellev::ExWlEventLoopBuilder::new(namespace)
         .with_start_mode(wl_settings.layer_settings.start_mode)
-        .with_use_display_handle(true)
         .with_events_transparent(wl_settings.layer_settings.events_transparent)
         .with_size(wl_settings.layer_settings.size)
         .with_layer(wl_settings.layer_settings.layer)
@@ -563,7 +562,7 @@ where
         let ex_wlshell_window = ev.get_unit_unchecked(shell_id);
         let unit_id = ex_wlshell_window.id();
         let toplevel_state = ex_wlshell_window.toplevel_state();
-        let exwlshellev::dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
+        let exwlshellev::dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
         let scale_float = ex_wlshell_window.scale_float();
         // events may not be handled after RequestRefreshWithWrapper in the same
         // interaction, we dispatched them immediately.
@@ -1032,7 +1031,7 @@ where
                     return;
                 };
 
-                let window_size = exshell_window.get_size();
+                let window_size = exshell_window.physical_size();
                 let width: i32 = window_size.width as i32;
                 let height: i32 = window_size.height as i32;
 

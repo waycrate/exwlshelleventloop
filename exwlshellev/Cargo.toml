@@ -35,3 +35,7 @@ log.workspace = true
 
 waycrate_xkbkeycode.workspace = true
 sctk.workspace = true
+
+
+[dev-dependencies]
+softbuffer = "0.4.8"

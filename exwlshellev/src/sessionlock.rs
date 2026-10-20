@@ -29,11 +29,12 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
                 return;
             };
             let next_size = PhysicalSize { width, height };
-            if !state.units[unit_index].size.is_empty() && state.units[unit_index].size != next_size
+            if !state.units[unit_index].physical_size.is_empty()
+                && state.units[unit_index].physical_size != next_size
             {
                 state.units[unit_index].mark_resized();
             }
-            state.units[unit_index].size = next_size;
+            state.units[unit_index].physical_size = next_size;
             state.units[unit_index].configured = true;
             state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
         }

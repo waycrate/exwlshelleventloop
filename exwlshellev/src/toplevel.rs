@@ -50,7 +50,7 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
                     return;
                 };
                 if width != 0 && height != 0 {
-                    state.units[unit_index].size = PhysicalSize {
+                    state.units[unit_index].physical_size = PhysicalSize {
                         width: width as u32,
                         height: height as u32,
                     };

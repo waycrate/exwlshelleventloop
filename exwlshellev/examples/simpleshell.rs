@@ -1,36 +1,16 @@
-use std::fs::File;
-use std::os::fd::AsFd;
+use std::collections::HashMap;
+use std::num::NonZeroU32;
 
 use exwlshellev::keyboard::{KeyCode, PhysicalKey};
 use exwlshellev::reexport::*;
 use exwlshellev::*;
 
-struct Window;
-impl ExWlShellHandler<()> for Window {
-    fn request_buffer(
-        &mut self,
-        context: HaveIdEventContext<(), Self>,
-        qh: &wayland_client::QueueHandle<WindowState<()>>,
-        file: &mut std::fs::File,
-    ) -> wayland_client::WlBuffer {
-        let ex_wlshell_window = context.get_unit();
+struct Window {
+    context: softbuffer::Context<DisplayWrapper>,
+    buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapperArc>>,
+}
 
-        let state = context.state_ref();
-        let dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
-        draw(file, (width, height));
-        let pool = state
-            .get_shm()
-            .create_pool(file.as_fd(), (width * height * 4) as i32, qh, ());
-        pool.create_buffer(
-            0,
-            width as i32,
-            height as i32,
-            (width * 4) as i32,
-            wl_shm::Format::Argb8888,
-            qh,
-            (),
-        )
-    }
+impl ExWlShellHandler for Window {
     fn on_init(
         &mut self,
         _state: &mut WindowState<()>,
@@ -66,14 +46,55 @@ impl ExWlShellHandler<()> for Window {
             }
         }
     }
+
     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
+
+    /// NOTE: you should know whether you have the buffer for this surface or not
+    /// So no on created
     fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
+        let id = context.id();
+
+        let mut resized = context.resized();
         let ex_wlshell_window = context.get_unit();
 
-        let dpi::PhysicalSize { width, height } = ex_wlshell_window.get_size();
+        let dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
+        if !self.buffers.contains_key(&id) {
+            self.buffers.insert(
+                id,
+                softbuffer::Surface::new(&self.context, ex_wlshell_window.gen_wrapper()).unwrap(),
+            );
+            resized = true;
+        }
+        let surface = self.buffers.get_mut(&id).unwrap();
+        if resized {
+            surface
+                .resize(
+                    NonZeroU32::new(width).unwrap(),
+                    NonZeroU32::new(height).unwrap(),
+                )
+                .unwrap();
+        }
+        let mut buffer = surface.buffer_mut().unwrap();
+
+        use std::cmp::min;
+        let buf_x = buffer.width().get();
+        let buf_y = buffer.height().get();
+        for index in 0..(buffer.width().get() * buffer.height().get()) {
+            let y = index / buffer.width().get();
+            let x = index % buffer.width().get();
+            let a = 0xFF;
+            let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+            let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
+            let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
+
+            let color = (a << 24) + (r << 16) + (g << 8) + b;
+            buffer[index as usize] = color;
+        }
+        buffer.present().unwrap();
 
         println!("{width}, {height}");
     }
+
     fn on_broadcast(&mut self, _context: NoIdEventContext<(), Self>, event: ExWlShellBroadcast) {
         if let ExWlShellBroadcast::OutputAdded(info) = event {
             println!("{info:?}");
@@ -84,6 +105,7 @@ impl ExWlShellHandler<()> for Window {
         mut context: HaveIdEventContext<(), Self>,
         event: ExWlShellEvent,
     ) {
+        let id = context.id();
         let state = context.state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
@@ -106,14 +128,16 @@ impl ExWlShellHandler<()> for Window {
                     state.exit();
                 }
             }
+            ExWlShellEvent::Closed => {
+                self.buffers.remove(&id);
+            }
             _ => {}
         }
     }
 }
 
 fn main() {
-    let window = Window;
-    let ev = ExWlEventLoopBuilder::new("Hello")
+    let prebuild = ExWlEventLoopBuilder::new("Hello")
         .with_allscreens()
         .with_size(LayerSize::fill_width(400))
         .with_layer(Layer::Top)
@@ -126,25 +150,15 @@ fn main() {
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
         .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusive_zone(-1)
-        .attach(window)
+        .prebuild()
         .unwrap();
+    let display = prebuild.display_wrapper();
+    let context = softbuffer::Context::new(display).unwrap();
+    let window = Window {
+        context,
+        buffers: HashMap::new(),
+    };
+    let ev = prebuild.attach(window).unwrap();
 
     ev.run().unwrap()
-}
-
-fn draw(tmp: &mut File, (buf_x, buf_y): (u32, u32)) {
-    use std::{cmp::min, io::Write};
-    let mut buf = std::io::BufWriter::new(tmp);
-    for y in 0..buf_y {
-        for x in 0..buf_x {
-            let a = 0xFF;
-            let r = min(((buf_x - x) * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-            let g = min((x * 0xFF) / buf_x, ((buf_y - y) * 0xFF) / buf_y);
-            let b = min(((buf_x - x) * 0xFF) / buf_x, (y * 0xFF) / buf_y);
-
-            let color = (a << 24) + (r << 16) + (g << 8) + b;
-            buf.write_all(&color.to_ne_bytes()).unwrap();
-        }
-    }
-    buf.flush().unwrap();
 }
