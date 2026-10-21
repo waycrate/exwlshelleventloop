@@ -5,9 +5,9 @@ use crate::{
     DefaultStyle,
     actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings},
     ime_preedit::ImeState,
-    multi_window::window_manager::WindowManager,
     settings::VirtualKeyboardSettings,
     user_interface::{Input, UserInterfaces},
+    window::window_manager::WindowManager,
 };
 use crate::{
     actions::ExwlShellCustomAction, clipboard::ExwlShellClipboard, conversion, error::Error,

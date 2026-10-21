@@ -7,10 +7,10 @@ mod conversion;
 mod error;
 mod event;
 pub mod gesture;
-mod multi_window;
 mod proxy;
 pub mod redraw;
 mod user_interface;
+mod window;
 
 pub mod settings;
 
@@ -72,4 +72,4 @@ pub use build_pattern::sessionlock;
 
 pub use settings::ExWlSettings;
 
-pub use multi_window::get_wlconnection;
+pub use window::get_wlconnection;

@@ -704,7 +704,7 @@ impl<P: Program> Daemon<P> {
         #[cfg(any(not(feature = "debug"), target_arch = "wasm32"))]
         let (program, redraw_policy) = (self.raw, redraw_policy);
 
-        crate::multi_window::run(
+        crate::window::run(
             ProgramWrapper { program, settings },
             &self.namespace,
             wl_settings,

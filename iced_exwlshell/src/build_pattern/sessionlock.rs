@@ -372,7 +372,7 @@ mod pattern {
             let program = self.raw;
 
             use crate::build_pattern::ProgramWrapper;
-            crate::multi_window::run(
+            crate::window::run(
                 ProgramWrapper { program, settings },
                 &self.namespace,
                 wl_settings,
