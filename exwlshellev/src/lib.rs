@@ -12,7 +12,7 @@
 //!
 //! struct Window {
 //!     context: softbuffer::Context<DisplayWrapper>,
-//!     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapperArc>>,
+//!     buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapper>>,
 //! }
 //!
 //! impl ExWlShellHandler for Window {
@@ -260,6 +260,7 @@ use calloop_wayland_source::WaylandSource;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::sync::Arc;
 
 use std::fmt::Formatter;
@@ -489,13 +490,7 @@ impl<T> WindowStateUnitBuilder<T> {
             inner: ExWlShellState {
                 id,
                 qh,
-                window: Arc::new(WindowWrapper {
-                    id,
-                    display,
-                    wl_surface,
-                    viewport: None,
-                    toplevel: shell.top_level(),
-                }),
+                window: WindowWrapper::new(id, display, wl_surface, shell.top_level()),
                 wl_compositor,
                 shell,
                 parent: None,
@@ -544,7 +539,7 @@ impl<T> WindowStateUnitBuilder<T> {
     }
 
     fn viewport(mut self, viewport: Option<WpViewport>) -> Self {
-        Arc::get_mut(&mut self.inner.window)
+        Arc::get_mut(&mut self.inner.window.inner)
             .expect("the window is only shared once the unit is built")
             .viewport = viewport;
         self
@@ -608,7 +603,7 @@ pub struct ExWlShellState<T> {
     qh: QueueHandle<ExWlGlobalShellState<T>>,
     /// Shared because the renderer holds this surface too. Wayland proxies are
     /// not refcounted, so destroying it here would leave the renderer a dead one.
-    window: Arc<WindowWrapper>,
+    window: WindowWrapper,
     wl_compositor: WlCompositor,
     physical_size: dpi::PhysicalSize<u32>,
     /// Only meaningful for LayerShell
@@ -709,7 +704,7 @@ impl<T> ExWlShellState<T> {
 
     /// Share this window [`WindowWrapper`], keeping its surface alive for as
     /// long as the caller holds it.
-    pub fn gen_wrapper(&self) -> Arc<WindowWrapper> {
+    pub fn gen_wrapper(&self) -> WindowWrapper {
         self.window.clone()
     }
 }
@@ -1348,9 +1343,6 @@ impl<T: 'static> ExWlGlobalShellState<T> {
     }
 }
 
-/// Simple WindowState, without any data binding or info
-pub type WindowStateSimple = ExWlGlobalShellState<()>;
-
 impl<T> ExWlGlobalShellState<T> {
     pub fn display_wrapper(&self) -> DisplayWrapper {
         DisplayWrapper {
@@ -1375,29 +1367,67 @@ impl<T> ExWlGlobalShellState<T> {
     }
 }
 
-/// It is the Arc wrapper for [WindowWrapper]
-/// provide the display_handle and window_handle
-pub type WindowWrapperArc = Arc<WindowWrapper>;
-
-/// it is a wrapper for WindowStateUnit, provide important viewport, toplevel and etc
-/// provide display_handle and window_handle
-/// Can only access with Arc
-#[derive(Debug)]
-pub struct WindowWrapper {
-    pub id: id::Id,
-    display: WlDisplay,
-    wl_surface: WlSurface,
-    pub viewport: Option<WpViewport>,
-    pub toplevel: Option<XdgToplevel>,
+/// since we need wl_surface always alive when something is using it, and want to destroy it
+/// after [window_sealed::WindowWrapperInner] is dropped, so we need to put it in an Arc
+/// But we do not want the type be used directly, but want to deref it, so here we use a sealed mod
+/// NOTE: in all wayland objects, there are already Arc everywhere, so they are already safe to be
+/// cloned in multi threads
+mod window_sealed {
+    use super::{WlDisplay, WlSurface, WpViewport, XdgToplevel, id};
+    // it is a wrapper for WindowStateUnit, provide important viewport, toplevel and etc
+    // provide display_handle and window_handle
+    // Can only access with Arc
+    #[derive(Debug)]
+    pub struct WindowWrapperInner {
+        pub id: id::Id,
+        pub(super) display: WlDisplay,
+        pub(super) wl_surface: WlSurface,
+        pub viewport: Option<WpViewport>,
+        pub toplevel: Option<XdgToplevel>,
+    }
+    impl Drop for WindowWrapperInner {
+        fn drop(&mut self) {
+            // Built on the surface, so it goes first.
+            if let Some(viewport) = &self.viewport {
+                viewport.destroy();
+            }
+            self.wl_surface.destroy();
+        }
+    }
 }
 
-impl Drop for WindowWrapper {
-    fn drop(&mut self) {
-        // Built on the surface, so it goes first.
-        if let Some(viewport) = &self.viewport {
-            viewport.destroy();
+use window_sealed::WindowWrapperInner;
+
+/// It is the Arc wrapper for [WindowWrapper]
+/// provide the display_handle and window_handle
+#[derive(Debug, Clone)]
+pub struct WindowWrapper {
+    inner: Arc<WindowWrapperInner>,
+}
+
+impl WindowWrapper {
+    fn new(
+        id: id::Id,
+        display: WlDisplay,
+        wl_surface: WlSurface,
+        toplevel: Option<XdgToplevel>,
+    ) -> Self {
+        Self {
+            inner: Arc::new(WindowWrapperInner {
+                id,
+                display,
+                wl_surface,
+                viewport: None,
+                toplevel,
+            }),
         }
-        self.wl_surface.destroy();
+    }
+}
+
+impl Deref for WindowWrapper {
+    type Target = Arc<WindowWrapperInner>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -1434,7 +1464,7 @@ impl StartMode {
     }
 }
 
-impl WindowWrapper {
+impl WindowWrapperInner {
     pub fn id(&self) -> id::Id {
         self.id
     }
@@ -1546,7 +1576,7 @@ impl ZwpTextInputV3Ext for ZwpTextInputV3 {
     }
 }
 
-impl WindowWrapper {
+impl WindowWrapperInner {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use super::state::State;
 use crate::DefaultStyle;
@@ -83,7 +83,7 @@ where
         id: IcedId,
         size: (u32, u32),
         fractal_scale: f64,
-        window: Arc<WindowWrapper>,
+        window: WindowWrapper,
         application: &Instance<P>,
         compositor: &mut C,
         system_theme: iced_core::theme::Mode,

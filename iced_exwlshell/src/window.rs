@@ -496,7 +496,7 @@ where
 
     /// Create compositor synchronously. This is a one-time init that must finish
     /// before the first frame can render. Copies iced_winit logic.
-    fn create_compositor(&mut self, window: Arc<WindowWrapper>, display: DisplayWrapper) {
+    fn create_compositor(&mut self, window: WindowWrapper, display: DisplayWrapper) {
         let shell = Shell::new(self.proxy.clone());
         let compositor_future = C::new(self.compositor_settings, display, window.clone(), shell);
         let mut new_compositor =

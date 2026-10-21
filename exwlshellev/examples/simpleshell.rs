@@ -7,7 +7,7 @@ use exwlshellev::*;
 
 struct Window {
     context: softbuffer::Context<DisplayWrapper>,
-    buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapperArc>>,
+    buffers: HashMap<id::Id, softbuffer::Surface<DisplayWrapper, WindowWrapper>>,
 }
 
 impl ExWlShellHandler for Window {
