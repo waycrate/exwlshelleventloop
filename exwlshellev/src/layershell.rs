@@ -20,7 +20,7 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for ExWlGlobalSh
         _conn: &Connection,
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
-        let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
+        let unit_index = state.shells.iter().position(|unit| unit.shell == *surface);
         match event {
             zwlr_layer_surface_v1::Event::Configure {
                 serial,
@@ -33,18 +33,18 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for ExWlGlobalSh
                     return;
                 };
                 let next_size = PhysicalSize { width, height };
-                if !state.units[unit_index].physical_size.is_empty()
-                    && state.units[unit_index].physical_size != next_size
+                if !state.shells[unit_index].physical_size.is_empty()
+                    && state.shells[unit_index].physical_size != next_size
                 {
-                    state.units[unit_index].mark_resized();
+                    state.shells[unit_index].mark_resized();
                 }
-                state.units[unit_index].physical_size = next_size;
-                state.units[unit_index].configured = true;
-                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
+                state.shells[unit_index].physical_size = next_size;
+                state.shells[unit_index].configured = true;
+                state.shells[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             zwlr_layer_surface_v1::Event::Closed => {
                 if let Some(i) = unit_index {
-                    state.units[i].request_close();
+                    state.shells[i].request_close();
                 }
             }
             _ => log::info!("ignore zwlr_layer_surface_v1 event: {event:?}"),
@@ -133,7 +133,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .as_ref()
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
-        self.push_window(
+        self.push_shell(
             WindowStateUnitBuilder::new(
                 id,
                 qh.clone(),

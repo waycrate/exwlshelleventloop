@@ -39,7 +39,7 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for ExWlGlobalShellState<T> {
         _conn: &Connection,
         _qhandle: &QueueHandle<Self>,
     ) {
-        let unit_index = state.units.iter().position(|unit| unit.shell == *surface);
+        let unit_index = state.shells.iter().position(|unit| unit.shell == *surface);
         match event {
             xdg_toplevel::Event::Configure {
                 width,
@@ -50,29 +50,29 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for ExWlGlobalShellState<T> {
                     return;
                 };
                 if width != 0 && height != 0 {
-                    state.units[unit_index].physical_size = PhysicalSize {
+                    state.shells[unit_index].physical_size = PhysicalSize {
                         width: width as u32,
                         height: height as u32,
                     };
                 }
 
                 let toplevel_state = toplevel_state_from_configure(&states);
-                if state.units[unit_index].toplevel_state != toplevel_state {
-                    state.units[unit_index].toplevel_state = toplevel_state;
-                    let id = state.units[unit_index].id;
+                if state.shells[unit_index].toplevel_state != toplevel_state {
+                    state.shells[unit_index].toplevel_state = toplevel_state;
+                    let id = state.shells[unit_index].id;
                     state.messages.push(QueuedMessage::Targeted(
                         id,
                         DispatchMessage::ToplevelStateChanged(toplevel_state),
                     ));
                 }
 
-                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
+                state.shells[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             xdg_toplevel::Event::Close => {
                 let Some(unit_index) = unit_index else {
                     return;
                 };
-                state.units[unit_index].request_flag.close = true;
+                state.shells[unit_index].request_flag.close = true;
             }
             _ => {}
         }
@@ -128,7 +128,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
         let id = crate::id::Id::unique();
-        self.push_window(
+        self.push_shell(
             WindowStateUnitBuilder::new(
                 id,
                 qh.clone(),

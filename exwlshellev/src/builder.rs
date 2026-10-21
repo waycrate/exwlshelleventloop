@@ -364,7 +364,7 @@ impl ExWlEventLoopBuilder {
             // and if you need to reconfigure it, you need to commit the wl_surface again
             // so because this is just an example, so we just commit it once
             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
-            state.push_window(
+            state.push_shell(
                 WindowStateUnitBuilder::new(
                     id::Id::unique(),
                     qh.clone(),
@@ -442,7 +442,7 @@ impl ExWlEventLoopBuilder {
                 // so because this is just an example, so we just commit it once
                 // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
-                state.push_window(
+                state.push_shell(
                     WindowStateUnitBuilder::new(
                         id::Id::unique(),
                         qh.clone(),

@@ -19,7 +19,7 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for ExWlGlobalShellState<T> {
     ) {
         match event {
             xdg_popup::Event::Configure { width, height, .. } => {
-                let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
+                let Some(unit_index) = state.shells.iter().position(|unit| unit.shell == *surface)
                 else {
                     return;
                 };
@@ -27,22 +27,23 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for ExWlGlobalShellState<T> {
                     width: width as u32,
                     height: height as u32,
                 };
-                if !state.units[unit_index].physical_size.is_empty()
-                    && state.units[unit_index].physical_size != next_size
+                if !state.shells[unit_index].physical_size.is_empty()
+                    && state.shells[unit_index].physical_size != next_size
                 {
-                    state.units[unit_index].mark_resized();
+                    state.shells[unit_index].mark_resized();
                 }
-                state.units[unit_index].physical_size = next_size;
-                state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
+                state.shells[unit_index].physical_size = next_size;
+                state.shells[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             xdg_popup::Event::PopupDone => {
-                if let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
+                if let Some(unit_index) =
+                    state.shells.iter().position(|unit| unit.shell == *surface)
                 {
-                    state.units[unit_index].request_close();
+                    state.shells[unit_index].request_close();
                 }
             }
             xdg_popup::Event::Repositioned { token } => {
-                if let Some(unit) = state.units.iter_mut().find(|unit| unit.shell == *surface)
+                if let Some(unit) = state.shells.iter_mut().find(|unit| unit.shell == *surface)
                     && unit.pending_reposition == Some(token)
                 {
                     unit.pending_reposition = None;
@@ -65,7 +66,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         }: PopUpRepositionSettings,
         id: crate::id::Id,
     ) {
-        let Some(unit) = self.units.iter_mut().find(|unit| unit.id == id) else {
+        let Some(unit) = self.shells.iter_mut().find(|unit| unit.id == id) else {
             return;
         };
         let Shell::PopUp((popup, _)) = &unit.shell else {
@@ -113,7 +114,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         binding: impl Into<Option<T>>,
     ) -> Result<crate::id::Id, crate::ExWlShellEventError> {
         let index = self
-            .units
+            .shells
             .iter()
             .position(|unit| unit.id == parent_id)
             .ok_or(crate::ExWlShellEventError::CreateSurfaceFailed(
@@ -135,7 +136,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         );
         let wl_xdg_surface = wmbase.get_xdg_surface(&wl_surface, &qh, ());
 
-        let popup = match &self.units[index].shell {
+        let popup = match &self.shells[index].shell {
             Shell::LayerShell(shell) => {
                 let popup = wl_xdg_surface.get_popup(None, &positioner, &qh, ());
                 shell.get_popup(&popup);
@@ -183,7 +184,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .viewporter
             .as_ref()
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-        self.push_window(
+        self.push_shell(
             WindowStateUnitBuilder::new(
                 id,
                 qh.clone(),

@@ -55,7 +55,7 @@ impl ExWlShellHandler for Window {
         let id = context.id();
 
         let mut resized = context.resized();
-        let ex_wlshell_window = context.get_unit();
+        let ex_wlshell_window = context.shell_state();
 
         let dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
         if !self.buffers.contains_key(&id) {
@@ -102,7 +102,7 @@ impl ExWlShellHandler for Window {
     }
     fn on_window_event(&mut self, mut context: HaveIdEventContext<Self>, event: ExWlShellEvent) {
         let id = context.id();
-        let state = context.state_mut();
+        let state = context.global_state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
                 state.set_cursor(Cursor::Shape(CursorShape::Crosshair), pointer)

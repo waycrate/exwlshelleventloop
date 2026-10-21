@@ -53,7 +53,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .viewporter
             .as_ref()
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
-        self.push_window(
+        self.push_shell(
             WindowStateUnitBuilder::new(
                 id,
                 qh.clone(),

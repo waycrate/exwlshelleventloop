@@ -163,7 +163,7 @@ where
             let ContextState::Context(context) = &mut window.context_state else {
                 unreachable!("context state is not initialized");
             };
-            context.handle_user_action(shell_context.state_mut(), action);
+            context.handle_user_action(shell_context.global_state_mut(), action);
         })
         .unwrap();
 
@@ -266,7 +266,7 @@ where
             let shell_id = ev_context.id();
 
             let update_view_port = ev_context.resized() || ev_context.scale_factor_changed();
-            let state = ev_context.state_mut();
+            let state = ev_context.global_state_mut();
             context.handle_refresh_event(state, shell_id, update_view_port);
         }
 
@@ -325,7 +325,7 @@ where
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
             };
-            context.handle_normal_dispatch(ev_context.state_mut());
+            context.handle_normal_dispatch(ev_context.global_state_mut());
         }
 
         fn on_window_event(
@@ -340,7 +340,7 @@ where
                 context.action_serial = Some(serial);
             }
             let shell_id = ev_context.id();
-            let state = ev_context.state_mut();
+            let state = ev_context.global_state_mut();
             let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
             self.waiting_shell_events
                 .push_back((shell_id, IcedWlShellEvent::Window(window_event)));
@@ -553,13 +553,13 @@ where
     ) {
         if self.compositor.is_none() {
             // NOTE: when invoke on_refresh, the unit will always exist
-            let shell_window = ev.get_unit_unchecked(shell_id);
+            let shell_window = ev.shell_state_uncheck(shell_id);
             tracing::debug!("creating compositor");
             let window = shell_window.gen_wrapper();
             let display = ev.display_wrapper();
             self.create_compositor(window, display);
         }
-        let ex_wlshell_window = ev.get_unit_unchecked(shell_id);
+        let ex_wlshell_window = ev.shell_state_uncheck(shell_id);
         let unit_id = ex_wlshell_window.id();
         let toplevel_state = ex_wlshell_window.toplevel_state();
         let exwlshellev::dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
@@ -600,7 +600,7 @@ where
                 };
                 self.shell_broadcast.send(shell::ShellEvent::NewShell(info));
                 if let Some(output) = ev
-                    .get_unit(unit_id)
+                    .shell_state(unit_id)
                     .and_then(|unit| unit.get_wloutput().cloned())
                     && let Some(info) = ev.get_output_info_of(&output)
                 {
@@ -799,7 +799,7 @@ where
                     }
                     PresentRecovery::Recreate => {
                         let surface_window =
-                            Arc::new(ev.get_unit_unchecked(shell_id).gen_wrapper());
+                            Arc::new(ev.shell_state_uncheck(shell_id).gen_wrapper());
                         window.surface = compositor.create_surface(
                             surface_window,
                             physical_size.width,
@@ -824,7 +824,7 @@ where
             .window_manager
             .get_alias(shell_id)
             .map(|(iced_id, _)| iced_id)
-            .or_else(|| ev.get_unit(shell_id)?.get_binding().copied())
+            .or_else(|| ev.shell_state(shell_id)?.get_binding().copied())
         else {
             return;
         };
@@ -986,7 +986,7 @@ where
                     }
                 }
                 if let Some(ls_window) =
-                    $exshell_id.and_then(|exshell_id| $ev.get_mut_unit(exshell_id))
+                    $exshell_id.and_then(|exshell_id| $ev.shell_state_mut(exshell_id))
                 {
                     exshell_window = ls_window;
                 } else {
@@ -1677,7 +1677,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
             }
             WindowAction::Run(id, f) => {
                 if let Some(exshell_id) = window_manager.get(id).map(|window| window.id)
-                    && let Some(unit) = ev.get_unit(exshell_id)
+                    && let Some(unit) = ev.shell_state(exshell_id)
                 {
                     f(unit);
                 }

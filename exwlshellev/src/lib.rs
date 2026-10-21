@@ -28,7 +28,7 @@
 //!         let id = context.id();
 //!
 //!         let mut resized = context.resized();
-//!         let ex_wlshell_window = context.get_unit();
+//!         let ex_wlshell_window = context.shell_state();
 //!
 //!         let dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
 //!         if !self.buffers.contains_key(&id) {
@@ -78,7 +78,7 @@
 //!         event: ExWlShellEvent,
 //!     ) {
 //!         let id = context.id();
-//!         let state = context.state_mut();
+//!         let state = context.global_state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
 //!                 state.set_cursor(Cursor::Shape(CursorShape::Crosshair), pointer)
@@ -1176,7 +1176,7 @@ pub struct ExWlGlobalShellState<T = ()> {
     outputs: Vec<wl_output::WlOutput>,
     keyboard_focus: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
-    units: Vec<ExWlShellState<T>>,
+    shells: Vec<ExWlShellState<T>>,
     messages: Vec<QueuedMessage>,
 
     connection: Connection,
@@ -1276,7 +1276,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
     /// event (Wayland, channel, etc.) arrives.
     fn min_dispatch_timeout(&self) -> Option<Duration> {
         let mut min: Option<Duration> = None;
-        for unit in &self.units {
+        for unit in &self.shells {
             match unit.refresh_timeout() {
                 Some(Duration::ZERO) => return Some(Duration::ZERO),
                 Some(d) => min = Some(min.map_or(d, |m: Duration| m.min(d))),
@@ -1288,24 +1288,24 @@ impl<T: 'static> ExWlGlobalShellState<T> {
 
     /// Whether [`Self::remove_shell`] would actually remove unit
     fn can_remove_shell(&self, id: id::Id) -> bool {
-        self.units.iter().any(|unit| unit.id == id)
+        self.shells.iter().any(|unit| unit.id == id)
     }
 
     /// Drop a pending close request, so it is not retried on every iteration
     fn clear_close_request(&mut self, id: id::Id) {
-        if let Some(unit) = self.units.iter_mut().find(|unit| unit.id == id) {
+        if let Some(unit) = self.shells.iter_mut().find(|unit| unit.id == id) {
             unit.request_flag.close = false;
         }
     }
 
     /// remove a shell, destroy the surface
     fn remove_shell(&mut self, id: id::Id) -> Option<()> {
-        let index = self.units.iter().position(|unit| unit.id == id)?;
+        let index = self.shells.iter().position(|unit| unit.id == id)?;
 
-        if self.keyboard_focus.as_ref() == Some(&self.units[index].window.wl_surface) {
+        if self.keyboard_focus.as_ref() == Some(&self.shells[index].window.wl_surface) {
             self.keyboard_focus = None;
         }
-        self.units.remove(index);
+        self.shells.remove(index);
         Some(())
     }
 
@@ -1314,7 +1314,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             return;
         }
         let children: Vec<id::Id> = self
-            .units
+            .shells
             .iter()
             .filter(|unit| unit.parent == Some(id))
             .map(|unit| unit.id)
@@ -1350,18 +1350,14 @@ impl<T> ExWlGlobalShellState<T> {
         }
     }
 
-    /// use iced id to find WindowStateUnit
-    pub fn get_window_with_id(&self, id: id::Id) -> Option<&ExWlShellState<T>> {
-        self.units.iter().find(|w| w.id() == id)
-    }
-    // return all windows
-    pub fn windows(&self) -> &Vec<ExWlShellState<T>> {
-        &self.units
+    /// return all [ExWlShellState]
+    pub fn shells(&self) -> &Vec<ExWlShellState<T>> {
+        &self.shells
     }
 
-    fn push_window(&mut self, window_state_unit: ExWlShellState<T>) {
-        let surface = window_state_unit.window.wl_surface.clone();
-        self.units.push(window_state_unit);
+    fn push_shell(&mut self, shell: ExWlShellState<T>) {
+        let surface = shell.window.wl_surface.clone();
+        self.shells.push(shell);
         // update newest window output for `OutputOption::LastOutput`
         self.update_active_output(&surface);
     }
@@ -1520,10 +1516,10 @@ impl<T> ExWlGlobalShellState<T> {
         }
         let position: dpi::Position = position.into();
         let size: dpi::Size = size.into();
-        let Some(unit) = self.get_window_with_id(id) else {
+        let Some(shell) = self.shell_state(id) else {
             return;
         };
-        let scale_factor = unit.scale_float();
+        let scale_factor = shell.scale_float();
         let position: dpi::LogicalPosition<u32> = position.to_logical(scale_factor);
         let size: dpi::LogicalSize<u32> = size.to_logical(scale_factor);
         let (x, y) = (position.x as i32, position.y as i32);
@@ -1728,7 +1724,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
                 outputs: Vec::new(),
                 keyboard_focus: None,
                 active_surfaces: HashMap::new(),
-                units: Vec::new(),
+                shells: Vec::new(),
                 messages: Vec::new(),
 
                 background_surface: None,
@@ -1818,28 +1814,28 @@ impl<T> ExWlGlobalShellState<T> {
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit]
-    pub fn get_mut_unit(&mut self, id: id::Id) -> Option<&mut ExWlShellState<T>> {
-        self.units.iter_mut().find(|unit| unit.id == id)
+    pub fn shell_state_mut(&mut self, id: id::Id) -> Option<&mut ExWlShellState<T>> {
+        self.shells.iter_mut().find(|unit| unit.id == id)
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit], unchecked
-    pub fn get_mut_unit_unchecked(&mut self, id: id::Id) -> &mut ExWlShellState<T> {
-        self.get_mut_unit(id)
+    pub fn shell_state_mut_unchecked(&mut self, id: id::Id) -> &mut ExWlShellState<T> {
+        self.shell_state_mut(id)
             .expect("You should not use this function for unknown id")
     }
     /// use [id::Id] to get the immutable [WindowStateUnit]
-    pub fn get_unit(&self, id: id::Id) -> Option<&ExWlShellState<T>> {
-        self.units.iter().find(|unit| unit.id == id)
+    pub fn shell_state(&self, id: id::Id) -> Option<&ExWlShellState<T>> {
+        self.shells.iter().find(|unit| unit.id == id)
     }
 
     /// use [id::Id] to get the immutable [WindowStateUnit], unchecked
-    pub fn get_unit_unchecked(&self, id: id::Id) -> &ExWlShellState<T> {
-        self.get_unit(id)
+    pub fn shell_state_uncheck(&self, id: id::Id) -> &ExWlShellState<T> {
+        self.shell_state(id)
             .expect("You should not use this function for unknown id")
     }
     /// it return the iter of units. you can do loop with it
     pub fn get_unit_iter(&self) -> impl Iterator<Item = &ExWlShellState<T>> {
-        self.units.iter()
+        self.shells.iter()
     }
 
     /// every output the compositor advertises with its info
@@ -1893,13 +1889,13 @@ impl<T> ExWlGlobalShellState<T> {
 
     /// the output info the surface `id` is currently displayed on
     pub fn get_output_info(&self, id: id::Id) -> Option<OutputInfo> {
-        let output = self.get_unit(id)?.get_wloutput().cloned()?;
+        let output = self.shell_state(id)?.get_wloutput().cloned()?;
         self.get_output_info_of(&output)
     }
 
     /// get the current keyboard focus window id
     pub fn keyboard_focus_id(&self) -> Option<id::Id> {
-        self.units
+        self.shells
             .iter()
             .find(|unit| Some(&unit.window.wl_surface) == self.keyboard_focus.as_ref())
             .map(|unit| unit.id())
@@ -1913,9 +1909,9 @@ impl<T> ExWlGlobalShellState<T> {
                 self.active_surfaces
                     .values()
                     .filter_map(|(_, id)| *id)
-                    .find(|id| self.get_unit(*id).is_some())
+                    .find(|id| self.shell_state(*id).is_some())
             })
-            .or_else(|| self.units.last().map(|unit| unit.id()))
+            .or_else(|| self.shells.last().map(|unit| unit.id()))
     }
 
     /// window id under the pointer
@@ -1923,11 +1919,11 @@ impl<T> ExWlGlobalShellState<T> {
         self.active_surfaces
             .get(&None)
             .and_then(|(_, id)| *id)
-            .filter(|id| self.get_unit(*id).is_some())
+            .filter(|id| self.shell_state(*id).is_some())
     }
 
     fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
-        self.units
+        self.shells
             .iter()
             .find(|unit| &unit.window.wl_surface == surface)
             .map(|unit| unit.id())
@@ -1943,7 +1939,7 @@ impl<T> ExWlGlobalShellState<T> {
     /// update output window is on, for `OutputOption::LastOutput`
     fn update_active_output(&mut self, surface: &WlSurface) {
         let Some(unit) = self
-            .units
+            .shells
             .iter()
             .find(|unit| &unit.window.wl_surface == surface)
         else {
@@ -1959,19 +1955,19 @@ impl<T> ExWlGlobalShellState<T> {
     }
 
     pub fn request_refresh_all(&mut self, request: RefreshRequest) {
-        self.units
+        self.shells
             .iter_mut()
             .for_each(|unit| unit.request_refresh(request));
     }
 
     pub fn request_refresh(&mut self, id: id::Id, request: RefreshRequest) {
-        if let Some(unit) = self.get_mut_unit(id) {
+        if let Some(unit) = self.shell_state_mut(id) {
             unit.request_refresh(request);
         }
     }
 
     pub fn request_close(&mut self, id: id::Id) {
-        self.get_mut_unit(id).map(ExWlShellState::request_close);
+        self.shell_state_mut(id).map(ExWlShellState::request_close);
     }
     /// add a new pending_request to state
     fn push_request(&mut self, data: Request) {
@@ -1984,21 +1980,21 @@ impl<T> ExWlGlobalShellState<T> {
             log::warn!(target: "exwlshellev", "no seat, cannot move {id:?}");
             return;
         };
-        if let Some(unit) = self.get_unit(id) {
+        if let Some(unit) = self.shell_state(id) {
             unit.start_move(seat, serial);
         }
     }
 
     /// Request compositor to maximize or unmaximize window `id`.
     pub fn request_maximized(&self, id: id::Id, maximized: bool) {
-        if let Some(unit) = self.get_unit(id) {
+        if let Some(unit) = self.shell_state(id) {
             unit.set_maximized(maximized);
         }
     }
 
     /// Request compositor to minimize window `id`.
     pub fn request_minimized(&self, id: id::Id) {
-        if let Some(unit) = self.get_unit(id) {
+        if let Some(unit) = self.shell_state(id) {
             unit.set_minimized();
         }
     }
@@ -2009,7 +2005,7 @@ impl<T> ExWlGlobalShellState<T> {
             log::warn!(target: "exwlshellev", "no seat, cannot show the window menu for {id:?}");
             return;
         };
-        if let Some(unit) = self.get_unit(id) {
+        if let Some(unit) = self.shell_state(id) {
             unit.show_window_menu(seat, serial, x, y);
         }
     }
@@ -2031,11 +2027,11 @@ impl<T> ExWlGlobalShellState<T> {
 
     /// State from the last `xdg_toplevel::configure` event for window `id`.
     pub fn toplevel_state(&self, id: id::Id) -> Option<ToplevelState> {
-        self.get_unit(id).map(ExWlShellState::toplevel_state)
+        self.shell_state(id).map(ExWlShellState::toplevel_state)
     }
 
     pub fn get_binding_mut(&mut self, id: id::Id) -> Option<&mut T> {
-        self.get_mut_unit(id)
+        self.shell_state_mut(id)
             .and_then(ExWlShellState::get_binding_mut)
     }
 }
@@ -2088,7 +2084,7 @@ impl<T: 'static> OutputHandler for ExWlGlobalShellState<T> {
                 )));
         }
         let affected: Vec<id::Id> = self
-            .units
+            .shells
             .iter()
             .filter(|unit| unit.wl_outputs.contains(&output))
             .map(|unit| unit.id)
@@ -2125,7 +2121,7 @@ impl<T: 'static> OutputHandler for ExWlGlobalShellState<T> {
         self.outputs.retain(|o| o != &output);
 
         let removed_states: Vec<_> = self
-            .units
+            .shells
             .extract_if(.., |unit| {
                 !unit.window.wl_surface.is_alive() || unit.wl_outputs.as_slice() == [output.clone()]
             })
@@ -2136,7 +2132,7 @@ impl<T: 'static> OutputHandler for ExWlGlobalShellState<T> {
         {
             self.keyboard_focus = None;
         }
-        for unit in &mut self.units {
+        for unit in &mut self.shells {
             let previous = unit.wl_outputs.first().cloned();
             unit.wl_outputs.retain(|o| o != &output);
             // same rule as the enter/leave path
@@ -2167,7 +2163,7 @@ impl<T> Dispatch<xdg_surface::XdgSurface, ()> for ExWlGlobalShellState<T> {
         if let xdg_surface::Event::Configure { serial } = event {
             surface.ack_configure(serial);
             state
-                .units
+                .shells
                 .iter_mut()
                 .filter(|unit| unit.shell == *surface)
                 .for_each(|unit| {
@@ -2188,7 +2184,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for ExWlGlobal
         _qhandle: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            let Some(unit) = state.units.iter_mut().find(|info| {
+            let Some(unit) = state.shells.iter_mut().find(|info| {
                 info.fractional_scale
                     .as_ref()
                     .is_some_and(|fractional_scale| fractional_scale == proxy)
@@ -2228,7 +2224,7 @@ impl<T> Dispatch<WlSurface, ()> for ExWlGlobalShellState<T> {
         }
 
         let Some(unit) = state
-            .units
+            .shells
             .iter_mut()
             .find(|unit| unit.window.wl_surface == *proxy)
         else {
@@ -2434,7 +2430,7 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for ExWlGlobalShel
         _qhandle: &QueueHandle<Self>,
     ) {
         if let WlCallbackEvent::Done { callback_data: _ } = event
-            && let Some(unit) = state.get_mut_unit(data.0)
+            && let Some(unit) = state.shell_state_mut(data.0)
         {
             unit.frame_callback = None;
             unit.present_available_state = data.1;
@@ -2533,12 +2529,12 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
     }
 
     /// get the mut reference of state
-    pub fn state_mut(&mut self) -> &mut ExWlGlobalShellState<T> {
+    pub fn global_state_mut(&mut self) -> &mut ExWlGlobalShellState<T> {
         self.state
     }
 
     /// get the reference of state
-    pub fn state_ref(&self) -> &ExWlGlobalShellState<T> {
+    pub fn global_state_ref(&self) -> &ExWlGlobalShellState<T> {
         self.state
     }
 
@@ -2552,11 +2548,11 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, HAVE_ID, Wind
     pub fn id(&self) -> id::Id {
         self.id.unwrap()
     }
-    pub fn get_unit(&self) -> &ExWlShellState<T> {
-        self.state.get_unit_unchecked(self.id())
+    pub fn shell_state(&self) -> &ExWlShellState<T> {
+        self.state.shell_state_uncheck(self.id())
     }
-    pub fn get_unit_mut(&mut self) -> &mut ExWlShellState<T> {
-        self.state.get_mut_unit_unchecked(self.id())
+    pub fn shell_state_mut(&mut self) -> &mut ExWlShellState<T> {
+        self.state.shell_state_mut_unchecked(self.id())
     }
 }
 
@@ -2565,12 +2561,12 @@ impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, REFRESH, Wind
         self.id.unwrap()
     }
 
-    pub fn get_unit(&self) -> &ExWlShellState<T> {
-        self.state.get_unit_unchecked(self.id())
+    pub fn shell_state(&self) -> &ExWlShellState<T> {
+        self.state.shell_state_uncheck(self.id())
     }
 
-    pub fn get_unit_mut(&mut self) -> &mut ExWlShellState<T> {
-        self.state.get_mut_unit_unchecked(self.id())
+    pub fn shell_state_mut(&mut self) -> &mut ExWlShellState<T> {
+        self.state.shell_state_mut_unchecked(self.id())
     }
 
     /// resized happened in this refresh event, so you need to update the buffer
@@ -2758,7 +2754,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         let qh = self.state.queue_handle.clone();
 
         fn remove_lock_units<T>(window_state: &mut ExWlGlobalShellState<T>) {
-            for removed in window_state.units.extract_if(.., |unit| unit.is_lock()) {
+            for removed in window_state.shells.extract_if(.., |unit| unit.is_lock()) {
                 if window_state.keyboard_focus.as_ref() == Some(&removed.window.wl_surface) {
                     window_state.keyboard_focus = None;
                 }
@@ -2806,7 +2802,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     context.state.viewporter.as_ref().map(|viewport| {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
-                                context.state.push_window(
+                                context.state.push_shell(
                                     WindowStateUnitBuilder::new(
                                         id::Id::unique(),
                                         qh.clone(),
@@ -2890,7 +2886,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 .as_ref()
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
-                            context.state.push_window(
+                            context.state.push_shell(
                                 WindowStateUnitBuilder::new(
                                     id::Id::unique(),
                                     qh.clone(),
@@ -3042,7 +3038,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     context.state.viewporter.as_ref().map(|viewport| {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
-                                context.state.push_window(
+                                context.state.push_shell(
                                     WindowStateUnitBuilder::new(
                                         id::Id::unique(),
                                         qh.clone(),
@@ -3089,7 +3085,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
 
             let requested: Vec<id::Id> = context
                 .state
-                .units
+                .shells
                 .iter()
                 .filter(|unit| unit.request_flag.close)
                 .map(ExWlShellState::id)
@@ -3118,7 +3114,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 context.handle_window_event(ExWlShellEvent::Closed, id);
             }
             context.state.closed_ids.clear();
-            if context.state.units.is_empty()
+            if context.state.shells.is_empty()
                 && !context.state.is_allscreens()
                 && !context.state.is_background()
             {
@@ -3126,16 +3122,16 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 return true;
             }
 
-            for idx in 0..context.state.units.len() {
-                let unit = &mut context.state.units[idx];
+            for idx in 0..context.state.shells.len() {
+                let unit = &mut context.state.shells[idx];
                 if unit.physical_size.contains_zero() {
                     continue;
                 }
                 let PhysicalSize { width, height } = unit.physical_size;
                 if let Some(state) = unit.take_present_slot() {
                     let unit_id = unit.id;
-                    if let Some(effect) = &context.state.units[idx].effect {
-                        match &context.state.units[idx].blur_option {
+                    if let Some(effect) = &context.state.shells[idx].effect {
+                        match &context.state.shells[idx].blur_option {
                             BlurOption::None => {}
                             BlurOption::FullRegion => {
                                 let region = context.state.wl_compositor.create_region(&qh, ());
@@ -3158,10 +3154,10 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 region.destroy();
                             }
                         }
-                        context.state.units[idx].window.wl_surface.commit();
+                        context.state.shells[idx].window.wl_surface.commit();
                     }
                     context.handle_refresh(unit_id, state);
-                    context.state.units[idx].reset_present_slot();
+                    context.state.shells[idx].reset_present_slot();
                 }
             }
 
@@ -3176,7 +3172,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         // Use zero-timeout on first dispatch if we don't have any windows
         // added in order to avoid getting stuck. For windowed startup, use
         // normal timeout to preserve standard lifecycle.
-        let mut force_first_tick = self.state.units.is_empty();
+        let mut force_first_tick = self.state.shells.is_empty();
         loop {
             let timeout = if force_first_tick {
                 Some(Duration::ZERO)
@@ -3294,12 +3290,12 @@ delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgToplevelDecorationV1);
 
 impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn request_next_present(&mut self, id: id::Id) {
-        self.get_mut_unit(id)
+        self.shell_state_mut(id)
             .map(ExWlShellState::request_next_present);
     }
 
     pub fn reset_present_slot(&mut self, id: id::Id) {
-        self.get_mut_unit(id)
+        self.shell_state_mut(id)
             .map(ExWlShellState::reset_present_slot);
     }
 }

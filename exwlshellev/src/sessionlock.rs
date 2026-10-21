@@ -28,19 +28,19 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()>
         {
             surface.ack_configure(serial);
 
-            let Some(unit_index) = state.units.iter().position(|unit| unit.shell == *surface)
+            let Some(unit_index) = state.shells.iter().position(|unit| unit.shell == *surface)
             else {
                 return;
             };
             let next_size = PhysicalSize { width, height };
-            if !state.units[unit_index].physical_size.is_empty()
-                && state.units[unit_index].physical_size != next_size
+            if !state.shells[unit_index].physical_size.is_empty()
+                && state.shells[unit_index].physical_size != next_size
             {
-                state.units[unit_index].mark_resized();
+                state.shells[unit_index].mark_resized();
             }
-            state.units[unit_index].physical_size = next_size;
-            state.units[unit_index].configured = true;
-            state.units[unit_index].request_refresh(RefreshRequest::NextFrame);
+            state.shells[unit_index].physical_size = next_size;
+            state.shells[unit_index].configured = true;
+            state.shells[unit_index].request_refresh(RefreshRequest::NextFrame);
         }
     }
 }
