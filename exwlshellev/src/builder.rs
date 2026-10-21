@@ -1,9 +1,9 @@
 use std::ops::Deref;
 
 use crate::{
-    BlurOption, DispatchMessage, EventLoop, ExWlEventLoop, ExWlShellEventError, ExWlShellHandler,
-    ExWlShellInitEvent, InitRequest, LayerSize, Margin, QueuedMessage, Shell, StartMode,
-    WaylandSource, WindowState, WindowStateUnitBuilder, WithConnection, id,
+    BlurOption, DispatchMessage, EventLoop, ExWlEventLoop, ExWlGlobalShellState,
+    ExWlShellEventError, ExWlShellHandler, ExWlShellInitEvent, InitRequest, LayerSize, Margin,
+    QueuedMessage, Shell, StartMode, WaylandSource, WindowStateUnitBuilder, WithConnection, id,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer,
@@ -186,11 +186,11 @@ impl ExWlEventLoopBuilder {
 /// state for softbuffer, and etc
 #[derive(Debug)]
 pub struct ExWlEventLoopPreBuilder<T: 'static> {
-    state: Option<WindowState<T>>,
+    state: Option<ExWlGlobalShellState<T>>,
 }
 
 impl<T: 'static> Deref for ExWlEventLoopPreBuilder<T> {
-    type Target = WindowState<T>;
+    type Target = ExWlGlobalShellState<T>;
     fn deref(&self) -> &Self::Target {
         self.state.as_ref().expect("state always is some")
     }
@@ -258,7 +258,7 @@ impl<T: 'static> ExWlEventLoopPreBuilder<T> {
 impl ExWlEventLoopBuilder {
     /// create a [ExWlEventLoopPreBuilder], to provide some useful information
     pub fn prebuild<T: 'static>(self) -> Result<ExWlEventLoopPreBuilder<T>, ExWlShellEventError> {
-        let state: WindowState<T> = self.build_state()?;
+        let state: ExWlGlobalShellState<T> = self.build_state()?;
         Ok(ExWlEventLoopPreBuilder { state: Some(state) })
     }
     /// attach to a [ExWlShellHandler], and create a [ExWlEventLoop]
@@ -271,16 +271,18 @@ impl ExWlEventLoopBuilder {
     {
         self.prebuild()?.attach(window)
     }
-    fn build_state<T: 'static>(mut self) -> Result<WindowState<T>, ExWlShellEventError> {
+    fn build_state<T: 'static>(mut self) -> Result<ExWlGlobalShellState<T>, ExWlShellEventError> {
         let connection = if let Some(with_connection) = self.with_connection.take() {
             with_connection.get_connection()?
         } else {
             Connection::connect_to_env()?
         };
 
-        let (globals, mut event_queue) = registry_queue_init::<WindowState<T>>(&connection)?;
+        let (globals, mut event_queue) =
+            registry_queue_init::<ExWlGlobalShellState<T>>(&connection)?;
 
-        let (mut state, qh) = WindowState::new(&connection, self, globals, &mut event_queue)?;
+        let (mut state, qh) =
+            ExWlGlobalShellState::new(&connection, self, globals, &mut event_queue)?;
         event_queue.blocking_dispatch(&mut state)?; // then make a dispatch
 
         // OutputState bound its own xdg_outputs before the dispatch above, so output info is

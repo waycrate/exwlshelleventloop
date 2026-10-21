@@ -1,12 +1,12 @@
-use super::WindowState;
+use super::ExWlGlobalShellState;
 use wayland_client::delegate_noop;
 use wayland_protocols::ext::background_effect::v1::client::{
     ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1,
     ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
 };
 // TODO: handle callback
-delegate_noop!(@<T> WindowState<T>: ignore ExtBackgroundEffectSurfaceV1);
-delegate_noop!(@<T> WindowState<T>: ignore ExtBackgroundEffectManagerV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ExtBackgroundEffectSurfaceV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ExtBackgroundEffectManagerV1);
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BlurRegion {

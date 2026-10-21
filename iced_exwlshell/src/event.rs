@@ -1,7 +1,7 @@
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, WlRegion};
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
-use exwlshellev::{ExWlShellBroadcast, ExWlShellEvent, WindowState};
+use exwlshellev::{ExWlGlobalShellState, ExWlShellBroadcast, ExWlShellEvent};
 use iced_core::mouse;
 
 use crate::gesture;
@@ -115,7 +115,7 @@ pub enum IcedWlShellEvent {
 }
 
 impl WindowEvent {
-    pub(crate) fn from_dispatch<T>(value: ExWlShellEvent, ev: &WindowState<T>) -> Self {
+    pub(crate) fn from_dispatch<T>(value: ExWlShellEvent, ev: &ExWlGlobalShellState<T>) -> Self {
         match value {
             ExWlShellEvent::Closed => WindowEvent::Closed,
             ExWlShellEvent::MouseEnter {

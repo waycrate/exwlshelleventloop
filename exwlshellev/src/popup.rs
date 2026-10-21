@@ -1,13 +1,14 @@
 use crate::{NewPopUpSettings, PopUpRepositionSettings};
 
 use super::{
-    RefreshRequest, Shell, WindowState, WindowStateUnitBuilder, build_positioner, dpi::PhysicalSize,
+    ExWlGlobalShellState, RefreshRequest, Shell, WindowStateUnitBuilder, build_positioner,
+    dpi::PhysicalSize,
 };
 use wayland_protocols::xdg::shell::client::xdg_popup;
 
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 
-impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
+impl<T> Dispatch<xdg_popup::XdgPopup, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         surface: &xdg_popup::XdgPopup,
@@ -52,7 +53,7 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for WindowState<T> {
     }
 }
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn popup_reposition(
         &mut self,
         PopUpRepositionSettings {

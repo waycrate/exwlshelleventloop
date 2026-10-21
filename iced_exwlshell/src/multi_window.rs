@@ -18,8 +18,8 @@ use crate::{
     proxy::IcedProxy,
 };
 use exwlshellev::{
-    DisplayWrapper, ExWlShellEvent, NewPopUpSettings, PopUpRepositionSettings, PopupPlacement,
-    RefreshRequest, WindowState, WindowWrapper,
+    DisplayWrapper, ExWlGlobalShellState, ExWlShellEvent, NewPopUpSettings,
+    PopUpRepositionSettings, PopupPlacement, RefreshRequest, WindowWrapper,
     id::Id as ExWlShellId,
     reexport::{
         wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
@@ -258,7 +258,7 @@ where
     {
         fn on_refresh(
             &mut self,
-            mut ev_context: exwlshellev::RefreshEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::RefreshEventContext<Self, iced_core::window::Id>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -272,7 +272,7 @@ where
 
         fn on_init(
             &mut self,
-            state: &mut WindowState<iced_core::window::Id>,
+            state: &mut ExWlGlobalShellState<iced_core::window::Id>,
             event: exwlshellev::ExWlShellInitEvent<iced_core::window::Id>,
         ) -> exwlshellev::InitRequest {
             let mut def_returndata = InitRequest::None;
@@ -320,7 +320,7 @@ where
 
         fn on_normal_dispatch(
             &mut self,
-            mut ev_context: exwlshellev::NoIdEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::NoIdEventContext<Self, iced_core::window::Id>,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
@@ -330,7 +330,7 @@ where
 
         fn on_window_event(
             &mut self,
-            mut ev_context: exwlshellev::HaveIdEventContext<iced_core::window::Id, Self>,
+            mut ev_context: exwlshellev::HaveIdEventContext<Self, iced_core::window::Id>,
             event: exwlshellev::ExWlShellEvent,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
@@ -359,7 +359,7 @@ where
         }
         fn on_broadcast(
             &mut self,
-            _context: exwlshellev::NoIdEventContext<iced_core::window::Id, Self>,
+            _context: exwlshellev::NoIdEventContext<Self, iced_core::window::Id>,
             event: ExWlShellBroadcast,
         ) {
             let ContextState::Context(context) = &mut self.context_state else {
@@ -522,7 +522,7 @@ where
 
     fn handle_event(
         &mut self,
-        ev: &mut WindowState<IcedId>,
+        ev: &mut ExWlGlobalShellState<IcedId>,
         shell_id: ExWlShellId,
         shell_event: IcedWlShellEvent,
     ) {
@@ -546,7 +546,7 @@ where
 
     fn handle_refresh_event(
         &mut self,
-        ev: &mut WindowState<IcedId>,
+        ev: &mut ExWlGlobalShellState<IcedId>,
         shell_id: ExWlShellId,
         // if scale_factor_changed or resized, then update the viewport
         update_view_port: bool,
@@ -815,7 +815,11 @@ where
         }
     }
 
-    fn handle_closed_event(&mut self, ev: &mut WindowState<IcedId>, shell_id: ExWlShellId) {
+    fn handle_closed_event(
+        &mut self,
+        ev: &mut ExWlGlobalShellState<IcedId>,
+        shell_id: ExWlShellId,
+    ) {
         let Some(iced_id) = self
             .window_manager
             .get_alias(shell_id)
@@ -933,7 +937,11 @@ where
         }
     }
 
-    fn handle_user_action(&mut self, ev: &mut WindowState<IcedId>, action: Action<P::Message>) {
+    fn handle_user_action(
+        &mut self,
+        ev: &mut ExWlGlobalShellState<IcedId>,
+        action: Action<P::Message>,
+    ) {
         let mut should_exit = false;
         run_action(
             &mut self.user_interfaces,
@@ -957,7 +965,7 @@ where
 
     fn handle_exwlshell_action(
         &mut self,
-        ev: &mut WindowState<IcedId>,
+        ev: &mut ExWlGlobalShellState<IcedId>,
         mut iced_id: Option<IcedId>,
         action: ExwlShellCustomAction,
     ) {
@@ -1178,7 +1186,7 @@ where
         }
     }
 
-    fn handle_normal_dispatch(&mut self, ev: &mut WindowState<IcedId>) {
+    fn handle_normal_dispatch(&mut self, ev: &mut ExWlGlobalShellState<IcedId>) {
         // NOTE: since normal_dispatch is not a WindowEvent anymore, so we need to address the
         // actions here
         // at each interaction try to resolve those waiting actions.
@@ -1314,7 +1322,7 @@ where
     }
 
     fn handle_ui_state(
-        ev: &mut WindowState<IcedId>,
+        ev: &mut ExWlGlobalShellState<IcedId>,
         window: &mut Window<P, C>,
         ui_state: user_interface::State,
         unconditional_rendering: bool,
@@ -1431,7 +1439,7 @@ pub(crate) enum PendingWindowControl {
 }
 
 fn apply_window_control<P, C>(
-    ev: &WindowState<IcedId>,
+    ev: &ExWlGlobalShellState<IcedId>,
     window: &Window<P, C>,
     control: PendingWindowControl,
 ) where
@@ -1452,7 +1460,7 @@ fn apply_window_control<P, C>(
 fn window_in_flight(
     id: IcedId,
     waiting_layer_shell_actions: &[(Option<IcedId>, ExwlShellCustomAction)],
-    ev: &WindowState<IcedId>,
+    ev: &ExWlGlobalShellState<IcedId>,
 ) -> bool {
     waiting_layer_shell_actions.iter().any(|(_, action)| {
         matches!(
@@ -1481,7 +1489,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     window_manager: &mut WindowManager<P, C>,
     system_theme: &mut iced_core::theme::Mode,
     runtime: &mut MultiRuntime<E, P::Message>,
-    ev: &mut WindowState<IcedId>,
+    ev: &mut ExWlGlobalShellState<IcedId>,
     action_serial: Option<u32>,
     pending_window_controls: &mut Vec<(IcedId, PendingWindowControl)>,
 ) where

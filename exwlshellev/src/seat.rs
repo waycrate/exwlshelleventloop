@@ -1,4 +1,4 @@
-use super::WindowState;
+use super::ExWlGlobalShellState;
 use crate::events::AxisFrame;
 use crate::{
     DispatchMessage, KeyboardTokenState, PointerGesture, QueuedMessage, RepeatInfo, TextInputData,
@@ -26,7 +26,7 @@ use wayland_protocols::wp::pointer_gestures::zv1::client::{
 use wayland_protocols::wp::text_input::zv3::client::zwp_text_input_v3::ZwpTextInputV3;
 
 use std::time::Duration;
-impl<T> WindowState<T> {
+impl<T> ExWlGlobalShellState<T> {
     /// get a seat from state
     pub fn get_seat(&self) -> &WlSeat {
         self.seat_back.as_ref().unwrap()
@@ -171,7 +171,7 @@ impl SeatStorage {
         Self::default()
     }
 }
-impl<T: 'static> SeatHandler for WindowState<T> {
+impl<T: 'static> SeatHandler for ExWlGlobalShellState<T> {
     fn seat_state(&mut self) -> &mut sctk::seat::SeatState {
         &mut self.seat_state
     }
@@ -266,7 +266,7 @@ impl<T: 'static> SeatHandler for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
+impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         wl_keyboard: &wl_keyboard::WlKeyboard,
@@ -491,7 +491,7 @@ impl<T> Dispatch<wl_keyboard::WlKeyboard, ()> for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
+impl<T> Dispatch<wl_touch::WlTouch, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         _proxy: &wl_touch::WlTouch,
@@ -591,7 +591,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<wl_pointer::WlPointer, ()> for WindowState<T> {
+impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         pointer: &wl_pointer::WlPointer,
@@ -723,7 +723,7 @@ impl PointerGestures {
     fn new<T: 'static>(
         manager: &ZwpPointerGesturesV1,
         pointer: &WlPointer,
-        qh: &QueueHandle<WindowState<T>>,
+        qh: &QueueHandle<ExWlGlobalShellState<T>>,
     ) -> Self {
         Self {
             swipe: manager.get_swipe_gesture(pointer, qh, pointer.clone()),
@@ -742,7 +742,7 @@ impl PointerGestures {
     }
 }
 
-impl<T> WindowState<T> {
+impl<T> ExWlGlobalShellState<T> {
     /// Emits `event` for `pointer`'s gesture object `gesture`. Only the begin event includes
     /// a surface, later events go to that same surface.
     fn push_pointer_gesture(
@@ -778,7 +778,7 @@ impl<T> WindowState<T> {
 }
 
 /// The `WlPointer` is the pointer the gesture was created for.
-impl<T> Dispatch<ZwpPointerGestureSwipeV1, WlPointer> for WindowState<T> {
+impl<T> Dispatch<ZwpPointerGestureSwipeV1, WlPointer> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         proxy: &ZwpPointerGestureSwipeV1,
@@ -819,7 +819,7 @@ impl<T> Dispatch<ZwpPointerGestureSwipeV1, WlPointer> for WindowState<T> {
 }
 
 /// The `WlPointer` is the pointer the gesture was created for.
-impl<T> Dispatch<ZwpPointerGesturePinchV1, WlPointer> for WindowState<T> {
+impl<T> Dispatch<ZwpPointerGesturePinchV1, WlPointer> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         proxy: &ZwpPointerGesturePinchV1,
@@ -874,7 +874,7 @@ impl<T> Dispatch<ZwpPointerGesturePinchV1, WlPointer> for WindowState<T> {
 }
 
 /// The `WlPointer` is the pointer the gesture was created for.
-impl<T> Dispatch<ZwpPointerGestureHoldV1, WlPointer> for WindowState<T> {
+impl<T> Dispatch<ZwpPointerGestureHoldV1, WlPointer> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         proxy: &ZwpPointerGestureHoldV1,
@@ -904,4 +904,4 @@ impl<T> Dispatch<ZwpPointerGestureHoldV1, WlPointer> for WindowState<T> {
     }
 }
 
-delegate_noop!(@<T: 'static> WindowState<T>: ignore WlSeat);
+delegate_noop!(@<T: 'static> ExWlGlobalShellState<T>: ignore WlSeat);

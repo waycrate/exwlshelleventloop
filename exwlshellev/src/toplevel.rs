@@ -1,8 +1,8 @@
 use crate::NewXdgWindowSettings;
 
 use super::{
-    DispatchMessage, PixelSize, QueuedMessage, RefreshRequest, Shell, ToplevelState, WindowState,
-    WindowStateUnitBuilder, dpi::PhysicalSize,
+    DispatchMessage, ExWlGlobalShellState, PixelSize, QueuedMessage, RefreshRequest, Shell,
+    ToplevelState, WindowStateUnitBuilder, dpi::PhysicalSize,
 };
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
@@ -30,7 +30,7 @@ fn toplevel_state_from_configure(states: &[u8]) -> ToplevelState {
     toplevel_state
 }
 
-impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
+impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         surface: &xdg_toplevel::XdgToplevel,
@@ -79,7 +79,7 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for WindowState<T> {
     }
 }
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn create_xdg_base_window(
         &mut self,
         NewXdgWindowSettings {

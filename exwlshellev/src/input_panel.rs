@@ -1,14 +1,14 @@
-use super::{NewInputPanelSettings, Shell, WindowState, WindowStateUnitBuilder};
+use super::{ExWlGlobalShellState, NewInputPanelSettings, Shell, WindowStateUnitBuilder};
 use wayland_client::delegate_noop;
 use wayland_protocols::wp::input_method::zv1::client::{
     zwp_input_panel_surface_v1::{Position as ZwpInputPanelPosition, ZwpInputPanelSurfaceV1},
     zwp_input_panel_v1::ZwpInputPanelV1,
 };
 
-delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelSurfaceV1);
-delegate_noop!(@<T> WindowState<T>: ignore ZwpInputPanelV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpInputPanelSurfaceV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpInputPanelV1);
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn create_input_panel(
         &mut self,
         NewInputPanelSettings {

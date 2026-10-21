@@ -1,13 +1,17 @@
-use super::{DispatchMessage, QueuedMessage, RefreshRequest, WindowState, dpi::PhysicalSize};
+use super::{
+    DispatchMessage, ExWlGlobalShellState, QueuedMessage, RefreshRequest, dpi::PhysicalSize,
+};
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle, delegate_noop};
 use wayland_protocols::ext::session_lock::v1::client::{
     ext_session_lock_manager_v1::ExtSessionLockManagerV1, ext_session_lock_surface_v1,
     ext_session_lock_v1::ExtSessionLockV1,
 };
 
-delegate_noop!(@<T> WindowState<T>: ignore ExtSessionLockManagerV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ExtSessionLockManagerV1);
 
-impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for WindowState<T> {
+impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()>
+    for ExWlGlobalShellState<T>
+{
     fn event(
         state: &mut Self,
         surface: &ext_session_lock_surface_v1::ExtSessionLockSurfaceV1,
@@ -41,7 +45,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()> for W
     }
 }
 
-impl<T> Dispatch<ExtSessionLockV1, ()> for WindowState<T> {
+impl<T> Dispatch<ExtSessionLockV1, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         _proxy: &ExtSessionLockV1,

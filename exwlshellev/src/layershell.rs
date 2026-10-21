@@ -1,5 +1,5 @@
 use super::{
-    Margin, RefreshRequest, Shell, WindowState, WindowStateUnitBuilder, dpi::PhysicalSize,
+    ExWlGlobalShellState, Margin, RefreshRequest, Shell, WindowStateUnitBuilder, dpi::PhysicalSize,
     warn_if_exclusive_zone_ignored,
 };
 use crate::NewLayerShellSettings;
@@ -9,9 +9,9 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::ZwlrLayerShellV1, zwlr_layer_surface_v1,
 };
 
-delegate_noop!(@<T> WindowState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwlrLayerShellV1); // it is similar with xdg_toplevel, also the
 
-impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<T> {
+impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         surface: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -52,7 +52,7 @@ impl<T> Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, ()> for WindowState<
     }
 }
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn create_layershell(
         &mut self,
         NewLayerShellSettings {

@@ -15,7 +15,7 @@ use crate::xkb_keyboard::KeyEvent;
 
 use crate::keyboard::ModifiersState;
 
-use super::WindowState;
+use super::ExWlGlobalShellState;
 
 use crate::id::Id;
 
@@ -35,7 +35,7 @@ use std::ops::Deref;
 ///
 /// RequestMessages store the DispatchMessage, you can know what happened during dispatch with this
 /// event.
-pub enum ExWlShellInitEvent<'a, T> {
+pub enum ExWlShellInitEvent<'a, T = ()> {
     /// the first event when start a new gui, program. you can return [InitRequest::None] or
     /// [InitRequest::RequestBind], then it will continue to the next request.
     /// Here only the above two [InitRequest] are acceptable.
@@ -43,11 +43,11 @@ pub enum ExWlShellInitEvent<'a, T> {
     /// After you return [InitRequest::RequestBind] in the [LayerShellEvent::InitRequest] stage, next
     /// event is [LayerShellEvent::BindProvide], you can use the GlobalList and QueueHandle to create
     /// new wayland objects.
-    BindProvide(&'a GlobalList, &'a QueueHandle<WindowState<T>>),
+    BindProvide(&'a GlobalList, &'a QueueHandle<ExWlGlobalShellState<T>>),
     /// After you return [InitRequest::RequestCompositor] in the init stage, next
     /// event is [LayerShellEvent::CompositorProvide], you can use the WlCompositor and QueueHandle to
     /// create new wayland objects.
-    CompositorProvide(&'a WlCompositor, &'a QueueHandle<WindowState<T>>),
+    CompositorProvide(&'a WlCompositor, &'a QueueHandle<ExWlGlobalShellState<T>>),
 }
 
 /// the return data

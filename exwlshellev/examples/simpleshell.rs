@@ -13,8 +13,8 @@ struct Window {
 impl ExWlShellHandler for Window {
     fn on_init(
         &mut self,
-        _state: &mut WindowState<()>,
-        event: ExWlShellInitEvent<()>,
+        _state: &mut ExWlGlobalShellState,
+        event: ExWlShellInitEvent,
     ) -> InitRequest {
         match event {
             // NOTE: this will send when init, you can request bind extra object from here
@@ -47,11 +47,11 @@ impl ExWlShellHandler for Window {
         }
     }
 
-    fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
+    fn on_normal_dispatch(&mut self, _context: NoIdEventContext<Self>) {}
 
     /// NOTE: you should know whether you have the buffer for this surface or not
     /// So no on created
-    fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
+    fn on_refresh(&mut self, context: RefreshEventContext<Self>) {
         let id = context.id();
 
         let mut resized = context.resized();
@@ -95,16 +95,12 @@ impl ExWlShellHandler for Window {
         println!("{width}, {height}");
     }
 
-    fn on_broadcast(&mut self, _context: NoIdEventContext<(), Self>, event: ExWlShellBroadcast) {
+    fn on_broadcast(&mut self, _context: NoIdEventContext<Self>, event: ExWlShellBroadcast) {
         if let ExWlShellBroadcast::OutputAdded(info) = event {
             println!("{info:?}");
         }
     }
-    fn on_window_event(
-        &mut self,
-        mut context: HaveIdEventContext<(), Self>,
-        event: ExWlShellEvent,
-    ) {
+    fn on_window_event(&mut self, mut context: HaveIdEventContext<Self>, event: ExWlShellEvent) {
         let id = context.id();
         let state = context.state_mut();
         match event {

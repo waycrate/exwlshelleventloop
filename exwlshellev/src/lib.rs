@@ -18,13 +18,13 @@
 //! impl ExWlShellHandler for Window {
 //!     fn on_init(
 //!         &mut self,
-//!         _state: &mut WindowState<()>,
-//!         _event: ExWlShellInitEvent<()>,
+//!         _state: &mut ExWlGlobalShellState,
+//!         _event: ExWlShellInitEvent,
 //!     ) -> InitRequest {
 //!         InitRequest::None
 //!     }
-//!     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<(), Self>) {}
-//!     fn on_refresh(&mut self, context: RefreshEventContext<(), Self>) {
+//!     fn on_normal_dispatch(&mut self, _context: NoIdEventContext<Self>) {}
+//!     fn on_refresh(&mut self, context: RefreshEventContext<Self>) {
 //!         let id = context.id();
 //!
 //!         let mut resized = context.resized();
@@ -67,14 +67,14 @@
 //!
 //!         println!("{width}, {height}");
 //!     }
-//!     fn on_broadcast(&mut self, _context: NoIdEventContext<(), Self>, event: ExWlShellBroadcast) {
+//!     fn on_broadcast(&mut self, _context: NoIdEventContext<Self>, event: ExWlShellBroadcast) {
 //!         if let ExWlShellBroadcast::OutputAdded(info) = event {
 //!             println!("{info:?}");
 //!         }
 //!     }
 //!     fn on_window_event(
 //!         &mut self,
-//!         mut context: HaveIdEventContext<(), Self>,
+//!         mut context: HaveIdEventContext<Self>,
 //!         event: ExWlShellEvent,
 //!     ) {
 //!         let id = context.id();
@@ -472,13 +472,13 @@ enum PresentAvailableState {
 }
 
 struct WindowStateUnitBuilder<T> {
-    inner: WindowStateUnit<T>,
+    inner: ExWlShellState<T>,
 }
 
 impl<T> WindowStateUnitBuilder<T> {
     fn new(
         id: id::Id,
-        qh: QueueHandle<WindowState<T>>,
+        qh: QueueHandle<ExWlGlobalShellState<T>>,
         display: WlDisplay,
         wl_surface: WlSurface,
         wl_compositor: WlCompositor,
@@ -486,7 +486,7 @@ impl<T> WindowStateUnitBuilder<T> {
     ) -> Self {
         let configured = matches!(shell, Shell::InputPanel(_));
         Self {
-            inner: WindowStateUnit {
+            inner: ExWlShellState {
                 id,
                 qh,
                 window: Arc::new(WindowWrapper {
@@ -523,7 +523,7 @@ impl<T> WindowStateUnitBuilder<T> {
         }
     }
 
-    fn build(self) -> WindowStateUnit<T> {
+    fn build(self) -> ExWlShellState<T> {
         self.inner
     }
 
@@ -603,9 +603,9 @@ struct WindowStateUnitRequestFlag {
 }
 
 #[derive(Debug)]
-pub struct WindowStateUnit<T> {
+pub struct ExWlShellState<T> {
     id: id::Id,
-    qh: QueueHandle<WindowState<T>>,
+    qh: QueueHandle<ExWlGlobalShellState<T>>,
     /// Shared because the renderer holds this surface too. Wayland proxies are
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: Arc<WindowWrapper>,
@@ -643,7 +643,7 @@ pub struct WindowStateUnit<T> {
 
 /// wayland-rs sends nothing on drop.
 /// A destructor request has to be issued, so every object the unit owns is released.
-impl<T> Drop for WindowStateUnit<T> {
+impl<T> Drop for ExWlShellState<T> {
     fn drop(&mut self) {
         // wl_callback has no destructor request, so something like
         // this needs to be done
@@ -663,13 +663,13 @@ impl<T> Drop for WindowStateUnit<T> {
     }
 }
 
-impl<T> WindowStateUnit<T> {
+impl<T> ExWlShellState<T> {
     fn is_lock(&self) -> bool {
         self.shell.is_lock()
     }
 }
 
-impl<T> WindowStateUnit<T> {
+impl<T> ExWlShellState<T> {
     /// get the WindowState id
     pub fn id(&self) -> id::Id {
         self.id
@@ -713,7 +713,7 @@ impl<T> WindowStateUnit<T> {
         self.window.clone()
     }
 }
-impl<T> WindowStateUnit<T> {
+impl<T> ExWlShellState<T> {
     #[inline]
     pub fn raw_window_handle_rwh_06(&self) -> Result<rwh_06::RawWindowHandle, rwh_06::HandleError> {
         Ok(rwh_06::WaylandWindowHandle::new({
@@ -735,7 +735,7 @@ impl<T> WindowStateUnit<T> {
     }
 }
 
-impl<T> rwh_06::HasWindowHandle for WindowStateUnit<T> {
+impl<T> rwh_06::HasWindowHandle for ExWlShellState<T> {
     fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_window_handle_rwh_06()?;
 
@@ -745,7 +745,7 @@ impl<T> rwh_06::HasWindowHandle for WindowStateUnit<T> {
     }
 }
 
-impl<T> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
+impl<T> rwh_06::HasDisplayHandle for ExWlShellState<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = self.raw_display_handle_rwh_06()?;
 
@@ -756,7 +756,7 @@ impl<T> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
 }
 
 // if is only one window, use it will be easy
-impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
+impl<T> rwh_06::HasDisplayHandle for ExWlGlobalShellState<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = rwh_06::WaylandDisplayHandle::new({
             let ptr = self.display.id().as_ptr();
@@ -769,7 +769,7 @@ impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
     }
 }
 
-impl<T: 'static> WindowStateUnit<T> {
+impl<T: 'static> ExWlShellState<T> {
     pub fn set_blur_option(&mut self, blur_option: BlurOption) {
         self.blur_option = blur_option;
         if let Some(effect) = &self.effect {
@@ -810,7 +810,7 @@ pub struct RefreshState {
     scale_factor_changed: bool,
 }
 
-impl<T> WindowStateUnit<T> {
+impl<T> ExWlShellState<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
         &self.window.wl_surface
@@ -1095,7 +1095,7 @@ impl<T> WindowStateUnit<T> {
     }
 }
 
-impl<T: 'static> WindowStateUnit<T> {
+impl<T: 'static> ExWlShellState<T> {
     pub fn request_next_present(&mut self) {
         match self.present_available_state {
             PresentAvailableState::Taken => {
@@ -1177,15 +1177,15 @@ impl From<Connection> for WithConnection {
 
 /// main state, store the main information
 #[derive(Debug)]
-pub struct WindowState<T> {
+pub struct ExWlGlobalShellState<T = ()> {
     outputs: Vec<wl_output::WlOutput>,
     keyboard_focus: Option<WlSurface>,
     active_surfaces: HashMap<Option<i32>, (WlSurface, Option<id::Id>)>,
-    units: Vec<WindowStateUnit<T>>,
+    units: Vec<ExWlShellState<T>>,
     messages: Vec<QueuedMessage>,
 
     connection: Connection,
-    event_queue: Option<EventQueue<WindowState<T>>>,
+    event_queue: Option<EventQueue<ExWlGlobalShellState<T>>>,
     queue_handle: QueueHandle<Self>,
     wl_compositor: WlCompositor,
     background_effect_manager: Option<ExtBackgroundEffectManagerV1>,
@@ -1260,7 +1260,7 @@ pub struct WindowState<T> {
     lock: LockLifecycle,
 }
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn get_shm(&self) -> &WlShm {
         &self.shm
     }
@@ -1349,9 +1349,9 @@ impl<T: 'static> WindowState<T> {
 }
 
 /// Simple WindowState, without any data binding or info
-pub type WindowStateSimple = WindowState<()>;
+pub type WindowStateSimple = ExWlGlobalShellState<()>;
 
-impl<T> WindowState<T> {
+impl<T> ExWlGlobalShellState<T> {
     pub fn display_wrapper(&self) -> DisplayWrapper {
         DisplayWrapper {
             display: self.display.clone(),
@@ -1359,15 +1359,15 @@ impl<T> WindowState<T> {
     }
 
     /// use iced id to find WindowStateUnit
-    pub fn get_window_with_id(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
+    pub fn get_window_with_id(&self, id: id::Id) -> Option<&ExWlShellState<T>> {
         self.units.iter().find(|w| w.id() == id)
     }
     // return all windows
-    pub fn windows(&self) -> &Vec<WindowStateUnit<T>> {
+    pub fn windows(&self) -> &Vec<ExWlShellState<T>> {
         &self.units
     }
 
-    fn push_window(&mut self, window_state_unit: WindowStateUnit<T>) {
+    fn push_window(&mut self, window_state_unit: ExWlShellState<T>) {
         let surface = window_state_unit.window.wl_surface.clone();
         self.units.push(window_state_unit);
         // update newest window output for `OutputOption::LastOutput`
@@ -1440,7 +1440,7 @@ impl WindowWrapper {
     }
 }
 
-impl<T> WindowState<T> {
+impl<T> ExWlGlobalShellState<T> {
     pub fn with_blur_option(mut self, blur_option: BlurOption) -> Self {
         self.blur_option = blur_option;
         self
@@ -1616,7 +1616,7 @@ impl rwh_06::HasDisplayHandle for DisplayWrapper {
     }
 }
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     fn new(
         connection: &Connection,
         ExWlEventLoopBuilder {
@@ -1772,7 +1772,7 @@ impl<T: 'static> WindowState<T> {
     }
 }
 
-impl<T> WindowState<T> {
+impl<T> ExWlGlobalShellState<T> {
     /// You can save the virtual_keyboard here
     pub fn set_virtual_keyboard(&mut self, keyboard: ZwpVirtualKeyboardV1) {
         self.virtual_keyboard = Some(keyboard);
@@ -1788,27 +1788,27 @@ impl<T> WindowState<T> {
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit]
-    pub fn get_mut_unit(&mut self, id: id::Id) -> Option<&mut WindowStateUnit<T>> {
+    pub fn get_mut_unit(&mut self, id: id::Id) -> Option<&mut ExWlShellState<T>> {
         self.units.iter_mut().find(|unit| unit.id == id)
     }
 
     /// use [id::Id] to get the mut [WindowStateUnit], unchecked
-    pub fn get_mut_unit_unchecked(&mut self, id: id::Id) -> &mut WindowStateUnit<T> {
+    pub fn get_mut_unit_unchecked(&mut self, id: id::Id) -> &mut ExWlShellState<T> {
         self.get_mut_unit(id)
             .expect("You should not use this function for unknown id")
     }
     /// use [id::Id] to get the immutable [WindowStateUnit]
-    pub fn get_unit(&self, id: id::Id) -> Option<&WindowStateUnit<T>> {
+    pub fn get_unit(&self, id: id::Id) -> Option<&ExWlShellState<T>> {
         self.units.iter().find(|unit| unit.id == id)
     }
 
     /// use [id::Id] to get the immutable [WindowStateUnit], unchecked
-    pub fn get_unit_unchecked(&self, id: id::Id) -> &WindowStateUnit<T> {
+    pub fn get_unit_unchecked(&self, id: id::Id) -> &ExWlShellState<T> {
         self.get_unit(id)
             .expect("You should not use this function for unknown id")
     }
     /// it return the iter of units. you can do loop with it
-    pub fn get_unit_iter(&self) -> impl Iterator<Item = &WindowStateUnit<T>> {
+    pub fn get_unit_iter(&self) -> impl Iterator<Item = &ExWlShellState<T>> {
         self.units.iter()
     }
 
@@ -1941,7 +1941,7 @@ impl<T> WindowState<T> {
     }
 
     pub fn request_close(&mut self, id: id::Id) {
-        self.get_mut_unit(id).map(WindowStateUnit::request_close);
+        self.get_mut_unit(id).map(ExWlShellState::request_close);
     }
     /// add a new pending_request to state
     fn push_request(&mut self, data: Request) {
@@ -2001,23 +2001,23 @@ impl<T> WindowState<T> {
 
     /// State from the last `xdg_toplevel::configure` event for window `id`.
     pub fn toplevel_state(&self, id: id::Id) -> Option<ToplevelState> {
-        self.get_unit(id).map(WindowStateUnit::toplevel_state)
+        self.get_unit(id).map(ExWlShellState::toplevel_state)
     }
 
     pub fn get_binding_mut(&mut self, id: id::Id) -> Option<&mut T> {
         self.get_mut_unit(id)
-            .and_then(WindowStateUnit::get_binding_mut)
+            .and_then(ExWlShellState::get_binding_mut)
     }
 }
 
-impl<T: 'static> ProvidesRegistryState for WindowState<T> {
+impl<T: 'static> ProvidesRegistryState for ExWlGlobalShellState<T> {
     fn registry(&mut self) -> &mut RegistryState {
         &mut self.registry_state
     }
     sctk::registry_handlers![SeatState, OutputState];
 }
 
-impl<T: 'static> OutputHandler for WindowState<T> {
+impl<T: 'static> OutputHandler for ExWlGlobalShellState<T> {
     fn output_state(&mut self) -> &mut OutputState {
         &mut self.output_state
     }
@@ -2125,7 +2125,7 @@ impl<T: 'static> OutputHandler for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
+impl<T> Dispatch<xdg_surface::XdgSurface, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         surface: &xdg_surface::XdgSurface,
@@ -2148,7 +2148,7 @@ impl<T> Dispatch<xdg_surface::XdgSurface, ()> for WindowState<T> {
     }
 }
 
-impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowState<T> {
+impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
@@ -2179,7 +2179,7 @@ impl<T> Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, ()> for WindowStat
     }
 }
 
-impl<T> Dispatch<WlSurface, ()> for WindowState<T> {
+impl<T> Dispatch<WlSurface, ()> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         proxy: &WlSurface,
@@ -2281,7 +2281,7 @@ struct Preedit {
     cursor_end: Option<usize>,
 }
 
-impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowState<T> {
+impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         text_input: &zwp_text_input_v3::ZwpTextInputV3,
@@ -2394,7 +2394,7 @@ impl<T> Dispatch<zwp_text_input_v3::ZwpTextInputV3, TextInputData> for WindowSta
     }
 }
 
-impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T> {
+impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for ExWlGlobalShellState<T> {
     fn event(
         state: &mut Self,
         _proxy: &WlCallback,
@@ -2412,33 +2412,33 @@ impl<T> Dispatch<WlCallback, (id::Id, PresentAvailableState)> for WindowState<T>
     }
 }
 
-delegate_noop!(@<T> WindowState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
-delegate_noop!(@<T> WindowState<T>: ignore WlOutput); // output is need to place layer_shell, although here
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WlCompositor); // WlCompositor is need to create a surface
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WlOutput); // output is need to place layer_shell, although here
 // it is not used
-delegate_noop!(@<T> WindowState<T>: ignore WlShm); // shm is used to create buffer pool
-delegate_noop!(@<T> WindowState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
-delegate_noop!(@<T> WindowState<T>: ignore WlBuffer); // buffer show the picture
-delegate_noop!(@<T> WindowState<T>: ignore WlRegion); // region is used to modify input region
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WlShm); // shm is used to create buffer pool
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WlShmPool); // so it is pool, created by wl_shm
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WlBuffer); // buffer show the picture
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WlRegion); // region is used to modify input region
 // ext-session-shell
 
-delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeManagerV1);
-delegate_noop!(@<T> WindowState<T>: ignore WpCursorShapeDeviceV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WpCursorShapeManagerV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WpCursorShapeDeviceV1);
 
-delegate_noop!(@<T> WindowState<T>: ignore WpViewporter);
-delegate_noop!(@<T> WindowState<T>: ignore WpViewport);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WpViewporter);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WpViewport);
 
-delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardV1);
-delegate_noop!(@<T> WindowState<T>: ignore ZwpVirtualKeyboardManagerV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpVirtualKeyboardV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpVirtualKeyboardManagerV1);
 
-delegate_noop!(@<T> WindowState<T>: ignore WpFractionalScaleManagerV1);
-delegate_noop!(@<T> WindowState<T>: ignore XdgPositioner);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore WpFractionalScaleManagerV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore XdgPositioner);
 
-sctk::delegate_registry!(@<T: 'static> WindowState<T>);
-sctk::delegate_dispatch2!(@<T: 'static> WindowState<T>);
+sctk::delegate_registry!(@<T: 'static> ExWlGlobalShellState<T>);
+sctk::delegate_dispatch2!(@<T: 'static> ExWlGlobalShellState<T>);
 // we need to reply to the ping event otherwise
 // top-level windows will be marked as unresponsive
 // by the compositor.
-impl<T: 'static> Dispatch<XdgWmBase, ()> for WindowState<T> {
+impl<T: 'static> Dispatch<XdgWmBase, ()> for ExWlGlobalShellState<T> {
     fn event(
         _state: &mut Self,
         proxy: &XdgWmBase,
@@ -2457,19 +2457,19 @@ const NO_ID: usize = 0;
 const HAVE_ID: usize = 1;
 const REFRESH: usize = 2;
 
-pub type NoIdEventContext<'a, T, Window> = EventContext<'a, NO_ID, T, Window>;
-pub type HaveIdEventContext<'a, T, Window> = EventContext<'a, HAVE_ID, T, Window>;
-pub type RefreshEventContext<'a, T, Window> = EventContext<'a, REFRESH, T, Window>;
+pub type NoIdEventContext<'a, Window, T = ()> = EventContext<'a, NO_ID, Window, T>;
+pub type HaveIdEventContext<'a, Window, T = ()> = EventContext<'a, HAVE_ID, Window, T>;
+pub type RefreshEventContext<'a, Window, T = ()> = EventContext<'a, REFRESH, Window, T>;
 /// The context contains the information about the event this time
-pub struct EventContext<'a, const EVENT_TYPE: usize, T: 'static, Window: ExWlShellHandler<T>> {
-    state: &'a mut WindowState<T>,
+pub struct EventContext<'a, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>, T: 'static> {
+    state: &'a mut ExWlGlobalShellState<T>,
     looph: &'a LoopHandle<'static, ExWlEventLoop<T, Window>>,
     id: Option<id::Id>,
     refresh_state: Option<RefreshState>,
 }
 
 impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
-    EventContext<'a, EVENT_TYPE, T, Window>
+    EventContext<'a, EVENT_TYPE, Window, T>
 {
     /// This another way to register event, is used for something like a11y, which need to register
     /// adapter for a specific window
@@ -2478,7 +2478,7 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
         callback: F,
     ) -> Result<channel::Sender<Event>, ExWlShellEventError>
     where
-        F: Fn(&mut Window, EventContext<NO_ID, T, Window>, Event) + 'static,
+        F: Fn(&mut Window, EventContext<NO_ID, Window, T>, Event) + 'static,
         Event: 'static,
     {
         let (sender, receiver) = channel::channel::<Event>();
@@ -2503,12 +2503,12 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
     }
 
     /// get the mut reference of state
-    pub fn state_mut(&mut self) -> &mut WindowState<T> {
+    pub fn state_mut(&mut self) -> &mut ExWlGlobalShellState<T> {
         self.state
     }
 
     /// get the reference of state
-    pub fn state_ref(&self) -> &WindowState<T> {
+    pub fn state_ref(&self) -> &ExWlGlobalShellState<T> {
         self.state
     }
 
@@ -2518,28 +2518,28 @@ impl<'a, T: 'static, const EVENT_TYPE: usize, Window: ExWlShellHandler<T>>
     }
 }
 
-impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, HAVE_ID, T, Window> {
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, HAVE_ID, Window, T> {
     pub fn id(&self) -> id::Id {
         self.id.unwrap()
     }
-    pub fn get_unit(&self) -> &WindowStateUnit<T> {
+    pub fn get_unit(&self) -> &ExWlShellState<T> {
         self.state.get_unit_unchecked(self.id())
     }
-    pub fn get_unit_mut(&mut self) -> &mut WindowStateUnit<T> {
+    pub fn get_unit_mut(&mut self) -> &mut ExWlShellState<T> {
         self.state.get_mut_unit_unchecked(self.id())
     }
 }
 
-impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, REFRESH, T, Window> {
+impl<'a, T: 'static, Window: ExWlShellHandler<T>> EventContext<'a, REFRESH, Window, T> {
     pub fn id(&self) -> id::Id {
         self.id.unwrap()
     }
 
-    pub fn get_unit(&self) -> &WindowStateUnit<T> {
+    pub fn get_unit(&self) -> &ExWlShellState<T> {
         self.state.get_unit_unchecked(self.id())
     }
 
-    pub fn get_unit_mut(&mut self) -> &mut WindowStateUnit<T> {
+    pub fn get_unit_mut(&mut self) -> &mut ExWlShellState<T> {
         self.state.get_mut_unit_unchecked(self.id())
     }
 
@@ -2565,35 +2565,25 @@ where
 {
     /// When new wayland events come, it will invoke this callback, and you can address the events
     /// here
-    fn on_window_event(&mut self, context: EventContext<HAVE_ID, T, Self>, event: ExWlShellEvent);
+    fn on_window_event(&mut self, context: EventContext<HAVE_ID, Self, T>, event: ExWlShellEvent);
     /// If it is event without target, it will come to this callback
     /// For example, a window display is destroyed, or a new window display is inserted, or the lock
     /// events
-    fn on_broadcast(&mut self, context: EventContext<NO_ID, T, Self>, event: ExWlShellBroadcast);
+    fn on_broadcast(&mut self, context: EventContext<NO_ID, Self, T>, event: ExWlShellBroadcast);
     /// when a refresh request comes out, it will call this callback
     /// should handle refresh event here
-    fn on_refresh(&mut self, context: EventContext<REFRESH, T, Self>);
+    fn on_refresh(&mut self, context: EventContext<REFRESH, Self, T>);
     /// Every round of loop, it will call a normal_dispatch once a time, in this place, you can draw
     /// the surface, or make new requests
-    fn on_normal_dispatch(&mut self, context: EventContext<NO_ID, T, Self>);
+    fn on_normal_dispatch(&mut self, context: EventContext<NO_ID, Self, T>);
     /// on_init will be called during [WindowState::build], with InitRequest, you can use the
     /// wayland resources to initialize some thing
     fn on_init(
         &mut self,
-        _state: &mut WindowState<T>,
+        _state: &mut ExWlGlobalShellState<T>,
         _event: ExWlShellInitEvent<T>,
     ) -> InitRequest {
         InitRequest::None
-    }
-
-    /// if without display_handle, when a new Window is created, you need to return a buffer for it
-    fn request_buffer(
-        &mut self,
-        _context: EventContext<HAVE_ID, T, Self>,
-        _qh: &wayland_client::QueueHandle<WindowState<T>>,
-        _file: &mut std::fs::File,
-    ) -> WlBuffer {
-        unimplemented!("you need to implement one")
     }
 }
 
@@ -2622,7 +2612,7 @@ impl LockLifecycle {
 
 /// storage the context for the events
 pub struct ExWlEventLoop<T: 'static, W: ExWlShellHandler<T>> {
-    state: WindowState<T>,
+    state: ExWlGlobalShellState<T>,
     window_context: W,
     event_loop: Option<EventLoop<'static, Self>>,
     looph: LoopHandle<'static, Self>,
@@ -2658,7 +2648,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         callback: F,
     ) -> Result<channel::Sender<Event>, ExWlShellEventError>
     where
-        F: Fn(&mut W, EventContext<NO_ID, T, W>, Event) + 'static,
+        F: Fn(&mut W, EventContext<NO_ID, W, T>, Event) + 'static,
         Event: 'static,
     {
         let (sender, receiver) = channel::channel::<Event>();
@@ -2737,7 +2727,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
         let mut event_queue_origin = self.state.event_queue.take().unwrap();
         let qh = self.state.queue_handle.clone();
 
-        fn remove_lock_units<T>(window_state: &mut WindowState<T>) {
+        fn remove_lock_units<T>(window_state: &mut ExWlGlobalShellState<T>) {
             for removed in window_state.units.extract_if(.., |unit| unit.is_lock()) {
                 if window_state.keyboard_focus.as_ref() == Some(&removed.window.wl_surface) {
                     window_state.keyboard_focus = None;
@@ -3072,7 +3062,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 .units
                 .iter()
                 .filter(|unit| unit.request_flag.close)
-                .map(WindowStateUnit::id)
+                .map(ExWlShellState::id)
                 .collect();
             let mut close_roots: Vec<id::Id> = Vec::new();
             for id in requested {
@@ -3267,26 +3257,26 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     }
 }
 
-delegate_noop!(@<T> WindowState<T>: ignore ZwpTextInputManagerV3);
-delegate_noop!(@<T> WindowState<T>: ignore ZwpPointerGesturesV1);
-delegate_noop!(@<T> WindowState<T>: ignore ZxdgDecorationManagerV1);
-delegate_noop!(@<T> WindowState<T>: ignore ZxdgToplevelDecorationV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpTextInputManagerV3);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpPointerGesturesV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgDecorationManagerV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgToplevelDecorationV1);
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn request_next_present(&mut self, id: id::Id) {
         self.get_mut_unit(id)
-            .map(WindowStateUnit::request_next_present);
+            .map(ExWlShellState::request_next_present);
     }
 
     pub fn reset_present_slot(&mut self, id: id::Id) {
         self.get_mut_unit(id)
-            .map(WindowStateUnit::reset_present_slot);
+            .map(ExWlShellState::reset_present_slot);
     }
 }
 
 fn build_positioner<T: 'static>(
     wmbase: &XdgWmBase,
-    qh: &QueueHandle<WindowState<T>>,
+    qh: &QueueHandle<ExWlGlobalShellState<T>>,
     size: PixelSize,
     placement: PopupPlacement,
     anchor: xdg_positioner::Anchor,
@@ -3328,13 +3318,13 @@ fn get_cursor_buffer(
 #[derive(Debug)]
 struct CursorUpdateContext<T> {
     cursor_manager: Option<WpCursorShapeManagerV1>,
-    qh: QueueHandle<WindowState<T>>,
+    qh: QueueHandle<ExWlGlobalShellState<T>>,
     connection: Connection,
     shm: WlShm,
     cursor_surface: WlSurface,
 }
 
-impl<T: 'static> WindowState<T> {
+impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn set_cursor(&self, cursor: Cursor, pointer: WlPointer) {
         let Some(serial) = self.enter_serial else {
             return;
