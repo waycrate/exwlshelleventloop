@@ -756,17 +756,6 @@ impl<T> rwh_06::HasDisplayHandle for WindowStateUnit<T> {
 }
 
 // if is only one window, use it will be easy
-impl<T> rwh_06::HasWindowHandle for WindowState<T> {
-    fn window_handle(&self) -> Result<rwh_06::WindowHandle<'_>, rwh_06::HandleError> {
-        let raw = self.main_window().raw_window_handle_rwh_06()?;
-
-        // SAFETY: The window handle will never be deallocated while the window is alive,
-        // and the main thread safety requirements are upheld internally by each platform.
-        Ok(unsafe { rwh_06::WindowHandle::borrow_raw(raw) })
-    }
-}
-
-// if is only one window, use it will be easy
 impl<T> rwh_06::HasDisplayHandle for WindowState<T> {
     fn display_handle(&self) -> Result<rwh_06::DisplayHandle<'_>, rwh_06::HandleError> {
         let raw = rwh_06::WaylandDisplayHandle::new({
@@ -1367,11 +1356,6 @@ impl<T> WindowState<T> {
         DisplayWrapper {
             display: self.display.clone(),
         }
-    }
-    // return the first window
-    // I will use it in iced
-    pub fn main_window(&self) -> &WindowStateUnit<T> {
-        &self.units[0]
     }
 
     /// use iced id to find WindowStateUnit
