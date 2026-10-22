@@ -3438,7 +3438,7 @@ fn set_cursor<T: 'static>(
             if let Some(manager) = &context.cursor_manager
                 && manager.version() >= required_version
             {
-                let device = manager.get_pointer(&pointer, &context.qh, ());
+                let device = manager.get_pointer(pointer, &context.qh, ());
                 device.set_shape(serial, shape);
                 device.destroy();
                 return;
