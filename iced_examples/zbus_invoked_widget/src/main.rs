@@ -85,11 +85,8 @@ impl Counter {
                 iced::stream::channel(100, |sender| async move {
                     // setup the object server
                     let _connection = connection::Builder::session()
-                        .unwrap()
                         .name("zbus.iced.MyGreeter1")
-                        .unwrap()
                         .serve_at("/org/zbus/MyGreeter1", Greeter { sender })
-                        .unwrap()
                         .build()
                         .await
                         .unwrap();

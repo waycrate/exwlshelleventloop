@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use zbus::{
     proxy,
-    zvariant::{self, OwnedObjectPath, OwnedValue, Type, Value},
+    OwnedObjectPath, OwnedVariant, Type, Variant,
 };
 
 use serde::{Deserialize, Serialize};
@@ -39,7 +39,7 @@ pub enum Mode {
 #[zvariant(signature = "sa(sv)")]
 struct SystemdAux<'a> {
     name: &'a str,
-    properties: Vec<Value<'a>>,
+    properties: Vec<Variant<'a>>,
 }
 
 #[derive(Debug, Type)]
@@ -56,36 +56,36 @@ impl<'a> serde::Serialize for Properties<'a> {
     where
         S: serde::Serializer,
     {
-        let mut values: Vec<(String, OwnedValue)> = vec![];
+        let mut values: Vec<(String, OwnedVariant)> = vec![];
         values.push((
             "Description".to_string(),
-            OwnedValue::try_from(Value::new(self.description)).unwrap(),
+            OwnedVariant::try_from(Variant::new(self.description)).unwrap(),
         ));
-        let mut starts: Vec<zvariant::Structure<'_>> = vec![];
+        let mut starts: Vec<zbus::Structure<'_>> = vec![];
         for start in &self.exec_start {
-            let value: zvariant::Structure<'_> = start.clone().into();
+            let value: zbus::Structure<'_> = start.clone().into();
             starts.push(value);
         }
         if !starts.is_empty() {
             let signature = starts[0].signature();
-            let mut array = zvariant::Array::new(signature);
+            let mut array = zbus::Array::new(signature);
             for unit in starts {
-                array.append(Value::new(unit)).unwrap();
+                array.append(Variant::new(unit)).unwrap();
             }
             values.push((
                 "ExecStart".to_string(),
-                Value::new(array).try_into().unwrap(),
+                Variant::new(array).try_into().unwrap(),
             ));
         }
 
         values.push((
             "Environment".to_string(),
-            Value::new(self.environment.clone()).try_into().unwrap(),
+            Variant::new(self.environment.clone()).try_into().unwrap(),
         ));
         if let Some(working_directory) = &self.working_directory {
             values.push((
                 "WorkingDirectory".to_string(),
-                Value::new(working_directory).try_into().unwrap(),
+                Variant::new(working_directory).try_into().unwrap(),
             ));
         }
         values.serialize(serializer)
@@ -99,9 +99,9 @@ struct ExecCommand {
     unclean: bool,
 }
 
-impl<'a> From<ExecCommand> for zvariant::Structure<'a> {
+impl<'a> From<ExecCommand> for zbus::Structure<'a> {
     fn from(value: ExecCommand) -> Self {
-        zvariant::StructureBuilder::new()
+        zbus::wire::StructureBuilder::new()
             .add_field(value.path)
             .add_field(value.args)
             .add_field(value.unclean)
@@ -139,7 +139,7 @@ async fn get_connection() -> zbus::Result<zbus::Connection> {
 pub async fn launch(id: &str, cmd: &[String], description: &str) -> anyhow::Result<()> {
     let conn = get_connection().await?;
     let systemd = Systemd1ManagerProxy::builder(&conn)
-        .destination("org.freedesktop.systemd1")?
+        .destination("org.freedesktop.systemd1")
         .build()
         .await?;
     let service = format!("app-layershell-{id}@{}.service", Id::unique().0);
