@@ -907,6 +907,8 @@ where
                         pointer,
                     );
                 }
+                use iced_core::mouse::Interaction;
+                window.mouse_interaction = Some(Interaction::None);
             }
             ExwlShellWindowEvent::CursorLeft => {
                 window.mouse_interaction = None;
