@@ -3,7 +3,7 @@ use iced::widget::canvas;
 use iced::widget::canvas::{Cache, Event, Geometry, Path, Text};
 use iced::{Color, Task as Command};
 use iced::{Length, Point, Rectangle, Renderer, Size, Theme};
-use iced_exwlshell::actions::{ExwlShellCustomAction, ExwlShellCustomActionWithId};
+use iced_exwlshell::actions::{ExWlShellCustomAction, ExWlShellCustomActionWithId};
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::wl_keyboard::KeymapFormat;
 use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
@@ -87,13 +87,13 @@ enum Message {
     InputKeyPressed { key: u32 },
 }
 
-impl TryInto<ExwlShellCustomActionWithId> for Message {
+impl TryInto<ExWlShellCustomActionWithId> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<ExwlShellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<ExWlShellCustomActionWithId, Self::Error> {
         let Message::InputKeyPressed { key } = self;
-        Ok(ExwlShellCustomActionWithId(
+        Ok(ExWlShellCustomActionWithId(
             None,
-            ExwlShellCustomAction::VirtualKeyboardPressed { key },
+            ExWlShellCustomAction::VirtualKeyboardPressed { key },
         ))
     }
 }

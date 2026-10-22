@@ -1,7 +1,5 @@
 use exwlshellev::keyboard::ModifiersState;
-use exwlshellev::reexport::wayland_client::{
-    ButtonState, KeyState, WEnum, WlRegion, wl_pointer::WlPointer,
-};
+use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, wl_pointer::WlPointer};
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 use exwlshellev::{ExWlGlobalShellState, ExWlShellBroadcast, ExWlShellEvent};
 use iced_core::mouse;
@@ -111,12 +109,6 @@ pub enum WindowEvent {
     LockDenied,
     LockFinished,
     ToplevelStateChanged(exwlshellev::ToplevelState),
-}
-
-#[derive(Debug)]
-pub enum IcedWlShellEvent {
-    UpdateInputRegion(WlRegion),
-    Window(WindowEvent),
 }
 
 impl WindowEvent {

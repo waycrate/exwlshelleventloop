@@ -28,7 +28,7 @@ pub fn to_exwlshell_message(
         data,
     } = MessageEnum::from_derive_input(&derive_input)?;
     let wlshell_action: Path =
-        syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
+        syn::parse_quote!(iced_exwlshell::actions::ExWlShellCustomActionWithId);
 
     let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
     let variants = data.take_enum().unwrap();
@@ -113,32 +113,32 @@ pub fn to_exwlshell_message(
             impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
                 type Error = Self;
 
-                fn try_into(self) -> Result<iced_exwlshell::actions::ExwlShellCustomActionWithId, Self::Error> {
-                    use iced_exwlshell::actions::ExwlShellCustomAction;
-                    use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+                fn try_into(self) -> Result<iced_exwlshell::actions::ExWlShellCustomActionWithId, Self::Error> {
+                    use iced_exwlshell::actions::ExWlShellCustomAction;
+                    use iced_exwlshell::actions::ExWlShellCustomActionWithId;
 
                     match self {
-                        Self::SetInputRegion{ id, callback } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::SetInputRegion(callback))),
-                        Self::LayoutChange { id, anchor, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayoutChange { anchor, size })),
-                        Self::LayerChange { id, layer } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayerChange(layer))),
-                        Self::MarginChange { id, margin } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::MarginChange(margin))),
-                        Self::ExclusiveZoneChange { id, zone_size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
-                        Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                        Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(
+                        Self::SetInputRegion{ id, callback } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::SetInputRegion(callback))),
+                        Self::LayoutChange { id, anchor, size } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayoutChange { anchor, size })),
+                        Self::LayerChange { id, layer } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayerChange(layer))),
+                        Self::MarginChange { id, margin } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::MarginChange(margin))),
+                        Self::ExclusiveZoneChange { id, zone_size } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::ExclusiveZoneChange(zone_size))),
+                        Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                        Self::VirtualKeyboardPressed { key } => Ok(ExWlShellCustomActionWithId::new(
                             None,
-                            ExwlShellCustomAction::VirtualKeyboardPressed { key })
+                            ExWlShellCustomAction::VirtualKeyboardPressed { key })
                         ),
-                        Self::NewLayerShell {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewLayerShell { settings, id })),
-                        Self::NewBaseWindow {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewBaseWindow { settings, id })),
-                        Self::NewPopUp { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewPopUp { settings, id })),
-                        Self::PopUpReposition { settings, id } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::PopUpReposition { settings })),
-                        Self::NewMenu { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewMenu { settings, id })),
-                        Self::NewInputPanel {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewInputPanel { settings, id })),
-                        Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),
-                        Self::ForgetLastOutput => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ForgetLastOutput)),
-                        Self::BlurOptionChange {id, option} => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::BlurOptionChange(option))),
-                        Self::Lock => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::Lock)),
-                        Self::UnLock => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::UnLock)),
+                        Self::NewLayerShell {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewLayerShell { settings, id })),
+                        Self::NewBaseWindow {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewBaseWindow { settings, id })),
+                        Self::NewPopUp { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewPopUp { settings, id })),
+                        Self::PopUpReposition { settings, id } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::PopUpReposition { settings })),
+                        Self::NewMenu { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewMenu { settings, id })),
+                        Self::NewInputPanel {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewInputPanel { settings, id })),
+                        Self::RemoveWindow(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RemoveWindow)),
+                        Self::ForgetLastOutput => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::ForgetLastOutput)),
+                        Self::BlurOptionChange {id, option} => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::BlurOptionChange(option))),
+                        Self::Lock => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::Lock)),
+                        Self::UnLock => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::UnLock)),
                         _ => Err(self)
                     }
                 }
@@ -176,7 +176,7 @@ pub fn to_sessionlock_message(
     let variants = data.take_enum().unwrap();
 
     let wlshell_action: Path =
-        syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
+        syn::parse_quote!(iced_exwlshell::actions::ExWlShellCustomActionWithId);
 
     let try_into = quote! {
         impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
@@ -225,7 +225,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
 
     let is_multi = multi.is_present();
     let wlshell_action: Path =
-        syn::parse_quote!(iced_exwlshell::actions::ExwlShellCustomActionWithId);
+        syn::parse_quote!(iced_exwlshell::actions::ExWlShellCustomActionWithId);
     let derive_input = syn::parse2::<DeriveInput>(input)?;
     let attrs = &derive_input.attrs;
     let MessageEnum {
@@ -302,29 +302,29 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                     type Error = Self;
 
                     fn try_into(self) -> Result<#wlshell_action, Self::Error> {
-                        use iced_exwlshell::actions::ExwlShellCustomAction;
-                        use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+                        use iced_exwlshell::actions::ExWlShellCustomAction;
+                        use iced_exwlshell::actions::ExWlShellCustomActionWithId;
 
                         match self {
-                            Self::SetInputRegion{ id, callback } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::SetInputRegion(callback))),
-                            Self::LayoutChange { id, anchor, size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayoutChange{ anchor, size })),
-                            Self::LayerChange { id, layer } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::LayerChange(layer))),
-                            Self::MarginChange { id, margin } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::MarginChange(margin))),
-                            Self::ExclusiveZoneChange { id, zone_size } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
-                            Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                            Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(
+                            Self::SetInputRegion{ id, callback } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::SetInputRegion(callback))),
+                            Self::LayoutChange { id, anchor, size } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayoutChange{ anchor, size })),
+                            Self::LayerChange { id, layer } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayerChange(layer))),
+                            Self::MarginChange { id, margin } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::MarginChange(margin))),
+                            Self::ExclusiveZoneChange { id, zone_size } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange { id, keyboard_interactivity } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                            Self::VirtualKeyboardPressed { key } => Ok(ExWlShellCustomActionWithId::new(
                                 None,
-                                ExwlShellCustomAction::VirtualKeyboardPressed { key })
+                                ExWlShellCustomAction::VirtualKeyboardPressed { key })
                             ),
-                            Self::NewLayerShell {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewLayerShell { settings, id })),
-                            Self::NewBaseWindow {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewBaseWindow { settings, id })),
-                            Self::NewPopUp { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewPopUp { settings, id })),
-                            Self::PopUpReposition { settings, id } => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::PopUpReposition { settings })),
-                            Self::NewMenu { settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewMenu { settings, id })),
-                            Self::NewInputPanel {settings, id } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::NewInputPanel { settings, id })),
-                            Self::RemoveWindow(id) => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::RemoveWindow)),
-                            Self::ForgetLastOutput => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ForgetLastOutput)),
-                            Self::BlurOptionChange {id, option} => Ok(ExwlShellCustomActionWithId::new(Some(id), ExwlShellCustomAction::BlurOptionChange(option))),
+                            Self::NewLayerShell {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewLayerShell { settings, id })),
+                            Self::NewBaseWindow {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewBaseWindow { settings, id })),
+                            Self::NewPopUp { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewPopUp { settings, id })),
+                            Self::PopUpReposition { settings, id } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::PopUpReposition { settings })),
+                            Self::NewMenu { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewMenu { settings, id })),
+                            Self::NewInputPanel {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewInputPanel { settings, id })),
+                            Self::RemoveWindow(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RemoveWindow)),
+                            Self::ForgetLastOutput => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::ForgetLastOutput)),
+                            Self::BlurOptionChange {id, option} => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::BlurOptionChange(option))),
                             _ => Err(self)
                         }
                     }
@@ -350,23 +350,23 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 impl #impl_gen TryInto<#wlshell_action> for #ident #ty_gen #where_gen {
                     type Error = Self;
 
-                    fn try_into(self) -> Result<iced_exwlshell::actions::ExwlShellCustomActionWithId, Self::Error> {
-                        use iced_exwlshell::actions::ExwlShellCustomAction;
-                        use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+                    fn try_into(self) -> Result<iced_exwlshell::actions::ExWlShellCustomActionWithId, Self::Error> {
+                        use iced_exwlshell::actions::ExWlShellCustomAction;
+                        use iced_exwlshell::actions::ExWlShellCustomActionWithId;
 
                         match self {
-                            Self::SetInputRegion(callback) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::SetInputRegion(callback))),
-                            Self::LayoutChange { anchor, size } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::LayoutChange { anchor, size })),
-                            Self::LayerChange(layer) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::LayerChange(layer))),
+                            Self::SetInputRegion(callback) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::SetInputRegion(callback))),
+                            Self::LayoutChange { anchor, size } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::LayoutChange { anchor, size })),
+                            Self::LayerChange(layer) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::LayerChange(layer))),
 
-                            Self::MarginChange(margin) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::MarginChange(margin))),
-                            Self::ExclusiveZoneChange(zone_size) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::ExclusiveZoneChange(zone_size))),
-                            Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
-                            Self::VirtualKeyboardPressed { key } => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::VirtualKeyboardPressed {
+                            Self::MarginChange(margin) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::MarginChange(margin))),
+                            Self::ExclusiveZoneChange(zone_size) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::ExclusiveZoneChange(zone_size))),
+                            Self::KeyboardInteractivityChange(keyboard_interactivity) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity))),
+                            Self::VirtualKeyboardPressed { key } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::VirtualKeyboardPressed {
                                 key
                             })),
 
-                            Self::BlurOptionChange(option) => Ok(ExwlShellCustomActionWithId::new(None, ExwlShellCustomAction::BlurOptionChange(option))),
+                            Self::BlurOptionChange(option) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::BlurOptionChange(option))),
                             _ => Err(self)
                         }
                     }

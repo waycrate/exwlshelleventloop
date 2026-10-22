@@ -110,7 +110,7 @@ fn input_region(visible: bool) -> RegionActionCB {
                 let inset = rounded_corner_inset(y, WIDTH, HEIGHT, radius);
                 let span = WIDTH - 2 * inset;
                 if span > 0 {
-                    region.add(inset, y, span, 1);
+                    let _ = region.add(inset, y, span, 1);
                 }
             }
         }

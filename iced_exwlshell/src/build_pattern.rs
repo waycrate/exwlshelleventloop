@@ -5,7 +5,7 @@ mod daemon;
 /// The renderer of some Program.
 use iced_exdevtools::gen_attach;
 
-gen_attach! {Action = ExwlShellCustomActionWithId}
+gen_attach! {Action = ExWlShellCustomActionWithId}
 
 #[doc = include_str!("./build_pattern/daemon.md")]
 pub use daemon::daemon;
@@ -18,7 +18,7 @@ pub mod sessionlock;
 #[doc = include_str!("./build_pattern/layershell.md")]
 pub mod layershell;
 
-use crate::actions::ExwlShellCustomActionWithId;
+use crate::actions::ExWlShellCustomActionWithId;
 use iced_core::Settings;
 use iced_program::Program;
 

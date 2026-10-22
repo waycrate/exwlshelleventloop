@@ -1,5 +1,5 @@
 use super::{BootFn, NameSpace, SingleApplication, ViewFn};
-use crate::{DefaultStyle, ExWlSettings, actions::ExwlShellCustomActionWithId};
+use crate::{DefaultStyle, ExWlSettings, actions::ExWlShellCustomActionWithId};
 use iced_core::Element;
 use iced_debug as debug;
 use iced_futures::Subscription;
@@ -25,7 +25,7 @@ pub fn timed<State, Message, Theme, Renderer>(
 where
     State: 'static,
     Message:
-        'static + TryInto<ExwlShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
+        'static + TryInto<ExWlShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle + 'static,
     Renderer: iced_program::Renderer + 'static,
 {
@@ -127,13 +127,13 @@ where
     }
 }
 
-impl<M> TryInto<ExwlShellCustomActionWithId> for (M, Instant)
+impl<M> TryInto<ExWlShellCustomActionWithId> for (M, Instant)
 where
-    M: TryInto<ExwlShellCustomActionWithId, Error = M>,
+    M: TryInto<ExWlShellCustomActionWithId, Error = M>,
 {
     type Error = (M, Instant);
 
-    fn try_into(self) -> Result<ExwlShellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<ExWlShellCustomActionWithId, Self::Error> {
         let (message, instant) = self;
         message.try_into().map_err(|m| (m, instant))
     }

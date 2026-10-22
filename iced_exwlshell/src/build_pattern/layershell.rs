@@ -13,7 +13,7 @@ mod pattern {
     use iced_core::Font;
     use iced_runtime::Task;
 
-    use crate::actions::ExwlShellCustomActionWithId;
+    use crate::actions::ExWlShellCustomActionWithId;
 
     use crate::DefaultStyle;
     use crate::redraw::Policy;
@@ -130,7 +130,7 @@ mod pattern {
     where
         State: 'static,
         Message: 'static
-            + TryInto<ExwlShellCustomActionWithId, Error = Message>
+            + TryInto<ExWlShellCustomActionWithId, Error = Message>
             + Send
             + std::fmt::Debug,
         Theme: DefaultStyle,
@@ -149,7 +149,7 @@ mod pattern {
         impl<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn> Program
             for Instance<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn>
         where
-            Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = Message> + Send,
+            Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = Message> + Send,
             Theme: DefaultStyle,
             Renderer: iced_program::Renderer,
             UpdateFn: self::UpdateFn<State, Message>,
@@ -352,7 +352,7 @@ mod pattern {
                 + iced_program::message::MaybeClone
                 + Send
                 + 'static
-                + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+                + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
         {
             let settings = self.settings;
 

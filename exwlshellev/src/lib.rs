@@ -1272,6 +1272,13 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         self.popup_grab_serial
     }
 
+    pub fn wl_compositor(&self) -> &WlCompositor {
+        &self.wl_compositor
+    }
+
+    pub fn qh(&self) -> &QueueHandle<Self> {
+        &self.queue_handle
+    }
     /// Take the serial to use for the next popup grab, consuming it.
     pub fn take_popup_grab_serial(&mut self) -> Option<u32> {
         self.popup_grab_serial.take()

@@ -1,3 +1,4 @@
+use crate::error::RegionError;
 use crate::reexport::{Anchor, Layer, WlRegion};
 use exwlshellev::blur::BlurOption;
 use exwlshellev::reexport::xdg_positioner::{
@@ -9,8 +10,77 @@ use exwlshellev::{
     PixelSize, PopupPlacement, Position,
 };
 use iced_core::window::Id as IcedId;
-
 use std::sync::Arc;
+
+/// the [InputRegion] will delete the rectangle first, then you can add it later
+pub struct InputRegion {
+    region: Option<WlRegion>,
+    width: u32,
+    height: u32,
+}
+
+impl InputRegion {
+    pub(crate) fn region(&self) -> Option<&WlRegion> {
+        self.region.as_ref()
+    }
+    pub(crate) fn new(region: WlRegion, width: u32, height: u32) -> Self {
+        Self {
+            region: Some(region),
+            width,
+            height,
+        }
+    }
+    /// return the height of the surface
+    pub fn surface_height(&self) -> u32 {
+        self.height
+    }
+
+    /// return the width of the layer
+    pub fn surface_width(&self) -> u32 {
+        self.width
+    }
+
+    /// return the size of the layer, width, height
+    pub fn surface_size(&self) -> (u32, u32) {
+        (self.surface_width(), self.surface_height())
+    }
+
+    /// check if region is still exist
+    pub fn alive(&self) -> bool {
+        self.region.is_some()
+    }
+
+    /// wrapper of the add function of [WlRegion], if failed, return [RegionError]
+    pub fn add(&self, x: i32, y: i32, width: i32, height: i32) -> Result<(), RegionError> {
+        let region = self.region.as_ref().ok_or(RegionError::RegionDeleted)?;
+        region.add(x, y, width, height);
+        Ok(())
+    }
+
+    /// wrapper of the subtract function of [WlRegion], if failed, return [RegionError]
+    pub fn subtract(&self, x: i32, y: i32, width: i32, height: i32) -> Result<(), RegionError> {
+        let region = self.region.as_ref().ok_or(RegionError::RegionDeleted)?;
+        region.subtract(x, y, width, height);
+        Ok(())
+    }
+
+    /// destroy the inner region, then will reset the region
+    pub fn remove(&mut self) {
+        let Some(region) = self.region.take() else {
+            return;
+        };
+        region.destroy();
+    }
+}
+
+impl Drop for InputRegion {
+    fn drop(&mut self) {
+        let Some(region) = self.region.take() else {
+            return;
+        };
+        region.destroy();
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct IcedXdgWindowSettings {
@@ -126,7 +196,7 @@ pub struct IcedNewMenuSettings {
 }
 
 /// region callback
-type RegionCB = Arc<dyn Fn(&WlRegion) + Send + Sync>;
+type RegionCB = Arc<dyn Fn(&mut InputRegion) + Send + Sync>;
 
 // Callback wrapper around dyn Fn(&WlRegion)
 #[derive(Clone)]
@@ -141,7 +211,7 @@ impl std::fmt::Debug for RegionActionCB {
 impl RegionActionCB {
     pub fn new<F>(callback: F) -> Self
     where
-        F: Fn(&WlRegion) + Send + Sync + 'static,
+        F: Fn(&mut InputRegion) + Send + Sync + 'static,
     {
         RegionActionCB(Arc::new(callback))
     }
@@ -150,7 +220,7 @@ impl RegionActionCB {
 /// NOTE: DO NOT USE THIS ENUM DIERCTLY
 /// use macro to_layer_message
 #[derive(Debug, Clone)]
-pub enum ExwlShellCustomAction {
+pub enum ExWlShellCustomAction {
     LayoutChange {
         anchor: Anchor,
         size: LayerSize,
@@ -199,10 +269,10 @@ pub enum ExwlShellCustomAction {
 /// Please do not use this struct directly
 /// Use macro to_layer_message instead
 #[derive(Debug, Clone)]
-pub struct ExwlShellCustomActionWithId(pub Option<IcedId>, pub ExwlShellCustomAction);
+pub struct ExWlShellCustomActionWithId(pub Option<IcedId>, pub ExWlShellCustomAction);
 
-impl ExwlShellCustomActionWithId {
-    pub fn new(id: Option<IcedId>, action: ExwlShellCustomAction) -> Self {
+impl ExWlShellCustomActionWithId {
+    pub fn new(id: Option<IcedId>, action: ExWlShellCustomAction) -> Self {
         Self(id, action)
     }
 }

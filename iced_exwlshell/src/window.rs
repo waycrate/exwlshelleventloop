@@ -1,28 +1,24 @@
-use crate::ExWlSettings;
 use crate::redraw::{Policy, Targets};
 use crate::reexport::{PopupAnchor, PopupConstraintAdjustment};
 use crate::{
     DefaultStyle,
-    actions::{ExwlShellCustomActionWithId, IcedNewPopupSettings},
+    actions::{ExWlShellCustomActionWithId, IcedNewPopupSettings},
     ime_preedit::ImeState,
     settings::VirtualKeyboardSettings,
     user_interface::{Input, UserInterfaces},
     window::window_manager::WindowManager,
 };
+use crate::{ExWlSettings, InputRegion};
 use crate::{
-    actions::ExwlShellCustomAction, clipboard::ExwlShellClipboard, conversion, error::Error,
+    actions::ExWlShellCustomAction, clipboard::ExWlShellClipboard, conversion, error::Error,
 };
-use crate::{
-    event::{IcedWlShellEvent, WindowEvent as ExwlShellWindowEvent},
-    gesture,
-    proxy::IcedProxy,
-};
+use crate::{event::WindowEvent as ExWlShellWindowEvent, gesture, proxy::IcedProxy};
 use exwlshellev::{
     DisplayWrapper, ExWlGlobalShellState, ExWlShellEvent, NewPopUpSettings,
     PopUpRepositionSettings, PopupPlacement, RefreshRequest, WindowWrapper,
     id::Id as ExWlShellId,
     reexport::{
-        wayland_client::{ButtonState, WEnum, WlCompositor, WlRegion},
+        wayland_client::{ButtonState, WEnum},
         zwp_virtual_keyboard_v1,
     },
 };
@@ -105,7 +101,7 @@ pub fn run<P>(
 where
     P: IcedProgram + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
 {
     let settings = program.settings();
 
@@ -121,7 +117,7 @@ where
     where
         P: IcedProgram + 'static,
         P::Theme: DefaultStyle,
-        P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+        P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
     {
         context_state: ContextState<
             Context<
@@ -130,8 +126,8 @@ where
                 <P::Renderer as iced_graphics::compositor::Default>::Compositor,
             >,
         >,
-        waiting_shell_events: VecDeque<(exwlshellev::id::Id, IcedWlShellEvent)>,
-        waiting_broadcast_events: VecDeque<IcedWlShellEvent>,
+        waiting_shell_events: VecDeque<(exwlshellev::id::Id, ExWlShellWindowEvent)>,
+        waiting_broadcast_events: VecDeque<ExWlShellWindowEvent>,
         virtual_keyboard_support: Option<VirtualKeyboardSettings>,
     }
 
@@ -254,7 +250,7 @@ where
     where
         P: IcedProgram + 'static,
         P::Theme: DefaultStyle,
-        P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+        P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
     {
         fn on_refresh(
             &mut self,
@@ -281,14 +277,6 @@ where
                     def_returndata = InitRequest::RequestBind;
                 }
                 ExWlShellInitEvent::BindProvide(globals, qh) => {
-                    let wl_compositor = globals
-                        .bind::<WlCompositor, _, _>(qh, 1..=1, ())
-                        .expect("could not bind wl_compositor");
-                    self.waiting_broadcast_events
-                        .push_back(IcedWlShellEvent::UpdateInputRegion(
-                            wl_compositor.create_region(qh, ()),
-                        ));
-
                     if let Some(virtual_keyboard_setting) = self.virtual_keyboard_support.as_ref() {
                         let virtual_keyboard_manager = globals
                             .bind::<zwp_virtual_keyboard_v1::ZwpVirtualKeyboardManagerV1, _, _>(
@@ -341,9 +329,9 @@ where
             }
             let shell_id = ev_context.id();
             let state = ev_context.global_state_mut();
-            let window_event = ExwlShellWindowEvent::from_dispatch(event, state);
+            let window_event = ExWlShellWindowEvent::from_dispatch(event, state);
             self.waiting_shell_events
-                .push_back((shell_id, IcedWlShellEvent::Window(window_event)));
+                .push_back((shell_id, window_event));
 
             loop {
                 let mut need_continue = false;
@@ -365,9 +353,8 @@ where
             let ContextState::Context(context) = &mut self.context_state else {
                 unreachable!("context state is not initialized");
             };
-            let window_event = ExwlShellWindowEvent::from_dispatch_broadcast(event);
-            self.waiting_broadcast_events
-                .push_back(IcedWlShellEvent::Window(window_event));
+            let window_event = ExWlShellWindowEvent::from_dispatch_broadcast(event);
+            self.waiting_broadcast_events.push_back(window_event);
             loop {
                 let mut need_continue = false;
 
@@ -421,10 +408,9 @@ where
     compositor: Option<C>,
     window_manager: WindowManager<P, C>,
     cached_layer_dimensions: HashMap<IcedId, (Size<u32>, f32)>,
-    clipboard: ExwlShellClipboard,
-    wl_input_region: Option<WlRegion>,
+    clipboard: ExWlShellClipboard,
     user_interfaces: UserInterfaces<P>,
-    waiting_shell_actions: Vec<(Option<IcedId>, ExwlShellCustomAction)>,
+    waiting_shell_actions: Vec<(Option<IcedId>, ExWlShellCustomAction)>,
     action_serial: Option<u32>,
     pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
     iced_events: Vec<(IcedId, Input)>,
@@ -443,7 +429,7 @@ where
     C: Compositor<Renderer = P::Renderer> + 'static,
     E: Executor + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -471,8 +457,7 @@ where
             compositor: Default::default(),
             window_manager: WindowManager::new(),
             cached_layer_dimensions: HashMap::new(),
-            clipboard: ExwlShellClipboard::unconnected(),
-            wl_input_region: Default::default(),
+            clipboard: ExWlShellClipboard::unconnected(),
             user_interfaces: UserInterfaces::new(application),
             waiting_shell_actions: Default::default(),
             action_serial: None,
@@ -489,7 +474,7 @@ where
     pub fn lock(mut self, lock: bool) -> Self {
         if lock {
             self.waiting_shell_actions
-                .push((None, ExwlShellCustomAction::Lock));
+                .push((None, ExWlShellCustomAction::Lock));
         }
         self
     }
@@ -509,22 +494,22 @@ where
         // connect() avoids spawning the smithay-clipboard worker thread,
         // which otherwise runs an always-on wayland event loop (~0.4% CPU).
         self.clipboard = if crate::clipboard::is_disabled() {
-            ExwlShellClipboard::unconnected()
+            ExWlShellClipboard::unconnected()
         } else {
-            ExwlShellClipboard::connect(&window)
+            ExWlShellClipboard::connect(&window)
         };
     }
 
     fn remove_compositor(&mut self) {
         self.compositor = None;
-        self.clipboard = ExwlShellClipboard::unconnected();
+        self.clipboard = ExWlShellClipboard::unconnected();
     }
 
     fn handle_event(
         &mut self,
         ev: &mut ExWlGlobalShellState<IcedId>,
         shell_id: ExWlShellId,
-        shell_event: IcedWlShellEvent,
+        shell_event: ExWlShellWindowEvent,
     ) {
         tracing::debug!(
             "Handle layer shell event, layer_shell_id: {:?},  waiting actions: {}, messages: {}",
@@ -534,13 +519,8 @@ where
         );
 
         match shell_event {
-            IcedWlShellEvent::Window(ExwlShellWindowEvent::Closed) => {
-                self.handle_closed_event(ev, shell_id)
-            }
-            IcedWlShellEvent::Window(window_event) => {
-                self.handle_window_event(ev, shell_id, window_event)
-            }
-            _ => unreachable!(),
+            ExWlShellWindowEvent::Closed => self.handle_closed_event(ev, shell_id),
+            _ => self.handle_window_event(ev, shell_id, shell_event),
         }
     }
 
@@ -851,56 +831,51 @@ where
         }
     }
 
-    fn handle_broadcast(&mut self, shell_event: IcedWlShellEvent) {
+    fn handle_broadcast(&mut self, shell_event: ExWlShellWindowEvent) {
         match shell_event {
-            IcedWlShellEvent::Window(event) => match event {
-                ExwlShellWindowEvent::OutputAdded(info) => {
-                    self.shell_broadcast
-                        .send(shell::ShellEvent::OutputAdded(info));
-                }
-                ExwlShellWindowEvent::OutputUpdated(info) => {
-                    self.shell_broadcast
-                        .send(shell::ShellEvent::OutputUpdated(info));
-                }
-                ExwlShellWindowEvent::OutputRemoved(info) => {
-                    self.shell_broadcast
-                        .send(shell::ShellEvent::OutputRemoved(info.clone()));
-                }
-                ExwlShellWindowEvent::Locked => {
-                    self.shell_broadcast.send(shell::ShellEvent::Locked);
-                }
-                ExwlShellWindowEvent::LockDenied => {
-                    self.shell_broadcast.send(shell::ShellEvent::LockDenied);
-                }
-                ExwlShellWindowEvent::LockFinished => {
-                    self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
-                }
-                _ => {}
-            },
-            IcedWlShellEvent::UpdateInputRegion(region) => {
-                self.wl_input_region = Some(region);
+            ExWlShellWindowEvent::OutputAdded(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputAdded(info));
             }
+            ExWlShellWindowEvent::OutputUpdated(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputUpdated(info));
+            }
+            ExWlShellWindowEvent::OutputRemoved(info) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::OutputRemoved(info.clone()));
+            }
+            ExWlShellWindowEvent::Locked => {
+                self.shell_broadcast.send(shell::ShellEvent::Locked);
+            }
+            ExWlShellWindowEvent::LockDenied => {
+                self.shell_broadcast.send(shell::ShellEvent::LockDenied);
+            }
+            ExWlShellWindowEvent::LockFinished => {
+                self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
+            }
+            _ => {}
         }
     }
     fn handle_window_event(
         &mut self,
         ev: &ExWlGlobalShellState<IcedId>,
         shell_id: ExWlShellId,
-        event: ExwlShellWindowEvent,
+        event: ExWlShellWindowEvent,
     ) {
         let Some((iced_id, window)) = self.window_manager.get_mut_alias(shell_id) else {
             return;
         };
 
         match &event {
-            ExwlShellWindowEvent::OutputChanged(output) => {
+            ExWlShellWindowEvent::OutputChanged(output) => {
                 self.shell_broadcast
                     .send(shell::ShellEvent::WindowOutputChanged {
                         window: iced_id,
                         output: output.clone(),
                     });
             }
-            ExwlShellWindowEvent::CursorEnter { pointer, .. }
+            ExWlShellWindowEvent::CursorEnter { pointer, .. }
                 if window.mouse_interaction.is_none() =>
             {
                 ev.set_cursor(
@@ -918,7 +893,7 @@ where
         window
             .state
             .update(&event, self.user_interfaces.application());
-        if let ExwlShellWindowEvent::Scroll {
+        if let ExWlShellWindowEvent::Scroll {
             deltas,
             frame,
             stop,
@@ -935,7 +910,7 @@ where
                 self.iced_events
                     .push((iced_id, Input::Gesture(gesture, position)));
             }
-        } else if let ExwlShellWindowEvent::PointerGesture(gesture) = event {
+        } else if let ExWlShellWindowEvent::PointerGesture(gesture) = event {
             if self.gestures {
                 let gesture = gesture::Gesture::from_pointer(
                     gesture,
@@ -985,7 +960,7 @@ where
         &mut self,
         ev: &mut ExWlGlobalShellState<IcedId>,
         mut iced_id: Option<IcedId>,
-        action: ExwlShellCustomAction,
+        action: ExWlShellCustomAction,
     ) {
         let exshell_window;
         macro_rules! ref_mut_exwlshell_window {
@@ -1022,54 +997,52 @@ where
             return;
         }
         match action {
-            ExwlShellCustomAction::BlurOptionChange(blur_option) => {
+            ExWlShellCustomAction::BlurOptionChange(blur_option) => {
                 ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_blur_option(blur_option);
             }
-            ExwlShellCustomAction::LayoutChange { anchor, size } => {
+            ExWlShellCustomAction::LayoutChange { anchor, size } => {
                 ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_layout(anchor, size);
             }
-            ExwlShellCustomAction::LayerChange(layer) => {
+            ExWlShellCustomAction::LayerChange(layer) => {
                 ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_layer(layer);
             }
-            ExwlShellCustomAction::MarginChange(margin) => {
+            ExWlShellCustomAction::MarginChange(margin) => {
                 ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_margin(margin);
             }
-            ExwlShellCustomAction::ExclusiveZoneChange(zone_size) => {
+            ExWlShellCustomAction::ExclusiveZoneChange(zone_size) => {
                 ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_exclusive_zone(zone_size);
             }
-            ExwlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
+            ExWlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
                 ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 exshell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
-            ExwlShellCustomAction::SetInputRegion(set_region) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+            ExWlShellCustomAction::SetInputRegion(set_region) => {
+                let wl_compositor = ev.wl_compositor();
+                let qh = ev.qh();
+                let region = wl_compositor.create_region(qh, ());
                 let set_region = set_region.0;
-                let Some(region) = &self.wl_input_region else {
-                    tracing::warn!(
-                        "wl_input_region is not set, ignore SetInputRegion, window_id: {:?}",
-                        iced_id
-                    );
-                    return;
-                };
 
+                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
                 let window_size = exshell_window.physical_size();
                 let width: i32 = window_size.width as i32;
                 let height: i32 = window_size.height as i32;
 
                 region.subtract(0, 0, width, height);
-                set_region(region);
+                let mut input_region =
+                    InputRegion::new(region, window_size.width, window_size.height);
+                set_region(&mut input_region);
 
                 exshell_window
                     .get_wlsurface()
-                    .set_input_region(self.wl_input_region.as_ref());
+                    .set_input_region(input_region.region());
                 exshell_window.get_wlsurface().commit();
             }
-            ExwlShellCustomAction::VirtualKeyboardPressed { key } => {
+            ExWlShellCustomAction::VirtualKeyboardPressed { key } => {
                 use exwlshellev::reexport::wayland_client::KeyState;
                 let ky = ev.get_virtual_keyboard().unwrap();
                 let current_time = Instant::now();
@@ -1083,30 +1056,30 @@ where
                     key,
                 });
             }
-            ExwlShellCustomAction::NewLayerShell {
+            ExWlShellCustomAction::NewLayerShell {
                 settings,
                 id: iced_id,
             } => {
                 let _ = ev.create_layershell(settings, iced_id);
             }
-            ExwlShellCustomAction::Lock => {
+            ExWlShellCustomAction::Lock => {
                 ev.request_lock();
             }
-            ExwlShellCustomAction::UnLock => {
+            ExWlShellCustomAction::UnLock => {
                 ev.request_unlock();
             }
-            ExwlShellCustomAction::NewBaseWindow {
+            ExWlShellCustomAction::NewBaseWindow {
                 settings,
                 id: iced_id,
             } => {
                 ev.create_xdg_base_window(settings.into(), iced_id);
             }
-            ExwlShellCustomAction::RemoveWindow => {
+            ExWlShellCustomAction::RemoveWindow => {
                 if let Some(shell_id) = ex_shell_id {
                     ev.request_close(shell_id)
                 }
             }
-            ExwlShellCustomAction::NewPopUp {
+            ExWlShellCustomAction::NewPopUp {
                 settings,
                 id: iced_id,
             } => {
@@ -1138,7 +1111,7 @@ where
 
                 let _ = ev.create_popup(popup_settings, iced_id);
             }
-            ExwlShellCustomAction::PopUpReposition { settings } => {
+            ExWlShellCustomAction::PopUpReposition { settings } => {
                 let IcedNewPopupSettings {
                     size,
                     placement,
@@ -1161,7 +1134,7 @@ where
                     ex_shell_id,
                 );
             }
-            ExwlShellCustomAction::NewMenu {
+            ExWlShellCustomAction::NewMenu {
                 settings: menu_setting,
                 id: iced_id,
             } => {
@@ -1192,13 +1165,13 @@ where
                 };
                 let _ = ev.create_popup(popup_settings, Some(iced_id));
             }
-            ExwlShellCustomAction::NewInputPanel {
+            ExWlShellCustomAction::NewInputPanel {
                 settings,
                 id: iced_id,
             } => {
                 let _ = ev.create_input_panel(settings, iced_id);
             }
-            ExwlShellCustomAction::ForgetLastOutput => {
+            ExWlShellCustomAction::ForgetLastOutput => {
                 ev.forget_last_output();
             }
         }
@@ -1419,10 +1392,10 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
     application: &mut Instance<P>,
     runtime: &mut MultiRuntime<E, P::Message>,
     messages: &mut Vec<P::Message>,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExWlShellCustomAction)>,
 ) where
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
 {
     for message in messages.drain(..) {
         // NOTE: avoid something like
@@ -1432,7 +1405,7 @@ pub(crate) fn update<P: IcedProgram, E: Executor>(
         // Now if it is a unique command, it will be operated immediately
         let message = match message.try_into() {
             Ok(action) => {
-                let ExwlShellCustomActionWithId(id, action) = action;
+                let ExWlShellCustomActionWithId(id, action) = action;
                 waiting_layer_shell_actions.push((id, action));
                 continue;
             }
@@ -1480,17 +1453,17 @@ fn apply_window_control<P, C>(
 /// Check whether window `id` has been requested and is still waiting to register in `window_manager`.
 fn window_in_flight(
     id: IcedId,
-    waiting_layer_shell_actions: &[(Option<IcedId>, ExwlShellCustomAction)],
+    waiting_layer_shell_actions: &[(Option<IcedId>, ExWlShellCustomAction)],
     ev: &ExWlGlobalShellState<IcedId>,
 ) -> bool {
     waiting_layer_shell_actions.iter().any(|(_, action)| {
         matches!(
             action,
-            ExwlShellCustomAction::NewBaseWindow { id: new_id, .. }
-                | ExwlShellCustomAction::NewLayerShell { id: new_id, .. }
-                | ExwlShellCustomAction::NewPopUp { id: new_id, .. }
-                | ExwlShellCustomAction::NewMenu { id: new_id, .. }
-                | ExwlShellCustomAction::NewInputPanel { id: new_id, .. }
+            ExWlShellCustomAction::NewBaseWindow { id: new_id, .. }
+                | ExWlShellCustomAction::NewLayerShell { id: new_id, .. }
+                | ExWlShellCustomAction::NewPopUp { id: new_id, .. }
+                | ExWlShellCustomAction::NewMenu { id: new_id, .. }
+                | ExWlShellCustomAction::NewInputPanel { id: new_id, .. }
                 if *new_id == id
         )
     }) || ev
@@ -1504,8 +1477,8 @@ pub(crate) fn run_action<P, C, E: Executor>(
     compositor: &mut Option<C>,
     event: Action<P::Message>,
     messages: &mut Vec<P::Message>,
-    clipboard: &mut ExwlShellClipboard,
-    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExwlShellCustomAction)>,
+    clipboard: &mut ExWlShellClipboard,
+    waiting_layer_shell_actions: &mut Vec<(Option<iced_core::window::Id>, ExWlShellCustomAction)>,
     should_exit: &mut bool,
     window_manager: &mut WindowManager<P, C>,
     system_theme: &mut iced_core::theme::Mode,
@@ -1517,7 +1490,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     P: IcedProgram + 'static,
     C: Compositor<Renderer = P::Renderer> + 'static,
     P::Theme: DefaultStyle,
-    P::Message: 'static + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+    P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
 {
     use iced_core::widget::operation;
     use iced_runtime::Action;
@@ -1527,7 +1500,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
     match event {
         Action::Output(stream) => match stream.try_into() {
             Ok(action) => {
-                let ExwlShellCustomActionWithId(id, action) = action;
+                let ExWlShellCustomActionWithId(id, action) = action;
                 waiting_layer_shell_actions.push((id, action));
             }
             Err(stream) => {
@@ -1577,7 +1550,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
         }
         Action::Window(action) => match action {
             WindowAction::Close(id) => {
-                waiting_layer_shell_actions.push((Some(id), ExwlShellCustomAction::RemoveWindow));
+                waiting_layer_shell_actions.push((Some(id), ExWlShellCustomAction::RemoveWindow));
             }
             WindowAction::GetOldest(channel) => {
                 let _ = channel.send(window_manager.first_window().map(|(id, _)| *id));
@@ -1718,7 +1691,7 @@ pub(crate) fn run_action<P, C, E: Executor>(
 
                 for (_id, window) in window_manager.iter_mut() {
                     window.state.update(
-                        &ExwlShellWindowEvent::ThemeChanged(mode),
+                        &ExWlShellWindowEvent::ThemeChanged(mode),
                         user_interfaces.application(),
                     );
                 }

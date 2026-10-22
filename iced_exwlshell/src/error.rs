@@ -28,3 +28,9 @@ impl From<iced_graphics::Error> for Error {
         Error::GraphicsCreationFailed(error)
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum RegionError {
+    #[error("Region Deleted")]
+    RegionDeleted,
+}

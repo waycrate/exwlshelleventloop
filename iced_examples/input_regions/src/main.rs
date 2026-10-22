@@ -49,10 +49,10 @@ impl InputRegionExample {
                     move |region| {
                         if val {
                             // Only the button
-                            region.add(0, 0, 400, 70);
+                            let _ = region.add(0, 0, 400, 70);
                         } else {
                             // Entire Screen
-                            region.add(0, 0, 400, 400);
+                            let _ = region.add(0, 0, 400, 400);
                         }
                     },
                 )))

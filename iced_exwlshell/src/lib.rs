@@ -4,7 +4,7 @@ pub mod actions;
 pub mod build_pattern;
 mod clipboard;
 mod conversion;
-mod error;
+pub mod error;
 mod event;
 pub mod gesture;
 mod proxy;
@@ -59,6 +59,8 @@ pub type NewShellHook<Message> = Box<dyn Fn(shell::ShellInfo) -> Option<Message>
 pub fn disable_clipboard() {
     clipboard::set_disabled();
 }
+
+pub use actions::InputRegion;
 
 pub type Result = std::result::Result<(), error::Error>;
 use iced_core::theme::Style as Appearance;

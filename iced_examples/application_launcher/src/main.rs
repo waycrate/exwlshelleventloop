@@ -4,7 +4,7 @@ use applications::{App, all_apps};
 use iced::widget::operation::focus;
 use iced::widget::{column, scrollable, text_input};
 use iced::{Element, Event, Length, Task as Command, event};
-use iced_exwlshell::actions::ExwlShellCustomActionWithId;
+use iced_exwlshell::actions::ExWlShellCustomActionWithId;
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::{Anchor, KeyboardInteractivity, LayerSize};
 use iced_exwlshell::settings::LayerShellSettings;
@@ -33,9 +33,9 @@ fn main() -> Result<(), iced_exwlshell::Error> {
     Ok(())
 }
 
-impl TryInto<ExwlShellCustomActionWithId> for Message {
+impl TryInto<ExWlShellCustomActionWithId> for Message {
     type Error = Self;
-    fn try_into(self) -> Result<ExwlShellCustomActionWithId, Self::Error> {
+    fn try_into(self) -> Result<ExWlShellCustomActionWithId, Self::Error> {
         Err(self)
     }
 }

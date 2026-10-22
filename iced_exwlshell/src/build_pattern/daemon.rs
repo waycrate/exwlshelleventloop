@@ -6,7 +6,7 @@ use iced_core::Element;
 use iced_core::Font;
 use iced_runtime::Task;
 
-use crate::actions::ExwlShellCustomActionWithId;
+use crate::actions::ExWlShellCustomActionWithId;
 
 use crate::DefaultStyle;
 use crate::build_pattern::ProgramWrapper;
@@ -169,7 +169,7 @@ pub fn daemon<State, Message, Theme, Renderer>(
 where
     State: 'static,
     Message:
-        'static + TryInto<ExwlShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
+        'static + TryInto<ExWlShellCustomActionWithId, Error = Message> + Send + std::fmt::Debug,
     Theme: DefaultStyle,
     Renderer: iced_program::Renderer,
 {
@@ -187,7 +187,7 @@ where
         for Instance<State, Message, Theme, Renderer, UpdateFn, ViewFn, BootFn>
     where
         Message: 'static
-            + TryInto<ExwlShellCustomActionWithId, Error = Message>
+            + TryInto<ExWlShellCustomActionWithId, Error = Message>
             + Send
             + std::fmt::Debug,
         Theme: DefaultStyle,
@@ -670,7 +670,7 @@ impl<P: Program> Daemon<P> {
             + iced_program::message::MaybeClone
             + Send
             + 'static
-            + TryInto<ExwlShellCustomActionWithId, Error = P::Message>,
+            + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
     {
         let settings = self.settings;
         let wl_settings = self.wl_settings;
