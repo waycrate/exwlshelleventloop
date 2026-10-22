@@ -275,12 +275,13 @@ pub(crate) enum DispatchMessage {
     OutputUpdated(ExWlOutputInfo),
     OutputRemoved(ExWlOutputInfo),
     MouseButton {
+        pointer: WlPointer,
         state: WEnum<ButtonState>,
         serial: u32,
         button: u32,
         time: u32,
     },
-    MouseLeave,
+    MouseLeave(WlPointer),
     MouseEnter {
         pointer: WlPointer,
         serial: u32,
@@ -288,6 +289,7 @@ pub(crate) enum DispatchMessage {
         surface_y: f64,
     },
     MouseMotion {
+        pointer: WlPointer,
         time: u32,
         surface_x: f64,
         surface_y: f64,
@@ -358,13 +360,14 @@ pub(crate) enum DispatchMessage {
 pub enum ExWlShellEvent {
     /// forward the event of wayland-mouse
     MouseButton {
+        pointer: WlPointer,
         state: WEnum<ButtonState>,
         serial: u32,
         button: u32,
         time: u32,
     },
     /// Mouse leave the surface
-    MouseLeave,
+    MouseLeave(WlPointer),
     /// forward the event of wayland-mouse
     MouseEnter {
         pointer: WlPointer,
@@ -374,6 +377,7 @@ pub enum ExWlShellEvent {
     },
     /// forward the event of wayland-mouse
     MouseMotion {
+        pointer: WlPointer,
         time: u32,
         surface_x: f64,
         surface_y: f64,
@@ -512,13 +516,15 @@ impl From<DispatchMessage> for ExWlShellEvent {
                 serial,
                 button,
                 time,
+                pointer,
             } => ExWlShellEvent::MouseButton {
                 state,
                 serial,
                 button,
                 time,
+                pointer,
             },
-            DispatchMessage::MouseLeave => ExWlShellEvent::MouseLeave,
+            DispatchMessage::MouseLeave(pointer) => ExWlShellEvent::MouseLeave(pointer),
             DispatchMessage::MouseEnter {
                 pointer,
                 serial,
@@ -534,10 +540,12 @@ impl From<DispatchMessage> for ExWlShellEvent {
                 time,
                 surface_x,
                 surface_y,
+                pointer,
             } => ExWlShellEvent::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
+                pointer,
             },
             DispatchMessage::TouchDown {
                 serial,

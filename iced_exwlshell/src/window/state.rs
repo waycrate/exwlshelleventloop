@@ -174,11 +174,11 @@ where
 
     pub fn update(&mut self, event: &WindowEvent, application: &Instance<P>) {
         match event {
-            WindowEvent::CursorLeft => {
+            WindowEvent::CursorLeft(_) => {
                 self.mouse_position = None;
             }
-            WindowEvent::CursorMoved { x, y }
-            | WindowEvent::CursorEnter { x, y }
+            WindowEvent::CursorMoved { x, y, .. }
+            | WindowEvent::CursorEnter { x, y, .. }
             | WindowEvent::TouchMotion { x, y, .. }
             | WindowEvent::TouchDown { x, y, .. }
             | WindowEvent::TouchUp { x, y, .. } => {

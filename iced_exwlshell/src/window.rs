@@ -900,18 +900,15 @@ where
                         output: output.clone(),
                     });
             }
-            ExwlShellWindowEvent::CursorEnter { .. } if window.mouse_interaction.is_none() => {
-                for pointer in ev.get_pointers() {
-                    ev.set_cursor(
-                        exwlshellev::Cursor::Shape(exwlshellev::CursorShape::Default),
-                        pointer,
-                    );
-                }
+            ExwlShellWindowEvent::CursorEnter { pointer, .. }
+                if window.mouse_interaction.is_none() =>
+            {
+                ev.set_cursor(
+                    exwlshellev::Cursor::Shape(exwlshellev::CursorShape::Default),
+                    pointer,
+                );
                 use iced_core::mouse::Interaction;
                 window.mouse_interaction = Some(Interaction::None);
-            }
-            ExwlShellWindowEvent::CursorLeft => {
-                window.mouse_interaction = None;
             }
             _ => {}
         }
@@ -1406,7 +1403,8 @@ where
                 if Some(mouse_interaction) != window.mouse_interaction
                     && ev.is_mouse_surface(window.id)
                 {
-                    for pointer in ev.get_pointers() {
+                    let state = ev.shell_state_uncheck(window.id);
+                    if let Some(pointer) = state.focused_pointer() {
                         ev.set_cursor(conversion::mouse_interaction(mouse_interaction), pointer);
                     }
                     window.mouse_interaction = Some(mouse_interaction);

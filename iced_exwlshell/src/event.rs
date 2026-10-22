@@ -1,5 +1,7 @@
 use exwlshellev::keyboard::ModifiersState;
-use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, WlRegion};
+use exwlshellev::reexport::wayland_client::{
+    ButtonState, KeyState, WEnum, WlRegion, wl_pointer::WlPointer,
+};
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
 use exwlshellev::{ExWlGlobalShellState, ExWlShellBroadcast, ExWlShellEvent};
 use iced_core::mouse;
@@ -50,12 +52,15 @@ pub enum WindowEvent {
     CursorEnter {
         x: f64,
         y: f64,
+        pointer: WlPointer,
     },
     CursorMoved {
         x: f64,
         y: f64,
+
+        pointer: WlPointer,
     },
-    CursorLeft,
+    CursorLeft(WlPointer),
     MouseInput(IcedButtonState),
     Keyboard {
         state: IcedKeyState,
@@ -121,14 +126,16 @@ impl WindowEvent {
             ExWlShellEvent::MouseEnter {
                 surface_x: x,
                 surface_y: y,
+                pointer,
                 ..
-            } => WindowEvent::CursorEnter { x, y },
+            } => WindowEvent::CursorEnter { x, y, pointer },
             ExWlShellEvent::MouseMotion {
                 surface_x: x,
                 surface_y: y,
+                pointer,
                 ..
-            } => WindowEvent::CursorMoved { x, y },
-            ExWlShellEvent::MouseLeave => WindowEvent::CursorLeft,
+            } => WindowEvent::CursorMoved { x, y, pointer },
+            ExWlShellEvent::MouseLeave(pointer) => WindowEvent::CursorLeft(pointer),
             ExWlShellEvent::MouseButton { state, button, .. } => {
                 let btn = from_u32_to_icedmouse(button);
                 match state {

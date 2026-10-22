@@ -639,11 +639,16 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                             serial,
                             button,
                             time,
+                            pointer: pointer.clone(),
                         },
                     );
                 }
             }
             wl_pointer::Event::Leave { surface, .. } => {
+                let Some(shell) = state.get_shell_from_surface(&surface) else {
+                    return;
+                };
+                shell.focused_pointer = None;
                 let Some((fsurface, Some(surface_id))) = state.active_surfaces.get(&None).cloned()
                 else {
                     return;
@@ -656,7 +661,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
 
                 state
                     .pointer_frame(pointer)
-                    .push(surface_id, DispatchMessage::MouseLeave);
+                    .push(surface_id, DispatchMessage::MouseLeave(pointer.clone()));
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -664,10 +669,12 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                 surface_x,
                 surface_y,
             } => {
-                let Some(surface_id) = state.get_id_from_surface(&surface) else {
+                let Some(shell) = state.get_shell_from_surface(&surface) else {
                     return;
                 };
+                let surface_id = shell.id();
 
+                shell.focused_pointer = Some(pointer.clone());
                 state
                     .active_surfaces
                     .insert(None, (surface.clone(), Some(surface_id)));
@@ -696,6 +703,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                         time,
                         surface_x,
                         surface_y,
+                        pointer: pointer.clone(),
                     },
                 );
             }

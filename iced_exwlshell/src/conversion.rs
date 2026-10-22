@@ -32,8 +32,8 @@ pub fn window_event(
     modifiers: ModifiersState,
 ) -> Option<IcedEvent> {
     match shellevent {
-        ExWlShellEvent::CursorLeft => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
-        ExWlShellEvent::CursorMoved { x, y } => {
+        ExWlShellEvent::CursorLeft(_) => Some(IcedEvent::Mouse(mouse::Event::CursorLeft)),
+        ExWlShellEvent::CursorMoved { x, y, .. } => {
             let (x, y) = scale_down((x, y), application_scale_factor);
             Some(IcedEvent::Mouse(mouse::Event::CursorMoved {
                 position: iced_core::Point {

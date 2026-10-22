@@ -493,6 +493,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 window: WindowWrapper::new(id, display, wl_surface, shell.top_level()),
                 wl_compositor,
                 shell,
+                focused_pointer: None,
                 parent: None,
                 physical_size: PhysicalSize {
                     width: 0,
@@ -601,6 +602,7 @@ struct WindowStateUnitRequestFlag {
 pub struct ExWlShellState<T> {
     id: id::Id,
     qh: QueueHandle<ExWlGlobalShellState<T>>,
+    focused_pointer: Option<WlPointer>,
     /// Shared because the renderer holds this surface too. Wayland proxies are
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: WindowWrapper,
@@ -809,6 +811,10 @@ impl<T> ExWlShellState<T> {
     /// get the wl surface from WindowState
     pub fn get_wlsurface(&self) -> &WlSurface {
         &self.window.wl_surface
+    }
+
+    pub fn focused_pointer(&self) -> Option<&WlPointer> {
+        self.focused_pointer.as_ref()
     }
 
     /// output this surface is displayed on from compositor through `wl_surface::enter`
@@ -1920,6 +1926,12 @@ impl<T> ExWlGlobalShellState<T> {
             .get(&None)
             .and_then(|(_, id)| *id)
             .filter(|id| self.shell_state(*id).is_some())
+    }
+
+    fn get_shell_from_surface(&mut self, surface: &WlSurface) -> Option<&mut ExWlShellState<T>> {
+        self.shells
+            .iter_mut()
+            .find(|shell| &shell.window.wl_surface == surface)
     }
 
     fn get_id_from_surface(&self, surface: &WlSurface) -> Option<id::Id> {
@@ -3351,7 +3363,7 @@ struct CursorUpdateContext<T> {
 }
 
 impl<T: 'static> ExWlGlobalShellState<T> {
-    pub fn set_cursor(&self, cursor: Cursor, pointer: WlPointer) {
+    pub fn set_cursor(&self, cursor: Cursor, pointer: &WlPointer) {
         let Some(serial) = self.enter_serial else {
             return;
         };
@@ -3362,7 +3374,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
 fn set_cursor<T: 'static>(
     context: &CursorUpdateContext<T>,
     cursor: Cursor,
-    pointer: WlPointer,
+    pointer: &WlPointer,
     serial: u32,
 ) {
     let theme_name = match cursor {

@@ -491,7 +491,7 @@ dependencies = [
  "serde",
  "tracing",
  "xdg",
- "zbus 5.19.0",
+ "zbus 6.0.0",
 ]
 
 [[package]]
