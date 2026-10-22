@@ -885,6 +885,9 @@ where
                 use iced_core::mouse::Interaction;
                 window.mouse_interaction = Some(Interaction::None);
             }
+            ExWlShellWindowEvent::CursorLeft(_) => {
+                window.mouse_interaction = None;
+            }
             _ => {}
         }
         // In previous implementation, event without layer_shell_id won't call `update` here, but
