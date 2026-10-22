@@ -26,7 +26,7 @@ where
     pub renderer: P::Renderer,
     pub surface: C::Surface,
     pub state: State<P>,
-    pub mouse_interaction: mouse::Interaction,
+    pub mouse_interaction: Option<mouse::Interaction>,
     preedit: Option<Preedit<P::Renderer>>,
     ime_state: Option<(iced_core::Rectangle, input_method::Purpose)>,
 }
@@ -104,7 +104,7 @@ where
                 renderer,
                 surface,
                 state,
-                mouse_interaction: mouse::Interaction::Idle,
+                mouse_interaction: None,
                 preedit: None,
                 ime_state: None,
             },
