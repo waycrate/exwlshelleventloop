@@ -538,7 +538,7 @@ where
                 self.handle_closed_event(ev, shell_id)
             }
             IcedWlShellEvent::Window(window_event) => {
-                self.handle_window_event(shell_id, window_event)
+                self.handle_window_event(ev, shell_id, window_event)
             }
             _ => unreachable!(),
         }
@@ -882,17 +882,36 @@ where
             }
         }
     }
-    fn handle_window_event(&mut self, shell_id: ExWlShellId, event: ExwlShellWindowEvent) {
+    fn handle_window_event(
+        &mut self,
+        ev: &ExWlGlobalShellState<IcedId>,
+        shell_id: ExWlShellId,
+        event: ExwlShellWindowEvent,
+    ) {
         let Some((iced_id, window)) = self.window_manager.get_mut_alias(shell_id) else {
             return;
         };
 
-        if let ExwlShellWindowEvent::OutputChanged(output) = &event {
-            self.shell_broadcast
-                .send(shell::ShellEvent::WindowOutputChanged {
-                    window: iced_id,
-                    output: output.clone(),
-                });
+        match &event {
+            ExwlShellWindowEvent::OutputChanged(output) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::WindowOutputChanged {
+                        window: iced_id,
+                        output: output.clone(),
+                    });
+            }
+            ExwlShellWindowEvent::CursorEnter { .. } if window.mouse_interaction.is_none() => {
+                for pointer in ev.get_pointers() {
+                    ev.set_cursor(
+                        exwlshellev::Cursor::Shape(exwlshellev::CursorShape::Default),
+                        pointer,
+                    );
+                }
+            }
+            ExwlShellWindowEvent::CursorLeft => {
+                window.mouse_interaction = None;
+            }
+            _ => {}
         }
         // In previous implementation, event without layer_shell_id won't call `update` here, but
         // will broadcast to the application. I'm not sure why, but I think it is
@@ -1382,11 +1401,13 @@ where
                     }
                 }
 
-                if mouse_interaction != window.mouse_interaction && ev.is_mouse_surface(window.id) {
+                if Some(mouse_interaction) != window.mouse_interaction
+                    && ev.is_mouse_surface(window.id)
+                {
                     for pointer in ev.get_pointers() {
                         ev.set_cursor(conversion::mouse_interaction(mouse_interaction), pointer);
                     }
-                    window.mouse_interaction = mouse_interaction;
+                    window.mouse_interaction = Some(mouse_interaction);
                 }
                 false
             }
