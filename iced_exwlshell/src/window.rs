@@ -1404,7 +1404,7 @@ where
                     && ev.is_mouse_surface(window.id)
                 {
                     let state = ev.shell_state_uncheck(window.id);
-                    if let Some(pointer) = state.focused_pointer() {
+                    for pointer in state.focused_pointers() {
                         ev.set_cursor(conversion::mouse_interaction(mouse_interaction), pointer);
                     }
                     window.mouse_interaction = Some(mouse_interaction);

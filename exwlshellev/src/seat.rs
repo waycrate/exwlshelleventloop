@@ -530,7 +530,7 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for ExWlGlobalShellState<T> {
                 ))
             }
             wl_touch::Event::Cancel => {
-                let mut mouse_surface = None;
+                let mut touch_surface = None;
                 for (k, v) in state.active_surfaces.drain() {
                     if let Some(id) = k
                         && let Some(surface_id) = v.1
@@ -542,11 +542,11 @@ impl<T> Dispatch<wl_touch::WlTouch, ()> for ExWlGlobalShellState<T> {
                         ));
                     } else {
                         // keep the surface of mouse.
-                        mouse_surface = Some(v);
+                        touch_surface = Some(v);
                     }
                 }
-                if let Some(mouse_surface) = mouse_surface {
-                    state.active_surfaces.insert(None, mouse_surface);
+                if let Some(touch_surface) = touch_surface {
+                    state.active_surfaces.insert(None, touch_surface);
                 }
             }
             wl_touch::Event::Up { serial, time, id } => {
@@ -631,9 +631,10 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                 if let Some(mouse_surface) = mouse_surface.cloned() {
                     state.update_active_output(&mouse_surface);
                 }
-                if let Some(surface_id) = surface_id {
+
+                if let Some(id) = state.get_shell_id_from_pointer(pointer) {
                     state.pointer_frame(pointer).push(
-                        surface_id,
+                        id,
                         DispatchMessage::MouseButton {
                             state: btnstate,
                             serial,
@@ -648,7 +649,9 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                 let Some(shell) = state.get_shell_from_surface(&surface) else {
                     return;
                 };
-                shell.focused_pointer = None;
+                shell
+                    .focused_pointers
+                    .retain(|fpointer| fpointer != pointer);
                 let Some((fsurface, Some(surface_id))) = state.active_surfaces.get(&None).cloned()
                 else {
                     return;
@@ -674,7 +677,7 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                 };
                 let surface_id = shell.id();
 
-                shell.focused_pointer = Some(pointer.clone());
+                shell.focused_pointers.push(pointer.clone());
                 state
                     .active_surfaces
                     .insert(None, (surface.clone(), Some(surface_id)));
@@ -694,18 +697,17 @@ impl<T> Dispatch<wl_pointer::WlPointer, ()> for ExWlGlobalShellState<T> {
                 surface_x,
                 surface_y,
             } => {
-                let Some(surface_id) = surface_id else {
-                    return;
-                };
-                state.pointer_frame(pointer).push(
-                    surface_id,
-                    DispatchMessage::MouseMotion {
-                        time,
-                        surface_x,
-                        surface_y,
-                        pointer: pointer.clone(),
-                    },
-                );
+                if let Some(id) = state.get_shell_id_from_pointer(pointer) {
+                    state.pointer_frame(pointer).push(
+                        id,
+                        DispatchMessage::MouseMotion {
+                            time,
+                            surface_x,
+                            surface_y,
+                            pointer: pointer.clone(),
+                        },
+                    );
+                }
             }
             _ => {
                 // TODO: not now

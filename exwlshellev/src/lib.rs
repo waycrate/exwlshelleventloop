@@ -81,12 +81,13 @@
 //!         let state = context.global_state_mut();
 //!         match event {
 //!             ExWlShellEvent::MouseEnter { pointer, .. } => {
-//!                 state.set_cursor(Cursor::Shape(CursorShape::Crosshair), pointer)
+//!                 state.set_cursor(Cursor::Shape(CursorShape::Crosshair), &pointer)
 //!             }
 //!             ExWlShellEvent::MouseMotion {
 //!                 time,
 //!                 surface_x,
 //!                 surface_y,
+//!                 ..
 //!             } => {
 //!                 println!("{time}, {surface_x}, {surface_y}");
 //!             }
@@ -493,7 +494,7 @@ impl<T> WindowStateUnitBuilder<T> {
                 window: WindowWrapper::new(id, display, wl_surface, shell.top_level()),
                 wl_compositor,
                 shell,
-                focused_pointer: None,
+                focused_pointers: vec![],
                 parent: None,
                 physical_size: PhysicalSize {
                     width: 0,
@@ -602,7 +603,7 @@ struct WindowStateUnitRequestFlag {
 pub struct ExWlShellState<T> {
     id: id::Id,
     qh: QueueHandle<ExWlGlobalShellState<T>>,
-    focused_pointer: Option<WlPointer>,
+    focused_pointers: Vec<WlPointer>,
     /// Shared because the renderer holds this surface too. Wayland proxies are
     /// not refcounted, so destroying it here would leave the renderer a dead one.
     window: WindowWrapper,
@@ -813,8 +814,8 @@ impl<T> ExWlShellState<T> {
         &self.window.wl_surface
     }
 
-    pub fn focused_pointer(&self) -> Option<&WlPointer> {
-        self.focused_pointer.as_ref()
+    pub fn focused_pointers(&self) -> std::slice::Iter<'_, WlPointer> {
+        self.focused_pointers.iter()
     }
 
     /// output this surface is displayed on from compositor through `wl_surface::enter`
@@ -1941,11 +1942,18 @@ impl<T> ExWlGlobalShellState<T> {
             .map(|unit| unit.id())
     }
 
+    // NOTE: since one cursor will only focus on one surface
+    // so only one result is fine
+    fn get_shell_id_from_pointer(&self, pointer: &WlPointer) -> Option<id::Id> {
+        self.shells
+            .iter()
+            .find(|shell| shell.focused_pointers.contains(pointer))
+            .map(|shell| shell.id())
+    }
+
     pub fn is_mouse_surface(&self, surface_id: id::Id) -> bool {
-        self.active_surfaces
-            .get(&None)
-            .filter(|(_, id)| *id == Some(surface_id))
-            .is_some()
+        self.shell_state(surface_id)
+            .is_some_and(|shell| !shell.focused_pointers.is_empty())
     }
 
     /// update output window is on, for `OutputOption::LastOutput`

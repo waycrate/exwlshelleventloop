@@ -105,12 +105,13 @@ impl ExWlShellHandler for Window {
         let state = context.global_state_mut();
         match event {
             ExWlShellEvent::MouseEnter { pointer, .. } => {
-                state.set_cursor(Cursor::Shape(CursorShape::Crosshair), pointer)
+                state.set_cursor(Cursor::Shape(CursorShape::Crosshair), &pointer)
             }
             ExWlShellEvent::MouseMotion {
                 time,
                 surface_x,
                 surface_y,
+                ..
             } => {
                 println!("{time}, {surface_x}, {surface_y}");
             }
