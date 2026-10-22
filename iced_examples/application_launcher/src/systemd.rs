@@ -1,9 +1,6 @@
 use std::sync::OnceLock;
 
-use zbus::{
-    proxy,
-    OwnedObjectPath, OwnedVariant, Type, Variant,
-};
+use zbus::{OwnedObjectPath, OwnedVariant, Type, Variant, proxy};
 
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
