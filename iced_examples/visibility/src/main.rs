@@ -8,7 +8,7 @@ use iced::widget::{button, column, container, row, text, text_input};
 use iced::{
     Border, Center, Color, Element, Event, Fill, Length, Subscription, Task, Theme, event, keyboard,
 };
-use iced_exwlshell::actions::ActionCallback;
+use iced_exwlshell::actions::RegionActionCB;
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::{Anchor, BlurOption, KeyboardInteractivity, Layer, LayerSize};
 use iced_exwlshell::settings::LayerShellSettings;
@@ -102,8 +102,8 @@ fn subscription(_: &State) -> Subscription<Message> {
     ])
 }
 
-fn input_region(visible: bool) -> ActionCallback {
-    ActionCallback::new(move |region| {
+fn input_region(visible: bool) -> RegionActionCB {
+    RegionActionCB::new(move |region| {
         if visible {
             let radius = 22_i32.min(WIDTH / 2).min(HEIGHT / 2);
             for y in 0..HEIGHT {

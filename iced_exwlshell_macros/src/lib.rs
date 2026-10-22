@@ -38,7 +38,7 @@ pub fn to_exwlshell_message(
             /// Action, Anchor and size change
             LayoutChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize},
             /// Action, input region
-            SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },
+            SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::RegionActionCB },
             /// Action, layer change
             LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
             /// Action, margin change Margin: top, left, bottom, right
@@ -242,7 +242,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
         true => {
             let additional_variants = quote! {
                 LayoutChange{id: iced_exwlshell::reexport::IcedId, anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize},
-                SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::ActionCallback },
+                SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::RegionActionCB },
                 LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
                 /// Margin: top, left, bottom, right
                 MarginChange{id: iced_exwlshell::reexport::IcedId, margin: iced_exwlshell::reexport::Margin},
@@ -335,7 +335,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
         false => {
             let additional_variants = quote! {
                 LayoutChange { anchor: iced_exwlshell::reexport::Anchor, size: iced_exwlshell::reexport::LayerSize },
-                SetInputRegion(iced_exwlshell::actions::ActionCallback),
+                SetInputRegion(iced_exwlshell::actions::RegionActionCB),
                 LayerChange(iced_exwlshell::reexport::Layer),
                 /// Margin: top, right, bottom, left
                 MarginChange(iced_exwlshell::reexport::Margin),

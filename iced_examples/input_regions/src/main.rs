@@ -1,6 +1,6 @@
 use iced::widget::{button, row};
 use iced::{Color, Element, Length, Task as Command};
-use iced_exwlshell::actions::ActionCallback;
+use iced_exwlshell::actions::RegionActionCB;
 use iced_exwlshell::layershell::application;
 use iced_exwlshell::reexport::LayerSize;
 use iced_exwlshell::settings::LayerShellSettings;
@@ -45,7 +45,7 @@ impl InputRegionExample {
             Message::SetRegion => {
                 self.0 = !self.0;
                 let val = self.0;
-                Command::done(Message::SetInputRegion(ActionCallback::new(
+                Command::done(Message::SetInputRegion(RegionActionCB::new(
                     move |region| {
                         if val {
                             // Only the button

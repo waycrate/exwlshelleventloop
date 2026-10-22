@@ -125,24 +125,25 @@ pub struct IcedNewMenuSettings {
     pub gravity: PopupGravity,
 }
 
-type Callback = Arc<dyn Fn(&WlRegion) + Send + Sync>;
+/// region callback
+type RegionCB = Arc<dyn Fn(&WlRegion) + Send + Sync>;
 
 // Callback wrapper around dyn Fn(&WlRegion)
 #[derive(Clone)]
-pub struct ActionCallback(pub Callback);
+pub struct RegionActionCB(pub RegionCB);
 
-impl std::fmt::Debug for ActionCallback {
+impl std::fmt::Debug for RegionActionCB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "callback function")
     }
 }
 
-impl ActionCallback {
+impl RegionActionCB {
     pub fn new<F>(callback: F) -> Self
     where
         F: Fn(&WlRegion) + Send + Sync + 'static,
     {
-        ActionCallback(Arc::new(callback))
+        RegionActionCB(Arc::new(callback))
     }
 }
 
@@ -167,7 +168,7 @@ pub enum ExwlShellCustomAction {
         settings: NewLayerShellSettings,
         id: IcedId,
     },
-    SetInputRegion(ActionCallback),
+    SetInputRegion(RegionActionCB),
     NewPopUp {
         settings: IcedNewPopupSettings,
         id: IcedId,
