@@ -473,11 +473,11 @@ enum PresentAvailableState {
     Taken,
 }
 
-struct WindowStateUnitBuilder<T> {
+struct ExWlShellStateBuilder<T> {
     inner: ExWlShellState<T>,
 }
 
-impl<T> WindowStateUnitBuilder<T> {
+impl<T> ExWlShellStateBuilder<T> {
     fn new(
         id: id::Id,
         qh: QueueHandle<ExWlGlobalShellState<T>>,
@@ -490,6 +490,7 @@ impl<T> WindowStateUnitBuilder<T> {
         Self {
             inner: ExWlShellState {
                 id,
+                auto_created: false,
                 qh,
                 window: WindowWrapper::new(id, display, wl_surface, shell.top_level()),
                 wl_compositor,
@@ -552,6 +553,10 @@ impl<T> WindowStateUnitBuilder<T> {
         self
     }
 
+    fn auto_created(mut self) -> Self {
+        self.inner.auto_created = true;
+        self
+    }
     fn effect_surface(mut self, effect: Option<ExtBackgroundEffectSurfaceV1>) -> Self {
         self.inner.effect = effect;
         self
@@ -602,6 +607,7 @@ struct WindowStateUnitRequestFlag {
 #[derive(Debug)]
 pub struct ExWlShellState<T> {
     id: id::Id,
+    auto_created: bool,
     qh: QueueHandle<ExWlGlobalShellState<T>>,
     focused_pointers: Vec<WlPointer>,
     /// Shared because the renderer holds this surface too. Wayland proxies are
@@ -673,6 +679,17 @@ impl<T> ExWlShellState<T> {
         self.id
     }
 
+    /// This is a function to mark whether the shell is created by exwlshellev itself, following the
+    /// monitor. In fact, you can know where the shell is from because you can get the [id::Id]
+    /// yourself if the shell is created manually, but I think it is still good to provide one.
+    /// We can use exwlshellev to create something like slurp, then we should know if this shell is
+    /// the shell that follows the settings at the beginning, that covers the full screen,
+    pub fn is_auto_created(&self) -> bool {
+        self.auto_created
+    }
+
+    /// This function will provide the current type of the shell, whether it is a PopUp, LayerShell,
+    /// XdgTopLevel, SessionLock or InputPanel
     pub fn wl_shell_type(&self) -> WlShellType {
         match self.shell {
             Shell::PopUp(_) => WlShellType::PopUp,
@@ -2827,7 +2844,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
                                 context.state.push_shell(
-                                    WindowStateUnitBuilder::new(
+                                    ExWlShellStateBuilder::new(
                                         id::Id::unique(),
                                         qh.clone(),
                                         connection.display(),
@@ -2839,6 +2856,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .wl_output(Some(output_display.clone()))
+                                    .auto_created()
                                     .build(),
                                 );
                             }
@@ -2911,7 +2929,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
                             context.state.push_shell(
-                                WindowStateUnitBuilder::new(
+                                ExWlShellStateBuilder::new(
                                     id::Id::unique(),
                                     qh.clone(),
                                     connection.display(),
@@ -2923,6 +2941,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .wl_output(Some(output_display.clone()))
+                                .auto_created()
                                 .build(),
                             );
                         }
@@ -3063,7 +3082,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
                                 context.state.push_shell(
-                                    WindowStateUnitBuilder::new(
+                                    ExWlShellStateBuilder::new(
                                         id::Id::unique(),
                                         qh.clone(),
                                         connection.display(),
@@ -3074,6 +3093,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .wl_output(Some(wl_output.clone()))
+                                    .auto_created()
                                     .build(),
                                 );
                             }

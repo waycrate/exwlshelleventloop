@@ -1,4 +1,4 @@
-use super::{ExWlGlobalShellState, NewInputPanelSettings, Shell, WindowStateUnitBuilder};
+use super::{ExWlGlobalShellState, ExWlShellStateBuilder, NewInputPanelSettings, Shell};
 use wayland_client::delegate_noop;
 use wayland_protocols::wp::input_method::zv1::client::{
     zwp_input_panel_surface_v1::{Position as ZwpInputPanelPosition, ZwpInputPanelSurfaceV1},
@@ -54,7 +54,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .as_ref()
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
         self.push_shell(
-            WindowStateUnitBuilder::new(
+            ExWlShellStateBuilder::new(
                 id,
                 qh.clone(),
                 self.display.clone(),

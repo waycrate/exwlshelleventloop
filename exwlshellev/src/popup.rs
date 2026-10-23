@@ -1,7 +1,7 @@
 use crate::{NewPopUpSettings, PopUpRepositionSettings};
 
 use super::{
-    ExWlGlobalShellState, RefreshRequest, Shell, WindowStateUnitBuilder, build_positioner,
+    ExWlGlobalShellState, ExWlShellStateBuilder, RefreshRequest, Shell, build_positioner,
     dpi::PhysicalSize,
 };
 use wayland_protocols::xdg::shell::client::xdg_popup;
@@ -185,7 +185,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .as_ref()
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
         self.push_shell(
-            WindowStateUnitBuilder::new(
+            ExWlShellStateBuilder::new(
                 id,
                 qh.clone(),
                 self.display.clone(),

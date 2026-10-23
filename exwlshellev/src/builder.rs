@@ -2,8 +2,8 @@ use std::ops::Deref;
 
 use crate::{
     BlurOption, DispatchMessage, EventLoop, ExWlEventLoop, ExWlGlobalShellState,
-    ExWlShellEventError, ExWlShellHandler, ExWlShellInitEvent, InitRequest, LayerSize, Margin,
-    QueuedMessage, Shell, StartMode, WaylandSource, WindowStateUnitBuilder, WithConnection, id,
+    ExWlShellEventError, ExWlShellHandler, ExWlShellInitEvent, ExWlShellStateBuilder, InitRequest,
+    LayerSize, Margin, QueuedMessage, Shell, StartMode, WaylandSource, WithConnection, id,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::Layer,
@@ -360,7 +360,7 @@ impl ExWlEventLoopBuilder {
             // so because this is just an example, so we just commit it once
             // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
             state.push_shell(
-                WindowStateUnitBuilder::new(
+                ExWlShellStateBuilder::new(
                     id::Id::unique(),
                     qh.clone(),
                     connection.display(),
@@ -374,6 +374,7 @@ impl ExWlEventLoopBuilder {
                 .viewport(viewport)
                 .fractional_scale(fractional_scale)
                 .wl_output(binded_output.clone())
+                .auto_created()
                 .build(),
             );
         } else {
@@ -438,7 +439,7 @@ impl ExWlEventLoopBuilder {
                 // like if you want to reset anchor or KeyboardInteractivity or resize, commit is needed
 
                 state.push_shell(
-                    WindowStateUnitBuilder::new(
+                    ExWlShellStateBuilder::new(
                         id::Id::unique(),
                         qh.clone(),
                         connection.display(),
@@ -452,6 +453,7 @@ impl ExWlEventLoopBuilder {
                     .effect_surface(effect)
                     .fractional_scale(fractional_scale)
                     .wl_output(Some(output_display.clone()))
+                    .auto_created()
                     .build(),
                 );
             }

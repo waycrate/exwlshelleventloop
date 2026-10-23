@@ -1,5 +1,5 @@
 use super::{
-    ExWlGlobalShellState, Margin, RefreshRequest, Shell, WindowStateUnitBuilder, dpi::PhysicalSize,
+    ExWlGlobalShellState, ExWlShellStateBuilder, Margin, RefreshRequest, Shell, dpi::PhysicalSize,
     warn_if_exclusive_zone_ignored,
 };
 use crate::NewLayerShellSettings;
@@ -134,7 +134,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
         self.push_shell(
-            WindowStateUnitBuilder::new(
+            ExWlShellStateBuilder::new(
                 id,
                 qh.clone(),
                 self.display.clone(),

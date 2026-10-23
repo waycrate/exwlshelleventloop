@@ -1,8 +1,8 @@
 use crate::NewXdgWindowSettings;
 
 use super::{
-    DispatchMessage, ExWlGlobalShellState, PixelSize, QueuedMessage, RefreshRequest, Shell,
-    ToplevelState, WindowStateUnitBuilder, dpi::PhysicalSize,
+    DispatchMessage, ExWlGlobalShellState, ExWlShellStateBuilder, PixelSize, QueuedMessage,
+    RefreshRequest, Shell, ToplevelState, dpi::PhysicalSize,
 };
 use wayland_client::{Connection, Dispatch, Proxy, QueueHandle};
 use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1;
@@ -129,7 +129,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
 
         let id = crate::id::Id::unique();
         self.push_shell(
-            WindowStateUnitBuilder::new(
+            ExWlShellStateBuilder::new(
                 id,
                 qh.clone(),
                 self.display.clone(),
