@@ -1204,8 +1204,6 @@ pub struct ExWlGlobalShellState<T = ()> {
     fractional_scale_manager: Option<WpFractionalScaleManagerV1>,
     globals: Option<GlobalList>,
 
-    // background
-    background_surface: Option<WlSurface>,
     display: WlDisplay,
 
     registry_state: RegistryState,
@@ -1741,7 +1739,6 @@ impl<T: 'static> ExWlGlobalShellState<T> {
                 shells: Vec::new(),
                 messages: Vec::new(),
 
-                background_surface: None,
                 display,
 
                 connection: connection.clone(),

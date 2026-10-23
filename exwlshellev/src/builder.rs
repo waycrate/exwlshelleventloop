@@ -294,13 +294,8 @@ impl ExWlEventLoopBuilder {
         //let (init_w, init_h) = self.size;
         // this example is ok for both xdg_surface and layer_shell
         if state.is_background() {
-            let background_surface = state.wl_compositor.create_surface(&qh, ());
-            if state.events_transparent {
-                let region = state.wl_compositor.create_region(&qh, ());
-                background_surface.set_input_region(Some(&region));
-                region.destroy();
-            }
-            state.background_surface = Some(background_surface);
+            // do nothing
+            // Just skip
         } else if !state.is_allscreens() {
             let binded_output = match state.start_mode.clone() {
                 StartMode::TargetScreen(name) => state.output_by_name(&name),
