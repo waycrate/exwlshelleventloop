@@ -43,6 +43,8 @@ pub enum ShellEvent {
     OutputUpdated(ExWlOutputInfo),
     /// monitor was disconnected.
     OutputRemoved(ExWlOutputInfo),
+    /// Activation state for xdg toplevel, independent from keyboard focus.
+    WindowActivationChanged { window: Id, activated: bool },
     /// The monitor is locked
     Locked,
     /// The compositor denied lock request
@@ -58,6 +60,8 @@ struct Registry {
     outputs: BTreeMap<Id, Option<ExWlOutputInfo>>,
     /// shells still alive, replayed to new subscribers
     shells: BTreeMap<Id, ShellType>,
+    /// Only compositor-reported states
+    activations: BTreeMap<Id, bool>,
     /// monitors still connected, keyed by `wl_registry` global name and
     /// replayed to new subscribers
     monitors: BTreeMap<u32, ExWlOutputInfo>,
@@ -83,6 +87,7 @@ impl std::fmt::Debug for Registry {
             .field("subscribers", &self.subscribers.len())
             .field("outputs", &self.outputs.len())
             .field("shells", &self.shells.len())
+            .field("activations", &self.activations.len())
             .finish()
     }
 }
@@ -144,6 +149,10 @@ impl ShellReceiver {
                     output: output.clone(),
                 });
             }
+            for (&window, &activated) in &registry.activations {
+                let _ = sender
+                    .unbounded_send(ShellEvent::WindowActivationChanged { window, activated });
+            }
             registry
                 .subscribers
                 .retain(|subscriber| !subscriber.is_closed());
@@ -162,6 +171,15 @@ fn publish(registry: &mut Registry, event: ShellEvent) {
         ShellEvent::Closed(window) => {
             registry.outputs.remove(window);
             registry.shells.remove(window);
+            registry.activations.remove(window);
+        }
+        ShellEvent::WindowActivationChanged { window, activated } => {
+            if registry.shells.get(window) != Some(&ShellType::XdgTopLevel)
+                || registry.activations.get(window) == Some(activated)
+            {
+                return;
+            }
+            registry.activations.insert(*window, *activated);
         }
         ShellEvent::WindowOutputChanged { window, output } => {
             if registry.shells.contains_key(window) {
