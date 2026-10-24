@@ -18,6 +18,10 @@ struct Window {
 }
 
 impl ExWlShellHandler for Window {
+    type Ret = i32;
+    fn return_value(&self) -> Option<Self::Return> {
+        Some(10)
+    }
     fn on_init(
         &mut self,
         _state: &mut ExWlGlobalShellState,
@@ -164,7 +168,7 @@ fn main() {
     };
     let ev = prebuild.attach(window).unwrap();
 
-    ev.run().unwrap()
+    let _value = ev.run().unwrap();
 }
 ```
 For more example, please take a look at [exwlshelleventloop](https://github.com/waycrate/exwlshelleventloop)

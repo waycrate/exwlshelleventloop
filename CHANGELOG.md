@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.2] - 2026-10-24
+
+### Migration
+Current update is hudge, so [Migration Guide is provided](https://github.com/waycrate/exwlshelleventloop/docs/MIGRATION-20.0->21.0.md)
+
+### Fixed
+
+- When cursor entered the new surface, if iced does not update the cursor, it will kept the original cursor shape, reported by @ple1n
+
+### Changed (breaking)
+
+- Make run of exwlshellev can return value
+- `Callback`, which is the callback of setting region, is renamed to RegionCB
+- When setting the InputRegin, instead accessing the WlRegion, now you can only access the InputRegin, which provided many extra information
+- Induce RefreshState in Refresh callback, users will know it scale_factor or resize happened
+- Induce the Cursor::Hidden, allow user to hide the cursor
+- Make scroll support better, and support zwp_pointer_gestures_v1 by @id3v1669
+- Fix sometimes pointer cannot change
+- Make the logic of redraw_policy better, make the view function be called less
+- Induce Size, Position, Margin structures, instead of using the tuple of i32 or u32, make the meaning clear
+- Redesign the Settings of iced_exwlshell, split it to `iced::Settings` and `ExWlSettings`.
+- Redesign the exwlshellev, induce the `ExWlShellHandler` to address different events, instead of a simple callback function. Add the register function to bind custom events, this will help implement the a11y. Redesign the `event` part of exwlshellev. Nothing has changed in iced_exwlshell
+- Replace `RequestSetCursorShape` with `RequestSetCursor`, using `Cursor::Shape` or `Cursor::ThemeName`. Remove `ShapeName` and string-based shape parsing
+- Remove the pointer-enter fallback from `take_popup_grab_serial`
+
+[0.21.2]: https://github.com/waycrate/exwlshelleventloop/compare/v0.21.2...v0.20.1
+
 ## [0.21.0] - 2026-10-24
 
 ### Migration

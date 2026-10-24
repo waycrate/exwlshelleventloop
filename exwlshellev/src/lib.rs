@@ -16,6 +16,10 @@
 //! }
 //!
 //! impl ExWlShellHandler for Window {
+//!     type Ret = i32;
+//!     fn return_value(&self) -> Option<Self::Return> {
+//!         Some(10)
+//!     }
 //!     fn on_init(
 //!         &mut self,
 //!         _state: &mut ExWlGlobalShellState,
@@ -133,7 +137,7 @@
 //!     };
 //!     let ev = prebuilder.attach(window).unwrap();
 //!
-//!     ev.run().unwrap()
+//!     let _value = ev.run().unwrap();
 //! }
 //!
 use calloop::LoopSignal;
@@ -2630,6 +2634,13 @@ pub trait ExWlShellHandler<T: 'static = ()>
 where
     Self: Sized,
 {
+    /// the return type
+    type Ret;
+
+    /// Sometimes we need the run to return something, so it is reserved for that
+    fn return_value(&self) -> Option<Self::Ret> {
+        None
+    }
     /// When new wayland events come, it will invoke this callback, and you can address the events
     /// here
     fn on_window_event(&mut self, context: EventContext<HAVE_ID, Self, T>, event: ExWlShellEvent);
@@ -2789,7 +2800,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     }
 
     /// Run the program
-    pub fn run(mut self) -> Result<(), ExWlShellEventError> {
+    pub fn run(mut self) -> Result<Option<W::Ret>, ExWlShellEventError> {
         let connection = self.state.connection.clone();
         let mut event_queue_origin = self.state.event_queue.take().unwrap();
         let qh = self.state.queue_handle.clone();
@@ -3323,7 +3334,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 let _ = self.looph.enable(&token);
             }
         }
-        Ok(())
+        Ok(self.window_context.return_value())
     }
 }
 

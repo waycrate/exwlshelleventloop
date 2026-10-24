@@ -252,6 +252,7 @@ where
         P::Theme: DefaultStyle,
         P::Message: 'static + TryInto<ExWlShellCustomActionWithId, Error = P::Message>,
     {
+        type Ret = ();
         fn on_refresh(
             &mut self,
             mut ev_context: exwlshellev::RefreshEventContext<Self, iced_core::window::Id>,
