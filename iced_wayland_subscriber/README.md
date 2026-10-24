@@ -38,7 +38,7 @@ impl Counter {
 }
 ```
 
-Six events:
+Shell and output events:
 
 | event | meaning |
 | --- | --- |
@@ -48,6 +48,7 @@ Six events:
 | `OutputAdded(OutputInfo)` | a monitor was connected |
 | `OutputUpdated(OutputInfo)` | its mode, scale, name or position changed |
 | `OutputRemoved(OutputInfo)` | it was disconnected |
+| `WindowActivationChanged { window, activated }` | activation state for an xdg toplevel from compositor, independent from keyboard focus |
 
 `ShellType` distinguishes `LayerShell`, `PopUp`, `XdgTopLevel`, `InputPanel` and
 `SessionLock`, so an application can tell a bar from a popup without tracking

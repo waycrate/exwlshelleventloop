@@ -579,6 +579,13 @@ where
                     shell: shell_type,
                 };
                 self.shell_broadcast.send(shell::ShellEvent::NewShell(info));
+                if shell_type == shell::ShellType::XdgTopLevel {
+                    self.shell_broadcast
+                        .send(shell::ShellEvent::WindowActivationChanged {
+                            window: iced_id,
+                            activated: toplevel_state.activated,
+                        });
+                }
                 if let Some(output) = ev
                     .shell_state(unit_id)
                     .and_then(|unit| unit.get_wloutput().cloned())
@@ -868,6 +875,13 @@ where
         };
 
         match &event {
+            ExWlShellWindowEvent::ToplevelStateChanged(state) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::WindowActivationChanged {
+                        window: iced_id,
+                        activated: state.activated,
+                    });
+            }
             ExWlShellWindowEvent::OutputChanged(output) => {
                 self.shell_broadcast
                     .send(shell::ShellEvent::WindowOutputChanged {
