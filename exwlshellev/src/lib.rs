@@ -17,7 +17,7 @@
 //!
 //! impl ExWlShellHandler for Window {
 //!     type Ret = i32;
-//!     fn return_value(&self) -> Option<Self::Return> {
+//!     fn return_value(&self) -> Option<Self::Ret> {
 //!         Some(10)
 //!     }
 //!     fn on_init(
