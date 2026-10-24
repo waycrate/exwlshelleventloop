@@ -157,5 +157,5 @@ fn main() {
     };
     let ev = prebuild.attach(window).unwrap();
 
-    let _ = ev.run().unwrap();
+    ev.run().unwrap()
 }

@@ -133,7 +133,7 @@
 //!     };
 //!     let ev = prebuilder.attach(window).unwrap();
 //!
-//!     let _ = ev.run().unwrap();
+//!     ev.run().unwrap()
 //! }
 //!
 use calloop::LoopSignal;
@@ -2687,26 +2687,23 @@ pub struct ExWlEventLoop<T: 'static, W: ExWlShellHandler<T>> {
     cached_tokens: Vec<RegistrationToken>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-enum Request {
-    Exit,
-    Lock,
-    UnLock,
-}
-
-impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
-    /// Every time when you stop using the [ExWlEventLoop], you need to use this api, to take the
-    /// WindowContext back, this can be used as the return value
-    pub fn take_context_and_destroy(mut self) -> W {
+impl<T: 'static, W: ExWlShellHandler<T>> Drop for ExWlEventLoop<T, W> {
+    fn drop(&mut self) {
         if let Some(lock) = self.state.lock_manager.take() {
             lock.destroy();
         }
         if let Some(layer_shell) = self.state.layer_shell.take() {
             layer_shell.destroy();
         }
-        self.window_context
     }
-
+}
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Request {
+    Exit,
+    Lock,
+    UnLock,
+}
+impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     /// return the context, you can use it to change the state before enter [Self::run]
     pub fn window_context(&mut self) -> &mut W {
         &mut self.window_context
@@ -2792,7 +2789,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
     }
 
     /// Run the program
-    pub fn run(mut self) -> Result<W, ExWlShellEventError> {
+    pub fn run(mut self) -> Result<(), ExWlShellEventError> {
         let connection = self.state.connection.clone();
         let mut event_queue_origin = self.state.event_queue.take().unwrap();
         let qh = self.state.queue_handle.clone();
@@ -3326,7 +3323,7 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                 let _ = self.looph.enable(&token);
             }
         }
-        Ok(self.take_context_and_destroy())
+        Ok(())
     }
 }
 
