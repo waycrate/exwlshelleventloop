@@ -251,6 +251,10 @@ use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
     zwp_text_input_v3::{self, ContentHint, ContentPurpose, ZwpTextInputV3},
 };
+use wayland_protocols::xdg::activation::v1::client::{
+    xdg_activation_token_v1::{self, XdgActivationTokenV1},
+    xdg_activation_v1::XdgActivationV1,
+};
 use wayland_protocols::xdg::decoration::zv1::client::{
     zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
     zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1,
@@ -1202,6 +1206,28 @@ impl From<Connection> for WithConnection {
     }
 }
 
+#[derive(Clone)]
+pub struct ActivationTokenSink(Arc<dyn Fn(String) + Send + Sync>);
+
+impl ActivationTokenSink {
+    pub fn new<F>(deliver: F) -> Self
+    where
+        F: Fn(String) + Send + Sync + 'static,
+    {
+        Self(Arc::new(deliver))
+    }
+
+    fn deliver(&self, token: String) {
+        (self.0)(token);
+    }
+}
+
+impl Debug for ActivationTokenSink {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ActivationTokenSink")
+    }
+}
+
 /// main state, store the main information
 #[derive(Debug)]
 pub struct ExWlGlobalShellState<T = ()> {
@@ -1279,6 +1305,8 @@ pub struct ExWlGlobalShellState<T = ()> {
 
     xdg_decoration_manager: Option<ZxdgDecorationManagerV1>,
 
+    xdg_activation: Option<XdgActivationV1>,
+
     ime_purpose: ImePurpose,
     ime_allowed: bool,
 
@@ -1305,6 +1333,20 @@ impl<T: 'static> ExWlGlobalShellState<T> {
     /// Take the serial to use for the next popup grab, consuming it.
     pub fn take_popup_grab_serial(&mut self) -> Option<u32> {
         self.popup_grab_serial.take()
+    }
+
+    pub fn request_activation_token(&self, surface: &WlSurface, sink: ActivationTokenSink) {
+        let Some(activation) = &self.xdg_activation else {
+            return;
+        };
+        let token = activation.get_activation_token(&self.queue_handle, sink);
+        if let Some(seat) = &self.seat_back
+            && let Some(serial) = self.popup_grab_serial.or(self.enter_serial)
+        {
+            token.set_serial(serial, seat);
+        }
+        token.set_surface(surface);
+        token.commit();
     }
 
     /// Compute the minimum dispatch timeout across all window units.
@@ -1731,6 +1773,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         let xdg_decoration_manager = globals
             .bind::<ZxdgDecorationManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
+        let xdg_activation = globals.bind::<XdgActivationV1, _, _>(&qh, 1..=1, ()).ok();
 
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
@@ -1826,6 +1869,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
                 ime_allowed: false,
 
                 xdg_decoration_manager,
+                xdg_activation,
 
                 lock: LockLifecycle::Unlocked,
             },
@@ -3345,6 +3389,24 @@ delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpTextInputManagerV3);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpPointerGesturesV1);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgToplevelDecorationV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore XdgActivationV1);
+
+impl<T> Dispatch<XdgActivationTokenV1, ActivationTokenSink> for ExWlGlobalShellState<T> {
+    fn event(
+        _state: &mut Self,
+        proxy: &XdgActivationTokenV1,
+        event: xdg_activation_token_v1::Event,
+        sink: &ActivationTokenSink,
+        _connection: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let xdg_activation_token_v1::Event::Done { token } = event else {
+            return;
+        };
+        sink.deliver(token);
+        proxy.destroy();
+    }
+}
 
 impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn request_next_present(&mut self, id: id::Id) {

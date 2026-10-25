@@ -6,8 +6,8 @@ use exwlshellev::reexport::xdg_positioner::{
     Gravity as PopupGravity,
 };
 use exwlshellev::{
-    LayerSize, Margin, NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings,
-    PixelSize, PopupPlacement, Position,
+    ActivationTokenSink, LayerSize, Margin, NewInputPanelSettings, NewLayerShellSettings,
+    NewXdgWindowSettings, PixelSize, PopupPlacement, Position,
 };
 use iced_core::window::Id as IcedId;
 use std::sync::Arc;
@@ -239,6 +239,11 @@ pub enum ExWlShellCustomAction {
         id: IcedId,
     },
     SetInputRegion(RegionActionCB),
+    /// Mint an `xdg_activation_v1` token on behalf of the addressed surface and
+    /// hand it to the sink. A layer shell has no toplevel to raise itself, so
+    /// the token is only useful once passed to the client that should be
+    /// focused.
+    RequestActivationToken(ActivationTokenSink),
     NewPopUp {
         settings: IcedNewPopupSettings,
         id: IcedId,

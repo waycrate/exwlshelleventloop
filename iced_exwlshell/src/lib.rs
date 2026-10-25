@@ -15,6 +15,7 @@ mod window;
 pub mod settings;
 
 pub mod reexport {
+    pub use exwlshellev::ActivationTokenSink;
     pub use exwlshellev::Margin;
     pub use exwlshellev::NewInputPanelSettings;
     pub use exwlshellev::NewLayerShellSettings;
