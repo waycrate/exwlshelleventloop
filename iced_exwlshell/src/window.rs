@@ -412,6 +412,7 @@ where
     clipboard: ExWlShellClipboard,
     user_interfaces: UserInterfaces<P>,
     waiting_shell_actions: Vec<(Option<IcedId>, ExWlShellCustomAction)>,
+    pending_window_rebuilds: Vec<IcedId>,
     action_serial: Option<u32>,
     pending_window_controls: Vec<(IcedId, PendingWindowControl)>,
     iced_events: Vec<(IcedId, Input)>,
@@ -461,6 +462,7 @@ where
             clipboard: ExWlShellClipboard::unconnected(),
             user_interfaces: UserInterfaces::new(application),
             waiting_shell_actions: Default::default(),
+            pending_window_rebuilds: Default::default(),
             action_serial: None,
             pending_window_controls: Default::default(),
             iced_events: Default::default(),
@@ -1097,6 +1099,17 @@ where
                     ev.request_close(shell_id)
                 }
             }
+            ExWlShellCustomAction::RedrawWindow => {
+                let Some(redraw_id) = iced_id else {
+                    return;
+                };
+                if !self.pending_window_rebuilds.contains(&redraw_id) {
+                    self.pending_window_rebuilds.push(redraw_id);
+                }
+                if let Some(shell_id) = ex_shell_id {
+                    ev.request_refresh(shell_id, RefreshRequest::NextFrame)
+                }
+            }
             ExWlShellCustomAction::NewPopUp {
                 settings,
                 id: iced_id,
@@ -1195,6 +1208,21 @@ where
         }
     }
 
+    fn rebuild_pending_windows(&mut self) {
+        for rebuild_id in mem::take(&mut self.pending_window_rebuilds) {
+            if let Some(window) = self.window_manager.get_mut(rebuild_id)
+                && let Some(cache) = self.user_interfaces.remove(&rebuild_id)
+            {
+                self.user_interfaces.build(
+                    rebuild_id,
+                    cache,
+                    &mut window.renderer,
+                    window.state.viewport().logical_size(),
+                );
+            }
+        }
+    }
+
     fn handle_normal_dispatch(&mut self, ev: &mut ExWlGlobalShellState<IcedId>) {
         // NOTE: since normal_dispatch is not a WindowEvent anymore, so we need to address the
         // actions here
@@ -1207,6 +1235,7 @@ where
         for (iced_id, action) in waiting_layer_shell_actions {
             self.handle_exwlshell_action(ev, iced_id, action);
         }
+        self.rebuild_pending_windows();
 
         if self.iced_events.is_empty() && self.messages.is_empty() {
             return;
