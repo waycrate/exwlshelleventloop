@@ -66,6 +66,7 @@ pub fn to_exwlshell_message(
             NewInputPanel { settings: iced_exwlshell::reexport::NewInputPanelSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action, remove window
             RemoveWindow(iced_exwlshell::reexport::IcedId),
+            RedrawWindow(iced_exwlshell::reexport::IcedId),
             /// Action, forget last outptu
             ForgetLastOutput,
             /// Action, Lock
@@ -135,6 +136,7 @@ pub fn to_exwlshell_message(
                         Self::NewMenu { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewMenu { settings, id })),
                         Self::NewInputPanel {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewInputPanel { settings, id })),
                         Self::RemoveWindow(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RemoveWindow)),
+                        Self::RedrawWindow(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RedrawWindow)),
                         Self::ForgetLastOutput => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::ForgetLastOutput)),
                         Self::BlurOptionChange {id, option} => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::BlurOptionChange(option))),
                         Self::Lock => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::Lock)),
@@ -260,6 +262,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 NewMenu { settings: iced_exwlshell::actions::IcedNewMenuSettings, id: iced_exwlshell::reexport::IcedId },
                 NewInputPanel { settings: iced_exwlshell::reexport::NewInputPanelSettings, id: iced_exwlshell::reexport::IcedId },
                 RemoveWindow(iced_exwlshell::reexport::IcedId),
+                RedrawWindow(iced_exwlshell::reexport::IcedId),
                 ForgetLastOutput,
             };
 
@@ -323,6 +326,7 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             Self::NewMenu { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewMenu { settings, id })),
                             Self::NewInputPanel {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewInputPanel { settings, id })),
                             Self::RemoveWindow(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RemoveWindow)),
+                            Self::RedrawWindow(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RedrawWindow)),
                             Self::ForgetLastOutput => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::ForgetLastOutput)),
                             Self::BlurOptionChange {id, option} => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::BlurOptionChange(option))),
                             _ => Err(self)

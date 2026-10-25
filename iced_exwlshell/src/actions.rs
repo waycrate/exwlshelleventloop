@@ -261,6 +261,7 @@ pub enum ExWlShellCustomAction {
     },
     /// is same with WindowAction::Close(id)
     RemoveWindow,
+    RedrawWindow,
     ForgetLastOutput,
     Lock,
     UnLock,
