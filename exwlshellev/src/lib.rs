@@ -3209,7 +3209,6 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 region.destroy();
                             }
                         }
-                        context.state.shells[idx].window.wl_surface.commit();
                     }
                     context.handle_refresh(unit_id, state);
                     context.state.shells[idx].reset_present_slot();
