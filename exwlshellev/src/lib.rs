@@ -146,6 +146,7 @@ pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 pub mod blur;
 mod builder;
+pub mod input_rectangle;
 pub use builder::{ExWlEventLoopBuilder, ExWlEventLoopPreBuilder};
 pub mod dpi;
 mod events;
@@ -279,6 +280,7 @@ use std::time::Instant;
 use crate::blur::{BlurOption, BlurRegion};
 use crate::dpi::LogicalSize;
 use crate::dpi::PhysicalSize;
+use crate::input_rectangle::InputRectangle;
 use crate::seat::SeatStorage;
 
 #[derive(Debug, Clone, Copy)]
@@ -517,6 +519,7 @@ impl<T> ExWlShellStateBuilder<T> {
                 binding: Default::default(),
                 configured,
                 blur_option: BlurOption::None,
+                staged_input_region: None,
                 pending_reposition: None,
                 toplevel_state: ToplevelState::default(),
                 effect: None,
@@ -640,6 +643,7 @@ pub struct ExWlShellState<T> {
     configured: bool,
 
     blur_option: BlurOption,
+    staged_input_region: Option<Vec<InputRectangle>>,
 
     /// Only meaningful for PopUp
     pending_reposition: Option<u32>,
@@ -794,6 +798,43 @@ impl<T> rwh_06::HasDisplayHandle for ExWlGlobalShellState<T> {
 
 impl<T: 'static> ExWlShellState<T> {
     pub fn set_blur_option(&mut self, blur_option: BlurOption) {
+        self.stage_blur_option(blur_option);
+        if self.effect.is_some() {
+            self.window.wl_surface.commit();
+        }
+    }
+
+    pub fn stage_blur_region_if_changed(&mut self, regions: Vec<BlurRegion>) {
+        let staged = BlurOption::Region(regions);
+        if self.blur_option != staged {
+            self.stage_blur_option(staged);
+        }
+    }
+
+    pub fn stage_input_region_if_changed(&mut self, rectangles: Vec<InputRectangle>) {
+        if self.staged_input_region.as_ref() == Some(&rectangles) {
+            return;
+        }
+        let region = self.wl_compositor.create_region(&self.qh, ());
+        for InputRectangle {
+            x,
+            y,
+            width,
+            height,
+        } in &rectangles
+        {
+            region.add(*x, *y, *width, *height);
+        }
+        self.window.wl_surface.set_input_region(Some(&region));
+        region.destroy();
+        self.staged_input_region = Some(rectangles);
+    }
+
+    pub fn forget_staged_input_region(&mut self) {
+        self.staged_input_region = None;
+    }
+
+    fn stage_blur_option(&mut self, blur_option: BlurOption) {
         self.blur_option = blur_option;
         if let Some(effect) = &self.effect {
             match &self.blur_option {
@@ -822,7 +863,6 @@ impl<T: 'static> ExWlShellState<T> {
                     region.destroy();
                 }
             }
-            self.window.wl_surface.commit();
         }
     }
 }
