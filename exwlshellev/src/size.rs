@@ -1,4 +1,5 @@
-//! Surface sizes, in the shapes the wayland protocols accept.
+//! Surface sizes, in the shapes the wayland protocols accept, and tracking of
+//! the sizes compositors configure.
 //!
 //! A `0` is legal only on a layer surface axis, where `set_size` reads it as
 //! "the compositor assigns this one" and requires both opposite edges to be
@@ -6,6 +7,8 @@
 use std::num::NonZeroU32;
 
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::Anchor;
+
+use crate::dpi::PhysicalSize;
 
 const HORIZONTAL_EDGES: Anchor = Anchor::Left.union(Anchor::Right);
 const VERTICAL_EDGES: Anchor = Anchor::Top.union(Anchor::Bottom);
@@ -191,6 +194,18 @@ pub(crate) fn warn_if_exclusive_zone_ignored(zone: i32, anchor: Anchor) {
              or an edge with both perpendicular ones"
         );
     }
+}
+
+/// Applies a configured size
+pub(crate) fn apply_size_update(
+    size: &mut PhysicalSize<u32>,
+    resized: &mut bool,
+    next: PhysicalSize<u32>,
+) {
+    if !size.is_empty() && *size != next {
+        *resized = true;
+    }
+    *size = next;
 }
 
 #[cfg(test)]

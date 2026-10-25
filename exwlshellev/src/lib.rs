@@ -160,8 +160,8 @@ mod utils;
 pub use utils::*;
 
 use events::{DispatchMessage, QueuedMessage};
-use size::warn_if_exclusive_zone_ignored;
 pub use size::{Extent, LayerSize, PixelSize};
+use size::{apply_size_update, warn_if_exclusive_zone_ignored};
 
 pub mod id;
 
@@ -1028,8 +1028,12 @@ impl<T> ExWlShellState<T> {
         self.request_flag.close = true;
     }
 
-    pub(crate) fn mark_resized(&mut self) {
-        self.request_flag.resized = true;
+    pub(crate) fn update_size(&mut self, next: PhysicalSize<u32>) {
+        apply_size_update(
+            &mut self.physical_size,
+            &mut self.request_flag.resized,
+            next,
+        );
     }
 
     pub(crate) fn mark_scale_factor_changed(&mut self) {

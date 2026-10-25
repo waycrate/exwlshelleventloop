@@ -32,13 +32,7 @@ impl<T> Dispatch<ext_session_lock_surface_v1::ExtSessionLockSurfaceV1, ()>
             else {
                 return;
             };
-            let next_size = PhysicalSize { width, height };
-            if !state.shells[unit_index].physical_size.is_empty()
-                && state.shells[unit_index].physical_size != next_size
-            {
-                state.shells[unit_index].mark_resized();
-            }
-            state.shells[unit_index].physical_size = next_size;
+            state.shells[unit_index].update_size(PhysicalSize { width, height });
             state.shells[unit_index].configured = true;
             state.shells[unit_index].request_refresh(RefreshRequest::NextFrame);
         }

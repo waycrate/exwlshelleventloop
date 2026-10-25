@@ -50,10 +50,10 @@ impl<T> Dispatch<xdg_toplevel::XdgToplevel, ()> for ExWlGlobalShellState<T> {
                     return;
                 };
                 if width != 0 && height != 0 {
-                    state.shells[unit_index].physical_size = PhysicalSize {
+                    state.shells[unit_index].update_size(PhysicalSize {
                         width: width as u32,
                         height: height as u32,
-                    };
+                    });
                 }
 
                 let toplevel_state = toplevel_state_from_configure(&states);
