@@ -13,6 +13,9 @@ mod user_interface;
 mod window;
 
 pub mod settings;
+mod surface_regions;
+
+pub use surface_regions::{BlurRegions, InputRects};
 
 pub mod reexport {
     pub use exwlshellev::Margin;
