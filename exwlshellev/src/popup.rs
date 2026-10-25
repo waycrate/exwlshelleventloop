@@ -23,16 +23,10 @@ impl<T> Dispatch<xdg_popup::XdgPopup, ()> for ExWlGlobalShellState<T> {
                 else {
                     return;
                 };
-                let next_size = PhysicalSize {
+                state.shells[unit_index].update_size(PhysicalSize {
                     width: width as u32,
                     height: height as u32,
-                };
-                if !state.shells[unit_index].physical_size.is_empty()
-                    && state.shells[unit_index].physical_size != next_size
-                {
-                    state.shells[unit_index].mark_resized();
-                }
-                state.shells[unit_index].physical_size = next_size;
+                });
                 state.shells[unit_index].request_refresh(RefreshRequest::NextFrame);
             }
             xdg_popup::Event::PopupDone => {
