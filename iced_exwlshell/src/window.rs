@@ -1287,7 +1287,7 @@ where
             #[cfg(not(feature = "unconditional-rendering"))]
             let unconditional_rendering = false;
             if Self::handle_ui_state(ev, window, ui_state, unconditional_rendering, false) {
-                rebuilds.push(iced_id);
+                rebuilds.push((iced_id, window));
             }
 
             for (event, status) in window_events.zip(statuses) {
@@ -1305,27 +1305,24 @@ where
             // there are n messages, then reset it
             match self.redraw_policy.targets(&self.messages) {
                 Targets::All => {
-                    rebuilds = self.window_manager.iter_mut().map(|(id, _)| id).collect();
                     ev.request_refresh_all(RefreshRequest::NextFrame);
                 }
                 Targets::None => {}
                 Targets::Window(id) => {
-                    if let Some(window) = self.window_manager.get_mut(id) {
+                    if let Some(window) = self.window_manager.get(id) {
                         ev.request_refresh(window.id, RefreshRequest::NextFrame);
-                        rebuilds.push(id);
                     }
                 }
                 Targets::Windows(windows) => {
                     windows.into_iter().for_each(|id| {
                         if let Some(window) = self.window_manager.get(id) {
                             ev.request_refresh(window.id, RefreshRequest::NextFrame);
-                            rebuilds.push(id);
                         }
                     });
                 }
             }
-            let application = self.user_interfaces.application_mut();
 
+            let (caches, application) = self.user_interfaces.extract_all();
             // Update application
             update(
                 application,
@@ -1342,19 +1339,28 @@ where
                     .first()
                     .and_then(|window| theme::Base::palette(window.state.theme()))
             });
-        }
 
-        // NOTE: only refresh those needed to update
-        for iced_id in rebuilds {
-            if let Some(window) = self.window_manager.get_mut(iced_id)
-                && let Some(cache) = self.user_interfaces.remove(&iced_id)
-            {
+            for (iced_id, cache) in caches {
+                let Some(window) = self.window_manager.get_mut(iced_id) else {
+                    continue;
+                };
                 self.user_interfaces.build(
                     iced_id,
                     cache,
                     &mut window.renderer,
                     window.state.viewport().logical_size(),
                 );
+            }
+        } else {
+            for (iced_id, window) in rebuilds {
+                if let Some(cache) = self.user_interfaces.remove(&iced_id) {
+                    self.user_interfaces.build(
+                        iced_id,
+                        cache,
+                        &mut window.renderer,
+                        window.state.viewport().logical_size(),
+                    );
+                }
             }
         }
     }
