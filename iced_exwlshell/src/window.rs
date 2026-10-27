@@ -1324,7 +1324,7 @@ where
                     });
                 }
             }
-            let application = self.user_interfaces.application_mut();
+            let (caches, application) = self.user_interfaces.extract_all();
 
             // Update application
             update(
@@ -1342,6 +1342,19 @@ where
                     .first()
                     .and_then(|window| theme::Base::palette(window.state.theme()))
             });
+
+            for (iced_id, cache) in caches {
+                let Some(window) = self.window_manager.get_mut(iced_id) else {
+                    continue;
+                };
+                self.user_interfaces.build(
+                    iced_id,
+                    cache,
+                    &mut window.renderer,
+                    window.state.viewport().logical_size(),
+                );
+            }
+            rebuilds.clear();
         }
 
         // NOTE: only refresh those needed to update
