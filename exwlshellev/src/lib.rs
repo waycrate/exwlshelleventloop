@@ -251,6 +251,10 @@ use wayland_protocols::wp::text_input::zv3::client::{
     zwp_text_input_manager_v3::ZwpTextInputManagerV3,
     zwp_text_input_v3::{self, ContentHint, ContentPurpose, ZwpTextInputV3},
 };
+use wayland_protocols::xdg::activation::v1::client::{
+    xdg_activation_token_v1::{self, XdgActivationTokenV1},
+    xdg_activation_v1::XdgActivationV1,
+};
 use wayland_protocols::xdg::decoration::zv1::client::{
     zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
     zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1,
@@ -1202,6 +1206,28 @@ impl From<Connection> for WithConnection {
     }
 }
 
+#[derive(Clone)]
+pub struct ActivationTokenSink(Arc<dyn Fn(XdgActivationTokenV1State) + Send + Sync>);
+
+impl ActivationTokenSink {
+    pub fn new<F>(deliver: F) -> Self
+    where
+        F: Fn(XdgActivationTokenV1State) + Send + Sync + 'static,
+    {
+        Self(Arc::new(deliver))
+    }
+
+    fn deliver(&self, state: XdgActivationTokenV1State) {
+        (self.0)(state);
+    }
+}
+
+impl Debug for ActivationTokenSink {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ActivationTokenSink")
+    }
+}
+
 /// main state, store the main information
 #[derive(Debug)]
 pub struct ExWlGlobalShellState<T = ()> {
@@ -1279,10 +1305,64 @@ pub struct ExWlGlobalShellState<T = ()> {
 
     xdg_decoration_manager: Option<ZxdgDecorationManagerV1>,
 
+    xdg_activation: Option<XdgActivationV1>,
+
     ime_purpose: ImePurpose,
     ime_allowed: bool,
 
     lock: LockLifecycle,
+}
+
+/// [XdgActivationTokenV1State] shows the state after request a new token for a surface
+#[derive(Debug, Clone)]
+pub enum XdgActivationTokenV1State {
+    Ready(XdgActivationTokenV1Wrapper),
+    Unsupported,
+    NoSurface,
+}
+
+#[derive(Debug, Clone)]
+struct XdgActivationTokenV1WrapperInner {
+    id: id::Id,
+    token: String,
+    activation: XdgActivationTokenV1,
+}
+
+/// [XdgActivationTokenV1Wrapper] wrapped the XdgActivationTokenV1.
+/// Inside it is a Arc wrapper for [XdgActivationTokenV1]. it will be destroy if its rc count
+/// becomes zero
+#[derive(Debug, Clone)]
+pub struct XdgActivationTokenV1Wrapper {
+    inner: Arc<XdgActivationTokenV1WrapperInner>,
+}
+
+impl Drop for XdgActivationTokenV1WrapperInner {
+    fn drop(&mut self) {
+        self.activation.destroy();
+    }
+}
+
+impl XdgActivationTokenV1Wrapper {
+    fn new(id: id::Id, token: String, activation: XdgActivationTokenV1) -> Self {
+        Self {
+            inner: Arc::new(XdgActivationTokenV1WrapperInner {
+                id,
+                token,
+                activation,
+            }),
+        }
+    }
+
+    /// return the token by xdg_activation_v1
+    pub fn token(&self) -> &str {
+        &self.inner.token
+    }
+
+    /// set the app_id for the token
+    pub fn set_app_id(&self, app_id: impl Into<String>) {
+        self.inner.activation.set_app_id(app_id.into());
+        self.inner.activation.commit();
+    }
 }
 
 impl<T: 'static> ExWlGlobalShellState<T> {
@@ -1305,6 +1385,36 @@ impl<T: 'static> ExWlGlobalShellState<T> {
     /// Take the serial to use for the next popup grab, consuming it.
     pub fn take_popup_grab_serial(&mut self) -> Option<u32> {
         self.popup_grab_serial.take()
+    }
+
+    /// Request to active a token
+    pub fn request_tokenv1_active(&self, token: XdgActivationTokenV1Wrapper) {
+        let Some(activation) = &self.xdg_activation else {
+            return;
+        };
+        let Some(state) = self.shell_state(token.inner.id) else {
+            return;
+        };
+        activation.activate(token.inner.token.clone(), state.get_wlsurface());
+    }
+
+    pub fn request_activation_token(&self, id: id::Id, sink: ActivationTokenSink) {
+        let Some(state) = self.shell_state(id) else {
+            sink.deliver(XdgActivationTokenV1State::NoSurface);
+            return;
+        };
+        let Some(activation) = &self.xdg_activation else {
+            sink.deliver(XdgActivationTokenV1State::Unsupported);
+            return;
+        };
+        let token = activation.get_activation_token(&self.queue_handle, (sink, id));
+        if let Some(seat) = &self.seat_back
+            && let Some(serial) = self.popup_grab_serial.or(self.enter_serial)
+        {
+            token.set_serial(serial, seat);
+        }
+        token.set_surface(state.get_wlsurface());
+        token.commit();
     }
 
     /// Compute the minimum dispatch timeout across all window units.
@@ -1731,6 +1841,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         let xdg_decoration_manager = globals
             .bind::<ZxdgDecorationManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
+        let xdg_activation = globals.bind::<XdgActivationV1, _, _>(&qh, 1..=1, ()).ok();
 
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
@@ -1826,6 +1937,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
                 ime_allowed: false,
 
                 xdg_decoration_manager,
+                xdg_activation,
 
                 lock: LockLifecycle::Unlocked,
             },
@@ -3345,6 +3457,25 @@ delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpTextInputManagerV3);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZwpPointerGesturesV1);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgToplevelDecorationV1);
+delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore XdgActivationV1);
+
+impl<T> Dispatch<XdgActivationTokenV1, (ActivationTokenSink, id::Id)> for ExWlGlobalShellState<T> {
+    fn event(
+        _state: &mut Self,
+        proxy: &XdgActivationTokenV1,
+        event: xdg_activation_token_v1::Event,
+        (sink, id): &(ActivationTokenSink, id::Id),
+        _connection: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        let xdg_activation_token_v1::Event::Done { token } = event else {
+            return;
+        };
+        sink.deliver(XdgActivationTokenV1State::Ready(
+            XdgActivationTokenV1Wrapper::new(*id, token, proxy.clone()),
+        ));
+    }
+}
 
 impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn request_next_present(&mut self, id: id::Id) {
