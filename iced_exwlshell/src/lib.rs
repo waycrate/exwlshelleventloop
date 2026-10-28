@@ -23,6 +23,8 @@ pub mod reexport {
     pub use exwlshellev::PopupPlacement;
     pub use exwlshellev::Position;
     pub use exwlshellev::WithConnection;
+    pub use exwlshellev::XdgActivationTokenV1State;
+    pub use exwlshellev::XdgActivationTokenV1Wrapper;
     pub use exwlshellev::blur::BlurOption;
     pub use exwlshellev::blur::BlurRegion;
     pub use exwlshellev::reexport::Anchor;

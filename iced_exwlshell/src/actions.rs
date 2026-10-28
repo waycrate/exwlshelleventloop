@@ -7,7 +7,7 @@ use exwlshellev::reexport::xdg_positioner::{
 };
 use exwlshellev::{
     ActivationTokenSink, LayerSize, Margin, NewInputPanelSettings, NewLayerShellSettings,
-    NewXdgWindowSettings, PixelSize, PopupPlacement, Position,
+    NewXdgWindowSettings, PixelSize, PopupPlacement, Position, XdgActivationTokenV1Wrapper,
 };
 use iced_core::window::Id as IcedId;
 use std::sync::Arc;
@@ -244,6 +244,7 @@ pub enum ExWlShellCustomAction {
     /// the token is only useful once passed to the client that should be
     /// focused.
     RequestActivationToken(ActivationTokenSink),
+    RequestTokenActive(XdgActivationTokenV1Wrapper),
     NewPopUp {
         settings: IcedNewPopupSettings,
         id: IcedId,

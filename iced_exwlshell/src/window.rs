@@ -1007,44 +1007,48 @@ where
                 }
             };
         }
+
         // check if window is ready
-        let mut ex_shell_id = iced_id
+        let mut exshell_id = iced_id
             .and_then(|iced_id| self.window_manager.get(iced_id))
             .map(|window| window.id);
-        if iced_id.is_some() && ex_shell_id.is_none() {
+        if iced_id.is_some() && exshell_id.is_none() {
             // still waiting
             self.waiting_shell_actions.push((iced_id, action));
             return;
         }
         match action {
             ExWlShellCustomAction::BlurOptionChange(blur_option) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 exshell_window.set_blur_option(blur_option);
             }
             ExWlShellCustomAction::LayoutChange { anchor, size } => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 exshell_window.set_layout(anchor, size);
             }
             ExWlShellCustomAction::LayerChange(layer) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 exshell_window.set_layer(layer);
             }
             ExWlShellCustomAction::MarginChange(margin) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 exshell_window.set_margin(margin);
             }
             ExWlShellCustomAction::ExclusiveZoneChange(zone_size) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 exshell_window.set_exclusive_zone(zone_size);
             }
             ExWlShellCustomAction::KeyboardInteractivityChange(keyboard_interactivity) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 exshell_window.set_keyboard_interactivity(keyboard_interactivity);
             }
             ExWlShellCustomAction::RequestActivationToken(sink) => {
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
-                let surface = exshell_window.get_wlsurface().clone();
-                ev.request_activation_token(&surface, sink);
+                if let Some(id) = exshell_id {
+                    ev.request_activation_token(id, sink);
+                }
+            }
+            ExWlShellCustomAction::RequestTokenActive(token) => {
+                ev.request_tokenv1_active(token);
             }
             ExWlShellCustomAction::SetInputRegion(set_region) => {
                 let wl_compositor = ev.wl_compositor();
@@ -1052,7 +1056,7 @@ where
                 let region = wl_compositor.create_region(qh, ());
                 let set_region = set_region.0;
 
-                ref_mut_exwlshell_window!(ev, iced_id, ex_shell_id, layer_shell_window);
+                ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 let window_size = exshell_window.physical_size();
                 let width: i32 = window_size.width as i32;
                 let height: i32 = window_size.height as i32;
@@ -1100,7 +1104,7 @@ where
                 ev.create_xdg_base_window(settings.into(), iced_id);
             }
             ExWlShellCustomAction::RemoveWindow => {
-                if let Some(shell_id) = ex_shell_id {
+                if let Some(shell_id) = exshell_id {
                     ev.request_close(shell_id)
                 }
             }
@@ -1111,7 +1115,7 @@ where
                 if !self.pending_window_rebuilds.contains(&redraw_id) {
                     self.pending_window_rebuilds.push(redraw_id);
                 }
-                if let Some(shell_id) = ex_shell_id {
+                if let Some(shell_id) = exshell_id {
                     ev.request_refresh(shell_id, RefreshRequest::NextFrame)
                 }
             }
@@ -1156,7 +1160,7 @@ where
                     constraint_adjustment,
                     ..
                 } = settings;
-                let Some(ex_shell_id) = ex_shell_id else {
+                let Some(ex_shell_id) = exshell_id else {
                     return;
                 };
                 ev.popup_reposition(

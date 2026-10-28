@@ -1207,18 +1207,18 @@ impl From<Connection> for WithConnection {
 }
 
 #[derive(Clone)]
-pub struct ActivationTokenSink(Arc<dyn Fn(String) + Send + Sync>);
+pub struct ActivationTokenSink(Arc<dyn Fn(XdgActivationTokenV1State) + Send + Sync>);
 
 impl ActivationTokenSink {
     pub fn new<F>(deliver: F) -> Self
     where
-        F: Fn(String) + Send + Sync + 'static,
+        F: Fn(XdgActivationTokenV1State) + Send + Sync + 'static,
     {
         Self(Arc::new(deliver))
     }
 
-    fn deliver(&self, token: String) {
-        (self.0)(token);
+    fn deliver(&self, state: XdgActivationTokenV1State) {
+        (self.0)(state);
     }
 }
 
@@ -1313,6 +1313,58 @@ pub struct ExWlGlobalShellState<T = ()> {
     lock: LockLifecycle,
 }
 
+/// [XdgActivationTokenV1State] shows the state after request a new token for a surface
+#[derive(Debug, Clone)]
+pub enum XdgActivationTokenV1State {
+    Ready(XdgActivationTokenV1Wrapper),
+    Unsupported,
+    NoSurface,
+}
+
+#[derive(Debug, Clone)]
+struct XdgActivationTokenV1WrapperInner {
+    id: id::Id,
+    token: String,
+    activation: XdgActivationTokenV1,
+}
+
+/// [XdgActivationTokenV1Wrapper] wrapped the XdgActivationTokenV1.
+/// Inside it is a Arc wrapper for [XdgActivationTokenV1]. it will be destroy if its rc count
+/// becomes zero
+#[derive(Debug, Clone)]
+pub struct XdgActivationTokenV1Wrapper {
+    inner: Arc<XdgActivationTokenV1WrapperInner>,
+}
+
+impl Drop for XdgActivationTokenV1WrapperInner {
+    fn drop(&mut self) {
+        self.activation.destroy();
+    }
+}
+
+impl XdgActivationTokenV1Wrapper {
+    fn new(id: id::Id, token: String, activation: XdgActivationTokenV1) -> Self {
+        Self {
+            inner: Arc::new(XdgActivationTokenV1WrapperInner {
+                id,
+                token,
+                activation,
+            }),
+        }
+    }
+
+    /// return the token by xdg_activation_v1
+    pub fn token(&self) -> &str {
+        &self.inner.token
+    }
+
+    /// set the app_id for the token
+    pub fn set_app_id(&self, app_id: impl Into<String>) {
+        self.inner.activation.set_app_id(app_id.into());
+        self.inner.activation.commit();
+    }
+}
+
 impl<T: 'static> ExWlGlobalShellState<T> {
     pub fn get_shm(&self) -> &WlShm {
         &self.shm
@@ -1335,17 +1387,33 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         self.popup_grab_serial.take()
     }
 
-    pub fn request_activation_token(&self, surface: &WlSurface, sink: ActivationTokenSink) {
+    /// Request to active a token
+    pub fn request_tokenv1_active(&self, token: XdgActivationTokenV1Wrapper) {
         let Some(activation) = &self.xdg_activation else {
             return;
         };
-        let token = activation.get_activation_token(&self.queue_handle, sink);
+        let Some(state) = self.shell_state(token.inner.id) else {
+            return;
+        };
+        activation.activate(token.inner.token.clone(), state.get_wlsurface());
+    }
+
+    pub fn request_activation_token(&self, id: id::Id, sink: ActivationTokenSink) {
+        let Some(state) = self.shell_state(id) else {
+            sink.deliver(XdgActivationTokenV1State::NoSurface);
+            return;
+        };
+        let Some(activation) = &self.xdg_activation else {
+            sink.deliver(XdgActivationTokenV1State::Unsupported);
+            return;
+        };
+        let token = activation.get_activation_token(&self.queue_handle, (sink, id));
         if let Some(seat) = &self.seat_back
             && let Some(serial) = self.popup_grab_serial.or(self.enter_serial)
         {
             token.set_serial(serial, seat);
         }
-        token.set_surface(surface);
+        token.set_surface(state.get_wlsurface());
         token.commit();
     }
 
@@ -3391,20 +3459,21 @@ delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgDecorationManagerV1);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore ZxdgToplevelDecorationV1);
 delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore XdgActivationV1);
 
-impl<T> Dispatch<XdgActivationTokenV1, ActivationTokenSink> for ExWlGlobalShellState<T> {
+impl<T> Dispatch<XdgActivationTokenV1, (ActivationTokenSink, id::Id)> for ExWlGlobalShellState<T> {
     fn event(
         _state: &mut Self,
         proxy: &XdgActivationTokenV1,
         event: xdg_activation_token_v1::Event,
-        sink: &ActivationTokenSink,
+        (sink, id): &(ActivationTokenSink, id::Id),
         _connection: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
         let xdg_activation_token_v1::Event::Done { token } = event else {
             return;
         };
-        sink.deliver(token);
-        proxy.destroy();
+        sink.deliver(XdgActivationTokenV1State::Ready(
+            XdgActivationTokenV1Wrapper::new(*id, token, proxy.clone()),
+        ));
     }
 }
 
