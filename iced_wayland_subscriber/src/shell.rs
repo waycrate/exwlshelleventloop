@@ -52,7 +52,10 @@ pub enum ShellEvent {
     /// The lock is finished
     LockedFinished,
     /// A new token is created
-    NewActivationToken(XdgActivationTokenV1Wrapper),
+    NewActivationToken {
+        window: Id,
+        token: XdgActivationTokenV1Wrapper,
+    },
 }
 
 #[derive(Default)]

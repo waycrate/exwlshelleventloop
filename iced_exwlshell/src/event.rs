@@ -186,6 +186,8 @@ impl WindowEvent {
                 }))
             }
             ExWlShellEvent::ToplevelStateChanged(state) => WindowEvent::ToplevelStateChanged(state),
+
+            ExWlShellEvent::NewActivationToken(token) => WindowEvent::NewActivationToken(token),
         }
     }
     pub(crate) fn from_dispatch_broadcast(value: ExWlShellBroadcast) -> Self {
@@ -196,7 +198,6 @@ impl WindowEvent {
             ExWlShellBroadcast::Locked => WindowEvent::Locked,
             ExWlShellBroadcast::LockDenied => WindowEvent::LockDenied,
             ExWlShellBroadcast::LockFinished => WindowEvent::LockFinished,
-            ExWlShellBroadcast::NewActivationToken(token) => WindowEvent::NewActivationToken(token),
         }
     }
 }

@@ -456,6 +456,8 @@ pub enum ExWlShellEvent {
     Closed,
     /// The compositor changed the state of an xdg toplevel window.
     ToplevelStateChanged(ToplevelState),
+
+    NewActivationToken(XdgActivationTokenV1Wrapper),
 }
 
 /// A wrapper of [OutputInfo], also provide a [WlOutput]
@@ -490,7 +492,6 @@ pub enum ExWlShellBroadcast {
     Locked,
     LockDenied,
     LockFinished,
-    NewActivationToken(XdgActivationTokenV1Wrapper),
 }
 
 impl From<DispatchMessage> for ExWlShellBroadcast {
@@ -499,7 +500,6 @@ impl From<DispatchMessage> for ExWlShellBroadcast {
             DispatchMessage::NewDisplay(_) => {
                 unreachable!("NewDisplay is handled before conversion")
             }
-            DispatchMessage::NewActivationToken(token) => Self::NewActivationToken(token),
             DispatchMessage::Locked => Self::Locked,
             DispatchMessage::LockFinished => Self::LockFinished,
             DispatchMessage::OutputAdded(info) => Self::OutputAdded(info),
@@ -619,6 +619,8 @@ impl From<DispatchMessage> for ExWlShellEvent {
             DispatchMessage::ToplevelStateChanged(state) => {
                 ExWlShellEvent::ToplevelStateChanged(state)
             }
+
+            DispatchMessage::NewActivationToken(token) => Self::NewActivationToken(token),
             _ => unreachable!("should be broadcast event"),
         }
     }

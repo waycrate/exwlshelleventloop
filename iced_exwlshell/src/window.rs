@@ -864,10 +864,7 @@ where
             ExWlShellWindowEvent::LockFinished => {
                 self.shell_broadcast.send(shell::ShellEvent::LockedFinished);
             }
-            ExWlShellWindowEvent::NewActivationToken(token) => {
-                self.shell_broadcast
-                    .send(shell::ShellEvent::NewActivationToken(token));
-            }
+
             _ => {}
         }
     }
@@ -908,6 +905,13 @@ where
             }
             ExWlShellWindowEvent::CursorLeft(_) => {
                 window.mouse_interaction = None;
+            }
+            ExWlShellWindowEvent::NewActivationToken(token) => {
+                self.shell_broadcast
+                    .send(shell::ShellEvent::NewActivationToken {
+                        window: iced_id,
+                        token: token.clone(),
+                    });
             }
             _ => {}
         }

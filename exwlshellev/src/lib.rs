@@ -3487,7 +3487,8 @@ impl<T> Dispatch<XdgActivationTokenV1, (ActivationTokenSink, id::Id)> for ExWlGl
         };
         let token = XdgActivationTokenV1Wrapper::new(*id, token, proxy.clone());
         sink.deliver(XdgActivationTokenV1State::Ready(token.clone()));
-        state.messages.push(QueuedMessage::Broadcast(
+        state.messages.push(QueuedMessage::Targeted(
+            *id,
             DispatchMessage::NewActivationToken(token),
         ))
     }
