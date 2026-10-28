@@ -1414,10 +1414,12 @@ impl<T: 'static> ExWlGlobalShellState<T> {
 
     pub fn request_activation_token(&self, id: id::Id, sink: ActivationTokenSink) {
         let Some(state) = self.shell_state(id) else {
+            log::error!("surface: {id:?} does not exist");
             sink.deliver(XdgActivationTokenV1State::NoSurface);
             return;
         };
         let Some(activation) = &self.xdg_activation else {
+            log::error!("xdg_activation_v1 is not supported on your wm");
             sink.deliver(XdgActivationTokenV1State::Unsupported);
             return;
         };
