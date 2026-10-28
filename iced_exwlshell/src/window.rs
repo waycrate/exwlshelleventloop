@@ -5,6 +5,7 @@ use crate::{
     actions::{ExWlShellCustomActionWithId, IcedNewPopupSettings},
     ime_preedit::ImeState,
     settings::VirtualKeyboardSettings,
+    surface_regions::SurfaceRegionsCollector,
     user_interface::{Input, UserInterfaces},
     window::window_manager::WindowManager,
 };
@@ -709,6 +710,17 @@ where
             &mut self.messages,
         );
 
+        let mut regions = SurfaceRegionsCollector::default();
+        ui.operate(&window.renderer, &mut regions);
+        if let Some(shell_state) = ev.shell_state_mut(unit_id) {
+            if let Some(blur) = regions.blur {
+                shell_state.stage_blur_region_if_changed(blur);
+            }
+            if let Some(input) = regions.input {
+                shell_state.stage_input_region_if_changed(input);
+            }
+        }
+
         let physical_size = window.state.viewport().physical_size();
 
         if self
@@ -1060,6 +1072,7 @@ where
                 exshell_window
                     .get_wlsurface()
                     .set_input_region(input_region.region());
+                exshell_window.forget_staged_input_region();
                 exshell_window.get_wlsurface().commit();
             }
             ExWlShellCustomAction::VirtualKeyboardPressed { key } => {
