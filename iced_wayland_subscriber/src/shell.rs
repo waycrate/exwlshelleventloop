@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+pub use crate::info::ExWlOutputInfo;
+use exwlshellev::XdgActivationTokenV1Wrapper;
 use futures::channel::mpsc;
 use iced_core::window::Id;
 use iced_futures::Subscription;
-
-pub use crate::info::ExWlOutputInfo;
 
 /// What kind of surface a window is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +51,8 @@ pub enum ShellEvent {
     LockDenied,
     /// The lock is finished
     LockedFinished,
+    /// A new token is created
+    NewActivationToken(XdgActivationTokenV1Wrapper),
 }
 
 #[derive(Default)]

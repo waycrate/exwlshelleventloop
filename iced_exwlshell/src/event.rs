@@ -1,7 +1,9 @@
 use exwlshellev::keyboard::ModifiersState;
 use exwlshellev::reexport::wayland_client::{ButtonState, KeyState, WEnum, wl_pointer::WlPointer};
 use exwlshellev::xkb_keyboard::KeyEvent as LayerShellKeyEvent;
-use exwlshellev::{ExWlGlobalShellState, ExWlShellBroadcast, ExWlShellEvent};
+use exwlshellev::{
+    ExWlGlobalShellState, ExWlShellBroadcast, ExWlShellEvent, XdgActivationTokenV1Wrapper,
+};
 use iced_core::mouse;
 
 use crate::gesture;
@@ -108,6 +110,7 @@ pub enum WindowEvent {
     Locked,
     LockDenied,
     LockFinished,
+    NewActivationToken(XdgActivationTokenV1Wrapper),
     ToplevelStateChanged(exwlshellev::ToplevelState),
 }
 
@@ -193,6 +196,7 @@ impl WindowEvent {
             ExWlShellBroadcast::Locked => WindowEvent::Locked,
             ExWlShellBroadcast::LockDenied => WindowEvent::LockDenied,
             ExWlShellBroadcast::LockFinished => WindowEvent::LockFinished,
+            ExWlShellBroadcast::NewActivationToken(token) => WindowEvent::NewActivationToken(token),
         }
     }
 }

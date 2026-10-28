@@ -1,4 +1,5 @@
 use crate::CursorShape;
+use crate::XdgActivationTokenV1Wrapper;
 use crate::id;
 use sctk::output::OutputInfo;
 use wayland_client::{
@@ -274,6 +275,8 @@ pub(crate) enum DispatchMessage {
     OutputAdded(ExWlOutputInfo),
     OutputUpdated(ExWlOutputInfo),
     OutputRemoved(ExWlOutputInfo),
+
+    NewActivationToken(XdgActivationTokenV1Wrapper),
     MouseButton {
         pointer: WlPointer,
         state: WEnum<ButtonState>,
@@ -487,6 +490,7 @@ pub enum ExWlShellBroadcast {
     Locked,
     LockDenied,
     LockFinished,
+    NewActivationToken(XdgActivationTokenV1Wrapper),
 }
 
 impl From<DispatchMessage> for ExWlShellBroadcast {
@@ -495,6 +499,7 @@ impl From<DispatchMessage> for ExWlShellBroadcast {
             DispatchMessage::NewDisplay(_) => {
                 unreachable!("NewDisplay is handled before conversion")
             }
+            DispatchMessage::NewActivationToken(token) => Self::NewActivationToken(token),
             DispatchMessage::Locked => Self::Locked,
             DispatchMessage::LockFinished => Self::LockFinished,
             DispatchMessage::OutputAdded(info) => Self::OutputAdded(info),

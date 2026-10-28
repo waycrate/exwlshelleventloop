@@ -1207,18 +1207,28 @@ impl From<Connection> for WithConnection {
 }
 
 #[derive(Clone)]
-pub struct ActivationTokenSink(Arc<dyn Fn(XdgActivationTokenV1State) + Send + Sync>);
+pub struct ActivationTokenSink(Option<Arc<dyn Fn(XdgActivationTokenV1State) + Send + Sync>>);
 
 impl ActivationTokenSink {
-    pub fn new<F>(deliver: F) -> Self
+    /// Just a normal request, then the [XdgActivationTokenV1Wrapper] will be sent through messages,
+    /// for example, in iced_exwlshell, it will come throw iced_wayland_subscriber
+    pub fn none() -> Self {
+        Self(None)
+    }
+
+    /// the callback will be called when a new token is called, you can use this token to make some
+    /// operator
+    pub fn callback<F>(deliver: F) -> Self
     where
         F: Fn(XdgActivationTokenV1State) + Send + Sync + 'static,
     {
-        Self(Arc::new(deliver))
+        Self(Some(Arc::new(deliver)))
     }
 
     fn deliver(&self, state: XdgActivationTokenV1State) {
-        (self.0)(state);
+        if let Some(sink) = self.0.as_ref() {
+            sink(state);
+        }
     }
 }
 
@@ -1353,6 +1363,10 @@ impl XdgActivationTokenV1Wrapper {
         }
     }
 
+    /// return the exwlshellev id
+    pub fn id(&self) -> id::Id {
+        self.inner.id
+    }
     /// return the token by xdg_activation_v1
     pub fn token(&self) -> &str {
         &self.inner.token
@@ -3461,7 +3475,7 @@ delegate_noop!(@<T> ExWlGlobalShellState<T>: ignore XdgActivationV1);
 
 impl<T> Dispatch<XdgActivationTokenV1, (ActivationTokenSink, id::Id)> for ExWlGlobalShellState<T> {
     fn event(
-        _state: &mut Self,
+        state: &mut Self,
         proxy: &XdgActivationTokenV1,
         event: xdg_activation_token_v1::Event,
         (sink, id): &(ActivationTokenSink, id::Id),
@@ -3471,9 +3485,11 @@ impl<T> Dispatch<XdgActivationTokenV1, (ActivationTokenSink, id::Id)> for ExWlGl
         let xdg_activation_token_v1::Event::Done { token } = event else {
             return;
         };
-        sink.deliver(XdgActivationTokenV1State::Ready(
-            XdgActivationTokenV1Wrapper::new(*id, token, proxy.clone()),
-        ));
+        let token = XdgActivationTokenV1Wrapper::new(*id, token, proxy.clone());
+        sink.deliver(XdgActivationTokenV1State::Ready(token.clone()));
+        state.messages.push(QueuedMessage::Broadcast(
+            DispatchMessage::NewActivationToken(token),
+        ))
     }
 }
 
