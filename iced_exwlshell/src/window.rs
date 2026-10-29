@@ -1055,9 +1055,6 @@ where
                     ev.request_activation_token(id, sink);
                 }
             }
-            ExWlShellCustomAction::RequestTokenActive(token) => {
-                ev.request_tokenv1_active(token);
-            }
             ExWlShellCustomAction::SetInputRegion(set_region) => {
                 let wl_compositor = ev.wl_compositor();
                 let qh = ev.qh();

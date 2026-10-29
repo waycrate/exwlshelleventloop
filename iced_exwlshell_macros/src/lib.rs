@@ -41,8 +41,6 @@ pub fn to_exwlshell_message(
             SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::RegionActionCB },
             /// Action, request a XdgActivation token
             RequestActivationToken{ id: iced_exwlshell::reexport::IcedId, sink: iced_exwlshell::reexport::ActivationTokenSink },
-            /// Action active a token
-            RequestTokenActive{ token: iced_exwlshell::reexport::XdgActivationTokenV1Wrapper },
             /// Action, layer change
             LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
             /// Action, margin change Margin: top, left, bottom, right
@@ -125,7 +123,6 @@ pub fn to_exwlshell_message(
                     match self {
                         Self::SetInputRegion{ id, callback } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::SetInputRegion(callback))),
                         Self::RequestActivationToken{ id, sink } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RequestActivationToken(sink))),
-                        Self::RequestTokenActive{ token } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::RequestTokenActive(token))),
                         Self::LayoutChange { id, anchor, size } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayoutChange { anchor, size })),
                         Self::LayerChange { id, layer } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayerChange(layer))),
                         Self::MarginChange { id, margin } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::MarginChange(margin))),
@@ -253,8 +250,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 SetInputRegion{ id: iced_exwlshell::reexport::IcedId, callback: iced_exwlshell::actions::RegionActionCB },
                 /// Action, request a XdgActivation token
                 RequestActivationToken{ id: iced_exwlshell::reexport::IcedId, sink: iced_exwlshell::reexport::ActivationTokenSink },
-                /// Action active a token
-                RequestTokenActive{ token: iced_exwlshell::reexport::XdgActivationTokenV1Wrapper },
                 LayerChange{id: iced_exwlshell::reexport::IcedId, layer:iced_exwlshell::reexport::Layer},
                 /// Margin: top, left, bottom, right
                 MarginChange{id: iced_exwlshell::reexport::IcedId, margin: iced_exwlshell::reexport::Margin},
@@ -321,7 +316,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         match self {
                             Self::SetInputRegion{ id, callback } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::SetInputRegion(callback))),
                             Self::RequestActivationToken{ id, sink } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::RequestActivationToken(sink))),
-                            Self::RequestTokenActive{ token } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::RequestTokenActive(token))),
                             Self::LayoutChange { id, anchor, size } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayoutChange{ anchor, size })),
                             Self::LayerChange { id, layer } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::LayerChange(layer))),
                             Self::MarginChange { id, margin } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::MarginChange(margin))),
@@ -354,7 +348,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 SetInputRegion(iced_exwlshell::actions::RegionActionCB),
                 /// Action, request a XdgActivation token
                 RequestActivationToken(iced_exwlshell::reexport::ActivationTokenSink),
-                RequestTokenActive{ token: iced_exwlshell::reexport::XdgActivationTokenV1Wrapper },
                 LayerChange(iced_exwlshell::reexport::Layer),
                 /// Margin: top, right, bottom, left
                 MarginChange(iced_exwlshell::reexport::Margin),
@@ -376,7 +369,6 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                         match self {
                             Self::SetInputRegion(callback) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::SetInputRegion(callback))),
                             Self::RequestActivationToken(sink) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::RequestActivationToken(sink))),
-                            Self::RequestTokenActive{ token } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::RequestTokenActive(token))),
                             Self::LayoutChange { anchor, size } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::LayoutChange { anchor, size })),
                             Self::LayerChange(layer) => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::LayerChange(layer))),
 
