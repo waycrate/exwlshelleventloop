@@ -1,49 +1,82 @@
-# Extra wayland shell event loop and their iced bindings
+# exwlshelleventloop
 
-We want to make program with iced for layershell and sessionlock, so we made this project.
+Build Wayland desktop components with [iced](https://github.com/iced-rs/iced): panels, docks, launchers, lock screens and on-screen keyboards.
 
-Take winit as reference a lot, to make easilier program on layershell and ext-session-lock.
+This project binds the `wlr-layer-shell` and `ext-session-lock` protocols, plus `input-panel`, to iced.
+These protocols give a surface a role that `xdg-shell` does not cover, and `xdg-shell` is all that winit and iced support.
+Hence the "ex" (extra) in `exwlshell`.
 
-This project bind `ext-session-lock` and `layershell` with the similar way of winit, which storing message and handle it in callback
+The design of `exwlshell` take reference from [winit](https://github.com/rust-windowing/winit), also with something different, and the `iced_exwlshell` help you to write `wlr-layer-shell` and `ext-session-lock` programs easily
+This makes layer-shell and session-lock programs easier to write.
 
-## How can it do such thing?
+## How it works
 
-Iced itself does not support to add extra custom system actions or extra system events, but we can do something to Message. We add some genertic type restriction to the message, and let message can be changed to events or actions during eventloop, so you need to use the macros, and add extra fields to your `Message`. And I am lazy about writing the documents, so if you do not understand how to use this crate, you can always ask questions in discord channels, open issues or make pr for us. By the way, about custom events, we have pr about it at https://github.com/iced-rs/iced/pull/2658.
+iced has no way to add custom system actions or system events. We work around this through `Message`.
 
-And we also support popup in these shells, but since the popup/tooltip support has not landed in winit/iced, so it seems only a toy. I have consider about a design for it, but I do not have time to implement it, and I need to read the code about iced.
+- The application's `Message` must implement `TryInto<ExWlShellCustomActionWithId, Error = Message>`.
+- The event loop calls `try_into` on every message. A message that converts is run as a shell action, such as opening a layer surface or locking the session. Any other message goes to your `update` as usual.
+- The `#[to_exwlshell_message]` attribute macro adds the action variants to your `Message` enum and implements that conversion for you.
 
-Always welcome pr and issues!
+Custom events are also proposed upstream in [iced-rs/iced#2658](https://github.com/iced-rs/iced/pull/2658).
 
-## Here are four main subprojects
+## Crates
 
-### waycrate_xkbkeycode
-[![Crates.io](https://img.shields.io/crates/v/waycrate_xkbkeycode.svg)](https://crates.io/crates/waycrate_xkbkeycode)
-
-Take a lot of reference from winit (mainly from winit). Mainly handle the xkbcommon events.
-
-### exwlshellev
-[![Crates.io](https://img.shields.io/crates/v/exwlshellev.svg)](https://crates.io/crates/exwlshellev)
-
-All wayland extra shell in one eventloop. It contains layershell, sessionlock and input-panel. This libraries provides full extra shell support for iced_exwlshell
+The main crates are listed first. `iced_exwlshell` is the one most users want.
 
 ### iced_exwlshell
 [![Crates.io](https://img.shields.io/crates/v/iced_exwlshell.svg)](https://crates.io/crates/iced_exwlshell)
 
-Full extra shell binding for iced
+The full iced binding for the extra shells. Use it to build shell programs such as lock screens and docks.
 
-Now you can use this crate to make a shell probram, including lock, dock, and etc
+- Open new layer-shell surfaces, including popups
+- Session lock
+- Virtual keyboard (`zwp_virtual_keyboard_v1`)
 
-#### Feature:
+### exwlshellev
+[![Crates.io](https://img.shields.io/crates/v/exwlshellev.svg)](https://crates.io/crates/exwlshellev)
 
-- support to open new layershell and support popup window.
-- support ext-virtual-keyboard
-- support sessionlock
+One event loop for layer-shell, session-lock and input-panel. It does not depend on iced.
+It provides complete shell support for `iced_exwlshell`, which is built on it.
 
 ### iced_wayland_subscriber
 [![Crates.io](https://img.shields.io/crates/v/iced_wayland_subscriber.svg)](https://crates.io/crates/iced_wayland_subscriber)
 
-This crate provides subscriptions for many wayland events, like ext-workspace, outputs and etc. You can use this crate to listen on wayland events.
+iced subscriptions for Wayland events, such as `ext-workspace` and outputs.
+Use it to listen to compositor state from an iced application.
 
-## NOTE
+### waycrate_xkbkeycode
+[![Crates.io](https://img.shields.io/crates/v/waycrate_xkbkeycode.svg)](https://crates.io/crates/waycrate_xkbkeycode)
 
-From version 0.20.0, iced_layershell and iced_sessionlock will be deprecated. The related functions and macros are moved to iced_exwlshell. Please read the guidance under `docs` folder.
+Handles `xkbcommon` events. Mostly adapted from winit.
+
+### Supporting crates
+
+| Crate | Purpose |
+|-------|---------|
+| [`iced_exwlshell_macros`](./iced_exwlshell_macros) | Proc macros, re-exported by `iced_exwlshell`. |
+| [`iced_exdevtools`](./iced_exdevtools) | Developer tools for `iced_exwlshell` applications. |
+
+Runnable examples are in [`iced_examples`](./iced_examples).
+
+## Limitations
+
+Popups work in these shells, but neither winit nor iced has popup or tooltip support yet. Treat them as experimental.
+A design for proper support exists. It is not implemented, and needs a closer read of the iced internals first.
+
+## Documentation and help
+
+The API documentation is still thin. If something is unclear:
+
+- Ask in our Discord
+- Open an issue
+- Send a PR
+
+PRs and issues are always welcome.
+
+## Migrating
+
+From `0.20.0`, `iced_layershell` and `iced_sessionlock` are deprecated.
+Their functions and macros now live in `iced_exwlshell`. The migration guides are in [`docs`](./docs):
+
+- [0.19.1 → 0.20.0](./docs/MIGRATION-19.1-%3E20.0.md)
+- [0.20.0 → 0.21.0](./docs/MIGRATION-20.0-%3E21.0.md)
