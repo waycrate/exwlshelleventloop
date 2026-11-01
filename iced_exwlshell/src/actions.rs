@@ -6,8 +6,8 @@ use exwlshellev::reexport::xdg_positioner::{
     Gravity as PopupGravity,
 };
 use exwlshellev::{
-    LayerSize, Margin, NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings,
-    PixelSize, PopupPlacement, Position,
+    InputRectangle, LayerSize, Margin, NewInputPanelSettings, NewLayerShellSettings,
+    NewXdgWindowSettings, PixelSize, PopupPlacement, Position, RegionAction,
 };
 use iced_core::window::Id as IcedId;
 use std::sync::Arc;
@@ -17,6 +17,7 @@ pub struct InputRegion {
     region: Option<WlRegion>,
     width: u32,
     height: u32,
+    staged_input_region: Vec<RegionAction>,
 }
 
 impl InputRegion {
@@ -28,6 +29,7 @@ impl InputRegion {
             region: Some(region),
             width,
             height,
+            staged_input_region: Vec::new(),
         }
     }
     /// return the height of the surface
@@ -51,16 +53,34 @@ impl InputRegion {
     }
 
     /// wrapper of the add function of [WlRegion], if failed, return [RegionError]
-    pub fn add(&self, x: i32, y: i32, width: i32, height: i32) -> Result<(), RegionError> {
+    pub fn add(&mut self, x: i32, y: i32, width: i32, height: i32) -> Result<(), RegionError> {
         let region = self.region.as_ref().ok_or(RegionError::RegionDeleted)?;
         region.add(x, y, width, height);
+        let input_region = RegionAction::Add(InputRectangle {
+            x,
+            y,
+            width,
+            height,
+        });
+        self.staged_input_region.push(input_region);
         Ok(())
     }
 
+    pub(crate) fn staged_input_region(&self) -> Vec<RegionAction> {
+        self.staged_input_region.clone()
+    }
+
     /// wrapper of the subtract function of [WlRegion], if failed, return [RegionError]
-    pub fn subtract(&self, x: i32, y: i32, width: i32, height: i32) -> Result<(), RegionError> {
+    pub fn subtract(&mut self, x: i32, y: i32, width: i32, height: i32) -> Result<(), RegionError> {
         let region = self.region.as_ref().ok_or(RegionError::RegionDeleted)?;
         region.subtract(x, y, width, height);
+        let input_region = RegionAction::Subtract(InputRectangle {
+            x,
+            y,
+            width,
+            height,
+        });
+        self.staged_input_region.push(input_region);
         Ok(())
     }
 
@@ -70,6 +90,7 @@ impl InputRegion {
             return;
         };
         region.destroy();
+        self.staged_input_region.clear();
     }
 }
 
