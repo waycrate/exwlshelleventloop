@@ -149,9 +149,8 @@ fn main() {
             left: 20,
         })
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_keyboard_interacivity(KeyboardInteractivity::OnDemand)
+        .with_keyboard_interacivity(KeyboardInteractivity::Exclusive)
         .with_exclusive_zone(-1)
-        .with_events_transparent(true)
         .prebuild()
         .unwrap();
     let display = prebuild.display_wrapper();
