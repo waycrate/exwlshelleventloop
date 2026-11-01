@@ -1,30 +1,43 @@
 use std::any::Any;
 
-use exwlshellev::{blur::BlurRegion, input_rectangle::InputRectangle};
+use exwlshellev::{InputRectangle, RegionAction, blur::BlurRegion};
 use iced_core::{
     Rectangle,
     widget::{Id, Operation},
 };
 
+use crate::error::RegionActionCastError;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BlurRegions(pub Vec<BlurRegion>);
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct InputRects(pub Vec<Rectangle>);
+pub struct InputRegionActions(pub Vec<RegionAction>);
 
 #[derive(Default)]
 pub(crate) struct SurfaceRegionsCollector {
-    pub(crate) blur: Option<Vec<BlurRegion>>,
-    pub(crate) input: Option<Vec<InputRectangle>>,
+    pub(crate) blur: Vec<BlurRegion>,
+    pub(crate) input: Vec<RegionAction>,
 }
 
-#[allow(clippy::cast_possible_truncation)]
-fn covering_input_rectangle(rect: &Rectangle) -> InputRectangle {
-    InputRectangle {
-        x: rect.x as i32,
-        y: rect.y as i32,
-        width: rect.width.ceil() as i32,
-        height: rect.height.ceil() as i32,
+pub trait IntoRegionAction {
+    fn try_into_region_action(self) -> Result<RegionAction, RegionActionCastError>;
+}
+
+impl IntoRegionAction for Rectangle {
+    fn try_into_region_action(self) -> Result<RegionAction, RegionActionCastError> {
+        if self.width < 0. {
+            return Err(RegionActionCastError::IllegelWidth);
+        }
+        if self.height < 0. {
+            return Err(RegionActionCastError::IllegelHeight);
+        }
+        Ok(RegionAction::Add(InputRectangle {
+            x: self.x as _,
+            y: self.y as _,
+            width: self.width.ceil() as _,
+            height: self.height.ceil() as _,
+        }))
     }
 }
 
@@ -35,15 +48,10 @@ impl Operation for SurfaceRegionsCollector {
 
     fn custom(&mut self, _id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Any) {
         if let Some(BlurRegions(regions)) = state.downcast_ref::<BlurRegions>() {
-            self.blur.get_or_insert_default().extend_from_slice(regions);
+            self.blur.extend_from_slice(regions);
         }
-        if let Some(InputRects(rects)) = state.downcast_ref::<InputRects>() {
-            self.input.get_or_insert_default().extend(
-                rects
-                    .iter()
-                    .filter(|rect| rect.width > 0.0 && rect.height > 0.0)
-                    .map(covering_input_rectangle),
-            );
+        if let Some(InputRegionActions(actions)) = state.downcast_ref::<InputRegionActions>() {
+            self.input.extend(actions);
         }
     }
 }

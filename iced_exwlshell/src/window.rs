@@ -42,6 +42,7 @@ use iced_runtime::user_interface;
 use iced_wayland_subscriber::shell;
 use std::sync::OnceLock;
 use std::time::Instant;
+use std::vec;
 use std::{
     borrow::Cow,
     collections::{HashMap, VecDeque},
@@ -713,11 +714,11 @@ where
         let mut regions = SurfaceRegionsCollector::default();
         ui.operate(&window.renderer, &mut regions);
         if let Some(shell_state) = ev.shell_state_mut(unit_id) {
-            if let Some(blur) = regions.blur {
-                shell_state.stage_blur_region_if_changed(blur);
+            if !regions.blur.is_empty() {
+                shell_state.stage_blur_region_if_changed(regions.blur);
             }
-            if let Some(input) = regions.input {
-                shell_state.stage_input_region_if_changed(input);
+            if !regions.input.is_empty() {
+                shell_state.stage_input_region_if_changed(regions.input);
             }
         }
 
@@ -1075,10 +1076,7 @@ where
 
                 ref_mut_exwlshell_window!(ev, iced_id, exshell_id, layer_shell_window);
                 let window_size = exshell_window.physical_size();
-                let width: i32 = window_size.width as i32;
-                let height: i32 = window_size.height as i32;
 
-                region.subtract(0, 0, width, height);
                 let mut input_region =
                     InputRegion::new(region, window_size.width, window_size.height);
                 set_region(&mut input_region);
@@ -1086,7 +1084,8 @@ where
                 exshell_window
                     .get_wlsurface()
                     .set_input_region(input_region.region());
-                exshell_window.forget_staged_input_region();
+
+                exshell_window.reset_staged_input_region(input_region.staged_input_region());
                 exshell_window.get_wlsurface().commit();
             }
             ExWlShellCustomAction::VirtualKeyboardPressed { key } => {

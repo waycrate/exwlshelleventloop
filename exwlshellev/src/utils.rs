@@ -185,3 +185,19 @@ impl Default for NewLayerShellSettings {
         }
     }
 }
+
+/// describe the two actions of the region
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RegionAction {
+    Subtract(InputRectangle),
+    Add(InputRectangle),
+}
+
+/// set the shape of the set_region
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InputRectangle {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}

@@ -146,7 +146,6 @@ pub use waycrate_xkbkeycode::keyboard;
 pub use waycrate_xkbkeycode::xkb_keyboard;
 pub mod blur;
 mod builder;
-pub mod input_rectangle;
 pub use builder::{ExWlEventLoopBuilder, ExWlEventLoopPreBuilder};
 pub mod dpi;
 mod events;
@@ -280,8 +279,8 @@ use std::time::Instant;
 use crate::blur::{BlurOption, BlurRegion};
 use crate::dpi::LogicalSize;
 use crate::dpi::PhysicalSize;
-use crate::input_rectangle::InputRectangle;
 use crate::seat::SeatStorage;
+pub use crate::utils::{InputRectangle, RegionAction};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ProtocolType {
@@ -519,7 +518,7 @@ impl<T> ExWlShellStateBuilder<T> {
                 binding: Default::default(),
                 configured,
                 blur_option: BlurOption::None,
-                staged_input_region: None,
+                staged_input_region: Vec::new(),
                 pending_reposition: None,
                 toplevel_state: ToplevelState::default(),
                 effect: None,
@@ -643,7 +642,7 @@ pub struct ExWlShellState<T> {
     configured: bool,
 
     blur_option: BlurOption,
-    staged_input_region: Option<Vec<InputRectangle>>,
+    staged_input_region: Vec<RegionAction>,
 
     /// Only meaningful for PopUp
     pending_reposition: Option<u32>,
@@ -811,27 +810,45 @@ impl<T: 'static> ExWlShellState<T> {
         }
     }
 
-    pub fn stage_input_region_if_changed(&mut self, rectangles: Vec<InputRectangle>) {
-        if self.staged_input_region.as_ref() == Some(&rectangles) {
+    pub fn stage_input_region_if_changed(&mut self, actions: Vec<RegionAction>) {
+        if self.staged_input_region != actions {
             return;
         }
         let region = self.wl_compositor.create_region(&self.qh, ());
-        for InputRectangle {
-            x,
-            y,
-            width,
-            height,
-        } in &rectangles
-        {
-            region.add(*x, *y, *width, *height);
+
+        for action in &actions {
+            match action {
+                RegionAction::Add(InputRectangle {
+                    x,
+                    y,
+                    width,
+                    height,
+                }) => {
+                    region.add(*x, *y, *width, *height);
+                }
+                RegionAction::Subtract(InputRectangle {
+                    x,
+                    y,
+                    width,
+                    height,
+                }) => {
+                    region.subtract(*x, *y, *width, *height);
+                }
+            }
         }
         self.window.wl_surface.set_input_region(Some(&region));
         region.destroy();
-        self.staged_input_region = Some(rectangles);
+        self.staged_input_region = actions;
     }
 
-    pub fn forget_staged_input_region(&mut self) {
-        self.staged_input_region = None;
+    pub fn reset_staged_input_region(
+        &mut self,
+        reset_region: impl Into<Option<Vec<RegionAction>>>,
+    ) {
+        self.staged_input_region.clear();
+        if let Some(regions) = reset_region.into() {
+            self.staged_input_region.extend(regions);
+        }
     }
 
     fn stage_blur_option(&mut self, blur_option: BlurOption) {

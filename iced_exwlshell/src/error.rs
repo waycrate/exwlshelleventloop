@@ -34,3 +34,11 @@ pub enum RegionError {
     #[error("Region Deleted")]
     RegionDeleted,
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum RegionActionCastError {
+    #[error("illegal width")]
+    IllegelWidth,
+    #[error("illegal height")]
+    IllegelHeight,
+}
