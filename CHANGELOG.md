@@ -14,8 +14,11 @@ Current update is hudge, so [Migration Guide is provided](https://github.com/way
 
 - When cursor entered the new surface, if iced does not update the cursor, it will kept the original cursor shape, reported by @ple1n
 
-### Changed (breaking)
+### Changed
+- Modified the README, make the content better by @ple1n
 
+### Changed (breaking)
+- Added custom operation for Region and Blur by @wvhulle
 - Make run of exwlshellev can return value
 - `Callback`, which is the callback of setting region, is renamed to RegionCB
 - When setting the InputRegin, instead accessing the WlRegion, now you can only access the InputRegin, which provided many extra information
