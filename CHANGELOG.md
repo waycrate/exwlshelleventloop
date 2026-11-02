@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.21.2] - 2026-10-24
+## [0.21.3] - 2026-11-02
 
 ### Migration
 Current update is hudge, so [Migration Guide is provided](https://github.com/waycrate/exwlshelleventloop/docs/MIGRATION-20.0->21.0.md)
@@ -16,10 +16,24 @@ Current update is hudge, so [Migration Guide is provided](https://github.com/way
 
 ### Changed
 - Modified the README, make the content better by @ple1n
+- Fix toplevel resize behavior by @id3v1669
 
 ### Changed (breaking)
 - Added custom operation for Region and Blur by @wvhulle
-- Make run of exwlshellev can return value
+- Add xdg-activation token minting (#440)
+
+[0.21.3]: https://github.com/waycrate/exwlshelleventloop/compare/v0.21.3...v0.20.2
+
+## [0.21.2] - 2026-10-24
+
+### Migration
+Current update is hudge, so [Migration Guide is provided](https://github.com/waycrate/exwlshelleventloop/docs/MIGRATION-20.0->21.0.md)
+
+### Fixed
+
+- When cursor entered the new surface, if iced does not update the cursor, it will kept the original cursor shape, reported by @ple1n
+
+### Changed (breaking)
 - `Callback`, which is the callback of setting region, is renamed to RegionCB
 - When setting the InputRegin, instead accessing the WlRegion, now you can only access the InputRegin, which provided many extra information
 - Induce RefreshState in Refresh callback, users will know it scale_factor or resize happened
