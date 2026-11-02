@@ -21,11 +21,12 @@ pub(crate) struct SurfaceRegionsCollector {
 }
 
 pub trait IntoRegionAction {
-    fn try_into_region_action(self) -> Result<RegionAction, RegionActionCastError>;
+    fn to_add(self) -> Result<RegionAction, RegionActionCastError>;
+    fn to_subtract(self) -> Result<RegionAction, RegionActionCastError>;
 }
 
 impl IntoRegionAction for Rectangle {
-    fn try_into_region_action(self) -> Result<RegionAction, RegionActionCastError> {
+    fn to_add(self) -> Result<RegionAction, RegionActionCastError> {
         if self.width < 0. {
             return Err(RegionActionCastError::IllegelWidth);
         }
@@ -33,6 +34,20 @@ impl IntoRegionAction for Rectangle {
             return Err(RegionActionCastError::IllegelHeight);
         }
         Ok(RegionAction::Add(InputRectangle {
+            x: self.x as _,
+            y: self.y as _,
+            width: self.width.ceil() as _,
+            height: self.height.ceil() as _,
+        }))
+    }
+    fn to_subtract(self) -> Result<RegionAction, RegionActionCastError> {
+        if self.width < 0. {
+            return Err(RegionActionCastError::IllegelWidth);
+        }
+        if self.height < 0. {
+            return Err(RegionActionCastError::IllegelHeight);
+        }
+        Ok(RegionAction::Subtract(InputRectangle {
             x: self.x as _,
             y: self.y as _,
             width: self.width.ceil() as _,
