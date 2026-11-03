@@ -181,6 +181,7 @@ impl Counter {
                             settings: IcedNewMenuSettings {
                                 size: PixelSize::px(160, 120),
                                 gravity: PopupGravity::TopRight,
+                                ..Default::default()
                             },
                             id,
                         });
