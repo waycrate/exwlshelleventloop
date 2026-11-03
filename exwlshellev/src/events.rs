@@ -1,5 +1,6 @@
 use crate::CursorShape;
 use crate::XdgActivationTokenV1Wrapper;
+use crate::foreign::ForeignToplevelHandle;
 use crate::id;
 use sctk::output::OutputInfo;
 use wayland_client::{
@@ -277,6 +278,8 @@ pub(crate) enum DispatchMessage {
     OutputRemoved(ExWlOutputInfo),
 
     NewActivationToken(XdgActivationTokenV1Wrapper),
+    ForeignParentDestroyed,
+    ToplevelExported(ForeignToplevelHandle),
     MouseButton {
         pointer: WlPointer,
         state: WEnum<ButtonState>,
@@ -458,6 +461,11 @@ pub enum ExWlShellEvent {
     ToplevelStateChanged(ToplevelState),
 
     NewActivationToken(XdgActivationTokenV1Wrapper),
+
+    /// Foreign parent set with xdg-foreign is gone.
+    ForeignParentDestroyed,
+    /// The compositor sent the xdg-foreign handle of this window.
+    ToplevelExported(ForeignToplevelHandle),
 }
 
 /// A wrapper of [OutputInfo], also provide a [WlOutput]
@@ -621,6 +629,8 @@ impl From<DispatchMessage> for ExWlShellEvent {
             }
 
             DispatchMessage::NewActivationToken(token) => Self::NewActivationToken(token),
+            DispatchMessage::ForeignParentDestroyed => Self::ForeignParentDestroyed,
+            DispatchMessage::ToplevelExported(handle) => Self::ToplevelExported(handle),
             _ => unreachable!("should be broadcast event"),
         }
     }

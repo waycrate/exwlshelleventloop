@@ -88,6 +88,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             client_side_decorations,
             app_id,
             blur_option,
+            foreign_parent,
         }: NewXdgWindowSettings,
         info: impl Into<Option<T>>,
     ) -> Option<crate::id::Id> {
@@ -103,6 +104,19 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         if let Some(app_id) = app_id {
             toplevel.set_app_id(app_id);
         }
+
+        let id = crate::id::Id::unique();
+        // Set the parent before the first commit so the window maps above it.
+        let foreign_parent = match (foreign_parent, &self.xdg_importer) {
+            (Some(parent), Some(importer)) => {
+                Some(crate::import_parent(importer, parent, &wl_surface, &qh, id))
+            }
+            (Some(_), None) => {
+                log::warn!(target: "exwlshellev", "zxdg_importer_v2 is not supported on your wm, {id:?} gets no foreign parent");
+                None
+            }
+            (None, _) => None,
+        };
 
         let decoration = if let Some(decoration_manager) = &self.xdg_decoration_manager {
             let decoration = decoration_manager.get_toplevel_decoration(&toplevel, &qh, ());
@@ -132,7 +146,6 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .as_ref()
             .map(|viewport| viewport.get_viewport(&wl_surface, &qh, ()));
 
-        let id = crate::id::Id::unique();
         self.push_shell(
             ExWlShellStateBuilder::new(
                 id,
@@ -147,6 +160,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .fractional_scale(fractional_scale)
             .blur_option(blur_option)
             .effect_surface(effect)
+            .foreign_parent(foreign_parent)
             .binding(info.into())
             .build(),
         );

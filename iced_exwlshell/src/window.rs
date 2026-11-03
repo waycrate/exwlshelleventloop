@@ -23,7 +23,7 @@ use exwlshellev::{
         zwp_virtual_keyboard_v1,
     },
 };
-use exwlshellev::{ExWlShellBroadcast, ExWlShellInitEvent, InitRequest};
+use exwlshellev::{ExWlShellBroadcast, ExWlShellInitEvent, ForeignHandleState, InitRequest};
 #[cfg(all(feature = "linux-theme-detection", target_os = "linux"))]
 use futures::StreamExt;
 #[cfg(not(all(feature = "linux-theme-detection", target_os = "linux")))]
@@ -836,8 +836,12 @@ where
         self.user_interfaces.remove(&iced_id);
         self.iced_events.retain(|(id, _)| *id != iced_id);
         self.gesture_owners.remove(&iced_id);
-        self.waiting_shell_actions
-            .retain(|(id, _)| *id != Some(iced_id));
+        for (_, action) in self
+            .waiting_shell_actions
+            .extract_if(.., |(target, _)| *target == Some(iced_id))
+        {
+            abandon_action(action, ForeignHandleState::Cancelled);
+        }
         self.pending_window_controls
             .retain(|(id, _)| *id != iced_id);
         self.shell_broadcast.forget(iced_id);
@@ -887,6 +891,20 @@ where
         shell_id: ExWlShellId,
         event: ExWlShellWindowEvent,
     ) {
+        if let ExWlShellWindowEvent::ForeignParentDestroyed
+        | ExWlShellWindowEvent::ToplevelExported(_) = &event
+        {
+            let Some(&window) = ev.shell_state(shell_id).and_then(|unit| unit.get_binding()) else {
+                return;
+            };
+            self.shell_broadcast.send(match event {
+                ExWlShellWindowEvent::ToplevelExported(handle) => {
+                    shell::ShellEvent::ToplevelExported { window, handle }
+                }
+                _ => shell::ShellEvent::ForeignParentDestroyed { window },
+            });
+            return;
+        }
         let Some((iced_id, window)) = self.window_manager.get_mut_alias(shell_id) else {
             return;
         };
@@ -1002,6 +1020,7 @@ where
         ev: &mut ExWlGlobalShellState<IcedId>,
         mut iced_id: Option<IcedId>,
         action: ExWlShellCustomAction,
+        batch: &[(Option<IcedId>, ExWlShellCustomAction)],
     ) {
         let exshell_window;
         macro_rules! ref_mut_exwlshell_window {
@@ -1033,9 +1052,18 @@ where
         let mut exshell_id = iced_id
             .and_then(|iced_id| self.window_manager.get(iced_id))
             .map(|window| window.id);
-        if iced_id.is_some() && exshell_id.is_none() {
-            // still waiting
-            self.waiting_shell_actions.push((iced_id, action));
+        if let Some(id) = iced_id
+            && exshell_id.is_none()
+        {
+            if window_in_flight(id, batch, ev)
+                || window_in_flight(id, &self.waiting_shell_actions, ev)
+            {
+                // still waiting
+                self.waiting_shell_actions.push((iced_id, action));
+            } else {
+                tracing::warn!("action for unknown window {id:?}, dropping");
+                abandon_action(action, ForeignHandleState::NoSurface);
+            }
             return;
         }
         match action {
@@ -1066,6 +1094,20 @@ where
             ExWlShellCustomAction::RequestActivationToken(sink) => {
                 if let Some(id) = exshell_id {
                     ev.request_activation_token(id, sink);
+                }
+            }
+            ExWlShellCustomAction::SetForeignParent(parent) => {
+                if let Some(id) = exshell_id {
+                    ev.set_foreign_parent(id, parent);
+                }
+            }
+            ExWlShellCustomAction::ExportToplevel(sink) => match exshell_id {
+                Some(id) => ev.export_toplevel(id, sink),
+                None => sink.deliver(ForeignHandleState::NoSurface),
+            },
+            ExWlShellCustomAction::UnexportToplevel => {
+                if let Some(id) = exshell_id {
+                    ev.unexport_toplevel(id);
                 }
             }
             ExWlShellCustomAction::SetInputRegion(set_region) => {
@@ -1256,13 +1298,9 @@ where
         // NOTE: since normal_dispatch is not a WindowEvent anymore, so we need to address the
         // actions here
         // at each interaction try to resolve those waiting actions.
-        let mut waiting_layer_shell_actions = Vec::new();
-        mem::swap(
-            &mut self.waiting_shell_actions,
-            &mut waiting_layer_shell_actions,
-        );
-        for (iced_id, action) in waiting_layer_shell_actions {
-            self.handle_exwlshell_action(ev, iced_id, action);
+        let mut batch: VecDeque<_> = mem::take(&mut self.waiting_shell_actions).into();
+        while let Some((iced_id, action)) = batch.pop_front() {
+            self.handle_exwlshell_action(ev, iced_id, action, batch.make_contiguous());
         }
         self.rebuild_pending_windows();
 
@@ -1551,6 +1589,17 @@ fn window_in_flight(
     }) || ev
         .get_unit_iter()
         .any(|unit| unit.get_binding() == Some(&id))
+}
+
+/// Complete the sink for an action that will never run, so the awaiting task can finish.
+fn abandon_action(action: ExWlShellCustomAction, export: ForeignHandleState) {
+    match action {
+        ExWlShellCustomAction::ExportToplevel(sink) => sink.deliver(export),
+        ExWlShellCustomAction::RequestActivationToken(sink) => {
+            sink.deliver(exwlshellev::XdgActivationTokenV1State::NoSurface)
+        }
+        _ => {}
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

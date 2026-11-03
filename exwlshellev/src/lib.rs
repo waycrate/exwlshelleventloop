@@ -149,6 +149,8 @@ mod builder;
 pub use builder::{ExWlEventLoopBuilder, ExWlEventLoopPreBuilder};
 pub mod dpi;
 mod events;
+pub mod foreign;
+pub use foreign::{ForeignHandleSink, ForeignHandleState, ForeignToplevelHandle};
 mod input_panel;
 mod layershell;
 mod popup;
@@ -258,6 +260,10 @@ use wayland_protocols::xdg::activation::v1::client::{
 use wayland_protocols::xdg::decoration::zv1::client::{
     zxdg_decoration_manager_v1::ZxdgDecorationManagerV1,
     zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1,
+};
+use wayland_protocols::xdg::foreign::zv2::client::{
+    zxdg_exporter_v2::ZxdgExporterV2, zxdg_imported_v2::ZxdgImportedV2,
+    zxdg_importer_v2::ZxdgImporterV2,
 };
 
 pub use calloop;
@@ -521,6 +527,8 @@ impl<T> ExWlShellStateBuilder<T> {
                 staged_input_region: Vec::new(),
                 pending_reposition: None,
                 toplevel_state: ToplevelState::default(),
+                foreign_parent: None,
+                export: None,
                 effect: None,
                 // Unknown why it is 120
                 scale: 120,
@@ -560,6 +568,11 @@ impl<T> ExWlShellStateBuilder<T> {
 
     fn blur_option(mut self, blur_option: BlurOption) -> Self {
         self.inner.blur_option = blur_option;
+        self
+    }
+
+    fn foreign_parent(mut self, foreign_parent: Option<ZxdgImportedV2>) -> Self {
+        self.inner.foreign_parent = foreign_parent;
         self
     }
 
@@ -650,6 +663,11 @@ pub struct ExWlShellState<T> {
     /// Last configure state. Only used for `XdgTopLevel` windows.
     toplevel_state: ToplevelState,
 
+    /// The imported parent of this toplevel.
+    foreign_parent: Option<ZxdgImportedV2>,
+    /// The xdg-foreign export of this window. Only used for `XdgTopLevel`.
+    export: Option<foreign::ToplevelExport>,
+
     scale: u32,
     request_flag: WindowStateUnitRequestFlag,
     present_available_state: PresentAvailableState,
@@ -666,6 +684,12 @@ impl<T> Drop for ExWlShellState<T> {
             && let Some(backend) = callback.backend().upgrade()
         {
             let _ = backend.destroy_object(&callback.id());
+        }
+        if let Some(imported) = self.foreign_parent.take() {
+            imported.destroy();
+        }
+        if let Some(export) = self.export.take() {
+            export.destroy();
         }
         self.shell.destroy();
 
@@ -1282,7 +1306,8 @@ impl ActivationTokenSink {
         Self(Some(Arc::new(deliver)))
     }
 
-    fn deliver(&self, state: XdgActivationTokenV1State) {
+    /// Deliver a result to the callback, if one is set.
+    pub fn deliver(&self, state: XdgActivationTokenV1State) {
         if let Some(sink) = self.0.as_ref() {
             sink(state);
         }
@@ -1373,6 +1398,9 @@ pub struct ExWlGlobalShellState<T = ()> {
     xdg_decoration_manager: Option<ZxdgDecorationManagerV1>,
 
     xdg_activation: Option<XdgActivationV1>,
+
+    xdg_importer: Option<ZxdgImporterV2>,
+    xdg_exporter: Option<ZxdgExporterV2>,
 
     ime_purpose: ImePurpose,
     ime_allowed: bool,
@@ -1501,6 +1529,83 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         }
         token.set_surface(surface);
         token.commit();
+    }
+
+    /// Import a foreign toplevel as the parent of xdg window `id`. `None` to clear parent.
+    pub fn set_foreign_parent(&mut self, id: id::Id, parent: Option<ForeignToplevelHandle>) {
+        let importer = self.xdg_importer.clone();
+        let Some(unit) = self.shell_state_mut(id) else {
+            log::error!(target: "exwlshellev", "surface: {id:?} does not exist");
+            return;
+        };
+        if !matches!(unit.shell, Shell::XdgTopLevel(_)) {
+            // set_parent_of requires an xdg toplevel; other surfaces cause invalid_surface.
+            log::error!(target: "exwlshellev", "{id:?} is not an xdg toplevel, cannot set a foreign parent");
+            return;
+        }
+        if let Some(old) = unit.foreign_parent.take() {
+            old.destroy();
+        }
+        let Some(parent) = parent else {
+            return;
+        };
+        let Some(importer) = importer else {
+            log::warn!(target: "exwlshellev", "zxdg_importer_v2 is not supported on your wm, {id:?} gets no foreign parent");
+            return;
+        };
+        unit.foreign_parent = Some(import_parent(
+            &importer,
+            parent,
+            &unit.window.wl_surface,
+            &unit.qh,
+            id,
+        ));
+    }
+
+    /// Export xdg window `id` with xdg-foreign.
+    pub fn export_toplevel(&mut self, id: id::Id, sink: ForeignHandleSink) {
+        let exporter = self.xdg_exporter.clone();
+        let Some(unit) = self.shell_state_mut(id) else {
+            log::error!(target: "exwlshellev", "surface: {id:?} does not exist");
+            sink.deliver(ForeignHandleState::NoSurface);
+            return;
+        };
+        if !matches!(unit.shell, Shell::XdgTopLevel(_)) {
+            // export_toplevel requires an xdg toplevel; other surfaces cause invalid_surface.
+            log::error!(target: "exwlshellev", "{id:?} is not an xdg toplevel, cannot export it");
+            sink.deliver(ForeignHandleState::NotToplevel);
+            return;
+        }
+        if let Some(export) = unit.export.as_mut() {
+            match &export.handle {
+                Some(handle) => sink.deliver(ForeignHandleState::Ready(handle.clone())),
+                None => export.waiting.push(sink),
+            }
+            return;
+        }
+        let Some(exporter) = exporter else {
+            log::error!(target: "exwlshellev", "zxdg_exporter_v2 is not supported on your wm");
+            sink.deliver(ForeignHandleState::Unsupported);
+            return;
+        };
+        let exported = exporter.export_toplevel(&unit.window.wl_surface, &unit.qh, id);
+        unit.export = Some(foreign::ToplevelExport {
+            exported,
+            handle: None,
+            waiting: vec![sink],
+        });
+    }
+
+    /// Revoke the export of window `id`.
+    pub fn unexport_toplevel(&mut self, id: id::Id) {
+        if let Some(export) = self.shell_state_mut(id).and_then(|unit| unit.export.take()) {
+            export.destroy();
+        }
+    }
+
+    /// The handle of window `id`, if it is exported and the compositor sent it.
+    pub fn exported_handle(&self, id: id::Id) -> Option<&ForeignToplevelHandle> {
+        self.shell_state(id)?.export.as_ref()?.handle.as_ref()
     }
 
     /// Compute the minimum dispatch timeout across all window units.
@@ -1928,6 +2033,8 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .bind::<ZxdgDecorationManagerV1, _, _>(&qh, 1..=1, ())
             .ok();
         let xdg_activation = globals.bind::<XdgActivationV1, _, _>(&qh, 1..=1, ()).ok();
+        let xdg_importer = globals.bind::<ZxdgImporterV2, _, _>(&qh, 1..=1, ()).ok();
+        let xdg_exporter = globals.bind::<ZxdgExporterV2, _, _>(&qh, 1..=1, ()).ok();
 
         let fractional_scale_manager = globals
             .bind::<WpFractionalScaleManagerV1, _, _>(&qh, 1..=1, ())
@@ -2024,6 +2131,8 @@ impl<T: 'static> ExWlGlobalShellState<T> {
 
                 xdg_decoration_manager,
                 xdg_activation,
+                xdg_importer,
+                xdg_exporter,
 
                 lock: LockLifecycle::Unlocked,
             },
@@ -3615,6 +3724,19 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         self.shell_state_mut(id)
             .map(ExWlShellState::reset_present_slot);
     }
+}
+
+/// `surface` must belong to an xdg toplevel to avoid an invalid_surface protocol error.
+fn import_parent<T: 'static>(
+    importer: &ZxdgImporterV2,
+    parent: ForeignToplevelHandle,
+    surface: &WlSurface,
+    qh: &QueueHandle<ExWlGlobalShellState<T>>,
+    id: id::Id,
+) -> ZxdgImportedV2 {
+    let imported = importer.import_toplevel(parent.into_string(), qh, id);
+    imported.set_parent_of(surface);
+    imported
 }
 
 fn build_positioner<T: 'static>(

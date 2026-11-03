@@ -12,7 +12,7 @@ use wayland_client::protocol::wl_output::{self};
 
 use crate::size::{LayerSize, PixelSize};
 
-use crate::{blur::BlurOption, id};
+use crate::{blur::BlurOption, foreign::ForeignToplevelHandle, id};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum OutputOption {
@@ -142,6 +142,8 @@ pub struct NewXdgWindowSettings {
     pub app_id: Option<String>,
     /// Set a popup blur
     pub blur_option: BlurOption,
+    /// Stack the window above another client's toplevel using its xdg-foreign handle.
+    pub foreign_parent: Option<ForeignToplevelHandle>,
 }
 
 /// Window state reported by `xdg_toplevel::configure`.
