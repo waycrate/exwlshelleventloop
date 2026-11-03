@@ -87,7 +87,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             size,
             client_side_decorations,
             app_id,
-            blur_option
+            blur_option,
         }: NewXdgWindowSettings,
         info: impl Into<Option<T>>,
     ) -> Option<crate::id::Id> {

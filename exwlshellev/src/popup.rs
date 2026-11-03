@@ -104,7 +104,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             gravity,
             constraint_adjustment,
             grab_serial,
-            blur_option
+            blur_option,
         }: NewPopUpSettings,
         binding: impl Into<Option<T>>,
     ) -> Result<crate::id::Id, crate::ExWlShellEventError> {
