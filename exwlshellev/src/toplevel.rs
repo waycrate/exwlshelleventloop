@@ -87,6 +87,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             size,
             client_side_decorations,
             app_id,
+            blur_option
         }: NewXdgWindowSettings,
         info: impl Into<Option<T>>,
     ) -> Option<crate::id::Id> {
@@ -140,6 +141,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .size(size.unwrap_or(PixelSize::px(300, 300)).to_physical_size())
             .viewport(viewport)
             .fractional_scale(fractional_scale)
+            .blur_option(blur_option)
             .binding(info.into())
             .build(),
         );

@@ -93,7 +93,7 @@ pub enum PopupPlacement {
 }
 
 /// be used to create a new popup
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NewPopUpSettings {
     /// the size of the popup
     pub size: PixelSize,
@@ -109,6 +109,9 @@ pub struct NewPopUpSettings {
     pub constraint_adjustment: PopupConstraintAdjustment,
     /// Serial of the input event
     pub grab_serial: Option<u32>,
+
+    /// Set a popup blur
+    pub blur_option: BlurOption,
 }
 
 /// be used to move and resize a mapped popup
@@ -137,6 +140,8 @@ pub struct NewXdgWindowSettings {
     pub client_side_decorations: bool,
     /// The xdg `app_id`
     pub app_id: Option<String>,
+    /// Set a popup blur
+    pub blur_option: BlurOption,
 }
 
 /// Window state reported by `xdg_toplevel::configure`.

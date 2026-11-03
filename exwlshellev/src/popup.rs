@@ -104,6 +104,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             gravity,
             constraint_adjustment,
             grab_serial,
+            blur_option
         }: NewPopUpSettings,
         binding: impl Into<Option<T>>,
     ) -> Result<crate::id::Id, crate::ExWlShellEventError> {
@@ -190,6 +191,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .parent(Some(parent_id))
             .size(size.to_physical_size())
             .viewport(viewport)
+            .blur_option(blur_option)
             .fractional_scale(fractional_scale)
             .binding(binding.into())
             .build(),
