@@ -3056,6 +3056,16 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     context.state.viewporter.as_ref().map(|viewport| {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
+                                let mut effect = None;
+                                if let Some(effect_manger) =
+                                    &context.state.background_effect_manager
+                                {
+                                    effect = Some(effect_manger.get_background_effect(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                                }
                                 context.state.push_shell(
                                     ExWlShellStateBuilder::new(
                                         id::Id::unique(),
@@ -3069,6 +3079,8 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .wl_output(Some(output_display.clone()))
+                                    .blur_option(context.state.blur_option.clone())
+                                    .effect_surface(effect)
                                     .auto_created()
                                     .build(),
                                 );
@@ -3135,6 +3147,11 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                         (),
                                     ));
                             }
+                            let mut effect = None;
+                            if let Some(effect_manger) = &context.state.background_effect_manager {
+                                effect =
+                                    Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+                            }
                             let viewport = context
                                 .state
                                 .viewporter
@@ -3154,6 +3171,8 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                 .viewport(viewport)
                                 .fractional_scale(fractional_scale)
                                 .wl_output(Some(output_display.clone()))
+                                .blur_option(context.state.blur_option.clone())
+                                .effect_surface(effect)
                                 .auto_created()
                                 .build(),
                             );
@@ -3294,6 +3313,16 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     context.state.viewporter.as_ref().map(|viewport| {
                                         viewport.get_viewport(&wl_surface, &qh, ())
                                     });
+                                let mut effect = None;
+                                if let Some(effect_manger) =
+                                    &context.state.background_effect_manager
+                                {
+                                    effect = Some(effect_manger.get_background_effect(
+                                        &wl_surface,
+                                        &qh,
+                                        (),
+                                    ));
+                                }
                                 context.state.push_shell(
                                     ExWlShellStateBuilder::new(
                                         id::Id::unique(),
@@ -3306,6 +3335,8 @@ impl<T: 'static, W: ExWlShellHandler<T>> ExWlEventLoop<T, W> {
                                     .viewport(viewport)
                                     .fractional_scale(fractional_scale)
                                     .wl_output(Some(wl_output.clone()))
+                                    .blur_option(context.state.blur_option.clone())
+                                    .effect_surface(effect)
                                     .auto_created()
                                     .build(),
                                 );
