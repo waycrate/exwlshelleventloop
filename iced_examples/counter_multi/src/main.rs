@@ -178,11 +178,10 @@ impl Counter {
                         let id = iced::window::Id::unique();
                         self.ids.insert(id, WindowInfo::PopUp);
                         return Command::done(Message::NewMenu {
-                            settings: IcedNewMenuSettings {
-                                size: PixelSize::px(160, 120),
-                                gravity: PopupGravity::TopRight,
-                                ..Default::default()
-                            },
+                            settings: IcedNewMenuSettings::new(
+                                PixelSize::px(160, 120),
+                                PopupGravity::TopRight,
+                            ),
                             id,
                         });
                     }

@@ -228,6 +228,23 @@ pub struct IcedNewMenuSettings {
     pub blur_option: BlurOption,
 }
 
+impl IcedNewMenuSettings {
+    /// create a new [IcedNewMenuSettings]
+    pub fn new(size: PixelSize, gravity: PopupGravity) -> Self {
+        Self {
+            size,
+            gravity,
+            blur_option: BlurOption::None,
+        }
+    }
+
+    /// set the [BlurOption] and return itself
+    pub fn blur_option(mut self, blur_option: BlurOption) -> Self {
+        self.blur_option = blur_option;
+        self
+    }
+}
+
 /// region callback
 type RegionCB = Arc<dyn Fn(&mut InputRegion) + Send + Sync>;
 
