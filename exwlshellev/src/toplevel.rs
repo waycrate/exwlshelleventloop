@@ -123,6 +123,10 @@ impl<T: 'static> ExWlGlobalShellState<T> {
         }
         wl_surface.commit();
 
+        let mut effect = None;
+        if let Some(effect_manger) = &self.background_effect_manager {
+            effect = Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+        }
         let viewport = self
             .viewporter
             .as_ref()
@@ -142,6 +146,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .viewport(viewport)
             .fractional_scale(fractional_scale)
             .blur_option(blur_option)
+            .effect_surface(effect)
             .binding(info.into())
             .build(),
         );

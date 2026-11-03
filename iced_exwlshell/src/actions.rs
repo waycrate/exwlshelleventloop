@@ -111,6 +111,8 @@ pub struct IcedXdgWindowSettings {
     pub client_side_decorations: bool,
     /// The xdg `app_id`
     pub app_id: Option<String>,
+
+    pub blur_option: BlurOption,
 }
 
 impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
@@ -120,11 +122,12 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
             size: val.size,
             client_side_decorations: val.client_side_decorations,
             app_id: val.app_id,
+            blur_option: val.blur_option,
         }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IcedNewPopupSettings {
     pub size: PixelSize,
     pub parent: Option<IcedId>,
@@ -132,6 +135,7 @@ pub struct IcedNewPopupSettings {
     pub anchor: PopupAnchor,
     pub gravity: PopupGravity,
     pub constraint_adjustment: PopupConstraintAdjustment,
+    pub blur_option: BlurOption,
 }
 
 impl IcedNewPopupSettings {
@@ -181,11 +185,18 @@ impl IcedNewPopupSettings {
             placement,
             anchor: PopupAnchor::BottomLeft,
             gravity: PopupGravity::BottomRight,
+            blur_option: BlurOption::None,
             constraint_adjustment: PopupConstraintAdjustment::FlipX
                 | PopupConstraintAdjustment::FlipY
                 | PopupConstraintAdjustment::SlideX
                 | PopupConstraintAdjustment::SlideY,
         }
+    }
+
+    /// set the blur option for the popup
+    pub fn blur_option(mut self, blur_option: BlurOption) -> Self {
+        self.blur_option = blur_option;
+        self
     }
 
     /// Set which point of the anchor rect the popup is anchored to.
@@ -210,10 +221,11 @@ impl IcedNewPopupSettings {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IcedNewMenuSettings {
     pub size: PixelSize,
     pub gravity: PopupGravity,
+    pub blur_option: BlurOption,
 }
 
 /// region callback

@@ -174,7 +174,10 @@ impl<T: 'static> ExWlGlobalShellState<T> {
                 Some(fractional_scale_manager.get_fractional_scale(&wl_surface, &qh, ()));
         }
         wl_surface.commit();
-
+        let mut effect = None;
+        if let Some(effect_manger) = &self.background_effect_manager {
+            effect = Some(effect_manger.get_background_effect(&wl_surface, &qh, ()));
+        }
         let viewport = self
             .viewporter
             .as_ref()
@@ -192,6 +195,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
             .size(size.to_physical_size())
             .viewport(viewport)
             .blur_option(blur_option)
+            .effect_surface(effect)
             .fractional_scale(fractional_scale)
             .binding(binding.into())
             .build(),

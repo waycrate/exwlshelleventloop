@@ -1147,6 +1147,7 @@ where
                     anchor,
                     gravity,
                     constraint_adjustment,
+                    blur_option,
                 } = settings;
                 let parent_layer_id = match parent {
                     Some(parent) => self.window_manager.get(parent).map(|w| w.id),
@@ -1164,6 +1165,7 @@ where
                     gravity,
                     constraint_adjustment,
                     grab_serial,
+                    blur_option,
                 };
 
                 let _ = ev.create_popup(popup_settings, iced_id);
@@ -1219,6 +1221,7 @@ where
                         | PopupConstraintAdjustment::SlideX
                         | PopupConstraintAdjustment::SlideY,
                     grab_serial: None,
+                    blur_option: menu_setting.blur_option,
                 };
                 let _ = ev.create_popup(popup_settings, Some(iced_id));
             }
