@@ -40,6 +40,12 @@ impl ForeignToplevelHandle {
     }
 }
 
+impl From<ForeignToplevelHandle> for String {
+    fn from(val: ForeignToplevelHandle) -> Self {
+        val.0
+    }
+}
+
 impl Display for ForeignToplevelHandle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
