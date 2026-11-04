@@ -6,8 +6,9 @@ use exwlshellev::reexport::xdg_positioner::{
     Gravity as PopupGravity,
 };
 use exwlshellev::{
-    ActivationTokenSink, InputRectangle, LayerSize, Margin, NewInputPanelSettings,
-    NewLayerShellSettings, NewXdgWindowSettings, PixelSize, PopupPlacement, Position, RegionAction,
+    ActivationTokenSink, ForeignHandleSink, ForeignToplevelHandle, InputRectangle, LayerSize,
+    Margin, NewInputPanelSettings, NewLayerShellSettings, NewXdgWindowSettings, PixelSize,
+    PopupPlacement, Position, RegionAction,
 };
 use iced_core::window::Id as IcedId;
 use std::sync::Arc;
@@ -113,6 +114,8 @@ pub struct IcedXdgWindowSettings {
     pub app_id: Option<String>,
 
     pub blur_option: BlurOption,
+    /// Stack the window above another client's toplevel using its xdg-foreign handle.
+    pub foreign_parent: Option<ForeignToplevelHandle>,
 }
 
 impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
@@ -123,6 +126,7 @@ impl From<IcedXdgWindowSettings> for NewXdgWindowSettings {
             client_side_decorations: val.client_side_decorations,
             app_id: val.app_id,
             blur_option: val.blur_option,
+            foreign_parent: val.foreign_parent,
         }
     }
 }
@@ -310,6 +314,12 @@ pub enum ExWlShellCustomAction {
         settings: IcedXdgWindowSettings,
         id: IcedId,
     },
+    /// Replace the addressed xdg window's foreign parent, or clear it with `None`.
+    SetForeignParent(Option<ForeignToplevelHandle>),
+    /// Export the addressed xdg window with xdg-foreign and send the handle to the sink.
+    ExportToplevel(ForeignHandleSink),
+    /// Revoke the addressed xdg window export and invalidate its handle.
+    UnexportToplevel,
     NewInputPanel {
         settings: NewInputPanelSettings,
         id: IcedId,

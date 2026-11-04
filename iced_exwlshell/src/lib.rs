@@ -19,6 +19,9 @@ pub use surface_regions::{BlurRegions, InputRegionActions, IntoRegionAction};
 
 pub mod reexport {
     pub use exwlshellev::ActivationTokenSink;
+    pub use exwlshellev::ForeignHandleSink;
+    pub use exwlshellev::ForeignHandleState;
+    pub use exwlshellev::ForeignToplevelHandle;
     pub use exwlshellev::Margin;
     pub use exwlshellev::NewInputPanelSettings;
     pub use exwlshellev::NewLayerShellSettings;

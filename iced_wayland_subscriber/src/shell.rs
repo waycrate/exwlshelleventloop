@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 pub use crate::info::ExWlOutputInfo;
-use exwlshellev::XdgActivationTokenV1Wrapper;
+use exwlshellev::{ForeignToplevelHandle, XdgActivationTokenV1Wrapper};
 use futures::channel::mpsc;
 use iced_core::window::Id;
 use iced_futures::Subscription;
@@ -55,6 +55,13 @@ pub enum ShellEvent {
     NewActivationToken {
         window: Id,
         token: XdgActivationTokenV1Wrapper,
+    },
+    /// The foreign parent set with xdg-foreign is gone.
+    ForeignParentDestroyed { window: Id },
+    /// The compositor sent the xdg-foreign handle of an exported window.
+    ToplevelExported {
+        window: Id,
+        handle: ForeignToplevelHandle,
     },
 }
 

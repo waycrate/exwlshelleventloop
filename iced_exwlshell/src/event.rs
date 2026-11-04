@@ -112,6 +112,8 @@ pub enum WindowEvent {
     LockFinished,
     NewActivationToken(XdgActivationTokenV1Wrapper),
     ToplevelStateChanged(exwlshellev::ToplevelState),
+    ForeignParentDestroyed,
+    ToplevelExported(exwlshellev::ForeignToplevelHandle),
 }
 
 impl WindowEvent {
@@ -188,6 +190,8 @@ impl WindowEvent {
             ExWlShellEvent::ToplevelStateChanged(state) => WindowEvent::ToplevelStateChanged(state),
 
             ExWlShellEvent::NewActivationToken(token) => WindowEvent::NewActivationToken(token),
+            ExWlShellEvent::ForeignParentDestroyed => WindowEvent::ForeignParentDestroyed,
+            ExWlShellEvent::ToplevelExported(handle) => WindowEvent::ToplevelExported(handle),
         }
     }
     pub(crate) fn from_dispatch_broadcast(value: ExWlShellBroadcast) -> Self {

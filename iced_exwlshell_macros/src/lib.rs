@@ -58,6 +58,12 @@ pub fn to_exwlshell_message(
             NewLayerShell { settings: iced_exwlshell::reexport::NewLayerShellSettings, id: iced_exwlshell::reexport::IcedId },
             /// Action request for new base window
             NewBaseWindow { settings: iced_exwlshell::actions::IcedXdgWindowSettings, id: iced_exwlshell::reexport::IcedId },
+            /// Set the xdg window's foreign parent, or clear it with `None`.
+            SetForeignParent { id: iced_exwlshell::reexport::IcedId, parent: Option<iced_exwlshell::reexport::ForeignToplevelHandle> },
+            /// Export an xdg window with xdg-foreign and send the handle to the sink.
+            ExportToplevel { id: iced_exwlshell::reexport::IcedId, sink: iced_exwlshell::reexport::ForeignHandleSink },
+            /// Revoke the xdg-foreign export of an xdg window.
+            UnexportToplevel(iced_exwlshell::reexport::IcedId),
             /// Action request for new base popup
             NewPopUp { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
             /// During move/resize of a mapped popup `settings.parent` is ignored. Can't be reparented as per spec
@@ -134,6 +140,9 @@ pub fn to_exwlshell_message(
                         ),
                         Self::NewLayerShell {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewLayerShell { settings, id })),
                         Self::NewBaseWindow {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewBaseWindow { settings, id })),
+                        Self::SetForeignParent { id, parent } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::SetForeignParent(parent))),
+                        Self::ExportToplevel { id, sink } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::ExportToplevel(sink))),
+                        Self::UnexportToplevel(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::UnexportToplevel)),
                         Self::NewPopUp { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewPopUp { settings, id })),
                         Self::PopUpReposition { settings, id } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::PopUpReposition { settings })),
                         Self::NewMenu { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewMenu { settings, id })),
@@ -261,6 +270,12 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                 },
                 NewLayerShell { settings: iced_exwlshell::reexport::NewLayerShellSettings, id: iced_exwlshell::reexport::IcedId },
                 NewBaseWindow { settings: iced_exwlshell::actions::IcedXdgWindowSettings, id: iced_exwlshell::reexport::IcedId },
+                /// Set the xdg window's foreign parent, or clear it with `None`.
+                SetForeignParent { id: iced_exwlshell::reexport::IcedId, parent: Option<iced_exwlshell::reexport::ForeignToplevelHandle> },
+                /// Export an xdg window with xdg-foreign and send the handle to the sink.
+                ExportToplevel { id: iced_exwlshell::reexport::IcedId, sink: iced_exwlshell::reexport::ForeignHandleSink },
+                /// Revoke the xdg-foreign export of an xdg window.
+                UnexportToplevel(iced_exwlshell::reexport::IcedId),
                 NewPopUp { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
                 /// During move/resize of a mapped popup `settings.parent` is ignored. Can't be reparented as per spec
                 PopUpReposition { settings: iced_exwlshell::actions::IcedNewPopupSettings, id: iced_exwlshell::reexport::IcedId },
@@ -327,6 +342,9 @@ pub fn to_layer_message(attr: TokenStream2, input: TokenStream2) -> manyhow::Res
                             ),
                             Self::NewLayerShell {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewLayerShell { settings, id })),
                             Self::NewBaseWindow {settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewBaseWindow { settings, id })),
+                            Self::SetForeignParent { id, parent } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::SetForeignParent(parent))),
+                            Self::ExportToplevel { id, sink } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::ExportToplevel(sink))),
+                            Self::UnexportToplevel(id) => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::UnexportToplevel)),
                             Self::NewPopUp { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewPopUp { settings, id })),
                             Self::PopUpReposition { settings, id } => Ok(ExWlShellCustomActionWithId::new(Some(id), ExWlShellCustomAction::PopUpReposition { settings })),
                             Self::NewMenu { settings, id } => Ok(ExWlShellCustomActionWithId::new(None, ExWlShellCustomAction::NewMenu { settings, id })),
