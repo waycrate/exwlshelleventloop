@@ -15,10 +15,10 @@ use iced_exwlshell::to_exwlshell_message;
 use iced_wayland_subscriber::shell::{ShellEvent, ShellReceiver};
 
 fn main() -> Result<(), iced_exwlshell::Error> {
-    tracing_subscriber::fmt().init();
+    let toplevel_id = std::env::args().nth(1);
     let (shell_broadcast, shell_events) = iced_wayland_subscriber::shell::channel();
     daemon(
-        move || App::new(shell_events.clone()),
+        move || App::new(shell_events.clone(), toplevel_id.clone()),
         || "xdg_foreign".to_owned(),
         App::update,
         App::view,
@@ -50,7 +50,25 @@ enum Message {
 }
 
 impl App {
-    fn new(shell_events: ShellReceiver) -> (Self, Task<Message>) {
+    fn new_foreign_child(
+        shell_events: ShellReceiver,
+        toplevel_id: String,
+    ) -> (Self, Task<Message>) {
+        let (id, open) = Message::base_window_open(IcedXdgWindowSettings {
+            foreign_parent: Some(ForeignToplevelHandle::new(&toplevel_id)),
+            ..Default::default()
+        });
+        let app = Self {
+            windows: BTreeMap::from([(id, format!("parent requested: {toplevel_id}"))]),
+            exported: None,
+            shell_events,
+        };
+        (app, open)
+    }
+    fn new(shell_events: ShellReceiver, toplevel_id: Option<String>) -> (Self, Task<Message>) {
+        if let Some(toplevel_id) = toplevel_id {
+            return Self::new_foreign_child(shell_events, toplevel_id);
+        }
         let (id, open) = Message::base_window_open(IcedXdgWindowSettings::default());
         let app = Self {
             windows: BTreeMap::from([(id, "exporting...".to_owned())]),
@@ -90,6 +108,7 @@ impl App {
             }
             Message::Shell(ShellEvent::ToplevelExported { window, handle }) => {
                 self.windows.insert(window, format!("handle: {handle}"));
+                println!("id = {}", handle.as_str());
                 self.exported = Some((window, handle));
             }
             Message::Shell(ShellEvent::ForeignParentDestroyed { window }) => {
