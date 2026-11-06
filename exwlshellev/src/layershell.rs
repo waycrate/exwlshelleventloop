@@ -136,7 +136,7 @@ impl<T: 'static> ExWlGlobalShellState<T> {
                 self.wl_compositor.clone(),
                 Shell::LayerShell(layer),
             )
-            .layout(self.anchor, self.size)
+            .layout(anchor, size)
             .viewport(viewport)
             .blur_option(blur_option)
             .effect_surface(effect)
