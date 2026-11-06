@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.4] - 2026-11-07
+
+### Hot fix
+- Layershell did not storage its own layout in create_new_layershell, but instead it stored that one in global state
+- Stored region will never changed because the logic is changed when it did not change
+
+[0.21.4]: https://github.com/waycrate/exwlshelleventloop/compare/v0.21.4...v0.20.3
+
 ## [0.21.3] - 2026-11-02
 
 ### Migration
