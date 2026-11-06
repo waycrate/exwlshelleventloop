@@ -835,7 +835,7 @@ impl<T: 'static> ExWlShellState<T> {
     }
 
     pub fn stage_input_region_if_changed(&mut self, actions: Vec<RegionAction>) {
-        if self.staged_input_region != actions {
+        if self.staged_input_region == actions {
             return;
         }
         let region = self.wl_compositor.create_region(&self.qh, ());
