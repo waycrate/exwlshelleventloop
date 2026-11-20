@@ -256,15 +256,41 @@ fn viewport(
 ) -> Viewport {
     let factor = wayland_scale_factor * application_scale_factor;
     let physical_size = Size::new(
-        (window_size.width as f64 * wayland_scale_factor).ceil() as u32,
-        (window_size.height as f64 * wayland_scale_factor).ceil() as u32,
+        buffer_length(window_size.width, wayland_scale_factor),
+        buffer_length(window_size.height, wayland_scale_factor),
     );
     Viewport::with_physical_size(physical_size, factor as f32)
+}
+
+/// Rounds `logical * scale` halfway away from zero, as wp-fractional-scale-v1
+/// does for toplevels.
+/// The scale arrives in 120ths, so integer math gets it exact where `f64`
+/// would not, as in `1745 * 2.2 = 3839.0000000000005`.
+fn buffer_length(logical: u32, scale: f64) -> u32 {
+    let per_120 = (scale * 120.0).round() as u64;
+    ((logical as u64 * per_120 + 60) / 120) as u32
 }
 
 fn set_wpviewport_destination(wpviewport: &WpViewport, window_size: Size<u32>) {
     if window_size.width != 0 && window_size.height != 0 {
         // set_destination(0, 0) will panic
         wpviewport.set_destination(window_size.width as i32, window_size.height as i32);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn buffer_size_rounds_to_the_nearest_pixel() {
+        let viewport = viewport(Size::new(1745, 1091), 2.2, 1.0);
+        assert_eq!(viewport.physical_size(), Size::new(3839, 2400));
+    }
+
+    #[test]
+    fn buffer_size_rounds_half_away_from_zero() {
+        let viewport = viewport(Size::new(990, 990), 122.0 / 120.0, 1.0);
+        assert_eq!(viewport.physical_size(), Size::new(1007, 1007));
     }
 }
