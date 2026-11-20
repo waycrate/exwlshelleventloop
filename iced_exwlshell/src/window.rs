@@ -548,7 +548,7 @@ where
         let unit_id = ex_wlshell_window.id();
         let toplevel_state = ex_wlshell_window.toplevel_state();
         let exwlshellev::dpi::PhysicalSize { width, height } = ex_wlshell_window.physical_size();
-        let scale_float = ex_wlshell_window.scale_float();
+        let wayland_scale = ex_wlshell_window.scale_u32();
         // events may not be handled after RequestRefreshWithWrapper in the same
         // interaction, we dispatched them immediately.
         let mut events = Vec::new();
@@ -556,7 +556,7 @@ where
             if let Some((iced_id, window)) = self.window_manager.get_mut_alias(unit_id) {
                 if update_view_port {
                     let layout_span = iced_debug::layout(iced_id);
-                    window.state.update_view_port(width, height, scale_float);
+                    window.state.update_view_port(width, height, wayland_scale);
                     if let Some(ui) = self.user_interfaces.ui_mut(&iced_id) {
                         ui.relayout(window.state.viewport().logical_size(), &mut window.renderer);
                     }
@@ -637,7 +637,7 @@ where
                 let window = self.window_manager.insert(
                     iced_id,
                     (width, height),
-                    scale_float,
+                    wayland_scale,
                     wrapper,
                     self.user_interfaces.application(),
                     self.compositor

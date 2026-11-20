@@ -16,7 +16,8 @@ where
 {
     id: window::Id,
     application_scale_factor: f64,
-    wayland_scale_factor: f64,
+    /// The wl_surface scale in units of 1/120, as wp-fractional-scale-v1 sends it.
+    wayland_scale: u32,
     window_size: Size<u32>,
     viewport: Viewport,
     viewport_version: usize,
@@ -47,7 +48,7 @@ where
         id: window::Id,
         application: &Instance<P>,
         (width, height): (u32, u32),
-        wayland_scale_factor: f64,
+        wayland_scale: u32,
         window: &WindowWrapper,
         system_theme: iced_core::theme::Mode,
     ) -> Self {
@@ -61,7 +62,7 @@ where
         let style = application.style(theme.as_ref().unwrap_or(&default_theme));
 
         let window_size = Size::new(width, height);
-        let viewport = viewport(window_size, wayland_scale_factor, application_scale_factor);
+        let viewport = viewport(window_size, wayland_scale, application_scale_factor);
 
         let wpviewport = window
             .viewport
@@ -72,7 +73,7 @@ where
         Self {
             id,
             application_scale_factor,
-            wayland_scale_factor,
+            wayland_scale,
             window_size,
             viewport,
             viewport_version: 0,
@@ -93,13 +94,13 @@ where
         self.modifiers
     }
 
-    pub fn update_view_port(&mut self, width: u32, height: u32, scale: f64) {
+    pub fn update_view_port(&mut self, width: u32, height: u32, scale: u32) {
         let window_size = Size::new(width, height);
-        if self.window_size == window_size && self.wayland_scale_factor == scale {
+        if self.window_size == window_size && self.wayland_scale == scale {
             return;
         }
         self.window_size = window_size;
-        self.wayland_scale_factor = scale;
+        self.wayland_scale = scale;
         self.resize_viewport();
         set_wpviewport_destination(&self.wpviewport, self.window_size);
     }
@@ -120,13 +121,13 @@ where
     pub fn window_size_f32(&self) -> Size<f32> {
         let physical_size = self.viewport.physical_size();
         Size::new(
-            (physical_size.width as f64 / self.wayland_scale_factor) as f32,
-            (physical_size.height as f64 / self.wayland_scale_factor) as f32,
+            (physical_size.width as f64 / self.wayland_scale_factor()) as f32,
+            (physical_size.height as f64 / self.wayland_scale_factor()) as f32,
         )
     }
 
     pub fn wayland_scale_factor(&self) -> f64 {
-        self.wayland_scale_factor
+        self.wayland_scale as f64 / 120.0
     }
 
     pub fn application_scale_factor(&self) -> f64 {
@@ -190,11 +191,8 @@ where
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.modifiers = *modifiers;
             }
-            WindowEvent::ScaleFactorChanged {
-                scale_float,
-                scale_u32: _,
-            } => {
-                self.wayland_scale_factor = *scale_float;
+            WindowEvent::ScaleFactorChanged { scale_u32, .. } => {
+                self.wayland_scale = *scale_u32;
                 self.resize_viewport();
             }
             WindowEvent::ToplevelStateChanged(toplevel_state) => {
@@ -233,7 +231,7 @@ where
         );
         self.viewport = viewport(
             self.window_size,
-            self.wayland_scale_factor,
+            self.wayland_scale,
             self.application_scale_factor,
         );
         tracing::debug!(
@@ -241,7 +239,7 @@ where
             self.window_size,
             self.viewport.physical_size(),
             self.viewport.logical_size(),
-            self.wayland_scale_factor,
+            self.wayland_scale_factor(),
             self.application_scale_factor
         );
 
@@ -249,26 +247,20 @@ where
     }
 }
 
-fn viewport(
-    window_size: Size<u32>,
-    wayland_scale_factor: f64,
-    application_scale_factor: f64,
-) -> Viewport {
-    let factor = wayland_scale_factor * application_scale_factor;
+fn viewport(window_size: Size<u32>, wayland_scale: u32, application_scale_factor: f64) -> Viewport {
+    let factor = wayland_scale as f64 / 120.0 * application_scale_factor;
     let physical_size = Size::new(
-        buffer_length(window_size.width, wayland_scale_factor),
-        buffer_length(window_size.height, wayland_scale_factor),
+        buffer_length(window_size.width, wayland_scale),
+        buffer_length(window_size.height, wayland_scale),
     );
     Viewport::with_physical_size(physical_size, factor as f32)
 }
 
-/// Rounds `logical * scale` halfway away from zero, as wp-fractional-scale-v1
-/// does for toplevels.
-/// The scale arrives in 120ths, so integer math gets it exact where `f64`
-/// would not, as in `1745 * 2.2 = 3839.0000000000005`.
-fn buffer_length(logical: u32, scale: f64) -> u32 {
-    let per_120 = (scale * 120.0).round() as u64;
-    ((logical as u64 * per_120 + 60) / 120) as u32
+/// Rounds `logical * scale / 120` halfway away from zero, as
+/// wp-fractional-scale-v1 does for toplevels. Integer math keeps it exact,
+/// where `f64` gives `1745 * 2.2 = 3839.0000000000005`.
+fn buffer_length(logical: u32, scale: u32) -> u32 {
+    ((logical as u64 * scale as u64 + 60) / 120) as u32
 }
 
 fn set_wpviewport_destination(wpviewport: &WpViewport, window_size: Size<u32>) {
@@ -284,13 +276,13 @@ mod tests {
 
     #[test]
     fn buffer_size_rounds_to_the_nearest_pixel() {
-        let viewport = viewport(Size::new(1745, 1091), 2.2, 1.0);
+        let viewport = viewport(Size::new(1745, 1091), 264, 1.0);
         assert_eq!(viewport.physical_size(), Size::new(3839, 2400));
     }
 
     #[test]
     fn buffer_size_rounds_half_away_from_zero() {
-        let viewport = viewport(Size::new(990, 990), 122.0 / 120.0, 1.0);
+        let viewport = viewport(Size::new(990, 990), 122, 1.0);
         assert_eq!(viewport.physical_size(), Size::new(1007, 1007));
     }
 }
