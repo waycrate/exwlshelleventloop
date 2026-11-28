@@ -140,6 +140,11 @@ pub struct IcedNewPopupSettings {
     pub gravity: PopupGravity,
     pub constraint_adjustment: PopupConstraintAdjustment,
     pub blur_option: BlurOption,
+    /// Whether the popup takes an explicit grab (`xdg_popup.grab`) with the serial of the last
+    /// input event. `true` by default: the popup gets the keyboard and is dismissed when the
+    /// user clicks outside of it. Set it to `false` for a popup that must leave the keyboard
+    /// to its parent, such as a completion list under a text field or a tooltip.
+    pub grab: bool,
 }
 
 impl IcedNewPopupSettings {
@@ -190,11 +195,19 @@ impl IcedNewPopupSettings {
             anchor: PopupAnchor::BottomLeft,
             gravity: PopupGravity::BottomRight,
             blur_option: BlurOption::None,
+            grab: true,
             constraint_adjustment: PopupConstraintAdjustment::FlipX
                 | PopupConstraintAdjustment::FlipY
                 | PopupConstraintAdjustment::SlideX
                 | PopupConstraintAdjustment::SlideY,
         }
+    }
+
+    /// Whether the popup grabs the keyboard and the pointer (`true` by default); see
+    /// [`IcedNewPopupSettings::grab`].
+    pub fn grab(mut self, grab: bool) -> Self {
+        self.grab = grab;
+        self
     }
 
     /// set the blur option for the popup
@@ -340,5 +353,19 @@ pub struct ExWlShellCustomActionWithId(pub Option<IcedId>, pub ExWlShellCustomAc
 impl ExWlShellCustomActionWithId {
     pub fn new(id: Option<IcedId>, action: ExWlShellCustomAction) -> Self {
         Self(id, action)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn popups_grab_by_default_and_can_leave_the_keyboard() {
+        let size = PixelSize::px(100, 50);
+        let at = Position::new(10, 20);
+        let popup = IcedNewPopupSettings::at_position_on_current_surface(size, at);
+        assert!(popup.grab);
+        assert!(!popup.grab(false).grab);
     }
 }
