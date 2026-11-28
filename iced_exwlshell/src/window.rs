@@ -1190,6 +1190,7 @@ where
                     gravity,
                     constraint_adjustment,
                     blur_option,
+                    grab,
                 } = settings;
                 let parent_layer_id = match parent {
                     Some(parent) => self.window_manager.get(parent).map(|w| w.id),
@@ -1198,7 +1199,8 @@ where
                 let Some(parent_layer_id) = parent_layer_id else {
                     return;
                 };
-                let grab_serial = self.action_serial;
+                // Without a grab, the popup leaves the keyboard to its parent.
+                let grab_serial = if grab { self.action_serial } else { None };
                 let popup_settings = NewPopUpSettings {
                     size,
                     id: parent_layer_id,
